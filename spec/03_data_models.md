@@ -5,6 +5,7 @@
 このドキュメントでは、アプリケーション全体で使用するデータモデル（Pythonクラス）を定義する。
 
 **実装方針**:
+
 - **Pydantic v2** を使用（型検証・シリアライズ）
 - Immutable推奨（`frozen=True`）
 - 明確なデフォルト値
@@ -53,7 +54,7 @@ class Patient(BaseModel):
     sex: str = Field(..., pattern=r"^(M|F|O)$", description="性別")
     age: str | None = Field(None, pattern=r"^\d{3}Y$", description="年齢（例: 044Y）")
     weight: float | None = Field(None, ge=0, le=500, description="体重（kg）")
-    size: float | None = Field(None, ge=0, le=3, description="身長（m）")
+    size: float | None = Field(None, ge=0, le=300, description="身長（cm）")
     patient_comments: str | None = Field(None, max_length=128, description="患者コメント")
 ```
 

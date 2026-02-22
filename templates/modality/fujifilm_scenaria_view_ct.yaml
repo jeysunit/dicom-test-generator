@@ -1,0 +1,48 @@
+# Modality Template: FUJIFILM SCENARIA View CT
+# Based on SCENARIA View DICOM Conformance Statement
+
+info:
+  name: "fujifilm_scenaria_view_ct"
+  manufacturer: "FUJIFILM Healthcare"
+  model_name: "SCENARIA View"
+  modality: "CT"
+  version: "1.0"
+  description: "FUJIFILM SCENARIA View CT テンプレート"
+
+file_meta:
+  media_storage_sop_class_uid: "1.2.840.10008.5.1.4.1.1.2"
+  transfer_syntax_uid: "1.2.840.10008.1.2"
+  implementation_version_name: "DICOM_GEN_1.1"
+
+general_equipment:
+  manufacturer: "FUJIFILM Healthcare"
+  institution_name: ""
+  station_name: "SCENARIA_VIEW"
+  manufacturers_model_name: "SCENARIA View"
+  software_versions: "V4.0"
+
+ct_image:
+  kvp: "120"
+  exposure_time: "500"
+  x_ray_tube_current: "200"
+  convolution_kernel: "STANDARD"
+  rescale_intercept: "-1024"
+  rescale_slope: "1"
+
+spatial:
+  slice_thickness: 5.0
+  slice_spacing: 5.0
+  start_z: 0.0
+  pixel_spacing: [0.5, 0.5]
+  image_orientation_patient: [1, 0, 0, 0, 1, 0]
+
+window_presets:
+  - name: "Soft Tissue"
+    center: 40
+    width: 400
+  - name: "Lung"
+    center: -600
+    width: 1500
+  - name: "Bone"
+    center: 400
+    width: 2000

@@ -1,9 +1,11 @@
 # ADR-0001: Core Library First
 
-## Status
+## ステータス
+
 **Accepted** - 2025-02-21
 
-## Context
+## 背景
+
 DICOM生成ツールの開発順序を決定する必要がある。以下の選択肢があった：
 
 1. **GUI-First**: GUIから実装し、後でCLIを追加
@@ -11,20 +13,24 @@ DICOM生成ツールの開発順序を決定する必要がある。以下の選
 3. **Core-First**: Core Engineを先に実装し、後でUI（CLI/GUI）を追加
 
 ### 要求
+
 - テストデータ生成が主目的（プログラム開発ではない）
 - 生成AIによる実装を前提
 - 段階的開発が可能
 - 単体テストが容易
 
 ### 制約
+
 - 個人開発（小規模チーム）
 - 最短実装を優先
 - 保守性が必要
 
-## Decision
-**Phase 0: Core Engine を最優先で実装する**
+## 決定
+
+Phase 0: Core Engine を最優先で実装する。
 
 開発順序：
+
 ```text
 Phase 0: Core Engine (UI非依存)
    ↓
@@ -36,6 +42,7 @@ Phase 2: GUI
 ### 理由
 
 #### Core-First の利点
+
 1. **UI非依存で単体テスト可能**
    - Core Engineは純粋なPython関数
    - PyTestで完全にテスト可能
@@ -57,35 +64,42 @@ Phase 2: GUI
    - GUI追加 → UX向上
 
 #### GUI-First/CLI-First を選ばない理由
+
 - **GUI-First**: UI実装が複雑、テストが困難、生成AIには不向き
 - **CLI-First**: UIとロジックが密結合しがち
 
-## Consequences
+## 影響
 
-### Positive
+### 良い点
+
 - ✅ Core Engineが独立したライブラリとして使用可能
 - ✅ Jupyter NotebookやスクリプトからCore APIを直接呼び出し可能
 - ✅ 単体テストが容易
 - ✅ Phase 0完了時点でDICOM生成機能が動作
 - ✅ 将来的にWeb API化も容易
 
-### Negative
+### 悪い点
+
 - ⚠️ 初期段階でGUIがない（テストデータ生成には問題なし）
 - ⚠️ Phase 0完了まではCLIもない（開発者向けなので許容）
 
-### Risks
+### リスク
+
 - ⚠️ Core API設計ミスの影響が大きい
   - **軽減策**: 仕様書で事前にAPI設計を固める（本ドキュメント）
 
-## Implementation
+## 実装
+
 - `app/core/` パッケージを最初に実装
 - CLI/GUIは `app/core` をimportして使用
 - Core Engineは一切のUI依存を持たない
 
-## Related Decisions
+## 関連する決定
+
 - [ADR-0002: YAML Job Configuration](0002-yaml-job-configuration.md)
 - [ADR-0006: Threading Model](0006-threading-model.md)
 
-## References
+## 参考資料
+
 - [02_core_engine.md](../spec/02_core_engine.md)
 - [01_architecture.md](../spec/01_architecture.md)

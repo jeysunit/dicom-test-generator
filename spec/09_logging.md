@@ -313,6 +313,7 @@ logger.info(
 ```
 
 **出力例**:
+
 ```json
 {"timestamp": "2025-02-21 14:30:05", "level": "INFO", "logger": "dicom_generator", "message": "Image generated", "patient_id": "P000001", "sop_uid": "2.25.123...", "filepath": "output/test.dcm"}
 ```

@@ -5,6 +5,7 @@
 Job YAMLは、DICOM生成の全設定を記述する統一フォーマット。
 
 **用途**:
+
 - CLI: `python -m app.cli generate job.yaml`
 - GUI: Job設定のロード・保存
 - テストケース: 再現可能な生成設定
@@ -33,7 +34,7 @@ patient:
   sex: "M"
   age: "044Y"
   weight: 65.5
-  size: 1.70
+  size: 170.0
   patient_comments: ""
 
 # スタディ情報
@@ -166,7 +167,7 @@ character_set:
 | `sex` | string | ○ | 性別（M/F/O） | "M" |
 | `age` | string | - | 年齢（nnnY形式） | "044Y" |
 | `weight` | float | - | 体重（kg） | 65.5 |
-| `size` | float | - | 身長（m） | 1.70 |
+| `size` | float | - | 身長（cm） | 170.0 |
 | `patient_comments` | string | - | 患者コメント | "" |
 
 #### patient_name（必須）
@@ -235,6 +236,7 @@ pixel_spec:
 | `is_little_endian` | bool | ○ | Little Endianか |
 
 **よく使う値**:
+
 ```yaml
 # Implicit VR Little Endian（デフォルト）
 transfer_syntax:
@@ -260,6 +262,7 @@ transfer_syntax:
 | `use_phonetic` | bool | ○ | カナを使用するか |
 
 **よく使う値**:
+
 ```yaml
 # 日本語（ISO 2022 IR 87）
 character_set:

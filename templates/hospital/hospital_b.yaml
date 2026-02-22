@@ -1,0 +1,19 @@
+# Hospital Template: Hospital B (ローマ字のみ)
+
+info:
+  name: "hospital_b"
+  description: "B病院（ローマ字のみ）"
+
+overrides:
+  character_set:
+    specific_character_set: ""
+
+  patient_module:
+    patient_name:
+      use_alphabetic: true
+      use_ideographic: false
+      use_phonetic: false
+
+  general_equipment:
+    institution_name: "B Hospital"
+    station_name: "CT_B_01"

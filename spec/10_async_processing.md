@@ -306,7 +306,7 @@ class ProgressWidget(QWidget):
 
 ### 重要な注意点
 
-**❗ UIウィジェットの操作はUIスレッドのみ**
+UIウィジェットの操作はUIスレッドのみで行うこと。
 
 ```python
 # ❌ 悪い例（ワーカースレッドからUI操作）

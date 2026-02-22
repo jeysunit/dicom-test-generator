@@ -74,6 +74,7 @@ ds.save_as("output.dcm", write_like_original=False)
 ```
 
 **注意事項**:
+
 - `write_like_original=False` を指定すること（新規ファイル作成時）
 - File Metaの Transfer Syntax UID とデータセット本体の圧縮形式は一致させること
 
@@ -102,6 +103,7 @@ ds.save_as("output.dcm", write_like_original=False)
 **例**: `2.25.113059749145936325402354257176981405696`
 
 **実装例**:
+
 ```python
 import uuid
 
@@ -124,6 +126,7 @@ def generate_uid_uuid():
 ```
 
 **実装ロジック**:
+
 ```python
 import random
 
@@ -155,6 +158,7 @@ def generate_uid_with_invalid(allow_invalid=False):
 ### Simple Textモード
 
 **仕様**:
+
 - **サイズ**: 512×512ピクセル（デフォルト）
 - **背景色**: 黒（値=0）
 - **テキスト色**: 白（値=255）
@@ -168,6 +172,7 @@ def generate_uid_with_invalid(allow_invalid=False):
 ### CT Realisticモード（医療ビューア対応）
 
 **仕様**:
+
 - **サイズ**: 512×512ピクセル（デフォルト）
 - **Photometric Interpretation**: MONOCHROME2
 - **Bits Allocated**: 16
@@ -187,6 +192,7 @@ HU = Pixel Value × Rescale Slope + Rescale Intercept
 ```
 
 **例**:
+
 - Pixel Value = 0 → HU = 0 × 1 + (-1024) = -1024 (Air)
 - Pixel Value = 1024 → HU = 1024 × 1 + (-1024) = 0 (Water)
 - Pixel Value = 2048 → HU = 2048 × 1 + (-1024) = 1024 (Bone)
@@ -299,6 +305,7 @@ YAMADA^TARO=山田^太郎=ヤマダ^タロウ
 ```
 
 各コンポーネント:
+
 - **Alphabetic**: ローマ字（ASCII）
 - **Ideographic**: 漢字（ISO 2022 IR 87またはUTF-8）
 - **Phonetic**: カタカナ（ISO 2022 IR 87またはUTF-8）
@@ -437,8 +444,8 @@ def save_with_transfer_syntax(ds, filepath, transfer_syntax_uid):
 
 ## 参考資料
 
-1. **DICOM Standard**: https://www.dicomstandard.org/
-2. **PyDicom Documentation**: https://pydicom.github.io/
+1. **DICOM Standard**: <https://www.dicomstandard.org/>
+2. **PyDicom Documentation**: <https://pydicom.github.io/>
 3. **FUJIFILM SCENARIA View Conformance Statement**: SCENARIA-View_DICOM-Conformance-Statement_rev01_20221025.pdf
-4. **IHE Japan**: https://www.ihe-j.org/ (OID取得情報)
+4. **IHE Japan**: <https://www.ihe-j.org/> (OID取得情報)
 5. **RFC 3061**: UUID Based OID (2.25系)

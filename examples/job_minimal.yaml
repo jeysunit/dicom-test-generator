@@ -1,0 +1,36 @@
+# job_minimal.yaml - 最小構成の DICOM 生成ジョブ
+job_name: "最小テスト"
+output_dir: "output/test_minimal"
+
+patient:
+  patient_id: "P000001"
+  patient_name:
+    alphabetic: "TANAKA^HIROSHI"
+  birth_date: "19980312"
+  sex: "M"
+
+study:
+  accession_number: "ACC000001"
+  study_date: "20240115"
+  study_time: "120000"
+  num_series: 1
+
+series_list:
+  - series_number: 1
+    num_images: 1
+
+modality_template: "fujifilm_scenaria_view_ct"
+
+pixel_spec:
+  mode: "simple_text"
+
+transfer_syntax:
+  uid: "1.2.840.10008.1.2"
+  name: "Implicit VR Little Endian"
+  is_implicit_vr: true
+  is_little_endian: true
+
+character_set:
+  specific_character_set: ""
+  use_ideographic: false
+  use_phonetic: false
