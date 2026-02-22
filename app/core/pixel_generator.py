@@ -72,10 +72,11 @@ class PixelGenerator:
         Returns: shape=(height, width), dtype=int16
         """
         try:
-            max_val = (1 << bits_stored) - 1
+            max_val = min((1 << bits_stored) - 1, np.iinfo(np.int16).max)
 
             if pattern == "gradient":
                 row = np.linspace(0, max_val, width, dtype=np.float64)
+                row = np.clip(row, 0, np.iinfo(np.int16).max)
                 pixels = np.tile(row, (height, 1)).astype(np.int16)
 
             elif pattern == "circle":
@@ -95,7 +96,7 @@ class PixelGenerator:
                 rng = np.random.default_rng()
                 pixels = rng.integers(
                     0,
-                    max_val + 1,
+                    min(max_val + 1, 32768),
                     size=(height, width),
                     dtype=np.int16,
                 )

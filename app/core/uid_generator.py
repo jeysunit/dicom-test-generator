@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Literal
+import re
 import random
 import uuid
 
@@ -30,6 +31,11 @@ class UIDGenerator:
         if method == "custom_root" and not custom_root:
             raise UIDGenerationError(
                 "custom_root is required when method is 'custom_root'",
+                uid_type="configuration",
+            )
+        if method == "custom_root" and not re.match(r"^[0-2](\.\d+)+$", custom_root):
+            raise UIDGenerationError(
+                f"Invalid OID format for custom_root: {custom_root}",
                 uid_type="configuration",
             )
 

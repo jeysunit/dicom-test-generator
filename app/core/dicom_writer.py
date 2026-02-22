@@ -56,6 +56,9 @@ class SpatialCalculator:
         image_position_patient = [0.0, 0.0, z]
         slice_location = z
         """
+        if slice_index < 0:
+            raise ValueError(f"slice_index must be >= 0, got {slice_index}")
+
         instance_number = slice_index + 1
         z = self._start_z + (slice_index * self._slice_spacing)
 

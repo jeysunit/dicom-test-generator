@@ -29,6 +29,51 @@ class GenerationError(DICOMGeneratorError):
     pass
 
 
+class ConfigurationError(DICOMGeneratorError):
+    pass
+
+
+class TemplateError(ConfigurationError):
+    pass
+
+
+class TemplateNotFoundError(TemplateError):
+    def __init__(self, template_name: str):
+        super().__init__(
+            f"Template not found: {template_name}",
+            {"template_name": template_name},
+        )
+
+
+class TemplateParseError(TemplateError):
+    def __init__(self, template_path: str, parse_error: str):
+        super().__init__(
+            f"Failed to parse template: {template_path}",
+            {"template_path": template_path, "error": parse_error},
+        )
+
+
+class PatientDataError(ConfigurationError):
+    pass
+
+
+class PatientNotFoundError(PatientDataError):
+    def __init__(self, patient_id: str):
+        super().__init__(f"Patient not found: {patient_id}", {"patient_id": patient_id})
+
+
+class PatientDataInvalidError(PatientDataError):
+    pass
+
+
+class JobSchemaError(ConfigurationError):
+    def __init__(self, validation_errors: list):
+        super().__init__(
+            "Job configuration validation failed",
+            {"errors": validation_errors},
+        )
+
+
 class UIDGenerationError(GenerationError):
     def __init__(self, message: str, uid_type: str | None = None):
         super().__init__(message, {"uid_type": uid_type} if uid_type else {})
@@ -46,3 +91,43 @@ class FileMetaError(GenerationError):
 class DICOMBuildError(GenerationError):
     def __init__(self, message: str, tag: str | None = None):
         super().__init__(message, {"tag": tag} if tag else {})
+
+
+class IOError(DICOMGeneratorError):
+    pass
+
+
+class FileWriteError(IOError):
+    def __init__(self, filepath: str, reason: str):
+        super().__init__(
+            f"Failed to write file: {filepath}",
+            {"filepath": filepath, "reason": reason},
+        )
+
+
+class FileReadError(IOError):
+    def __init__(self, filepath: str, reason: str):
+        super().__init__(
+            f"Failed to read file: {filepath}",
+            {"filepath": filepath, "reason": reason},
+        )
+
+
+class DirectoryCreateError(IOError):
+    def __init__(self, dirpath: str, reason: str):
+        super().__init__(
+            f"Failed to create directory: {dirpath}",
+            {"dirpath": dirpath, "reason": reason},
+        )
+
+
+class ValidationError(DICOMGeneratorError):
+    pass
+
+
+class JobValidationError(ValidationError):
+    pass
+
+
+class DICOMValidationError(ValidationError):
+    pass

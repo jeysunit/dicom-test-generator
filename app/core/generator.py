@@ -37,6 +37,7 @@ class DICOMBuilder:
         specific_character_set: str | None = None,
         use_ideographic: bool = True,
         use_phonetic: bool = True,
+        bits_stored: int = 16,
     ) -> Dataset:
         """CT Image Storageを構築."""
         try:
@@ -111,7 +112,7 @@ class DICOMBuilder:
             ds.PixelSpacing = [str(v) for v in spatial.pixel_spacing]
 
             # Pixel Data
-            self._set_pixel_data(ds, pixel_data)
+            self._set_pixel_data(ds, pixel_data, bits_stored=bits_stored)
 
             # Transfer Syntax compatibility
             self._apply_transfer_syntax(ds, file_meta)
@@ -122,7 +123,9 @@ class DICOMBuilder:
                 raise
             raise DICOMBuildError(f"Failed to build CT image dataset: {exc}") from exc
 
-    def _set_pixel_data(self, ds: Dataset, pixel_data: np.ndarray) -> None:
+    def _set_pixel_data(
+        self, ds: Dataset, pixel_data: np.ndarray, bits_stored: int = 16
+    ) -> None:
         """ピクセルデータをDatasetに設定."""
         rows, cols = pixel_data.shape
         ds.Rows = rows
@@ -137,8 +140,8 @@ class DICOMBuilder:
             ds.PixelRepresentation = 0
         elif pixel_data.dtype == np.int16:
             ds.BitsAllocated = 16
-            ds.BitsStored = 16
-            ds.HighBit = 15
+            ds.BitsStored = bits_stored
+            ds.HighBit = bits_stored - 1
             ds.PixelRepresentation = 1
             ds.RescaleIntercept = "-1024"
             ds.RescaleSlope = "1"
@@ -150,7 +153,7 @@ class DICOMBuilder:
                 tag="PixelData",
             )
 
-            ds.PixelData = pixel_data.tobytes()
+        ds.PixelData = pixel_data.tobytes()
 
     def _apply_transfer_syntax(self, ds: Dataset, file_meta: FileMetaDataset) -> None:
         transfer_syntax_uid = str(getattr(file_meta, "TransferSyntaxUID", ""))
