@@ -5,6 +5,7 @@
 **Core Engine** はDICOM生成の中核ロジックを提供する。UI非依存で、単体テスト可能。
 
 **重要設計原則**:
+
 - Pure Python（外部UI依存なし）
 - 関数型スタイル（状態を持たない）
 - 明確な入出力
@@ -203,6 +204,7 @@ pixels_ct = pixel_gen.generate_ct_realistic(
 ### CTリアルモードの詳細
 
 **パターン**:
+
 - `gradient`: 左→右で HU値 -1024 → 1024
 - `circle`: 中心に高HU値の円（Bone）、周辺は低HU値（Soft Tissue）
 - `noise`: ランダムノイズ

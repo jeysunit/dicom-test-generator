@@ -1,18 +1,22 @@
 # ADR-0006: Threading Model
 
 ## Status
+
 **Accepted** - 2025-02-21
 
 ## Context
+
 GUI での大量DICOM生成時にUIがフリーズしないための非同期処理方式を決定する必要がある。
 
 ### 問題
+
 - 100枚のDICOM生成に約10秒かかる
 - メインスレッド（UIスレッド）で実行するとGUIがフリーズ
 - ユーザーはキャンセルできない
 - 進捗表示ができない
 
 ### 選択肢
+
 1. **QThread** (PySide6組み込み)
 2. **threading.Thread** (Python標準ライブラリ)
 3. **asyncio** (Python 3.7+)
@@ -20,22 +24,26 @@ GUI での大量DICOM生成時にUIがフリーズしないための非同期処
 5. **concurrent.futures** (ThreadPoolExecutor)
 
 ### 要求
+
 - GUIフリーズしない
 - 進捗表示可能
 - キャンセル可能
 - PySide6と統合しやすい
 
 ## Decision
-**QThread を採用する**
+
+QThread を採用する。
 
 ### 理由
 
 #### QThread の利点
+
 1. **PySide6ネイティブ**
    - Qt Signal/Slotで簡単に通信
    - UIスレッドとの連携が自然
 
 2. **進捗表示が簡単**
+
    ```python
    class Worker(QThread):
        progress = Signal(int, int, str)
@@ -47,6 +55,7 @@ GUI での大量DICOM生成時にUIがフリーズしないための非同期処
    ```
 
 3. **キャンセルが簡単**
+
    ```python
    def run(self):
        for i in range(total):
@@ -60,27 +69,32 @@ GUI での大量DICOM生成時にUIがフリーズしないための非同期処
    - UIウィジェットへのアクセスはUIスレッドのみ
 
 #### threading.Thread を選ばない理由
+
 - PySide6との統合が面倒
 - Signal/Slotが使えない
 - 手動でロック管理が必要
 
 #### asyncio を選ばない理由
+
 - PySide6との統合が複雑
 - Qt EventLoopと競合しうる
 - 学習コスト高い
 
 #### multiprocessing を選ばない理由
+
 - オーバーヘッドが大きい
 - プロセス間通信が複雑
 - 本アプリではI/O boundなのでスレッドで十分
 
 #### concurrent.futures を選ばない理由
+
 - PySide6との統合が面倒
 - QThreadの方がQt標準
 
 ## Consequences
 
 ### Positive
+
 - ✅ GUIフリーズしない
 - ✅ リアルタイム進捗表示
 - ✅ いつでもキャンセル可能
@@ -88,6 +102,7 @@ GUI での大量DICOM生成時にUIがフリーズしないための非同期処
 - ✅ PySide6のベストプラクティス
 
 ### Negative
+
 - ⚠️ **GIL（Global Interpreter Lock）の制約**
   - PythonスレッドはCPUバウンド処理では並列化されない
   - **影響なし**: 本アプリはI/Oバウンド（ファイル書き込み）
@@ -95,6 +110,7 @@ GUI での大量DICOM生成時にUIがフリーズしないための非同期処
   - Phase 3以降で検討
 
 ### Tradeoffs
+
 - QThreadはQt依存だが、本アプリはQt前提なので問題なし
 - マルチプロセスより遅いが、オーバーヘッドが少ない
 
@@ -191,6 +207,7 @@ worker.progress.connect(lambda v: progress_bar.setValue(v))
 ```
 
 ## Performance
+
 - **1画像生成**: <100ms
 - **100画像生成**: <10秒
 - **スレッドオーバーヘッド**: 無視できるレベル
@@ -198,6 +215,7 @@ worker.progress.connect(lambda v: progress_bar.setValue(v))
 **結論**: 単一スレッドで十分、マルチスレッド化は不要
 
 ## Future Extensions (Phase 3)
+
 複数ワーカーで並列生成:
 
 ```python
@@ -213,10 +231,12 @@ class MainWindow(QMainWindow):
 ただし、Phase 2まではシングルワーカーのみ。
 
 ## Related Decisions
+
 - [ADR-0003: PySide6 GUI](0003-pyside6-gui.md)
 - [ADR-0001: Core Library First](0001-core-library-first.md)
 
 ## References
+
 - [10_async_processing.md](../spec/10_async_processing.md)
-- Qt Threading: https://doc.qt.io/qt-6/thread-basics.html
-- Python GIL: https://docs.python.org/3/glossary.html#term-global-interpreter-lock
+- Qt Threading: <https://doc.qt.io/qt-6/thread-basics.html>
+- Python GIL: <https://docs.python.org/3/glossary.html#term-global-interpreter-lock>

@@ -1,15 +1,19 @@
 # DICOM Test Data Generator
 
-**DICOMテストデータ生成ツール**
+DICOMテストデータ生成ツール
 
-A tool to generate synthetic and abnormal DICOM datasets for testing medical imaging systems.
+A tool to generate synthetic and abnormal DICOM datasets
+for testing medical imaging systems.
 Pixel data is synthetic and not intended for clinical use.
 
 ---
 
 ## 概要
 
-**DICOM Test Data Generator** は、医療画像システム（PACS、RIS、ビューア、画像取り込みシステムなど）の検証・開発・デバッグ用途のために、人工的な DICOM データを生成するツールです。
+**DICOM Test Data Generator** は、医療画像システム
+（PACS、RIS、ビューア、画像取り込みシステムなど）の
+検証・開発・デバッグ用途のために、
+人工的な DICOM データを生成するツールです。
 
 生成されるピクセルデータは人工的に作成されたものであり、実際の医療画像を表すものではありません。
 そのため、個人情報を含まず、安全にテスト用途へ利用できます。
@@ -213,10 +217,10 @@ dicom-test-generator/
 
 ### 主要ドキュメント
 
-- [00_overview.md](spec/00_overview.md) - プロジェクト概要
-- [01_architecture.md](spec/01_architecture.md) - アーキテクチャ設計
-- [02_core_engine.md](spec/02_core_engine.md) - Core Engine API
-- [07_job_schema.md](spec/07_job_schema.md) - Job YAML スキーマ
+* [00_overview.md](spec/00_overview.md) - プロジェクト概要
+* [01_architecture.md](spec/01_architecture.md) - アーキテクチャ設計
+* [02_core_engine.md](spec/02_core_engine.md) - Core Engine API
+* [07_job_schema.md](spec/07_job_schema.md) - Job YAML スキーマ
 
 ### MkDocsでドキュメント表示
 
@@ -253,38 +257,42 @@ MIT License
 
 Issue / Pull Request を歓迎します。
 
-Repository: https://github.com/jeysun/dicom-test-generator
+Repository: <https://github.com/jeysun/dicom-test-generator>
 
 ---
 
 ## 今後の予定
 
 ### Phase 0: Core Engine（最優先）
-- [ ] データモデル実装
-- [ ] UID生成
-- [ ] ピクセルデータ生成
-- [ ] DICOM構築エンジン
+
+* [ ] データモデル実装
+* [ ] UID生成
+* [ ] ピクセルデータ生成
+* [ ] DICOM構築エンジン
 
 ### Phase 1: CLI
-- [ ] Job YAML読み込み
-- [ ] コマンドライン実装
-- [ ] 進捗表示
+
+* [ ] Job YAML読み込み
+* [ ] コマンドライン実装
+* [ ] 進捗表示
 
 ### Phase 2: GUI
-- [ ] PySide6デスクトップアプリ
-- [ ] 非同期処理
-- [ ] プログレスバー
+
+* [ ] PySide6デスクトップアプリ
+* [ ] 非同期処理
+* [ ] プログレスバー
 
 ### Phase 1.5: Storage SCP（オプション）
-- [ ] C-STORE受信
-- [ ] PyNetDICOM統合
+
+* [ ] C-STORE受信
+* [ ] PyNetDICOM統合
 
 ---
 
 ## 関連情報
 
-* DICOM Standard: https://www.dicomstandard.org/
-* PyDicom: https://pydicom.github.io/
-* PyNetDICOM: https://pydicom.github.io/pynetdicom/
+* DICOM Standard: <https://www.dicomstandard.org/>
+* PyDicom: <https://pydicom.github.io/>
+* PyNetDICOM: <https://pydicom.github.io/pynetdicom/>
 
 ---

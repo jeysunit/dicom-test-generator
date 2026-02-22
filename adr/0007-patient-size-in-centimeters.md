@@ -6,7 +6,8 @@
 
 ## Context
 
-仕様書（spec/03_data_models.md, spec/07_job_schema.md）では、Patient の `size` フィールドを **メートル（m）** で定義していた:
+仕様書（spec/03_data_models.md, spec/07_job_schema.md）では、
+Patient の `size` フィールドを **メートル（m）** で定義していた:
 
 ```python
 size: float | None = Field(None, ge=0, le=3, description="身長（m）")

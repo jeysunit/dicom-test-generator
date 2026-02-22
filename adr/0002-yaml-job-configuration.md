@@ -1,29 +1,35 @@
 # ADR-0002: YAML Job Configuration
 
 ## Status
+
 **Accepted** - 2025-02-21
 
 ## Context
+
 DICOM生成の設定を管理する方法を決定する必要がある。
 
 ### 選択肢
+
 1. **JSON形式**: 構造化データ、厳密な文法
 2. **YAML形式**: 人間が読みやすい、コメント可
 3. **TOML形式**: シンプル、Pythonでは標準
 4. **Python dict**: コードで直接記述
 
 ### 要求
+
 - 人間が手で編集可能
 - バージョン管理（Git）に適している
 - CLIからもGUIからも使える
 - テストケースとして保存可能
 
 ## Decision
-**YAML形式をJob設定のフォーマットとして採用する**
+
+YAML形式をJob設定のフォーマットとして採用する。
 
 ### 理由
 
 #### YAML の利点
+
 1. **可読性が高い**
    - インデントベース、Pythonに似た構文
    - コメントが書ける（JSON不可）
@@ -43,21 +49,25 @@ DICOM生成の設定を管理する方法を決定する必要がある。
    - CI/CDパイプラインに統合しやすい
 
 #### JSON を選ばない理由
+
 - コメントが書けない
 - 人間が編集しにくい（カンマ、ブラケット）
 - UID等の長い文字列が見づらい
 
 #### TOML を選ばない理由
+
 - ネストが深い構造には不向き
 - シリーズリスト等の配列表現が冗長
 
 #### Python dict を選ばない理由
+
 - 非プログラマーが編集できない
 - バージョン管理しにくい
 
 ## Consequences
 
 ### Positive
+
 - ✅ テストケースをYAMLで保存できる
 - ✅ Gitで変更履歴を追跡できる
 - ✅ 生成AIがJob YAMLを生成しやすい
@@ -65,17 +75,20 @@ DICOM生成の設定を管理する方法を決定する必要がある。
 - ✅ CLIとGUIで同じフォーマットを共有
 
 ### Negative
+
 - ⚠️ YAMLパースエラーが発生しうる
   - **軽減策**: Pydanticで厳密な検証
 - ⚠️ インデントミスが起きやすい
   - **軽減策**: エディタのYAMLサポート、バリデーションコマンド提供
 
 ### Neutral
+
 - YAML 1.1 vs 1.2の違いに注意
   - PyYAMLはYAML 1.1（`yes/no`がboolになる等）
   - 本アプリでは問題なし
 
 ## Implementation
+
 - Job設定は `.yaml` 拡張子
 - PyYAML 6.0.1以上を使用
 - Pydantic v2でスキーマ検証
@@ -116,9 +129,11 @@ pixel_spec:
 ```
 
 ## Related Decisions
+
 - [ADR-0001: Core Library First](0001-core-library-first.md)
 
 ## References
+
 - [07_job_schema.md](../spec/07_job_schema.md)
-- PyYAML: https://pyyaml.org/
-- YAML Spec: https://yaml.org/spec/1.2.2/
+- PyYAML: <https://pyyaml.org/>
+- YAML Spec: <https://yaml.org/spec/1.2.2/>

@@ -5,6 +5,7 @@
 Job YAMLは、DICOM生成の全設定を記述する統一フォーマット。
 
 **用途**:
+
 - CLI: `python -m app.cli generate job.yaml`
 - GUI: Job設定のロード・保存
 - テストケース: 再現可能な生成設定
@@ -235,6 +236,7 @@ pixel_spec:
 | `is_little_endian` | bool | ○ | Little Endianか |
 
 **よく使う値**:
+
 ```yaml
 # Implicit VR Little Endian（デフォルト）
 transfer_syntax:
@@ -260,6 +262,7 @@ transfer_syntax:
 | `use_phonetic` | bool | ○ | カナを使用するか |
 
 **よく使う値**:
+
 ```yaml
 # 日本語（ISO 2022 IR 87）
 character_set:
