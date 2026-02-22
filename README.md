@@ -115,6 +115,16 @@ Pixel data is synthetic and not intended for clinical use.
 git clone https://github.com/jeysun/dicom-test-generator.git
 cd dicom-test-generator
 
+# 仮想環境の作成・有効化
+python -m venv .venv
+
+# Linux / macOS
+source .venv/bin/activate
+
+# Windows (PowerShell)
+.venv\Scripts\Activate.ps1
+
+# 依存パッケージのインストール
 pip install -r requirements.txt
 ```
 
