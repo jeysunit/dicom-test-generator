@@ -78,8 +78,7 @@ def test_transfer_syntax_explicit_little_endian_flags() -> None:
         series_instance_uid="2.25.200",
     )
 
-    assert ds.is_implicit_VR is False
-    assert ds.is_little_endian is True
+    assert str(ds.file_meta.TransferSyntaxUID) == "1.2.840.10008.1.2.1"
 
 
 def test_transfer_syntax_implicit_little_endian_flags() -> None:
@@ -105,8 +104,7 @@ def test_transfer_syntax_implicit_little_endian_flags() -> None:
         series_instance_uid="2.25.201",
     )
 
-    assert ds.is_implicit_VR is True
-    assert ds.is_little_endian is True
+    assert str(ds.file_meta.TransferSyntaxUID) == "1.2.840.10008.1.2"
 
 
 def test_sop_instance_uid_mismatch_raises_error() -> None:

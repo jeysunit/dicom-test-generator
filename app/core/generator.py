@@ -98,7 +98,9 @@ class DICOMBuilder:
             ds.ContentTime = study_config.study_time
 
             # SOP Common Module
-            ds.SOPClassUID = CT_IMAGE_STORAGE
+            ds.SOPClassUID = str(
+                getattr(file_meta, "MediaStorageSOPClassUID", CT_IMAGE_STORAGE)
+            )
             ds.SOPInstanceUID = sop_instance_uid
             ds.InstanceCreatorUID = uid_context.instance_creator_uid
 
@@ -155,24 +157,19 @@ class DICOMBuilder:
 
         ds.PixelData = pixel_data.tobytes()
 
+    _SUPPORTED_TRANSFER_SYNTAXES = {
+        "1.2.840.10008.1.2",      # Implicit VR Little Endian
+        "1.2.840.10008.1.2.1",    # Explicit VR Little Endian
+        "1.2.840.10008.1.2.2",    # Explicit VR Big Endian
+    }
+
     def _apply_transfer_syntax(self, ds: Dataset, file_meta: FileMetaDataset) -> None:
         transfer_syntax_uid = str(getattr(file_meta, "TransferSyntaxUID", ""))
-        if transfer_syntax_uid == "1.2.840.10008.1.2":
-            ds.is_implicit_VR = True
-            ds.is_little_endian = True
-            return
-        if transfer_syntax_uid == "1.2.840.10008.1.2.1":
-            ds.is_implicit_VR = False
-            ds.is_little_endian = True
-            return
-        if transfer_syntax_uid == "1.2.840.10008.1.2.2":
-            ds.is_implicit_VR = False
-            ds.is_little_endian = False
-            return
-        raise DICOMBuildError(
-            f"Unsupported Transfer Syntax UID: {transfer_syntax_uid}",
-            tag="TransferSyntaxUID",
-        )
+        if transfer_syntax_uid not in self._SUPPORTED_TRANSFER_SYNTAXES:
+            raise DICOMBuildError(
+                f"Unsupported Transfer Syntax UID: {transfer_syntax_uid}",
+                tag="TransferSyntaxUID",
+            )
 
     def _apply_character_set(
         self,

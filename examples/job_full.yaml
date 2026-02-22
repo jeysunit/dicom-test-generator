@@ -1,0 +1,78 @@
+# job_full.yaml - 全オプション指定の DICOM 生成ジョブ
+job_name: "CT検査テストデータ生成"
+output_dir: "output/ACC000001"
+
+patient:
+  patient_id: "P000001"
+  patient_name:
+    alphabetic: "TANAKA^HIROSHI"
+    ideographic: "田中^博"
+    phonetic: "タナカ^ヒロシ"
+  birth_date: "19980312"
+  sex: "M"
+  age: "027Y"
+  weight: 58.5
+  size: 172.0
+  patient_comments: ""
+
+study:
+  accession_number: "ACC000001"
+  study_date: "20240115"
+  study_time: "143000"
+  study_description: "CT CHEST"
+  referring_physician_name: "TANAKA^JIRO=田中^次郎=タナカ^ジロウ"
+  num_series: 3
+
+series_list:
+  - series_number: 1
+    series_description: "Scanogram"
+    num_images: 1
+    protocol_name: "SCOUT"
+    slice_thickness: 5.0
+    slice_spacing: 5.0
+    start_z: 0.0
+
+  - series_number: 2
+    series_description: "Axial Chest"
+    num_images: 20
+    protocol_name: "CHEST_ROUTINE"
+    slice_thickness: 5.0
+    slice_spacing: 5.0
+    start_z: 0.0
+
+  - series_number: 3
+    series_description: "Axial Abdomen"
+    num_images: 20
+    protocol_name: "ABDOMEN_ROUTINE"
+    slice_thickness: 5.0
+    slice_spacing: 5.0
+    start_z: 100.0
+
+modality_template: "fujifilm_scenaria_view_ct"
+hospital_template: "hospital_a"
+
+uid_method: "uuid_2_25"
+uid_custom_root: null
+
+pixel_spec:
+  mode: "ct_realistic"
+  width: 512
+  height: 512
+  pattern: "gradient"
+  bits_stored: 12
+
+transfer_syntax:
+  uid: "1.2.840.10008.1.2"
+  name: "Implicit VR Little Endian"
+  is_implicit_vr: true
+  is_little_endian: true
+
+character_set:
+  specific_character_set: "ISO 2022 IR 87"
+  use_ideographic: true
+  use_phonetic: true
+
+abnormal:
+  level: "none"
+  allow_invalid_sop_uid: false
+  invalid_sop_uid_probability: 0.1
