@@ -26,12 +26,19 @@ from .exceptions import (
 from .abnormal_generator import AbnormalGenerator
 from .generator import DICOMBuilder
 from .models import (
+    AbnormalConfig,
+    CharacterSetConfig,
+    GenerationConfig,
     InstanceConfig,
     Patient,
     PatientName,
+    PixelSpec,
+    PixelSpecCTRealistic,
+    PixelSpecSimple,
     SeriesConfig,
     SpatialCoordinates,
     StudyConfig,
+    TransferSyntaxConfig,
     UIDContext,
 )
 from .pixel_generator import PixelGenerator
@@ -39,7 +46,9 @@ from .dicom_writer import FileMetaBuilder, SpatialCalculator
 from .uid_generator import UIDGenerator
 
 __all__ = [
+    "AbnormalConfig",
     "AbnormalGenerator",
+    "CharacterSetConfig",
     "ConfigurationError",
     "DICOMBuildError",
     "DICOMBuilder",
@@ -47,6 +56,7 @@ __all__ = [
     "DICOMValidationError",
     "DirectoryCreateError",
     "FileMetaBuilder",
+    "GenerationConfig",
     "FileMetaError",
     "FileReadError",
     "FileWriteError",
@@ -62,6 +72,9 @@ __all__ = [
     "PatientNotFoundError",
     "PixelGenerationError",
     "PixelGenerator",
+    "PixelSpec",
+    "PixelSpecCTRealistic",
+    "PixelSpecSimple",
     "SeriesConfig",
     "SpatialCalculator",
     "SpatialCoordinates",
@@ -69,6 +82,7 @@ __all__ = [
     "TemplateError",
     "TemplateNotFoundError",
     "TemplateParseError",
+    "TransferSyntaxConfig",
     "UIDContext",
     "UIDGenerationError",
     "UIDGenerator",

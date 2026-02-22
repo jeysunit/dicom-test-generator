@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -100,3 +102,86 @@ class SpatialCoordinates(BaseModel):
         min_length=2,
         max_length=2,
     )
+
+
+class PixelSpecSimple(BaseModel):
+    """Simple Textモードピクセル設定."""
+
+    model_config = {"frozen": True}
+
+    mode: Literal["simple_text"] = "simple_text"
+    width: int = Field(512, ge=64, le=4096)
+    height: int = Field(512, ge=64, le=4096)
+    background_color: int = Field(0, ge=0, le=255)
+    text_color: int = Field(255, ge=0, le=255)
+    font_size: int = Field(24, ge=8, le=72)
+
+
+class PixelSpecCTRealistic(BaseModel):
+    """CT Realisticモードピクセル設定."""
+
+    model_config = {"frozen": True}
+
+    mode: Literal["ct_realistic"] = "ct_realistic"
+    width: int = Field(512, ge=64, le=4096)
+    height: int = Field(512, ge=64, le=4096)
+    pattern: Literal["gradient", "circle", "noise"] = "gradient"
+    bits_stored: int = Field(12, ge=8, le=16)
+
+
+PixelSpec = PixelSpecSimple | PixelSpecCTRealistic
+
+
+class TransferSyntaxConfig(BaseModel):
+    """Transfer Syntax設定."""
+
+    model_config = {"frozen": True}
+
+    uid: str = Field("1.2.840.10008.1.2", description="Transfer Syntax UID")
+    name: str = Field("Implicit VR Little Endian", description="名称")
+    is_implicit_vr: bool = Field(True, description="Implicit VR か")
+    is_little_endian: bool = Field(True, description="Little Endian か")
+
+
+class CharacterSetConfig(BaseModel):
+    """文字セット設定."""
+
+    model_config = {"frozen": True}
+
+    specific_character_set: str = Field(
+        "ISO 2022 IR 87", description="Specific Character Set"
+    )
+    use_ideographic: bool = Field(True, description="漢字を使用するか")
+    use_phonetic: bool = Field(True, description="カナを使用するか")
+
+
+class AbnormalConfig(BaseModel):
+    """異常生成設定."""
+
+    model_config = {"frozen": True}
+
+    level: Literal["none", "mild", "moderate", "severe"] = "none"
+    allow_invalid_sop_uid: bool = Field(False, description="SOP UID 0始まり不正を許可")
+    invalid_sop_uid_probability: float = Field(
+        0.1, ge=0.0, le=1.0, description="不正UID生成確率"
+    )
+
+
+class GenerationConfig(BaseModel):
+    """DICOM生成全体設定（Jobファイルから読み込む）."""
+
+    model_config = {"frozen": True}
+
+    job_name: str = Field(..., description="ジョブ名")
+    output_dir: str = Field(..., description="出力ディレクトリ")
+    patient: Patient
+    study: StudyConfig
+    series_list: list[SeriesConfig] = Field(..., min_length=1, max_length=100)
+    modality_template: str = Field(..., description="モダリティテンプレート名")
+    hospital_template: str | None = Field(None, description="病院テンプレート名")
+    uid_method: Literal["uuid_2_25", "custom_root"] = "uuid_2_25"
+    uid_custom_root: str | None = Field(None, description="カスタムRoot")
+    pixel_spec: PixelSpecSimple | PixelSpecCTRealistic
+    transfer_syntax: TransferSyntaxConfig
+    character_set: CharacterSetConfig
+    abnormal: AbnormalConfig = Field(default_factory=AbnormalConfig)

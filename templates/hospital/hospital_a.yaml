@@ -1,0 +1,19 @@
+# Hospital Template: Hospital A (日本語対応)
+
+info:
+  name: "hospital_a"
+  description: "A病院（日本語使用）"
+
+overrides:
+  character_set:
+    specific_character_set: "ISO 2022 IR 87"
+
+  patient_module:
+    patient_name:
+      use_alphabetic: true
+      use_ideographic: true
+      use_phonetic: true
+
+  general_equipment:
+    institution_name: "A Hospital"
+    station_name: "CT_A_01"

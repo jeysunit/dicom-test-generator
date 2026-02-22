@@ -1,0 +1,51 @@
+# Patient Master Data
+# テスト用患者マスターデータ
+
+patients:
+  - patient_id: "P000001"
+    patient_name:
+      alphabetic: "YAMADA^TARO"
+      ideographic: "山田^太郎"
+      phonetic: "ヤマダ^タロウ"
+    birth_date: "19800115"
+    sex: "M"
+    age: "044Y"
+    weight: 65.5
+    size: 1.70
+
+  - patient_id: "P000002"
+    patient_name:
+      alphabetic: "TANAKA^HANAKO"
+      ideographic: "田中^花子"
+      phonetic: "タナカ^ハナコ"
+    birth_date: "19900520"
+    sex: "F"
+    age: "034Y"
+    weight: 52.0
+    size: 1.58
+
+  - patient_id: "P000003"
+    patient_name:
+      alphabetic: "SUZUKI^ICHIRO"
+      ideographic: "鈴木^一郎"
+      phonetic: "スズキ^イチロウ"
+    birth_date: "19550303"
+    sex: "M"
+    age: "069Y"
+    weight: 72.0
+    size: 1.68
+
+  - patient_id: "P000004"
+    patient_name:
+      alphabetic: "SATO^YUKI"
+    birth_date: "20000101"
+    sex: "F"
+    age: "024Y"
+    weight: 48.0
+    size: 1.55
+
+  - patient_id: "P000005"
+    patient_name:
+      alphabetic: "TEST^ANONYMOUS"
+    birth_date: "19700101"
+    sex: "O"
