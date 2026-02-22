@@ -1,10 +1,10 @@
 # ADR-0006: Threading Model
 
-## Status
+## ステータス
 
 **Accepted** - 2025-02-21
 
-## Context
+## 背景
 
 GUI での大量DICOM生成時にUIがフリーズしないための非同期処理方式を決定する必要がある。
 
@@ -30,7 +30,7 @@ GUI での大量DICOM生成時にUIがフリーズしないための非同期処
 - キャンセル可能
 - PySide6と統合しやすい
 
-## Decision
+## 決定
 
 QThread を採用する。
 
@@ -91,9 +91,9 @@ QThread を採用する。
 - PySide6との統合が面倒
 - QThreadの方がQt標準
 
-## Consequences
+## 影響
 
-### Positive
+### 良い点
 
 - ✅ GUIフリーズしない
 - ✅ リアルタイム進捗表示
@@ -101,7 +101,7 @@ QThread を採用する。
 - ✅ Signal/Slotで安全な通信
 - ✅ PySide6のベストプラクティス
 
-### Negative
+### 悪い点
 
 - ⚠️ **GIL（Global Interpreter Lock）の制約**
   - PythonスレッドはCPUバウンド処理では並列化されない
@@ -109,12 +109,12 @@ QThread を採用する。
 - ⚠️ **複数ワーカー未対応（Phase 2）**
   - Phase 3以降で検討
 
-### Tradeoffs
+### トレードオフ
 
 - QThreadはQt依存だが、本アプリはQt前提なので問題なし
 - マルチプロセスより遅いが、オーバーヘッドが少ない
 
-## Implementation
+## 実装
 
 ### GeneratorWorker
 
@@ -206,7 +206,7 @@ class Worker(QThread):
 worker.progress.connect(lambda v: progress_bar.setValue(v))
 ```
 
-## Performance
+## パフォーマンス
 
 - **1画像生成**: <100ms
 - **100画像生成**: <10秒
@@ -214,7 +214,7 @@ worker.progress.connect(lambda v: progress_bar.setValue(v))
 
 **結論**: 単一スレッドで十分、マルチスレッド化は不要
 
-## Future Extensions (Phase 3)
+## 将来の拡張（Phase 3）
 
 複数ワーカーで並列生成:
 
@@ -230,12 +230,12 @@ class MainWindow(QMainWindow):
 
 ただし、Phase 2まではシングルワーカーのみ。
 
-## Related Decisions
+## 関連する決定
 
 - [ADR-0003: PySide6 GUI](0003-pyside6-gui.md)
 - [ADR-0001: Core Library First](0001-core-library-first.md)
 
-## References
+## 参考資料
 
 - [10_async_processing.md](../spec/10_async_processing.md)
 - Qt Threading: <https://doc.qt.io/qt-6/thread-basics.html>

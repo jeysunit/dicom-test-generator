@@ -1,10 +1,10 @@
 # ADR-0002: YAML Job Configuration
 
-## Status
+## ステータス
 
 **Accepted** - 2025-02-21
 
-## Context
+## 背景
 
 DICOM生成の設定を管理する方法を決定する必要がある。
 
@@ -22,7 +22,7 @@ DICOM生成の設定を管理する方法を決定する必要がある。
 - CLIからもGUIからも使える
 - テストケースとして保存可能
 
-## Decision
+## 決定
 
 YAML形式をJob設定のフォーマットとして採用する。
 
@@ -64,9 +64,9 @@ YAML形式をJob設定のフォーマットとして採用する。
 - 非プログラマーが編集できない
 - バージョン管理しにくい
 
-## Consequences
+## 影響
 
-### Positive
+### 良い点
 
 - ✅ テストケースをYAMLで保存できる
 - ✅ Gitで変更履歴を追跡できる
@@ -74,20 +74,20 @@ YAML形式をJob設定のフォーマットとして採用する。
 - ✅ CI/CDパイプラインに統合しやすい
 - ✅ CLIとGUIで同じフォーマットを共有
 
-### Negative
+### 悪い点
 
 - ⚠️ YAMLパースエラーが発生しうる
   - **軽減策**: Pydanticで厳密な検証
 - ⚠️ インデントミスが起きやすい
   - **軽減策**: エディタのYAMLサポート、バリデーションコマンド提供
 
-### Neutral
+### 中立
 
 - YAML 1.1 vs 1.2の違いに注意
   - PyYAMLはYAML 1.1（`yes/no`がboolになる等）
   - 本アプリでは問題なし
 
-## Implementation
+## 実装
 
 - Job設定は `.yaml` 拡張子
 - PyYAML 6.0.1以上を使用
@@ -128,11 +128,11 @@ pixel_spec:
 # ...
 ```
 
-## Related Decisions
+## 関連する決定
 
 - [ADR-0001: Core Library First](0001-core-library-first.md)
 
-## References
+## 参考資料
 
 - [07_job_schema.md](../spec/07_job_schema.md)
 - PyYAML: <https://pyyaml.org/>

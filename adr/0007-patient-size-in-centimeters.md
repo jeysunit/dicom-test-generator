@@ -1,10 +1,10 @@
 # ADR-0007: Patient Size（身長）の単位を cm に変更
 
-## Status
+## ステータス
 
 **Accepted** - 2026-02-22
 
-## Context
+## 背景
 
 仕様書（spec/03_data_models.md, spec/07_job_schema.md）では、
 Patient の `size` フィールドを **メートル（m）** で定義していた:
@@ -30,7 +30,7 @@ size: 1.70  # メートル
 1. **入力を m のまま維持**: 仕様通りだが外部データとの変換が必要
 2. **入力を cm に変更**: 外部データ・ユーザー直感と一致。DICOM 出力時に m に変換
 
-## Decision
+## 決定
 
 **Patient.size の単位を cm に変更する。DICOM タグ設定時にプログラム内で m に変換する。**
 
@@ -55,21 +55,21 @@ class Patient(BaseModel):
         return self.size / 100.0
 ```
 
-## Consequences
+## 影響
 
-### Positive
+### 良い点
 
 - 外部患者マスタデータ（cm 表記）をそのまま読み込み可能
 - 医療現場の慣習と一致し、ユーザーが直感的に入力可能
 - DICOM 規格準拠は `size_in_meters` プロパティで保証
 
-### Negative
+### 悪い点
 
 - 仕様書の既存例・ドキュメントの変更が必要
 - DICOM 出力値と入力値の単位が異なるため、変換忘れに注意が必要
   - **軽減策**: `size_in_meters` プロパティを唯一の変換経路として明示
 
-## Related Decisions
+## 関連する決定
 
 - [spec/03_data_models.md](../spec/03_data_models.md)
 - [spec/07_job_schema.md](../spec/07_job_schema.md)

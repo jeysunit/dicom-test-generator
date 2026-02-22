@@ -1,10 +1,10 @@
 # ADR-0005: Pixel Modes
 
-## Status
+## ステータス
 
 **Accepted** - 2025-02-21
 
-## Context
+## 背景
 
 ピクセルデータ生成方式を決定する必要がある。
 
@@ -21,7 +21,7 @@
 3. **テキスト表示**: SOP UID等を描画
 4. **医療リアルモード**: HU値対応、Window/Level設定
 
-## Decision
+## 決定
 
 2つのモードをサポートする。
 
@@ -58,29 +58,29 @@
 - Window/Level調整のテスト
 - PACS連携のテスト
 
-## Consequences
+## 影響
 
-### Positive
+### 良い点
 
 - ✅ Simple Textで簡易デバッグ可能
 - ✅ CT Realisticで実運用に近いテスト可能
 - ✅ 用途に応じて選択可能
 - ✅ 医療ビューア（Horos, RadiAnt等）で表示できる
 
-### Negative
+### 悪い点
 
 - ⚠️ 2つのモード実装が必要
   - **軽減策**: Core Engineで分離、実装は比較的簡単
 - ⚠️ 本物のCT画像とは異なる
   - **影響**: テストデータ生成が目的なので問題なし
 
-### Tradeoffs
+### トレードオフ
 
 - Simple Textのみ: 医療ビューアで正しく表示されない
 - CT Realisticのみ: UIDの視覚確認が難しい
 - 両方サポート: 実装コスト増だが柔軟性が高い
 
-## Implementation
+## 実装
 
 ### データモデル
 
@@ -142,7 +142,7 @@ pixel_spec:
   bits_stored: 12
 ```
 
-## Validation
+## 検証
 
 生成されたDICOMファイルを以下で確認：
 
@@ -156,12 +156,12 @@ pixel_spec:
 - Horos / RadiAnt: Window/Level調整で表示
 - dcmdump: Rescale Intercept = -1024, Slope = 1
 
-## Related Decisions
+## 関連する決定
 
 - [ADR-0001: Core Library First](0001-core-library-first.md)
 - [ADR-0004: UUID 2.25 UID](0004-uuid-2-25-uid.md)
 
-## References
+## 参考資料
 
 - [06_dicom_rules.md](../spec/06_dicom_rules.md#pixel-data)
 - DICOM Standard Part 3: C.8.2 CT Image Module

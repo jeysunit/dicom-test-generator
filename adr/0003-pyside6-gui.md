@@ -1,10 +1,10 @@
 # ADR-0003: PySide6 GUI
 
-## Status
+## ステータス
 
 **Accepted** - 2025-02-21
 
-## Context
+## 背景
 
 デスクトップGUIフレームワークを選択する必要がある。
 
@@ -24,7 +24,7 @@
 - 非同期処理（スレッド）サポート
 - ファイルダイアログ等の標準UI
 
-## Decision
+## 決定
 
 PySide6を採用する。
 
@@ -70,9 +70,9 @@ PySide6を採用する。
 - モバイル向け
 - デスクトップUIとしては過剰
 
-## Consequences
+## 影響
 
-### Positive
+### 良い点
 
 - ✅ 商用利用可能（LGPL）
 - ✅ クロスプラットフォーム
@@ -80,7 +80,7 @@ PySide6を採用する。
 - ✅ プロフェッショナルなUI
 - ✅ 豊富なウィジェット
 
-### Negative
+### 悪い点
 
 - ⚠️ **サイズが大きい**: PySide6は約200MB
   - **影響**: インストールに時間がかかる
@@ -88,12 +88,12 @@ PySide6を採用する。
 - ⚠️ **学習曲線**: Tkinterよりやや複雑
   - **軽減策**: Phase 0, 1でCore/CLIを完成させてから着手
 
-### Tradeoffs
+### トレードオフ
 
 - Tkinterより重いが、機能・見た目は圧倒的に上
 - PyQt6の方が資料多いが、LGPLライセンスの価値が高い
 
-## Implementation
+## 実装
 
 ### インストール
 
@@ -143,12 +143,12 @@ worker.progress.connect(lambda i: print(i))
 worker.start()
 ```
 
-## Related Decisions
+## 関連する決定
 
 - [ADR-0006: Threading Model](0006-threading-model.md)
 - [ADR-0001: Core Library First](0001-core-library-first.md)
 
-## References
+## 参考資料
 
 - [05_gui.md](../spec/05_gui.md)
 - PySide6: <https://doc.qt.io/qtforpython-6/>
