@@ -1,0 +1,24 @@
+# DICOM Test Data Generator - Dependencies
+
+# DICOM library
+pydicom>=2.4.4
+
+# DICOM network communication (Phase 1.5: Storage SCP)
+pynetdicom>=2.0.0
+
+# Configuration file parsing
+PyYAML>=6.0
+
+# Image generation
+Pillow>=10.0.0
+numpy>=1.24.0
+
+# GUI framework (Phase 2)
+PySide6>=6.5.0
+
+# Testing
+pytest>=7.0
+
+# Documentation (optional)
+# mkdocs>=1.5.0
+# mkdocs-material>=9.0.0
