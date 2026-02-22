@@ -1,51 +1,1205 @@
-# Patient Master Data
-# テスト用患者マスターデータ
-
+# patients_master.yaml
+# 患者マスターダミーデータ(100件)
+# 年齢基準日: 2026年1月1日
+# 年齢分布: 日本の人口分布に準拠
+# BMI分布: 日本の実態に準拠(異常値含む)
 patients:
   - patient_id: "P000001"
     patient_name:
-      alphabetic: "YAMADA^TARO"
-      ideographic: "山田^太郎"
-      phonetic: "ヤマダ^タロウ"
-    birth_date: "19800115"
+      alphabetic: "TANAKA^HIROSHI"
+      ideographic: "田中^博"
+      phonetic: "タナカ^ヒロシ"
+    birth_date: "19980312"
     sex: "M"
-    age: "044Y"
-    weight: 65.5
-    size: 1.70
-
+    age: "027Y"
+    weight: 58.5
+    size: 172.0
+    patient_comments: ""
+    
   - patient_id: "P000002"
     patient_name:
-      alphabetic: "TANAKA^HANAKO"
-      ideographic: "田中^花子"
-      phonetic: "タナカ^ハナコ"
-    birth_date: "19900520"
+      alphabetic: "SATO^YUKI"
+      ideographic: "佐藤^由紀"
+      phonetic: "サトウ^ユキ"
+    birth_date: "19920825"
+    sex: "F"
+    age: "033Y"
+    weight: 48.2
+    size: 158.0
+    patient_comments: ""
+    
+  - patient_id: "P000003"
+    patient_name:
+      alphabetic: "YAMADA^KENJI"
+      ideographic: "山田^健二"
+      phonetic: "ヤマダ^ケンジ"
+    birth_date: "19750614"
+    sex: "M"
+    age: "050Y"
+    weight: 82.5
+    size: 168.0
+    patient_comments: "高血圧治療中"
+    
+  - patient_id: "P000004"
+    patient_name:
+      alphabetic: "SUZUKI^AKIKO"
+      ideographic: "鈴木^明子"
+      phonetic: "スズキ^アキコ"
+    birth_date: "19560423"
+    sex: "F"
+    age: "069Y"
+    weight: 52.0
+    size: 152.0
+    patient_comments: "骨粗鬆症"
+    
+  - patient_id: "P000005"
+    patient_name:
+      alphabetic: "WATANABE^TAKESHI"
+      ideographic: "渡辺^武"
+      phonetic: "ワタナベ^タケシ"
+    birth_date: "19631108"
+    sex: "M"
+    age: "062Y"
+    weight: 75.3
+    size: 170.0
+    patient_comments: "糖尿病既往歴あり"
+    
+  - patient_id: "P000006"
+    patient_name:
+      alphabetic: "ITO^MEGUMI"
+      ideographic: "伊藤^恵"
+      phonetic: "イトウ^メグミ"
+    birth_date: "20010729"
+    sex: "F"
+    age: "024Y"
+    weight: 45.8
+    size: 160.0
+    patient_comments: ""
+    
+  - patient_id: "P000007"
+    patient_name:
+      alphabetic: "NAKAMURA^TARO"
+      ideographic: "中村^太郎"
+      phonetic: "ナカムラ^タロウ"
+    birth_date: "19880205"
+    sex: "M"
+    age: "037Y"
+    weight: 68.2
+    size: 175.0
+    patient_comments: ""
+    
+  - patient_id: "P000008"
+    patient_name:
+      alphabetic: "KOBAYASHI^HANAKO"
+      ideographic: "小林^花子"
+      phonetic: "コバヤシ^ハナコ"
+    birth_date: "19510916"
+    sex: "F"
+    age: "074Y"
+    weight: 48.5
+    size: 148.0
+    patient_comments: "変形性膝関節症"
+    
+  - patient_id: "P000009"
+    patient_name:
+      alphabetic: "KATO^MASARU"
+      ideographic: "加藤^勝"
+      phonetic: "カトウ^マサル"
+    birth_date: "19840320"
+    sex: "M"
+    age: "041Y"
+    weight: 95.8
+    size: 172.0
+    patient_comments: "肥満症・脂質異常症"
+    
+  - patient_id: "P000010"
+    patient_name:
+      alphabetic: "YOSHIDA^SACHIKO"
+      ideographic: "吉田^幸子"
+      phonetic: "ヨシダ^サチコ"
+    birth_date: "19701217"
+    sex: "F"
+    age: "055Y"
+    weight: 61.5
+    size: 156.0
+    patient_comments: ""
+    
+  - patient_id: "P000011"
+    patient_name:
+      alphabetic: "YAMAMOTO^SHOTA"
+      ideographic: "山本^翔太"
+      phonetic: "ヤマモト^ショウタ"
+    birth_date: "20020518"
+    sex: "M"
+    age: "023Y"
+    weight: 62.0
+    size: 173.0
+    patient_comments: ""
+    
+  - patient_id: "P000012"
+    patient_name:
+      alphabetic: "MATSUMOTO^YUKA"
+      ideographic: "松本^優香"
+      phonetic: "マツモト^ユウカ"
+    birth_date: "19950904"
+    sex: "F"
+    age: "030Y"
+    weight: 51.5
+    size: 162.0
+    patient_comments: ""
+    
+  - patient_id: "P000013"
+    patient_name:
+      alphabetic: "INOUE^KOJI"
+      ideographic: "井上^浩二"
+      phonetic: "イノウエ^コウジ"
+    birth_date: "19680721"
+    sex: "M"
+    age: "057Y"
+    weight: 71.8
+    size: 169.0
+    patient_comments: ""
+    
+  - patient_id: "P000014"
+    patient_name:
+      alphabetic: "KIMURA^NAOMI"
+      ideographic: "木村^直美"
+      phonetic: "キムラ^ナオミ"
+    birth_date: "19811203"
+    sex: "F"
+    age: "044Y"
+    weight: 56.3
+    size: 159.0
+    patient_comments: ""
+    
+  - patient_id: "P000015"
+    patient_name:
+      alphabetic: "HAYASHI^RYOTA"
+      ideographic: "林^亮太"
+      phonetic: "ハヤシ^リョウタ"
+    birth_date: "19530327"
+    sex: "M"
+    age: "072Y"
+    weight: 58.2
+    size: 165.0
+    patient_comments: "前立腺肥大症"
+    
+  - patient_id: "P000016"
+    patient_name:
+      alphabetic: "SHIMIZU^KUMIKO"
+      ideographic: "清水^久美子"
+      phonetic: "シミズ^クミコ"
+    birth_date: "19900611"
+    sex: "F"
+    age: "035Y"
+    weight: 53.0
+    size: 161.0
+    patient_comments: ""
+    
+  - patient_id: "P000017"
+    patient_name:
+      alphabetic: "YAMAZAKI^DAISUKE"
+      ideographic: "山崎^大輔"
+      phonetic: "ヤマザキ^ダイスケ"
+    birth_date: "19780915"
+    sex: "M"
+    age: "047Y"
+    weight: 88.5
+    size: 174.0
+    patient_comments: "脂質異常症"
+    
+  - patient_id: "P000018"
+    patient_name:
+      alphabetic: "MORI^KEIKO"
+      ideographic: "森^恵子"
+      phonetic: "モリ^ケイコ"
+    birth_date: "19641028"
+    sex: "F"
+    age: "061Y"
+    weight: 59.0
+    size: 154.0
+    patient_comments: ""
+    
+  - patient_id: "P000019"
+    patient_name:
+      alphabetic: "ABE^KAZUYA"
+      ideographic: "阿部^和也"
+      phonetic: "アベ^カズヤ"
+    birth_date: "19850502"
+    sex: "M"
+    age: "040Y"
+    weight: 70.5
+    size: 171.0
+    patient_comments: ""
+    
+  - patient_id: "P000020"
+    patient_name:
+      alphabetic: "HASHIMOTO^YOKO"
+      ideographic: "橋本^洋子"
+      phonetic: "ハシモト^ヨウコ"
+    birth_date: "19730819"
+    sex: "F"
+    age: "052Y"
+    weight: 62.8
+    size: 157.0
+    patient_comments: ""
+    
+  - patient_id: "P000021"
+    patient_name:
+      alphabetic: "IKEDA^YUTA"
+      ideographic: "池田^雄太"
+      phonetic: "イケダ^ユウタ"
+    birth_date: "20000126"
+    sex: "M"
+    age: "025Y"
+    weight: 64.0
+    size: 176.0
+    patient_comments: ""
+    
+  - patient_id: "P000022"
+    patient_name:
+      alphabetic: "YAMADA^MISAKI"
+      ideographic: "山田^美咲"
+      phonetic: "ヤマダ^ミサキ"
+    birth_date: "19930407"
+    sex: "F"
+    age: "032Y"
+    weight: 49.5
+    size: 160.0
+    patient_comments: ""
+    
+  - patient_id: "P000023"
+    patient_name:
+      alphabetic: "OKADA^TATSUYA"
+      ideographic: "岡田^達也"
+      phonetic: "オカダ^タツヤ"
+    birth_date: "19600914"
+    sex: "M"
+    age: "065Y"
+    weight: 67.5
+    size: 167.0
+    patient_comments: "心房細動"
+    
+  - patient_id: "P000024"
+    patient_name:
+      alphabetic: "GOTO^MAKI"
+      ideographic: "後藤^真希"
+      phonetic: "ゴトウ^マキ"
+    birth_date: "19871122"
+    sex: "F"
+    age: "038Y"
+    weight: 54.2
+    size: 163.0
+    patient_comments: ""
+    
+  - patient_id: "P000025"
+    patient_name:
+      alphabetic: "FUJITA^SHUN"
+      ideographic: "藤田^駿"
+      phonetic: "フジタ^シュン"
+    birth_date: "19990305"
+    sex: "M"
+    age: "026Y"
+    weight: 60.5
+    size: 170.0
+    patient_comments: ""
+    
+  - patient_id: "P000026"
+    patient_name:
+      alphabetic: "NISHIMURA^KAORI"
+      ideographic: "西村^香織"
+      phonetic: "ニシムラ^カオリ"
+    birth_date: "19770628"
+    sex: "F"
+    age: "048Y"
+    weight: 58.0
+    size: 158.0
+    patient_comments: ""
+    
+  - patient_id: "P000027"
+    patient_name:
+      alphabetic: "FUKUDA^TAKUYA"
+      ideographic: "福田^拓也"
+      phonetic: "フクダ^タクヤ"
+    birth_date: "19821011"
+    sex: "M"
+    age: "043Y"
+    weight: 76.2
+    size: 172.0
+    patient_comments: ""
+    
+  - patient_id: "P000028"
+    patient_name:
+      alphabetic: "MAEDA^AYUMI"
+      ideographic: "前田^歩美"
+      phonetic: "マエダ^アユミ"
+    birth_date: "19540730"
+    sex: "F"
+    age: "071Y"
+    weight: 50.5
+    size: 150.0
+    patient_comments: "変形性腰椎症"
+    
+  - patient_id: "P000029"
+    patient_name:
+      alphabetic: "TAKAHASHI^KENTA"
+      ideographic: "高橋^健太"
+      phonetic: "タカハシ^ケンタ"
+    birth_date: "19910218"
+    sex: "M"
+    age: "034Y"
+    weight: 72.0
+    size: 178.0
+    patient_comments: ""
+    
+  - patient_id: "P000030"
+    patient_name:
+      alphabetic: "AOKI^RIE"
+      ideographic: "青木^理恵"
+      phonetic: "アオキ^リエ"
+    birth_date: "19860524"
+    sex: "F"
+    age: "039Y"
+    weight: 52.5
+    size: 161.0
+    patient_comments: ""
+    
+  - patient_id: "P000031"
+    patient_name:
+      alphabetic: "UEDA^SATOSHI"
+      ideographic: "上田^聡"
+      phonetic: "ウエダ^サトシ"
+    birth_date: "19720807"
+    sex: "M"
+    age: "053Y"
+    weight: 80.0
+    size: 170.0
+    patient_comments: "高血圧"
+    
+  - patient_id: "P000032"
+    patient_name:
+      alphabetic: "ISHIKAWA^TOMOMI"
+      ideographic: "石川^智美"
+      phonetic: "イシカワ^トモミ"
+    birth_date: "19961015"
+    sex: "F"
+    age: "029Y"
+    weight: 47.0
+    size: 159.0
+    patient_comments: ""
+    
+  - patient_id: "P000033"
+    patient_name:
+      alphabetic: "OGAWA^MAKOTO"
+      ideographic: "小川^誠"
+      phonetic: "オガワ^マコト"
+    birth_date: "19580621"
+    sex: "M"
+    age: "067Y"
+    weight: 65.5
+    size: 166.0
+    patient_comments: "前立腺がん術後"
+    
+  - patient_id: "P000034"
+    patient_name:
+      alphabetic: "KONDO^HARUKA"
+      ideographic: "近藤^遥"
+      ponetic: "コンドウ^ハルカ"
+    birth_date: "20030912"
+    sex: "F"
+    age: "022Y"
+    weight: 46.5
+    size: 162.0
+    patient_comments: ""
+    
+  - patient_id: "P000035"
+    patient_name:
+      alphabetic: "SAITO^MINORU"
+      ideographic: "斉藤^稔"
+      phonetic: "サイトウ^ミノル"
+    birth_date: "19510403"
+    sex: "M"
+    age: "074Y"
+    weight: 56.0
+    size: 164.0
+    patient_comments: "慢性腎臓病"
+    
+  - patient_id: "P000036"
+    patient_name:
+      alphabetic: "ENDO^RINA"
+      ideographic: "遠藤^里奈"
+      phonetic: "エンドウ^リナ"
+    birth_date: "19891129"
+    sex: "F"
+    age: "036Y"
+    weight: 55.0
+    size: 164.0
+    patient_comments: ""
+    
+  - patient_id: "P000037"
+    patient_name:
+      alphabetic: "SAKAMOTO^YUJI"
+      ideographic: "坂本^裕二"
+      phonetic: "サカモト^ユウジ"
+    birth_date: "19740516"
+    sex: "M"
+    age: "051Y"
+    weight: 85.0
+    size: 171.0
+    patient_comments: "糖尿病"
+    
+  - patient_id: "P000038"
+    patient_name:
+      alphabetic: "KANEKO^NANA"
+      ideographic: "金子^奈々"
+      phonetic: "カネコ^ナナ"
+    birth_date: "19940802"
+    sex: "F"
+    age: "031Y"
+    weight: 50.0
+    size: 157.0
+    patient_comments: ""
+    
+  - patient_id: "P000039"
+    patient_name:
+      alphabetic: "FUJII^TETSUYA"
+      ideographic: "藤井^哲也"
+      phonetic: "フジイ^テツヤ"
+    birth_date: "19661023"
+    sex: "M"
+    age: "059Y"
+    weight: 73.5
+    size: 168.0
+    patient_comments: ""
+    
+  - patient_id: "P000040"
+    patient_name:
+      alphabetic: "NISHIDA^ASUKA"
+      ideographic: "西田^明日香"
+      phonetic: "ニシダ^アスカ"
+    birth_date: "19800309"
+    sex: "F"
+    age: "045Y"
+    weight: 60.0
+    size: 160.0
+    patient_comments: ""
+    
+  - patient_id: "P000041"
+    patient_name:
+      alphabetic: "MORITA^HIDEKI"
+      ideographic: "森田^秀樹"
+      phonetic: "モリタ^ヒデキ"
+    birth_date: "19971125"
+    sex: "M"
+    age: "028Y"
+    weight: 66.0
+    size: 174.0
+    patient_comments: ""
+    
+  - patient_id: "P000042"
+    patient_name:
+      alphabetic: "NAKANO^MIYUKI"
+      ideographic: "中野^美幸"
+      phonetic: "ナカノ^ミユキ"
+    birth_date: "19690607"
+    sex: "F"
+    age: "056Y"
+    weight: 57.0
+    size: 155.0
+    patient_comments: ""
+    
+  - patient_id: "P000043"
+    patient_name:
+      alphabetic: "HARADA^SHINJI"
+      ideographic: "原田^真二"
+      phonetic: "ハラダ^シンジ"
+    birth_date: "19551214"
+    sex: "M"
+    age: "070Y"
+    weight: 60.5
+    size: 165.0
+    patient_comments: "脳梗塞既往歴"
+    
+  - patient_id: "P000044"
+    patient_name:
+      alphabetic: "TAMURA^EMI"
+      ideographic: "田村^恵美"
+      phonetic: "タムラ^エミ"
+    birth_date: "19920421"
+    sex: "F"
+    age: "033Y"
+    weight: 51.0
+    size: 163.0
+    patient_comments: ""
+    
+  - patient_id: "P000045"
+    patient_name:
+      alphabetic: "NAKAJIMA^YOSUKE"
+      ideographic: "中島^陽介"
+      phonetic: "ナカジマ^ヨウスケ"
+    birth_date: "19830708"
+    sex: "M"
+    age: "042Y"
+    weight: 90.5
+    size: 175.0
+    patient_comments: "肥満症"
+    
+  - patient_id: "P000046"
+    patient_name:
+      alphabetic: "TAKEUCHI^KYOKO"
+      ideographic: "竹内^京子"
+      phonetic: "タケウチ^キョウコ"
+    birth_date: "19761019"
+    sex: "F"
+    age: "049Y"
+    weight: 63.5
+    size: 159.0
+    patient_comments: ""
+    
+  - patient_id: "P000047"
+    patient_name:
+      alphabetic: "NOGUCHI^KAZUKI"
+      ideographic: "野口^一樹"
+      phonetic: "ノグチ^カズキ"
+    birth_date: "20010202"
+    sex: "M"
+    age: "024Y"
+    weight: 59.0
+    size: 171.0
+    patient_comments: ""
+    
+  - patient_id: "P000048"
+    patient_name:
+      alphabetic: "MATSUDA^SAYURI"
+      ideographic: "松田^小百合"
+      phonetic: "マツダ^サユリ"
+    birth_date: "19880915"
+    sex: "F"
+    age: "037Y"
+    weight: 54.0
+    size: 162.0
+    patient_comments: ""
+    
+  - patient_id: "P000049"
+    patient_name:
+      alphabetic: "KINOSHITA^AKIRA"
+      ideographic: "木下^明"
+      phonetic: "キノシタ^アキラ"
+    birth_date: "19621127"
+    sex: "M"
+    age: "063Y"
+    weight: 69.0
+    size: 167.0
+    patient_comments: "高血圧・脂質異常症"
+    
+  - patient_id: "P000050"
+    patient_name:
+      alphabetic: "HARA^CHIE"
+      ideographic: "原^千恵"
+      phonetic: "ハラ^チエ"
+    birth_date: "19950513"
+    sex: "F"
+    age: "030Y"
+    weight: 48.0
+    size: 158.0
+    patient_comments: ""
+    
+  - patient_id: "P000051"
+    patient_name:
+      alphabetic: "MIYAMOTO^TOSHIO"
+      ideographic: "宮本^俊雄"
+      phonetic: "ミヤモト^トシオ"
+    birth_date: "19700830"
+    sex: "M"
+    age: "055Y"
+    weight: 77.5
+    size: 169.0
+    patient_comments: ""
+    
+  - patient_id: "P000052"
+    patient_name:
+      alphabetic: "UCHIDA^NORIKO"
+      ideographic: "内田^典子"
+      phonetic: "ウチダ^ノリコ"
+    birth_date: "19840106"
+    sex: "F"
+    age: "041Y"
+    weight: 57.5
+    size: 161.0
+    patient_comments: ""
+    
+  - patient_id: "P000053"
+    patient_name:
+      alphabetic: "MURAKAMI^OSAMU"
+      ideographic: "村上^修"
+      phonetic: "ムラカミ^オサム"
+    birth_date: "19571218"
+    sex: "M"
+    age: "068Y"
+    weight: 63.0
+    size: 166.0
+    patient_comments: "胃潰瘍既往歴"
+    
+  - patient_id: "P000054"
+    patient_name:
+      alphabetic: "SASAKI^YUKA"
+      ideographic: "佐々木^優香"
+      phonetic: "ササキ^ユカ"
+    birth_date: "19980725"
+    sex: "F"
+    age: "027Y"
+    weight: 50.5
+    size: 165.0
+    patient_comments: ""
+    
+  - patient_id: "P000055"
+    patient_name:
+      alphabetic: "YOKOYAMA^KENICHI"
+      ideographic: "横山^健一"
+      phonetic: "ヨコヤマ^ケンイチ"
+    birth_date: "19500904"
+    sex: "M"
+    age: "075Y"
+    weight: 54.0
+    size: 163.0
+    patient_comments: "変形性膝関節症"
+    
+  - patient_id: "P000056"
+    patient_name:
+      alphabetic: "MIYAZAKI^AKANE"
+      ideographic: "宮崎^茜"
+      phonetic: "ミヤザキ^アカネ"
+    birth_date: "19911020"
     sex: "F"
     age: "034Y"
     weight: 52.0
-    size: 1.58
-
-  - patient_id: "P000003"
+    size: 160.0
+    patient_comments: ""
+    
+  - patient_id: "P000057"
     patient_name:
-      alphabetic: "SUZUKI^ICHIRO"
-      ideographic: "鈴木^一郎"
-      phonetic: "スズキ^イチロウ"
-    birth_date: "19550303"
+      alphabetic: "IWASAKI^NAOKI"
+      ideographic: "岩崎^直樹"
+      phonetic: "イワサキ^ナオキ"
+    birth_date: "19790307"
+    sex: "M"
+    age: "046Y"
+    weight: 74.0
+    size: 173.0
+    patient_comments: ""
+    
+  - patient_id: "P000058"
+    patient_name:
+      alphabetic: "MIYAKE^REIKO"
+      ideographic: "三宅^礼子"
+      phonetic: "ミヤケ^レイコ"
+    birth_date: "19650624"
+    sex: "F"
+    age: "060Y"
+    weight: 61.0
+    size: 156.0
+    patient_comments: ""
+    
+  - patient_id: "P000059"
+    patient_name:
+      alphabetic: "NODA^SHINGO"
+      ideographic: "野田^真吾"
+      phonetic: "ノダ^シンゴ"
+    birth_date: "19861111"
+    sex: "M"
+    age: "039Y"
+    weight: 68.5
+    size: 170.0
+    patient_comments: ""
+    
+  - patient_id: "P000060"
+    patient_name:
+      alphabetic: "MURATA^MAYUMI"
+      ideographic: "村田^真由美"
+      phonetic: "ムラタ^マユミ"
+    birth_date: "19930128"
+    sex: "F"
+    age: "032Y"
+    weight: 49.0
+    size: 159.0
+    patient_comments: ""
+    
+  - patient_id: "P000061"
+    patient_name:
+      alphabetic: "KURODA^TSUYOSHI"
+      ideographic: "黒田^剛"
+      phonetic: "クロダ^ツヨシ"
+    birth_date: "19710515"
+    sex: "M"
+    age: "054Y"
+    weight: 81.5
+    size: 172.0
+    patient_comments: "脂肪肝"
+    
+  - patient_id: "P000062"
+    patient_name:
+      alphabetic: "ISHIDA^JUNKO"
+      ideographic: "石田^順子"
+      phonetic: "イシダ^ジュンコ"
+    birth_date: "19800902"
+    sex: "F"
+    age: "045Y"
+    weight: 58.5
+    size: 158.0
+    patient_comments: ""
+    
+  - patient_id: "P000063"
+    patient_name:
+      alphabetic: "HASEGAWA^MASAHIRO"
+      ideographic: "長谷川^雅弘"
+      phonetic: "ハセガワ^マサヒロ"
+    birth_date: "19541209"
+    sex: "M"
+    age: "071Y"
+    weight: 59.0
+    size: 165.0
+    patient_comments: "心筋梗塞既往歴"
+    
+  - patient_id: "P000064"
+    patient_name:
+      alphabetic: "IWATA^HARUKO"
+      ideographic: "岩田^春子"
+      phonetic: "イワタ^ハルコ"
+    birth_date: "19960426"
+    sex: "F"
+    age: "029Y"
+    weight: 51.5
+    size: 161.0
+    patient_comments: ""
+    
+  - patient_id: "P000065"
+    patient_name:
+      alphabetic: "OSHIMA^KAZUHIRO"
+      ideographic: "大島^和弘"
+      phonetic: "オオシマ^カズヒロ"
+    birth_date: "19990613"
+    sex: "M"
+    age: "026Y"
+    weight: 61.0
+    size: 169.0
+    patient_comments: ""
+    
+  - patient_id: "P000066"
+    patient_name:
+      alphabetic: "WADA^SAKI"
+      ideographic: "和田^咲"
+      phonetic: "ワダ^サキ"
+    birth_date: "19871030"
+    sex: "F"
+    age: "038Y"
+    weight: 53.5
+    size: 162.0
+    patient_comments: ""
+    
+  - patient_id: "P000067"
+    patient_name:
+      alphabetic: "TSUCHIYA^YUTAKA"
+      ideographic: "土屋^豊"
+      phonetic: "ツチヤ^ユタカ"
+    birth_date: "19691216"
+    sex: "M"
+    age: "056Y"
+    weight: 75.0
+    size: 168.0
+    patient_comments: "高血圧"
+    
+  - patient_id: "P000068"
+    patient_name:
+      alphabetic: "OGAWA^TOMOKO"
+      ideographic: "小川^智子"
+      phonetic: "オガワ^トモコ"
+    birth_date: "19940503"
+    sex: "F"
+    age: "031Y"
+    weight: 47.5
+    size: 157.0
+    patient_comments: ""
+    
+  - patient_id: "P000069"
+    patient_name:
+      alphabetic: "ASANO^MASATO"
+      ideographic: "浅野^正人"
+      phonetic: "アサノ^マサト"
+    birth_date: "19610720"
+    sex: "M"
+    age: "064Y"
+    weight: 70.0
+    size: 167.0
+    patient_comments: "糖尿病治療中"
+    
+  - patient_id: "P000070"
+    patient_name:
+      alphabetic: "IMAI^KANA"
+      ideographic: "今井^香奈"
+      phonetic: "イマイ^カナ"
+    birth_date: "19751106"
+    sex: "F"
+    age: "050Y"
+    weight: 64.0
+    size: 160.0
+    patient_comments: ""
+    
+  - patient_id: "P000071"
+    patient_name:
+      alphabetic: "HIRANO^TAKUYA"
+      ideographic: "平野^拓哉"
+      phonetic: "ヒラノ^タクヤ"
+    birth_date: "20020323"
+    sex: "M"
+    age: "023Y"
+    weight: 65.0
+    size: 177.0
+    patient_comments: ""
+    
+  - patient_id: "P000072"
+    patient_name:
+      alphabetic: "OKAMOTO^MARI"
+      ideographic: "岡本^真理"
+      phonetic: "オカモト^マリ"
+    birth_date: "19900809"
+    sex: "F"
+    age: "035Y"
+    weight: 55.5
+    size: 163.0
+    patient_comments: ""
+    
+  - patient_id: "P000073"
+    patient_name:
+      alphabetic: "ONISHI^NOBUYUKI"
+      ideographic: "大西^信之"
+      phonetic: "オオニシ^ノブユキ"
+    birth_date: "19671225"
+    sex: "M"
+    age: "058Y"
+    weight: 72.5
+    size: 169.0
+    patient_comments: ""
+    
+  - patient_id: "P000074"
+    patient_name:
+      alphabetic: "MIYAMOTO^YUMI"
+      ideographic: "宮本^由美"
+      phonetic: "ミヤモト^ユミ"
+    birth_date: "19820512"
+    sex: "F"
+    age: "043Y"
+    weight: 56.0
+    size: 159.0
+    patient_comments: ""
+    
+  - patient_id: "P000075"
+    patient_name:
+      alphabetic: "KIKUCHI^TAKASHI"
+      ideographic: "菊池^隆"
+      phonetic: "キクチ^タカシ"
+    birth_date: "19520728"
+    sex: "M"
+    age: "073Y"
+    weight: 57.5
+    size: 164.0
+    patient_comments: "骨粗鬆症"
+    
+  - patient_id: "P000076"
+    patient_name:
+      alphabetic: "MIZUNO^FUMIKO"
+      ideographic: "水野^文子"
+      phonetic: "ミズノ^フミコ"
+    birth_date: "19891004"
+    sex: "F"
+    age: "036Y"
+    weight: 52.5
+    size: 161.0
+    patient_comments: ""
+    
+  - patient_id: "P000077"
+    patient_name:
+      alphabetic: "SHIBATA^KOJI"
+      ideographic: "柴田^浩二"
+      phonetic: "シバタ^コウジ"
+    birth_date: "19770221"
+    sex: "M"
+    age: "048Y"
+    weight: 79.0
+    size: 171.0
+    patient_comments: "高尿酸血症"
+    
+  - patient_id: "P000078"
+    patient_name:
+      alphabetic: "SAKAI^MIDORI"
+      ideographic: "酒井^緑"
+      phonetic: "サカイ^ミドリ"
+    birth_date: "19630507"
+    sex: "F"
+    age: "062Y"
+    weight: 60.5
+    size: 155.0
+    patient_comments: ""
+    
+  - patient_id: "P000079"
+    patient_name:
+      alphabetic: "MATSUI^SHUHEI"
+      ideographic: "松井^周平"
+      phonetic: "マツイ^シュウヘイ"
+    birth_date: "19851124"
+    sex: "M"
+    age: "040Y"
+    weight: 69.5
+    size: 172.0
+    patient_comments: ""
+    
+  - patient_id: "P000080"
+    patient_name:
+      alphabetic: "SHIMADA^AYAKO"
+      ideographic: "島田^綾子"
+      phonetic: "シマダ^アヤコ"
+    birth_date: "19970310"
+    sex: "F"
+    age: "028Y"
+    weight: 48.5
+    size: 160.0
+    patient_comments: ""
+    
+  - patient_id: "P000081"
+    patient_name:
+      alphabetic: "NAGANO^YOSHIO"
+      ideographic: "長野^義男"
+      phonetic: "ナガノ^ヨシオ"
+    birth_date: "19590627"
+    sex: "M"
+    age: "066Y"
+    weight: 68.0
+    size: 166.0
+    patient_comments: "前立腺肥大症"
+    
+  - patient_id: "P000082"
+    patient_name:
+      alphabetic: "TAKEDA^KAORU"
+      ideographic: "武田^薫"
+      phonetic: "タケダ^カオル"
+    birth_date: "19880913"
+    sex: "F"
+    age: "037Y"
+    weight: 54.5
+    size: 162.0
+    patient_comments: ""
+    
+  - patient_id: "P000083"
+    patient_name:
+      alphabetic: "KOIKE^MAKOTO"
+      ideographic: "小池^誠"
+      phonetic: "コイケ^マコト"
+    birth_date: "19731130"
+    sex: "M"
+    age: "052Y"
+    weight: 83.5
+    size: 173.0
+    patient_comments: "高血圧・脂質異常症"
+    
+  - patient_id: "P000084"
+    patient_name:
+      alphabetic: "YAMAGUCHI^NATSUKI"
+      ideographic: "山口^夏希"
+      phonetic: "ヤマグチ^ナツキ"
+    birth_date: "20000417"
+    sex: "F"
+    age: "025Y"
+    weight: 50.0
+    size: 164.0
+    patient_comments: ""
+    
+  - patient_id: "P000085"
+    patient_name:
+      alphabetic: "IKEDA^YASUHIRO"
+      ideographic: "池田^康弘"
+      phonetic: "イケダ^ヤスヒロ"
+    birth_date: "19560704"
     sex: "M"
     age: "069Y"
-    weight: 72.0
-    size: 1.68
-
-  - patient_id: "P000004"
+    weight: 62.0
+    size: 165.0
+    patient_comments: "慢性腎臓病"
+    
+  - patient_id: "P000086"
     patient_name:
-      alphabetic: "SATO^YUKI"
-    birth_date: "20000101"
+      alphabetic: "TSUJI^SATSUKI"
+      ideographic: "辻^さつき"
+      phonetic: "ツジ^サツキ"
+    birth_date: "19921021"
+    sex: "F"
+    age: "033Y"
+    weight: 51.0
+    size: 158.0
+    patient_comments: ""
+    
+  - patient_id: "P000087"
+    patient_name:
+      alphabetic: "KANEKO^HIROKI"
+      ideographic: "金子^弘樹"
+      phonetic: "カネコ^ヒロキ"
+    birth_date: "19810307"
+    sex: "M"
+    age: "044Y"
+    weight: 76.0
+    size: 174.0
+    patient_comments: ""
+    
+  - patient_id: "P000088"
+    patient_name:
+      alphabetic: "YOSHIKAWA^HITOMI"
+      ideographic: "吉川^瞳"
+      phonetic: "ヨシカワ^ヒトミ"
+    birth_date: "19700824"
+    sex: "F"
+    age: "055Y"
+    weight: 62.5
+    size: 157.0
+    patient_comments: ""
+    
+  - patient_id: "P000089"
+    patient_name:
+      alphabetic: "TANIGUCHI^KATSUHIKO"
+      ideographic: "谷口^勝彦"
+      phonetic: "タニグチ^カツヒコ"
+    birth_date: "19641110"
+    sex: "M"
+    age: "061Y"
+    weight: 71.0
+    size: 168.0
+    patient_comments: "糖尿病"
+    
+  - patient_id: "P000090"
+    patient_name:
+      alphabetic: "NAKAGAWA^ERIKO"
+      ideographic: "中川^恵理子"
+      phonetic: "ナカガワ^エリコ"
+    birth_date: "19950227"
+    sex: "F"
+    age: "030Y"
+    weight: 49.5
+    size: 161.0
+    patient_comments: ""
+    
+  - patient_id: "P000091"
+    patient_name:
+      alphabetic: "MARUYAMA^TAKESHI"
+      ideographic: "丸山^武史"
+      phonetic: "マルヤマ^タケシ"
+    birth_date: "19980515"
+    sex: "M"
+    age: "027Y"
+    weight: 63.5
+    size: 175.0
+    patient_comments: ""
+    
+  - patient_id: "P000092"
+    patient_name:
+      alphabetic: "UCHIYAMA^SHIORI"
+      ideographic: "内山^栞"
+      phonetic: "ウチヤマ^シオリ"
+    birth_date: "19860702"
+    sex: "F"
+    age: "039Y"
+    weight: 56.5
+    size: 163.0
+    patient_comments: ""
+    
+  - patient_id: "P000093"
+    patient_name:
+      alphabetic: "HORIUCHI^TATSUO"
+      ideographic: "堀内^達夫"
+      phonetic: "ホリウチ^タツオ"
+    birth_date: "19531018"
+    sex: "M"
+    age: "072Y"
+    weight: 61.5
+    size: 166.0
+    patient_comments: "心房細動・抗凝固療法中"
+    
+  - patient_id: "P000094"
+    patient_name:
+      alphabetic: "SUZUKI^AOI"
+      ideographic: "鈴木^葵"
+      phonetic: "スズキ^アオイ"
+    birth_date: "20010905"
     sex: "F"
     age: "024Y"
-    weight: 48.0
-    size: 1.55
-
-  - patient_id: "P000005"
+    weight: 46.0
+    size: 159.0
+    patient_comments: ""
+    
+  - patient_id: "P000095"
     patient_name:
-      alphabetic: "TEST^ANONYMOUS"
-    birth_date: "19700101"
-    sex: "O"
+      alphabetic: "YAMASHITA^JUNICHI"
+      ideographic: "山下^純一"
+      phonetic: "ヤマシタ^ジュンイチ"
+    birth_date: "19761223"
+    sex: "M"
+    age: "049Y"
+    weight: 87.0
+    size: 176.0
+    patient_comments: "脂質異常症・肥満症"
+    
+  - patient_id: "P000096"
+    patient_name:
+      alphabetic: "MORIMOTO^NOZOMI"
+      ideographic: "森本^希"
+      phonetic: "モリモト^ノゾミ"
+    birth_date: "19910410"
+    sex: "F"
+    age: "034Y"
+    weight: 52.0
+    size: 160.0
+    patient_comments: ""
+    
+  - patient_id: "P000097"
+    patient_name:
+      alphabetic: "IIDA^KAZUO"
+      ideographic: "飯田^和男"
+      phonetic: "イイダ^カズオ"
+    birth_date: "19601127"
+    sex: "M"
+    age: "065Y"
+    weight: 66.5
+    size: 167.0
+    patient_comments: "高血圧治療中"
+    
+  - patient_id: "P000098"
+    patient_name:
+      alphabetic: "FUJIMOTO^ASAMI"
+      ideographic: "藤本^麻美"
+      phonetic: "フジモト^アサミ"
+    birth_date: "19830614"
+    sex: "F"
+    age: "042Y"
+    weight: 59.0
+    size: 162.0
+    patient_comments: ""
+    
+  - patient_id: "P000099"
+    patient_name:
+      alphabetic: "KAWAMURA^RYUICHI"
+      ideographic: "川村^隆一"
+      phonetic: "カワムラ^リュウイチ"
+    birth_date: "19690901"
+    sex: "M"
+    age: "056Y"
+    weight: 78.5
+    size: 170.0
+    patient_comments: "睡眠時無呼吸症候群"
+    
+  - patient_id: "P000100"
+    patient_name:
+      alphabetic: "KOIZUMI^MADOKA"
+      ideographic: "小泉^円"
+      phonetic: "コイズミ^マドカ"
+    birth_date: "19940118"
+    sex: "F"
+    age: "031Y"
+    weight: 50.5
+    size: 159.0
+    patient_comments: ""

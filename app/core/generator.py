@@ -34,17 +34,31 @@ class DICOMBuilder:
         file_meta: FileMetaDataset,
         sop_instance_uid: str,
         series_instance_uid: str,
+        specific_character_set: str | None = None,
+        use_ideographic: bool = True,
+        use_phonetic: bool = True,
     ) -> Dataset:
         """CT Image Storageを構築."""
         try:
+            media_storage_sop_uid = str(
+                getattr(file_meta, "MediaStorageSOPInstanceUID", "")
+            )
+            if media_storage_sop_uid != sop_instance_uid:
+                raise DICOMBuildError(
+                    "SOP Instance UID mismatch between dataset and file meta",
+                    tag="MediaStorageSOPInstanceUID",
+                )
+
             ds = Dataset()
             ds.file_meta = file_meta
 
             # Patient Module
-            ds.PatientName = patient.patient_name.to_dicom_pn(
-                use_ideographic=True,
-                use_phonetic=True,
+            patient_name = patient.patient_name.to_dicom_pn(
+                use_ideographic=use_ideographic,
+                use_phonetic=use_phonetic,
             )
+            ds.PatientName = patient_name
+            self._apply_character_set(ds, patient_name, specific_character_set)
             ds.PatientID = patient.patient_id
             ds.PatientBirthDate = patient.birth_date
             ds.PatientSex = patient.sex
@@ -52,8 +66,8 @@ class DICOMBuilder:
                 ds.PatientAge = patient.age
             if patient.weight is not None:
                 ds.PatientWeight = str(patient.weight)
-            if patient.size is not None:
-                ds.PatientSize = str(patient.size)
+            if patient.size_in_meters is not None:
+                ds.PatientSize = str(patient.size_in_meters)
 
             # General Study Module
             ds.StudyInstanceUID = uid_context.study_instance_uid
@@ -100,8 +114,7 @@ class DICOMBuilder:
             self._set_pixel_data(ds, pixel_data)
 
             # Transfer Syntax compatibility
-            ds.is_implicit_VR = True
-            ds.is_little_endian = True
+            self._apply_transfer_syntax(ds, file_meta)
 
             return ds
         except Exception as exc:
@@ -137,4 +150,45 @@ class DICOMBuilder:
                 tag="PixelData",
             )
 
-        ds.PixelData = pixel_data.tobytes()
+            ds.PixelData = pixel_data.tobytes()
+
+    def _apply_transfer_syntax(self, ds: Dataset, file_meta: FileMetaDataset) -> None:
+        transfer_syntax_uid = str(getattr(file_meta, "TransferSyntaxUID", ""))
+        if transfer_syntax_uid == "1.2.840.10008.1.2":
+            ds.is_implicit_VR = True
+            ds.is_little_endian = True
+            return
+        if transfer_syntax_uid == "1.2.840.10008.1.2.1":
+            ds.is_implicit_VR = False
+            ds.is_little_endian = True
+            return
+        if transfer_syntax_uid == "1.2.840.10008.1.2.2":
+            ds.is_implicit_VR = False
+            ds.is_little_endian = False
+            return
+        raise DICOMBuildError(
+            f"Unsupported Transfer Syntax UID: {transfer_syntax_uid}",
+            tag="TransferSyntaxUID",
+        )
+
+    def _apply_character_set(
+        self,
+        ds: Dataset,
+        patient_name: str,
+        specific_character_set: str | None,
+    ) -> None:
+        if specific_character_set is not None:
+            if specific_character_set != "":
+                ds.SpecificCharacterSet = specific_character_set
+            if self._contains_non_ascii(patient_name) and specific_character_set == "":
+                raise DICOMBuildError(
+                    "SpecificCharacterSet is required for non-ASCII PatientName",
+                    tag="SpecificCharacterSet",
+                )
+            return
+
+        if self._contains_non_ascii(patient_name):
+            ds.SpecificCharacterSet = "ISO 2022 IR 87"
+
+    def _contains_non_ascii(self, value: str) -> bool:
+        return any(ord(char) > 127 for char in value)

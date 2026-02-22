@@ -43,8 +43,15 @@ class Patient(BaseModel):
     sex: str = Field(..., pattern=r"^(M|F|O)$", description="性別")
     age: str | None = Field(None, pattern=r"^\d{3}Y$", description="年齢（例: 044Y）")
     weight: float | None = Field(None, ge=0, le=500, description="体重（kg）")
-    size: float | None = Field(None, ge=0, le=3, description="身長（m）")
+    size: float | None = Field(None, ge=0, le=300, description="身長（cm）")
     patient_comments: str | None = Field(None, max_length=128, description="患者コメント")
+
+    @property
+    def size_in_meters(self) -> float | None:
+        """DICOM Patient's Size (0010,1020) 用にメートル単位で返す."""
+        if self.size is None:
+            return None
+        return self.size / 100.0
 
 
 class StudyConfig(BaseModel):
