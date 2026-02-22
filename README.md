@@ -123,10 +123,23 @@ pip install -r requirements.txt
 ## 基本的な使い方（CLI）
 
 ```bash
-python -m app.cli generate jobs/sample.yaml
+# Job YAMLからDICOM生成
+python -m app.cli generate examples/job_minimal.yaml
+
+# 出力先を指定して生成
+python -m app.cli generate examples/job_full.yaml -o output/ --verbose
+
+# 設定検証のみ（生成なし）
+python -m app.cli validate examples/job_minimal.yaml
+
+# CLI引数のみで簡易生成
+python -m app.cli quick -p P000001 -m fujifilm_scenaria_view_ct -s 3 -i 1,20,20 -o output/
+
+# バージョン表示
+python -m app.cli version
 ```
 
-Job YAML に生成条件を記述します。
+Job YAML に生成条件を記述します。`examples/` に最小構成・全オプション構成のサンプルがあります。
 
 ---
 
@@ -187,14 +200,21 @@ DICOM通信による受信機能を追加予定。
 
 ```text
 dicom-test-generator/
-├── spec/           # 仕様書
-├── adr/            # 設計判断記録
-├── docs/           # MkDocsドキュメント
-├── app/            # 実装コード（予定）
-├── templates/      # モダリティ・病院テンプレート
-├── data/           # 患者マスターデータ
-├── jobs/           # Job設定ファイル例
-└── README.md       # 本ファイル
+├── app/
+│   ├── core/           # Core Engine（データモデル、DICOM構築、UID生成等）
+│   ├── services/       # Service Layer（テンプレート読み込み、患者検索、生成）
+│   └── cli/            # CLI（argparse、サブコマンド、進捗表示）
+├── tests/
+│   ├── core/           # Core Engineテスト
+│   ├── services/       # Service Layerテスト
+│   └── cli/            # CLIテスト
+├── spec/               # 仕様書
+├── adr/                # 設計判断記録
+├── docs/               # MkDocsドキュメント
+├── templates/          # モダリティ・病院テンプレート（YAML）
+├── data/               # 患者マスターデータ
+├── examples/           # Job YAML設定例
+└── README.md           # 本ファイル
 ```
 
 ---
@@ -263,18 +283,20 @@ Repository: <https://github.com/jeysun/dicom-test-generator>
 
 ## 今後の予定
 
-### Phase 0: Core Engine（最優先）
+### Phase 0: Core Engine ✅ 完了
 
-* [ ] データモデル実装
-* [ ] UID生成
-* [ ] ピクセルデータ生成
-* [ ] DICOM構築エンジン
+* [x] データモデル実装（Pydantic v2）
+* [x] UID生成（UUID 2.25 / カスタムルート）
+* [x] ピクセルデータ生成（simple\_text / ct\_realistic）
+* [x] DICOM構築エンジン（DICOMBuilder / FileMetaBuilder / SpatialCalculator）
 
-### Phase 1: CLI
+### Phase 1: CLI ✅ 完了
 
-* [ ] Job YAML読み込み
-* [ ] コマンドライン実装
-* [ ] 進捗表示
+* [x] Service Layer（テンプレート読み込み、患者検索、スタディ生成）
+* [x] CLIコマンド実装（generate / validate / quick / version）
+* [x] Job YAML読み込みと設定マージ
+* [x] 進捗表示（tqdm）
+* [x] エラーハンドリングと終了コード
 
 ### Phase 2: GUI
 

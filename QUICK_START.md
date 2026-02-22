@@ -89,24 +89,24 @@ pip install -r requirements.txt
 
 ## 進捗管理
 
-### Phase 0: Core Engine
+### Phase 0: Core Engine ✅ 完了
 
-- [ ] データモデル実装（`app/core/models.py`）
-- [ ] UIDGenerator実装
-- [ ] PixelGenerator実装
-- [ ] FileMetaBuilder実装
-- [ ] SpatialCalculator実装
-- [ ] DICOMBuilder実装
-- [ ] AbnormalGenerator実装
-- [ ] 単体テスト作成
+- [x] データモデル実装（`app/core/models.py`）
+- [x] UIDGenerator実装
+- [x] PixelGenerator実装
+- [x] FileMetaBuilder実装
+- [x] SpatialCalculator実装
+- [x] DICOMBuilder実装
+- [x] AbnormalGenerator実装
+- [x] 単体テスト作成（カバレッジ88%）
 
-### Phase 1: CLI
+### Phase 1: CLI ✅ 完了
 
-- [ ] Service Layer実装
-- [ ] CLIコマンド実装
-- [ ] Job YAML読み込み
-- [ ] 進捗表示
-- [ ] エラーハンドリング
+- [x] Service Layer実装（TemplateLoaderService / PatientLoaderService / StudyGeneratorService）
+- [x] CLIコマンド実装（generate / validate / quick / version）
+- [x] Job YAML読み込みとテンプレートマージ
+- [x] 進捗表示（tqdm）
+- [x] エラーハンドリング（終了コード 0-4）
 
 ### Phase 2: GUI
 
@@ -119,11 +119,11 @@ pip install -r requirements.txt
 
 ## 次のアクション
 
-1. `spec/00_overview.md` を読む
-2. `spec/01_architecture.md` を読む
-3. `spec/02_core_engine.md` と `spec/03_data_models.md` を読む
-4. データモデル実装開始（`app/core/models.py`）
-5. Core Engine実装開始
+Phase 0 / Phase 1 は完了済みです。次のステップ：
+
+1. `spec/05_gui.md` を読んで GUI 設計を確認
+2. `spec/10_async_processing.md` を読んで QThread 設計を確認
+3. Phase 2（PySide6 GUI）の実装を開始
 
 ---
 
