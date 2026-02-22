@@ -192,7 +192,7 @@ def test_transfer_syntax_config_defaults() -> None:
 def test_character_set_config_defaults() -> None:
     character_set = CharacterSetConfig()
 
-    assert character_set.specific_character_set == "ISO 2022 IR 87"
+    assert character_set.specific_character_set == r"ISO 2022 IR 6\ISO 2022 IR 87"
     assert character_set.use_ideographic is True
     assert character_set.use_phonetic is True
 

@@ -155,7 +155,7 @@ def test_non_ascii_patient_name_sets_default_character_set() -> None:
         series_instance_uid="2.25.203",
     )
 
-    assert ds.SpecificCharacterSet == "ISO 2022 IR 87"
+    assert ds.SpecificCharacterSet == ["ISO 2022 IR 6", "ISO 2022 IR 87"]  # parsed list
 
 
 def test_non_ascii_patient_name_with_empty_character_set_raises_error() -> None:

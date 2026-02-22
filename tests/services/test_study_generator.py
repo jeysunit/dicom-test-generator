@@ -110,3 +110,41 @@ def test_sop_class_uid_consistency(tmp_path) -> None:
     sop_class = str(ds.SOPClassUID)
 
     assert media_storage_sop_class == sop_class
+
+
+def test_japanese_patient_name_roundtrip(tmp_path) -> None:
+    """日本語患者名の書き出し→再読込で PatientName と SpecificCharacterSet が保持されることを検証."""
+    config = GenerationConfig(
+        job_name="test_jp",
+        output_dir=str(tmp_path / "output"),
+        patient=Patient(
+            patient_id="P000001",
+            patient_name=PatientName(
+                alphabetic="TANAKA^HIROSHI",
+                ideographic="田中^博",
+                phonetic="タナカ^ヒロシ",
+            ),
+            birth_date="19980312",
+            sex="M",
+        ),
+        study=StudyConfig(
+            accession_number="ACC000001",
+            study_date="20240115",
+            study_time="120000",
+            num_series=1,
+        ),
+        series_list=[SeriesConfig(series_number=1, num_images=1)],
+        modality_template="fujifilm_scenaria_view_ct",
+        pixel_spec=PixelSpecSimple(),
+        transfer_syntax=TransferSyntaxConfig(),
+        character_set=CharacterSetConfig(),
+    )
+
+    service = StudyGeneratorService()
+    output_dir = service.generate(config=config)
+    dcm_file = next(output_dir.glob("*.dcm"))
+
+    ds = pydicom.dcmread(str(dcm_file))
+
+    assert str(ds.PatientName) == "TANAKA^HIROSHI=田中^博=タナカ^ヒロシ"
+    assert ds.SpecificCharacterSet == ["ISO 2022 IR 6", "ISO 2022 IR 87"]

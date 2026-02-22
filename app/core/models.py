@@ -156,7 +156,7 @@ class CharacterSetConfig(BaseModel):
     model_config = {"frozen": True}
 
     specific_character_set: str = Field(
-        "ISO 2022 IR 87", description="Specific Character Set"
+        r"ISO 2022 IR 6\ISO 2022 IR 87", description="Specific Character Set"
     )
     use_ideographic: bool = Field(True, description="漢字を使用するか")
     use_phonetic: bool = Field(True, description="カナを使用するか")

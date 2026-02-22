@@ -171,6 +171,8 @@ class DICOMBuilder:
                 tag="TransferSyntaxUID",
             )
 
+    _DEFAULT_JP_CHARACTER_SET = r"ISO 2022 IR 6\ISO 2022 IR 87"
+
     def _apply_character_set(
         self,
         ds: Dataset,
@@ -178,9 +180,10 @@ class DICOMBuilder:
         specific_character_set: str | None,
     ) -> None:
         if specific_character_set is not None:
-            if specific_character_set != "":
-                ds.SpecificCharacterSet = specific_character_set
-            if self._contains_non_ascii(patient_name) and specific_character_set == "":
+            parsed = self._parse_charset(specific_character_set)
+            if parsed:
+                ds.SpecificCharacterSet = parsed
+            elif self._contains_non_ascii(patient_name):
                 raise DICOMBuildError(
                     "SpecificCharacterSet is required for non-ASCII PatientName",
                     tag="SpecificCharacterSet",
@@ -188,7 +191,15 @@ class DICOMBuilder:
             return
 
         if self._contains_non_ascii(patient_name):
-            ds.SpecificCharacterSet = "ISO 2022 IR 87"
+            ds.SpecificCharacterSet = self._parse_charset(self._DEFAULT_JP_CHARACTER_SET)
+
+    @staticmethod
+    def _parse_charset(value: str) -> str | list[str]:
+        """バックスラッシュ区切りの文字セット文字列をリストに変換する."""
+        parts = [s.strip() for s in value.split("\\") if s.strip()]
+        if len(parts) <= 1:
+            return parts[0] if parts else ""
+        return parts
 
     def _contains_non_ascii(self, value: str) -> bool:
         return any(ord(char) > 127 for char in value)
