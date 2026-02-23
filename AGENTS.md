@@ -15,4 +15,13 @@
 
 実装前に `spec/` を読むこと。
 
+実装開始前に必ず現在ブランチを確認し、`main` の場合は作業を開始しないこと。
+
+```bash
+git branch --show-current
+git switch -c <type>/<topic>
+```
+
+`main` 直コミット・`main` 直pushは禁止です。
+
 不明点がある場合は質問してください。

@@ -65,7 +65,9 @@ app/
 ### 基本ルール
 
 - `MUST` main ブランチへ直接コミットしない
+- `MUST` 作業開始前に現在ブランチを確認する（`git branch --show-current`）
 - `MUST` 作業前に必ずブランチを作成する
+- `MUST` main ブランチにいる場合は実装を開始しない
 - `MUST` 1コミット1論理変更とする
 - `MUST` Conventional Commits 形式を使用する
 - `MUST` シークレット（APIキー、パスワード等）をコミットしない
@@ -118,8 +120,19 @@ type 一覧：
 ### 禁止事項
 
 - `MUST NOT` main ブランチへ直接コミットする
+- `MUST NOT` main ブランチへ直接 push する
 - `MUST NOT` 仕様変更を含む変更を無断で行う
 - `MUST NOT` 大規模変更を単一コミットで行う
+
+### 違反時の是正手順
+
+1. main での作業に気づいた時点で、まず作業を停止する
+2. 未pushの場合:
+   - 作業コミットを残したまま新規ブランチを作成して移動する（`git switch -c <type>/<name>`）
+   - main を `origin/main` と同期する
+3. 既pushの場合:
+   - 履歴改変は行わず、以後の変更は必ずブランチ + PR で実施する
+   - PR本文に「main直コミットが発生したため是正した」旨を明記する
 
 ## 7. Markdownルール（markdownlint準拠）
 
