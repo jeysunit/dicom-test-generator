@@ -14,6 +14,7 @@ from pydantic import ValidationError as PydanticValidationError
 from app.cli.commands import (
     generate_command,
     quick_command,
+    scp_start_command,
     validate_command,
     version_command,
 )
@@ -91,6 +92,8 @@ _EPILOG = """\
   python -m app.cli validate job.yaml
   python -m app.cli quick -p P000001 -m fujifilm_scenaria_view_ct -s 3 -i 1,20,20 -o output/
   python -m app.cli version
+  python -m app.cli scp start
+  python -m app.cli scp start --config config/app_config.yaml
 
 終了コード:
   0  成功
@@ -167,6 +170,16 @@ def _create_parser() -> argparse.ArgumentParser:
 
     version_parser = subparsers.add_parser("version", help="バージョン表示")
     version_parser.set_defaults(func=version_command)
+
+    scp_parser = subparsers.add_parser("scp", help="Storage SCP操作")
+    scp_subparsers = scp_parser.add_subparsers(dest="scp_command")
+    scp_start_parser = scp_subparsers.add_parser("start", help="Storage SCPを起動")
+    scp_start_parser.add_argument(
+        "--config",
+        default="config/app_config.yaml",
+        help="SCP設定ファイルパス（default: config/app_config.yaml）",
+    )
+    scp_start_parser.set_defaults(func=scp_start_command)
 
     return parser
 

@@ -1,0 +1,10 @@
+storage_scp:
+  enabled: false
+  ae_title: "DICOM_GEN_SCP"
+  port: 11112
+  bind_address: "0.0.0.0"
+  storage_dir: "scp_storage"
+  duplicate_handling: "overwrite"
+  supported_sop_classes:
+    - "1.2.840.10008.5.1.4.1.1.2"
+
