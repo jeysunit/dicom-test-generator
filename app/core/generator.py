@@ -58,8 +58,8 @@ class DICOMBuilder:
                 use_ideographic=use_ideographic,
                 use_phonetic=use_phonetic,
             )
-            ds.PatientName = patient_name
             self._apply_character_set(ds, patient_name, specific_character_set)
+            ds.PatientName = patient_name
             ds.PatientID = patient.patient_id
             ds.PatientBirthDate = patient.birth_date
             ds.PatientSex = patient.sex
