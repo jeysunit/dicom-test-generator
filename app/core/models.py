@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+from pydantic_core import PydanticCustomError
 
 
 class PatientName(BaseModel):
@@ -192,3 +194,23 @@ class GenerationConfig(BaseModel):
     transfer_syntax: TransferSyntaxConfig
     character_set: CharacterSetConfig
     abnormal: AbnormalConfig = Field(default_factory=AbnormalConfig)
+
+    @model_validator(mode="after")
+    def validate_date_consistency(self) -> GenerationConfig:
+        try:
+            birth_date = datetime.strptime(self.patient.birth_date, "%Y%m%d").date()
+            study_date = datetime.strptime(self.study.study_date, "%Y%m%d").date()
+        except ValueError as exc:
+            raise PydanticCustomError(
+                "invalid_calendar_date",
+                "birth_date/study_date must be valid calendar dates: {reason}",
+                {"reason": str(exc)},
+            ) from exc
+
+        if study_date < birth_date:
+            raise PydanticCustomError(
+                "invalid_date_order",
+                "study.study_date must be on or after patient.birth_date",
+                {},
+            )
+        return self

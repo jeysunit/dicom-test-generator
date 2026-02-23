@@ -182,3 +182,83 @@ def test_non_ascii_patient_name_with_empty_character_set_raises_error() -> None:
             series_instance_uid="2.25.204",
             specific_character_set="",
         )
+
+
+def test_patient_age_is_calculated_from_birth_and_study_date() -> None:
+    data = _base_inputs()
+    file_meta = FileMetaBuilder().build(
+        sop_class_uid="1.2.840.10008.5.1.4.1.1.2",
+        sop_instance_uid="2.25.105",
+        transfer_syntax_uid="1.2.840.10008.1.2",
+        implementation_class_uid=data["uid_context"].implementation_class_uid,
+        implementation_version_name="DICOM_GEN_1.1",
+    )
+    patient = Patient(
+        patient_id="P000001",
+        patient_name=PatientName(
+            alphabetic="TANAKA^HIROSHI",
+            ideographic="田中^博",
+            phonetic="タナカ^ヒロシ",
+        ),
+        birth_date="19980312",
+        sex="M",
+        age="027Y",
+    )
+    study = StudyConfig(
+        accession_number="ACC000001",
+        study_date="20240115",
+        study_time="120000",
+        num_series=1,
+    )
+
+    ds = DICOMBuilder().build_ct_image(
+        patient=patient,
+        study_config=study,
+        series_config=data["series"],
+        instance_config=data["instance"],
+        uid_context=data["uid_context"],
+        spatial=data["spatial"],
+        pixel_data=data["pixels"],
+        file_meta=file_meta,
+        sop_instance_uid="2.25.105",
+        series_instance_uid="2.25.205",
+    )
+
+    assert ds.PatientAge == "025Y"
+
+
+def test_study_date_before_birth_date_raises_error() -> None:
+    data = _base_inputs()
+    file_meta = FileMetaBuilder().build(
+        sop_class_uid="1.2.840.10008.5.1.4.1.1.2",
+        sop_instance_uid="2.25.106",
+        transfer_syntax_uid="1.2.840.10008.1.2",
+        implementation_class_uid=data["uid_context"].implementation_class_uid,
+        implementation_version_name="DICOM_GEN_1.1",
+    )
+    patient = Patient(
+        patient_id="P000001",
+        patient_name=PatientName(alphabetic="TEST^PATIENT"),
+        birth_date="19800115",
+        sex="M",
+    )
+    study = StudyConfig(
+        accession_number="ACC000001",
+        study_date="19790101",
+        study_time="120000",
+        num_series=1,
+    )
+
+    with pytest.raises(DICOMBuildError, match="study_date must be on or after"):
+        DICOMBuilder().build_ct_image(
+            patient=patient,
+            study_config=study,
+            series_config=data["series"],
+            instance_config=data["instance"],
+            uid_context=data["uid_context"],
+            spatial=data["spatial"],
+            pixel_data=data["pixels"],
+            file_meta=file_meta,
+            sop_instance_uid="2.25.106",
+            series_instance_uid="2.25.206",
+        )

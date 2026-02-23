@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import numpy as np
 from pydicom.dataset import Dataset, FileMetaDataset
 
@@ -63,8 +65,10 @@ class DICOMBuilder:
             ds.PatientID = patient.patient_id
             ds.PatientBirthDate = patient.birth_date
             ds.PatientSex = patient.sex
-            if patient.age is not None:
-                ds.PatientAge = patient.age
+            ds.PatientAge = self._calculate_patient_age(
+                patient.birth_date,
+                study_config.study_date,
+            )
             if patient.weight is not None:
                 ds.PatientWeight = str(patient.weight)
             if patient.size_in_meters is not None:
@@ -203,3 +207,29 @@ class DICOMBuilder:
 
     def _contains_non_ascii(self, value: str) -> bool:
         return any(ord(char) > 127 for char in value)
+
+    def _calculate_patient_age(self, birth_date: str, study_date: str) -> str:
+        try:
+            birth = datetime.strptime(birth_date, "%Y%m%d").date()
+            study = datetime.strptime(study_date, "%Y%m%d").date()
+        except ValueError as exc:
+            raise DICOMBuildError(
+                f"Invalid date format for PatientAge calculation: {exc}",
+                tag="PatientAge",
+            ) from exc
+
+        if study < birth:
+            raise DICOMBuildError(
+                "study_date must be on or after birth_date for PatientAge",
+                tag="PatientAge",
+            )
+
+        age_years = study.year - birth.year - (
+            (study.month, study.day) < (birth.month, birth.day)
+        )
+        if not 0 <= age_years <= 999:
+            raise DICOMBuildError(
+                "Calculated PatientAge is out of DICOM AS range",
+                tag="PatientAge",
+            )
+        return f"{age_years:03d}Y"

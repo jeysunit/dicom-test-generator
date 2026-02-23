@@ -310,3 +310,28 @@ def test_generation_config_invalid_series_list_empty() -> None:
             transfer_syntax=TransferSyntaxConfig(),
             character_set=CharacterSetConfig(),
         )
+
+
+def test_generation_config_study_date_before_birth_date_is_invalid() -> None:
+    with pytest.raises(ValidationError):
+        GenerationConfig(
+            job_name="job-invalid-date-order",
+            output_dir="/tmp/output",
+            patient=Patient(
+                patient_id="P000001",
+                patient_name=PatientName(alphabetic="YAMADA^TARO"),
+                birth_date="19800115",
+                sex="M",
+            ),
+            study=StudyConfig(
+                accession_number="ACC000001",
+                study_date="19790101",
+                study_time="120000",
+                num_series=1,
+            ),
+            series_list=[SeriesConfig(series_number=1, num_images=1)],
+            modality_template="ct_default",
+            pixel_spec=PixelSpecSimple(),
+            transfer_syntax=TransferSyntaxConfig(),
+            character_set=CharacterSetConfig(),
+        )
