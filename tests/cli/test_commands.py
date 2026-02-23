@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 
 from app.cli.commands import generate_command, validate_command, version_command
+from app.cli.main import _map_exception_to_exit_code
 
 
 def _write_job_yaml(path, output_dir):
@@ -68,7 +69,11 @@ def test_validate_command_invalid_yaml(tmp_path) -> None:
     job_file.write_text("job_name: [invalid", encoding="utf-8")
     args = argparse.Namespace(job_file=str(job_file))
 
-    exit_code = validate_command(args)
+    try:
+        validate_command(args)
+        assert False, "Expected exception"
+    except Exception as exc:
+        exit_code = _map_exception_to_exit_code(exc)
 
     assert exit_code == 2
 
@@ -147,7 +152,12 @@ def test_validate_command_pydantic_validation_error_returns_4(tmp_path) -> None:
         yaml.safe_dump(job, f)
 
     args = argparse.Namespace(job_file=str(job_file))
-    exit_code = validate_command(args)
+
+    try:
+        validate_command(args)
+        assert False, "Expected exception"
+    except Exception as exc:
+        exit_code = _map_exception_to_exit_code(exc)
 
     assert exit_code == 4
 
@@ -161,6 +171,10 @@ def test_generate_command_nonexistent_file_returns_3(tmp_path) -> None:
         quiet=True,
     )
 
-    exit_code = generate_command(args)
+    try:
+        generate_command(args)
+        assert False, "Expected exception"
+    except Exception as exc:
+        exit_code = _map_exception_to_exit_code(exc)
 
     assert exit_code == 3

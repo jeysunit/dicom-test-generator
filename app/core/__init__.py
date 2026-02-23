@@ -24,7 +24,7 @@ from .exceptions import (
     ValidationError,
 )
 from .abnormal_generator import AbnormalGenerator
-from .generator import DICOMBuilder
+from .generator import CT_IMAGE_STORAGE, DICOMBuilder
 from .models import (
     AbnormalConfig,
     CharacterSetConfig,
@@ -49,6 +49,7 @@ __all__ = [
     "AbnormalConfig",
     "AbnormalGenerator",
     "CharacterSetConfig",
+    "CT_IMAGE_STORAGE",
     "ConfigurationError",
     "DICOMBuildError",
     "DICOMBuilder",

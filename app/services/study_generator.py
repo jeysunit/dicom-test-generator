@@ -11,6 +11,7 @@ import pydicom
 from pydicom.dataset import Dataset
 
 from app.core import (
+    CT_IMAGE_STORAGE,
     DICOMBuilder,
     DICOMGeneratorError,
     DirectoryCreateError,
@@ -29,8 +30,6 @@ from app.core import (
 from .template_loader import TemplateLoaderService
 
 logger = logging.getLogger(__name__)
-
-CT_IMAGE_STORAGE_UID = "1.2.840.10008.5.1.4.1.1.2"
 DEFAULT_IMPLEMENTATION_VERSION_NAME = "DICOM_GEN_1.1"
 
 GENERAL_EQUIPMENT_TAG_MAP = {
@@ -204,10 +203,10 @@ class StudyGeneratorService:
     def _resolve_file_meta_settings(self, template: dict) -> tuple[str, str]:
         file_meta_config = template.get("file_meta", {})
         if not isinstance(file_meta_config, dict):
-            return CT_IMAGE_STORAGE_UID, DEFAULT_IMPLEMENTATION_VERSION_NAME
+            return CT_IMAGE_STORAGE, DEFAULT_IMPLEMENTATION_VERSION_NAME
 
         sop_class_uid = str(
-            file_meta_config.get("media_storage_sop_class_uid", CT_IMAGE_STORAGE_UID)
+            file_meta_config.get("media_storage_sop_class_uid", CT_IMAGE_STORAGE)
         )
         implementation_version_name = str(
             file_meta_config.get(
