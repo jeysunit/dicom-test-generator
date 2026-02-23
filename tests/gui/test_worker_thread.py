@@ -1,6 +1,7 @@
 """GeneratorWorker tests."""
 
 from app.gui.worker_thread import GeneratorWorker
+from app.core.exceptions import DICOMGeneratorError
 from app.core.models import (
     AbnormalConfig,
     CharacterSetConfig,
@@ -84,3 +85,70 @@ def test_worker_cancel(qtbot, tmp_path):
     # With only 2 images, may finish before cancel takes effect
     # Either cancelled or completed is acceptable
     assert isinstance(success, bool)
+
+
+def test_worker_handles_dicom_generator_error(monkeypatch, qtbot, tmp_path):
+    """DICOMGeneratorError 発生時にエラー終了シグナルを返すこと."""
+    config = _make_config(str(tmp_path))
+
+    class _DummyService:
+        def generate(self, config, progress_callback):
+            raise DICOMGeneratorError("broken config")
+
+    monkeypatch.setattr("app.gui.worker_thread.StudyGeneratorService", _DummyService)
+
+    worker = GeneratorWorker(config)
+    with qtbot.waitSignal(worker.generation_finished, timeout=3000) as blocker:
+        worker.start()
+
+    success, message = blocker.args
+    assert success is False
+    assert message == "生成エラー: broken config"
+
+
+def test_worker_handles_unexpected_exception(monkeypatch, qtbot, tmp_path):
+    """想定外例外発生時に予期しないエラーとして終了シグナルを返すこと."""
+    config = _make_config(str(tmp_path))
+
+    class _DummyService:
+        def generate(self, config, progress_callback):
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr("app.gui.worker_thread.StudyGeneratorService", _DummyService)
+
+    worker = GeneratorWorker(config)
+    with qtbot.waitSignal(worker.generation_finished, timeout=3000) as blocker:
+        worker.start()
+
+    success, message = blocker.args
+    assert success is False
+    assert message == "予期しないエラー: boom"
+
+
+def test_on_progress_emits_filename_when_not_cancelled(tmp_path):
+    """_on_progress はキャンセル未要求時にファイル名付きで進捗を通知すること."""
+    worker = GeneratorWorker(_make_config(str(tmp_path)))
+
+    received = []
+    worker.progress_updated.connect(
+        lambda current, total, filename: received.append((current, total, filename))
+    )
+
+    worker._on_progress(3, 10)
+
+    assert received == [(3, 10, "image_0003.dcm")]
+
+
+def test_on_progress_does_not_emit_when_cancelled(tmp_path):
+    """_on_progress はキャンセル要求済みなら進捗通知しないこと."""
+    worker = GeneratorWorker(_make_config(str(tmp_path)))
+    worker.cancel_requested = True
+
+    received = []
+    worker.progress_updated.connect(
+        lambda current, total, filename: received.append((current, total, filename))
+    )
+
+    worker._on_progress(1, 10)
+
+    assert received == []
