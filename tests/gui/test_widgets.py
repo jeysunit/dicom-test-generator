@@ -1,5 +1,6 @@
 """Widget unit tests."""
 
+from app.gui.widgets.output_config import OutputConfigWidget
 from app.gui.widgets.patient_form import PatientForm
 from app.gui.widgets.series_config import SeriesConfigWidget
 from app.gui.widgets.template_selector import TemplateSelector
@@ -80,3 +81,18 @@ class TestSeriesConfigWidget:
         for i, series in enumerate(series_list):
             assert isinstance(series, SeriesConfig)
             assert series.series_number == i + 1
+
+
+class TestOutputConfigWidget:
+    def test_initial_state(self, qtbot):
+        """初期状態でデフォルト出力先が設定されていること."""
+        widget = OutputConfigWidget()
+        qtbot.addWidget(widget)
+        assert widget.get_output_dir() == "output"
+
+    def test_set_output_dir(self, qtbot):
+        """出力先を手動で変更できること."""
+        widget = OutputConfigWidget()
+        qtbot.addWidget(widget)
+        widget.path_edit.setText("/tmp/test_output")
+        assert widget.get_output_dir() == "/tmp/test_output"
