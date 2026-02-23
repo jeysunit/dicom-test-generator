@@ -122,7 +122,9 @@ class MainWindow(QMainWindow):
         self.cancel_button.setText("キャンセル")
 
         if self._worker:
-            self._worker.wait()
+            self._worker.wait(5000)
+            if self._worker.isRunning():
+                logger.warning("Worker thread did not exit in time")
             self._worker = None
 
         if success:

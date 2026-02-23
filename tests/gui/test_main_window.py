@@ -269,7 +269,7 @@ def test_on_generation_finished_success_restores_ui_and_shows_info(monkeypatch, 
 
     window._on_generation_finished(True, "done")
 
-    worker.wait.assert_called_once_with()
+    worker.wait.assert_called_once_with(5000)
     assert window._worker is None
     assert window.generate_button.isEnabled() is True
     assert window.cancel_button.isEnabled() is False
@@ -295,7 +295,7 @@ def test_on_generation_finished_error_restores_ui_and_shows_warning(monkeypatch,
 
     window._on_generation_finished(False, "failed")
 
-    worker.wait.assert_called_once_with()
+    worker.wait.assert_called_once_with(5000)
     assert window._worker is None
     assert window.generate_button.isEnabled() is True
     assert window.cancel_button.isEnabled() is False
