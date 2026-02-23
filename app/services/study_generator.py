@@ -107,6 +107,7 @@ class StudyGeneratorService:
             specific_character_set, use_ideographic, use_phonetic = (
                 self._resolve_character_set_settings(config, template)
             )
+            sequence_width = self._sequence_width(total_images)
 
             generated_count = 0
             file_sequence = 1
@@ -155,7 +156,7 @@ class StudyGeneratorService:
 
                     filename = (
                         f"{config.patient.patient_id}_{config.study.study_date}_"
-                        f"{modality}_{file_sequence:03d}.dcm"
+                        f"{modality}_{file_sequence:0{sequence_width}d}.dcm"
                     )
                     filepath = output_dir / filename
                     try:
@@ -257,6 +258,10 @@ class StudyGeneratorService:
             height=config.pixel_spec.height,
         )
         return pixels, 8
+
+    @staticmethod
+    def _sequence_width(total_images: int) -> int:
+        return max(4, len(str(total_images)))
 
     def _apply_template_attributes(self, dataset: Dataset, template: dict) -> None:
         general_equipment = template.get("general_equipment", {})

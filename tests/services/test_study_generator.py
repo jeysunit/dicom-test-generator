@@ -59,6 +59,7 @@ def test_generate_minimal(tmp_path) -> None:
 
     assert output_dir == tmp_path / "output"
     assert len(files) == 1
+    assert files[0].name.endswith("_0001.dcm")
 
 
 def test_generate_multiple_series(tmp_path) -> None:
@@ -148,3 +149,13 @@ def test_japanese_patient_name_roundtrip(tmp_path) -> None:
 
     assert str(ds.PatientName) == "TANAKA^HIROSHI=田中^博=タナカ^ヒロシ"
     assert ds.SpecificCharacterSet == ["ISO 2022 IR 6", "ISO 2022 IR 87"]
+
+
+def test_sequence_width_minimum_four() -> None:
+    assert StudyGeneratorService._sequence_width(1) == 4
+    assert StudyGeneratorService._sequence_width(9999) == 4
+
+
+def test_sequence_width_expands_with_total_images() -> None:
+    assert StudyGeneratorService._sequence_width(10000) == 5
+    assert StudyGeneratorService._sequence_width(100000) == 6
