@@ -377,7 +377,7 @@ result = GenerationResult(
     total_files=41,
     generated_files=[
         GeneratedFileInfo(
-            filepath="output/P000001_20240115_CT_001.dcm",
+            filepath="output/P000001_20240115_CT_0001.dcm",
             patient_id="P000001",
             study_uid="2.25.123...",
             series_uid="2.25.456...",
@@ -396,6 +396,11 @@ result = GenerationResult(
 
 print(f"Success Rate: {result.success_rate * 100:.1f}%")
 ```
+
+`GeneratedFileInfo.filepath` の連番ルール:
+
+- ゼロ埋め桁数は `max(4, 総出力枚数の桁数)` を使用
+- 例: 総出力枚数が10000以上なら `00001` 形式
 
 ---
 

@@ -97,10 +97,15 @@ python -m app.cli generate job.yaml --dry-run
 [INFO] Generating Study UID: 2.25.123456789...
 [DEBUG] Generating image 1/41
 [DEBUG]   SOP UID: 2.25.111222333...
-[DEBUG]   File: output/ACC000001/P000001_20240115_CT_001.dcm
+[DEBUG]   File: output/ACC000001/P000001_20240115_CT_0001.dcm
 [DEBUG]   Size: 262656 bytes
 ...
 ```
+
+補足:
+
+- 出力ファイル連番のゼロ埋め桁数は `max(4, 総出力枚数の桁数)`
+- 例: 総出力枚数が10000以上なら `00001`, `00002`, ... の形式となる
 
 ### 出力例（--quiet）
 

@@ -124,8 +124,13 @@ logs/
   Instance Number: 1
   Image Position: [0.0, 0.0, 0.0]
   Slice Location: 0.0
-  Filepath: output/ACC000001/P000001_20240115_CT_001.dcm
+  Filepath: output/ACC000001/P000001_20240115_CT_0001.dcm
 ```
+
+補足:
+
+- `Filepath` の連番ゼロ埋め桁数は `max(4, 総出力枚数の桁数)`
+- 例: 総出力枚数が10000以上では `..._00001.dcm` のように5桁ゼロ埋めで出力される
 
 ### 異常値生成時（WARNING）
 
@@ -141,7 +146,7 @@ logs/
 
 ```text
 [ERROR] 2025-02-21 14:30:15 - Failed to generate DICOM file
-  Filepath: output/ACC000001/P000001_20240115_CT_025.dcm
+  Filepath: output/ACC000001/P000001_20240115_CT_0025.dcm
   Error: KeyError - 'patient_name' not found in template
   Exception:
     Traceback (most recent call last):
