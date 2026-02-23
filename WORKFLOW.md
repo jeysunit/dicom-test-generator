@@ -23,7 +23,9 @@ git branch --show-current
 ## レイヤー構造
 
 ```text
-CLI (app/cli/) → Service Layer (app/services/) → Core Engine (app/core/)
+GUI (app/gui/) ─┐
+CLI (app/cli/) ─┤→ Service Layer (app/services/) → Core Engine (app/core/)
+SCP (app/scp/) ─┘
 ```
 
 上位レイヤーは下位レイヤーのみに依存する。逆方向の依存は禁止。
@@ -34,7 +36,8 @@ CLI (app/cli/) → Service Layer (app/services/) → Core Engine (app/core/)
 |-------|------|------|
 | Phase 0 | Core Engine（モデル、UID、ピクセル、DICOM構築） | ✅ 完了 |
 | Phase 1 | CLI + Service Layer（テンプレート、患者、生成、CLI） | ✅ 完了 |
-| Phase 2 | GUI（PySide6） | 未着手 |
+| Phase 2a | GUI MVP（PySide6 基本ウィジェット + 生成フロー） | ✅ 完了 |
+| Phase 2b | GUI フル機能（メニュー、ダイアログ、スタイル） | 未着手 |
 | Phase 1.5 | Storage SCP（PyNetDICOM） | ✅ 完了 |
 
 ## テスト実行
@@ -48,6 +51,7 @@ pytest tests/core/ -v
 pytest tests/services/ -v
 pytest tests/scp/ -v
 pytest tests/cli/ -v
+pytest tests/gui/ -v
 
 # カバレッジ
 pytest --cov=app --cov-report=term-missing
@@ -63,4 +67,7 @@ python -m app.cli quick -p P000001 -m fujifilm_scenaria_view_ct -s 3 -i 1,20,20 
 python -m app.cli version
 python -m app.cli scp start
 python -m app.cli scp start --config config/app_config.yaml
+
+# GUI 起動
+python -m app.gui
 ```
