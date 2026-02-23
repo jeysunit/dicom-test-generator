@@ -119,12 +119,8 @@ class AbnormalGenerator:
         return "INVALID_UID_XXXX"
 
     def _type_mismatch_value(self, normal_value: Any) -> Any:
-        if isinstance(normal_value, str):
-            return 12345
         if isinstance(normal_value, (int, float)):
             return "INVALID_TYPE"
-        if isinstance(normal_value, bytes):
-            return 12345
         return 12345
 
     def _generate_random_string(

@@ -186,6 +186,3 @@ def _parse_images(images: str) -> list[int]:
 def _total_images(series_list: list[SeriesConfig]) -> int:
     return sum(series.num_images for series in series_list)
 
-
-
-
