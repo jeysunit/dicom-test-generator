@@ -7,7 +7,10 @@ from datetime import datetime
 
 from PySide6.QtCore import Slot
 from PySide6.QtWidgets import (
+    QFormLayout,
+    QGroupBox,
     QHBoxLayout,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -60,6 +63,15 @@ class MainWindow(QMainWindow):
 
         self.patient_form = PatientForm()
         layout.addWidget(self.patient_form)
+
+        study_group = QGroupBox("検査情報")
+        study_form = QFormLayout()
+        self.accession_number_edit = QLineEdit()
+        self.accession_number_edit.setMaxLength(16)
+        self.accession_number_edit.setPlaceholderText("ACC000001")
+        study_form.addRow("Accession Number:", self.accession_number_edit)
+        study_group.setLayout(study_form)
+        layout.addWidget(study_group)
 
         self.series_config = SeriesConfigWidget()
         layout.addWidget(self.series_config)
@@ -137,8 +149,12 @@ class MainWindow(QMainWindow):
         series_list = self.series_config.get_series_list()
         now = datetime.now()
 
+        accession_number = self.accession_number_edit.text().strip()
+        if not accession_number:
+            raise ValueError("Accession Number を入力してください")
+
         study = StudyConfig(
-            accession_number=f"ACC{now.strftime('%Y%m%d%H%M%S')}",
+            accession_number=accession_number,
             study_date=now.strftime("%Y%m%d"),
             study_time=now.strftime("%H%M%S"),
             num_series=len(series_list),
