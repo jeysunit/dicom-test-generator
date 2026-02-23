@@ -2,6 +2,7 @@
 
 from app.gui.widgets.output_config import OutputConfigWidget
 from app.gui.widgets.patient_form import PatientForm
+from app.gui.widgets.progress_widget import ProgressWidget
 from app.gui.widgets.series_config import SeriesConfigWidget
 from app.gui.widgets.template_selector import TemplateSelector
 
@@ -96,3 +97,29 @@ class TestOutputConfigWidget:
         qtbot.addWidget(widget)
         widget.path_edit.setText("/tmp/test_output")
         assert widget.get_output_dir() == "/tmp/test_output"
+
+
+class TestProgressWidget:
+    def test_initial_state(self, qtbot):
+        """初期状態でプログレスバーが0%であること."""
+        widget = ProgressWidget()
+        qtbot.addWidget(widget)
+        assert widget.progress_bar.value() == 0
+        assert widget.status_label.text() == "待機中"
+
+    def test_update_progress(self, qtbot):
+        """進捗更新が正しく反映されること."""
+        widget = ProgressWidget()
+        qtbot.addWidget(widget)
+        widget.update_progress(50, 100, "test_0050.dcm")
+        assert widget.progress_bar.value() == 50
+        assert "test_0050.dcm" in widget.status_label.text()
+
+    def test_reset(self, qtbot):
+        """リセットで初期状態に戻ること."""
+        widget = ProgressWidget()
+        qtbot.addWidget(widget)
+        widget.update_progress(50, 100, "test.dcm")
+        widget.reset()
+        assert widget.progress_bar.value() == 0
+        assert widget.status_label.text() == "待機中"
