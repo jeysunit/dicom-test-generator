@@ -1,0 +1,38 @@
+# job_acc000003.yaml - ACC000003 検査ジョブ
+job_name: "CT検査 ACC000003"
+output_dir: "output/ACC000003"
+
+patient:
+  patient_id: "P000002"
+  patient_name:
+    alphabetic: "SATO^YUKI"
+    ideographic: "佐藤^由紀"
+    phonetic: "サトウ^ユキ"
+  birth_date: "19920825"
+  sex: "F"
+
+study:
+  accession_number: "ACC000003"
+  study_date: "20260223"
+  study_time: "090000"
+  num_series: 1
+
+series_list:
+  - series_number: 1
+    num_images: 20
+
+modality_template: "fujifilm_scenaria_view_ct"
+
+pixel_spec:
+  mode: "simple_text"
+
+transfer_syntax:
+  uid: "1.2.840.10008.1.2"
+  name: "Implicit VR Little Endian"
+  is_implicit_vr: true
+  is_little_endian: true
+
+character_set:
+  specific_character_set: "ISO 2022 IR 6\\ISO 2022 IR 87"
+  use_ideographic: true
+  use_phonetic: true
