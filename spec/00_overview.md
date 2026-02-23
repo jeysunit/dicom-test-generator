@@ -87,12 +87,17 @@ Phase 0: Core Engine (最優先)
    ↓
 Phase 1: CLI
    ↓
-Phase 2: GUI
+Phase 1.5: Storage SCP (オプション・前倒し実装可)
    ↓
-Phase 1.5: Storage SCP (オプション)
+Phase 2: GUI
 ```
 
 各フェーズは **前フェーズの完成後に開始**。
+
+補足:
+
+- 推奨順序は `Phase 0 → Phase 1 → Phase 1.5 → Phase 2`
+- `Phase 1.5` はオプションのため、要件がなければ `Phase 2` 後に実装してもよい
 
 ### 設計原則
 
