@@ -43,7 +43,8 @@ class Patient(BaseModel):
     patient_name: PatientName
     birth_date: str = Field(..., pattern=r"^\d{8}$", description="生年月日（YYYYMMDD）")
     sex: str = Field(..., pattern=r"^(M|F|O)$", description="性別")
-    age: str | None = Field(None, pattern=r"^\d{3}Y$", description="年齢（例: 044Y）")
+    age: str | None = Field(None, pattern=r"^\d{3}Y$",
+        description="年齢入力（互換用。DICOM出力は birth_date/study_date から日本法基準で算出）")
     weight: float | None = Field(None, ge=0, le=500, description="体重（kg）")
     size: float | None = Field(None, ge=0, le=300, description="身長（cm）")
     patient_comments: str | None = Field(None, max_length=128, description="患者コメント")

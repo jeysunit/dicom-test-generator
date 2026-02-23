@@ -184,7 +184,47 @@ def test_non_ascii_patient_name_with_empty_character_set_raises_error() -> None:
         )
 
 
-def test_patient_age_is_calculated_from_birth_and_study_date() -> None:
+@pytest.mark.parametrize(
+    ("birth_date", "study_date", "expected_age"),
+    [
+        # 通常: 誕生日前後
+        ("19980312", "20240115", "025Y"),
+        # 1/1生まれ: 加齢日=12/31
+        ("20000101", "20241231", "025Y"),
+        ("20000101", "20241230", "024Y"),
+        # 2/29生まれ（非閏年）: 応当日=2/28、加齢日=2/27
+        ("20000229", "20250227", "024Y"),
+        ("20000229", "20250228", "025Y"),
+        # 2/29生まれ（閏年）: 応当日=2/29、加齢日=2/28
+        ("20000229", "20240228", "024Y"),
+        ("20000229", "20240229", "024Y"),
+        # 3/1生まれ（非閏年）: 応当日=3/1、加齢日=2/28
+        ("20000301", "20250227", "024Y"),
+        ("20000301", "20250228", "025Y"),
+        # 3/1生まれ（閏年）: 応当日=3/1、加齢日=2/29
+        ("20000301", "20240228", "023Y"),
+        ("20000301", "20240229", "024Y"),
+        # 当日検査
+        ("20240115", "20240115", "000Y"),
+    ],
+    ids=[
+        "normal-before-birthday",
+        "jan1-born-dec31-study",
+        "jan1-born-dec30-study",
+        "feb29-born-nonleap-feb27",
+        "feb29-born-nonleap-feb28",
+        "feb29-born-leap-feb28",
+        "feb29-born-leap-feb29",
+        "mar1-born-nonleap-feb27",
+        "mar1-born-nonleap-feb28",
+        "mar1-born-leap-feb28",
+        "mar1-born-leap-feb29",
+        "same-day-study",
+    ],
+)
+def test_patient_age_japanese_civil_law(
+    birth_date: str, study_date: str, expected_age: str
+) -> None:
     data = _base_inputs()
     file_meta = FileMetaBuilder().build(
         sop_class_uid="1.2.840.10008.5.1.4.1.1.2",
@@ -195,18 +235,13 @@ def test_patient_age_is_calculated_from_birth_and_study_date() -> None:
     )
     patient = Patient(
         patient_id="P000001",
-        patient_name=PatientName(
-            alphabetic="TANAKA^HIROSHI",
-            ideographic="田中^博",
-            phonetic="タナカ^ヒロシ",
-        ),
-        birth_date="19980312",
+        patient_name=PatientName(alphabetic="TEST^PATIENT"),
+        birth_date=birth_date,
         sex="M",
-        age="027Y",
     )
     study = StudyConfig(
         accession_number="ACC000001",
-        study_date="20240115",
+        study_date=study_date,
         study_time="120000",
         num_series=1,
     )
@@ -224,7 +259,7 @@ def test_patient_age_is_calculated_from_birth_and_study_date() -> None:
         series_instance_uid="2.25.205",
     )
 
-    assert ds.PatientAge == "025Y"
+    assert ds.PatientAge == expected_age
 
 
 def test_study_date_before_birth_date_raises_error() -> None:
@@ -261,4 +296,41 @@ def test_study_date_before_birth_date_raises_error() -> None:
             file_meta=file_meta,
             sop_instance_uid="2.25.106",
             series_instance_uid="2.25.206",
+        )
+
+
+def test_invalid_calendar_date_raises_error() -> None:
+    data = _base_inputs()
+    file_meta = FileMetaBuilder().build(
+        sop_class_uid="1.2.840.10008.5.1.4.1.1.2",
+        sop_instance_uid="2.25.107",
+        transfer_syntax_uid="1.2.840.10008.1.2",
+        implementation_class_uid=data["uid_context"].implementation_class_uid,
+        implementation_version_name="DICOM_GEN_1.1",
+    )
+    patient = Patient(
+        patient_id="P000001",
+        patient_name=PatientName(alphabetic="TEST^PATIENT"),
+        birth_date="20250229",
+        sex="M",
+    )
+    study = StudyConfig(
+        accession_number="ACC000001",
+        study_date="20250315",
+        study_time="120000",
+        num_series=1,
+    )
+
+    with pytest.raises(DICOMBuildError, match="Invalid date format"):
+        DICOMBuilder().build_ct_image(
+            patient=patient,
+            study_config=study,
+            series_config=data["series"],
+            instance_config=data["instance"],
+            uid_context=data["uid_context"],
+            spatial=data["spatial"],
+            pixel_data=data["pixels"],
+            file_meta=file_meta,
+            sop_instance_uid="2.25.107",
+            series_instance_uid="2.25.207",
         )

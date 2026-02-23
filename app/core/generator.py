@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 import numpy as np
 from pydicom.dataset import Dataset, FileMetaDataset
@@ -208,6 +208,26 @@ class DICOMBuilder:
     def _contains_non_ascii(self, value: str) -> bool:
         return any(ord(char) > 127 for char in value)
 
+    @staticmethod
+    def _age_reached_date(birth: date, n: int) -> date:
+        """民法143条に基づきN歳到達日（加齢日）を算出する.
+
+        年齢計算ニ関スル法律: 出生日から起算し、誕生日の前日の満了をもって加齢。
+        加齢日 = 誕生日のN年後の応当日の前日。
+        応当日が存在しない場合（2/29生まれの非閏年）→ その月の末日（2/28）を
+        応当日とみなし、その前日（2/27）…ではなく、
+        誕生日の前日（2/28）のN年後 = 2/28 が加齢日。
+        """
+        # 誕生日の前日のN年後を直接求める（前日は常に存在する）
+        eve = birth - timedelta(days=1)
+        target_year = eve.year + n
+        try:
+            return eve.replace(year=target_year)
+        except ValueError:
+            # eve が 2/28 で target_year が閏年の場合は起こらない
+            # eve が 2/29（birth=3/1 で閏年）で非閏年の場合 → 2/28
+            return date(target_year, eve.month, 28)
+
     def _calculate_patient_age(self, birth_date: str, study_date: str) -> str:
         try:
             birth = datetime.strptime(birth_date, "%Y%m%d").date()
@@ -224,9 +244,12 @@ class DICOMBuilder:
                 tag="PatientAge",
             )
 
-        age_years = study.year - birth.year - (
-            (study.month, study.day) < (birth.month, birth.day)
-        )
+        age_years = study.year - birth.year
+        if study >= self._age_reached_date(birth, age_years + 1):
+            age_years += 1
+        elif study < self._age_reached_date(birth, age_years):
+            age_years -= 1
+
         if not 0 <= age_years <= 999:
             raise DICOMBuildError(
                 "Calculated PatientAge is out of DICOM AS range",
