@@ -70,6 +70,16 @@ storage_scp:
     - "1.2.840.10008.5.1.4.1.1.4"  # MR Image Storage
 ```
 
+### 実装前確定事項（Phase 1.5）
+
+1. `duplicate_handling` のデフォルトは `overwrite` とする
+2. `duplicate_handling=reject` のときは `0xC000` を返す
+3. UID短縮は `先頭20文字` を基本とし、短縮名衝突時は `_<sha1先頭8桁>` を付与する
+4. 設定ファイル読み込みは Service Layer で実施し、Core Engine からは参照しない
+5. CLI `scp start` は `Ctrl+C` で正常停止、終了コード `0`
+6. 依存ライブラリは `requirements.txt` に `pynetdicom>=2.0.0` を追加して管理する
+7. 最低限の自動テストは「起動停止」「受信成功」「重複処理3モード」「設定エラー」を必須とする
+
 ---
 
 ## 受信ディレクトリ構造
@@ -96,6 +106,13 @@ UIDが長すぎるため、ディレクトリ名は先頭20文字に短縮：
 Study UID: 2.25.113059749145936325402354257176981405696
        ↓
 Dir Name:  2.25.113059749145936
+```
+
+短縮名衝突時:
+
+```text
+Base Name:   2.25.113059749145936
+Collision:   2.25.113059749145936_f3a1b2c4
 ```
 
 ---
@@ -208,6 +225,11 @@ if __name__ == '__main__':
 ```bash
 python -m app.cli scp start
 ```
+
+停止仕様:
+
+- `Ctrl+C` による停止は正常終了（終了コード `0`）
+- 停止時に `"SCP stopped by user"` をINFOで出力する
 
 ```python
 # app/cli/commands.py
@@ -429,6 +451,13 @@ def handle_association_requested(event):
 
 ## テスト
 
+### 最小テストセット（必須）
+
+1. `scp start` が起動・停止できること（`Ctrl+C` 含む）
+2. C-STORE受信成功で `0x0000` を返すこと
+3. 重複時の `overwrite/reject/rename` の各動作
+4. 設定エラー（無効port、storage_dir作成不可等）で適切な例外になること
+
 ### SCP起動テスト
 
 ```python
@@ -454,6 +483,18 @@ def test_scp_receives_ct_image(scp_server, ct_dataset):
     # ファイルが保存されているか確認
     assert os.path.exists("scp_storage/P000001/...")
 ```
+
+---
+
+## 例外方針
+
+例外は `spec/08_error_handling.md` の階層に従う。
+
+- 設定不備: `ConfigurationError` 派生
+- 受信ファイル保存失敗: `IOError` 派生
+- C-STORE処理失敗: `GenerationError` 派生
+
+`except Exception:` の握りつぶしは禁止。
 
 ---
 
