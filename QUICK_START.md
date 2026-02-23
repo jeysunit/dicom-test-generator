@@ -29,7 +29,8 @@ adr/
 ├── 0003-pyside6-gui.md            ✅ PySide6 GUI選定の判断
 ├── 0004-uuid-2-25-uid.md          ✅ UID生成方式の判断
 ├── 0005-pixel-modes.md            ✅ ピクセルモードの判断
-└── 0006-threading-model.md        ✅ スレッディングモデルの判断
+├── 0006-threading-model.md        ✅ スレッディングモデルの判断
+└── 0007-patient-size-in-centimeters.md ✅ 身長単位の判断
 ```
 
 ---
@@ -42,9 +43,6 @@ adr/
 # 作成されたファイルを確認
 ls -la spec/
 ls -la adr/
-
-# 完全な仕様書v1.1も確認
-ls -la DICOM_GENERATOR_SPECIFICATION_v1.1.md
 ```
 
 ### 2. 依存パッケージのインストール
@@ -129,10 +127,6 @@ Phase 0 / Phase 1 は完了済みです。次のステップ：
 
 ## FAQ
 
-**Q: 元の仕様書v1.1はどうすればいいですか？**
-
-A: `DICOM_GENERATOR_SPECIFICATION_v1.1.md` は参照用として保持。医療DICOM仕様の詳細はこちらを参照。
-
 **Q: ADRは全て必要ですか？**
 
-A: 全ADR（0001-0006）は作成済みです。開発開始に必要な設計判断は網羅されています。
+A: 全ADR（0001-0007）は作成済みです。開発開始に必要な設計判断は網羅されています。

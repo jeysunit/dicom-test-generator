@@ -187,9 +187,9 @@ transfer_syntax:
   is_little_endian: true
 
 character_set:
-  specific_character_set: ""
-  use_ideographic: false
-  use_phonetic: false
+  specific_character_set: ""       # 日本語名の場合: "ISO 2022 IR 6\\ISO 2022 IR 87"
+  use_ideographic: false            # 日本語名の場合: true
+  use_phonetic: false               # 日本語名の場合: true
 ```
 
 ---
