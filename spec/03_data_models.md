@@ -55,7 +55,7 @@ class Patient(BaseModel):
     age: str | None = Field(
         None,
         pattern=r"^\d{3}Y$",
-        description="年齢入力（互換用。DICOM出力のPatientAgeは birth_date/study_date から再計算）",
+        description="年齢入力（互換用。DICOM出力は birth_date/study_date から日本法基準で算出）",
     )
     weight: float | None = Field(None, ge=0, le=500, description="体重（kg）")
     size: float | None = Field(None, ge=0, le=300, description="身長（cm）")

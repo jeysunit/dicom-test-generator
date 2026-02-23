@@ -15,7 +15,7 @@
 
 ## 決定
 
-`PatientAge` は **常に** `birth_date` と `study_date` から自動算出する。
+`PatientAge` は **常に** `birth_date` と `study_date` から **日本法基準**（年齢計算ニ関スル法律 + 民法143条）で自動算出する。
 `patient.age` は互換入力として保持するが、DICOM出力値の決定には使わない。
 
 併せて、`study_date >= birth_date` を必須バリデーションとする。
@@ -25,7 +25,10 @@
 - `GenerationConfig` のモデルバリデーションで日付整合性を検証
   - `birth_date` / `study_date` が暦日として有効
   - `study_date < birth_date` はバリデーションエラー
-- `DICOMBuilder` で `PatientAge` を日付差分から `nnnY` 形式で設定
+- `DICOMBuilder._calculate_patient_age` で日本法準拠の年齢算出
+  - 加齢日 = 誕生日の前日のN年後（民法143条）
+  - 2/29生まれは閏年・非閏年とも2/28に加齢
+  - DICOM AS 範囲 (0-999) チェック
 
 ## 影響
 

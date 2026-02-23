@@ -376,22 +376,43 @@ ds2.save_as("output2.dcm")
 
 ## PatientAge (0010,1010)
 
-`PatientAge` は Job YAML の `patient.age` をそのまま使用せず、以下で算出する。
+`PatientAge` は Job YAML の `patient.age` をそのまま使用せず、`birth_date` と `study_date` から **日本法基準** で算出する。
 
-- 入力: `patient.birth_date`（YYYYMMDD）, `study.study_date`（YYYYMMDD）
-- 出力: DICOM AS 形式（`nnnY`）
+### 法的根拠
 
-計算式:
+- **年齢計算ニ関スル法律**（明治35年法律第50号）: 出生の日より起算
+- **民法143条**: 期間を年で定めた場合、暦に従い計算。応当日がない場合はその月の末日に満了
+
+### アルゴリズム
+
+加齢日（N歳に達する日）= 誕生日の前日のN年後。
 
 ```python
-age_years = study.year - birth.year - ((study.month, study.day) < (birth.month, birth.day))
-patient_age = f"{age_years:03d}Y"
+from datetime import date, timedelta
+
+def _age_reached_date(birth: date, n: int) -> date:
+    """N歳到達日（加齢日）を算出"""
+    eve = birth - timedelta(days=1)  # 誕生日の前日
+    target_year = eve.year + n
+    try:
+        return eve.replace(year=target_year)
+    except ValueError:
+        # eve=2/29（birth=3/1、閏年）で非閏年の場合 → 2/28
+        return date(target_year, eve.month, 28)
 ```
 
-制約:
+### 具体例（2/29生まれ）
 
-- `study_date >= birth_date` を必須とする
-- `study_date < birth_date` はバリデーションエラー
+| 生年月日 | 検査日 | 期待値 | 理由 |
+|---------|--------|-------|------|
+| 2000-02-29 | 2025-02-27 | 024Y | 加齢日(2/28)の前日 |
+| 2000-02-29 | 2025-02-28 | 025Y | 非閏年の加齢日 |
+| 2000-02-29 | 2024-02-28 | 024Y | 閏年の加齢日 |
+
+### 制約
+
+- `study_date >= birth_date` を必須とする（バリデーションエラー）
+- DICOM AS 形式: `nnnY`（0〜999の範囲、範囲外はビルドエラー）
 
 ---
 

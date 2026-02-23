@@ -165,7 +165,7 @@ character_set:
 | `patient_name` | object | ○ | 患者名 | 下記参照 |
 | `birth_date` | string | ○ | 生年月日（YYYYMMDD） | "19800115" |
 | `sex` | string | ○ | 性別（M/F/O） | "M" |
-| `age` | string | - | 年齢入力（nnnY形式、互換用。出力PatientAgeは birth_date/study_date から算出） | "044Y" |
+| `age` | string | - | 年齢入力（nnnY形式、互換用。DICOM出力は birth_date/study_date から日本法基準で算出） | "044Y" |
 | `weight` | float | - | 体重（kg） | 65.5 |
 | `size` | float | - | 身長（cm） | 170.0 |
 | `patient_comments` | string | - | 患者コメント | "" |
