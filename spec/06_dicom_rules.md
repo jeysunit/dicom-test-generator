@@ -317,7 +317,7 @@ YAMADA^TARO=山田^太郎=ヤマダ^タロウ
 ```yaml
 overrides:
   character_set:
-    default: "ISO 2022 IR 87"
+    default: "ISO 2022 IR 6\\ISO 2022 IR 87"
   
   patient_module:
     patient_name:
@@ -329,7 +329,7 @@ overrides:
 **期待する出力**:
 
 ```text
-(0008,0005) Specific Character Set: "ISO 2022 IR 87"
+(0008,0005) Specific Character Set: "ISO 2022 IR 6\ISO 2022 IR 87"
 (0010,0010) Patient's Name: "YAMADA^TARO=山田^太郎=ヤマダ^タロウ"
 ```
 
@@ -361,10 +361,10 @@ from pydicom.dataset import Dataset
 
 # 日本語使用の場合
 ds = Dataset()
-ds.SpecificCharacterSet = 'ISO 2022 IR 87'
+ds.SpecificCharacterSet = ['ISO 2022 IR 6', 'ISO 2022 IR 87']
 ds.PatientName = "YAMADA^TARO=山田^太郎=ヤマダ^タロウ"
 
-# PyDicomは自動的にISO 2022 IR 87でエンコード
+# PyDicomはデフォルトと拡張文字集合を使い分けてエンコード
 ds.save_as("output.dcm")
 
 # ローマ字のみの場合
@@ -373,6 +373,25 @@ ds2.SpecificCharacterSet = ''  # または設定しない
 ds2.PatientName = "YAMADA^TARO"
 ds2.save_as("output2.dcm")
 ```
+
+## PatientAge (0010,1010)
+
+`PatientAge` は Job YAML の `patient.age` をそのまま使用せず、以下で算出する。
+
+- 入力: `patient.birth_date`（YYYYMMDD）, `study.study_date`（YYYYMMDD）
+- 出力: DICOM AS 形式（`nnnY`）
+
+計算式:
+
+```python
+age_years = study.year - birth.year - ((study.month, study.day) < (birth.month, birth.day))
+patient_age = f"{age_years:03d}Y"
+```
+
+制約:
+
+- `study_date >= birth_date` を必須とする
+- `study_date < birth_date` はバリデーションエラー
 
 ---
 

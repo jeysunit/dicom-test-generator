@@ -52,7 +52,11 @@ class Patient(BaseModel):
     patient_name: PatientName
     birth_date: str = Field(..., pattern=r"^\d{8}$", description="生年月日（YYYYMMDD）")
     sex: str = Field(..., pattern=r"^(M|F|O)$", description="性別")
-    age: str | None = Field(None, pattern=r"^\d{3}Y$", description="年齢（例: 044Y）")
+    age: str | None = Field(
+        None,
+        pattern=r"^\d{3}Y$",
+        description="年齢入力（互換用。DICOM出力のPatientAgeは birth_date/study_date から再計算）",
+    )
     weight: float | None = Field(None, ge=0, le=500, description="体重（kg）")
     size: float | None = Field(None, ge=0, le=300, description="身長（cm）")
     patient_comments: str | None = Field(None, max_length=128, description="患者コメント")
@@ -162,7 +166,7 @@ class TransferSyntaxConfig(BaseModel):
 ```python
 class CharacterSetConfig(BaseModel):
     """文字セット設定"""
-    specific_character_set: str = Field("ISO 2022 IR 87", description="Specific Character Set")
+    specific_character_set: str = Field("ISO 2022 IR 6\\ISO 2022 IR 87", description="Specific Character Set")
     use_ideographic: bool = Field(True, description="漢字を使用するか")
     use_phonetic: bool = Field(True, description="カナを使用するか")
 ```
@@ -219,6 +223,12 @@ class GenerationConfig(BaseModel):
     
     # 異常生成設定
     abnormal: AbnormalConfig = Field(default_factory=AbnormalConfig)
+
+    @model_validator(mode="after")
+    def validate_date_consistency(self) -> "GenerationConfig":
+        """検査日が生年月日より前でないことを検証する。"""
+        # birth_date/study_date は有効な暦日であることもここで検証する
+        ...
 ```
 
 ---
@@ -350,7 +360,8 @@ config = GenerationConfig(**job_dict)
 
 # Pydanticが自動検証
 # - patient_id は16文字以内か
-# - birth_dateは8桁数字か
+# - birth_date/study_date は有効な暦日か
+# - study_date が birth_date 以上か
 # - sexはM/F/Oか
 # etc.
 ```

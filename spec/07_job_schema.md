@@ -97,7 +97,7 @@ transfer_syntax:
 
 # 文字セット設定
 character_set:
-  specific_character_set: "ISO 2022 IR 87"
+  specific_character_set: "ISO 2022 IR 6\\ISO 2022 IR 87"
   use_ideographic: true
   use_phonetic: true
 
@@ -165,7 +165,7 @@ character_set:
 | `patient_name` | object | ○ | 患者名 | 下記参照 |
 | `birth_date` | string | ○ | 生年月日（YYYYMMDD） | "19800115" |
 | `sex` | string | ○ | 性別（M/F/O） | "M" |
-| `age` | string | - | 年齢（nnnY形式） | "044Y" |
+| `age` | string | - | 年齢入力（nnnY形式、互換用。出力PatientAgeは birth_date/study_date から算出） | "044Y" |
 | `weight` | float | - | 体重（kg） | 65.5 |
 | `size` | float | - | 身長（cm） | 170.0 |
 | `patient_comments` | string | - | 患者コメント | "" |
@@ -183,7 +183,7 @@ character_set:
 | フィールド | 型 | 必須 | 説明 |
 |-----------|-----|------|------|
 | `accession_number` | string | ○ | Accession Number |
-| `study_date` | string | ○ | 検査日（YYYYMMDD） |
+| `study_date` | string | ○ | 検査日（YYYYMMDD、birth_date 以上） |
 | `study_time` | string | ○ | 検査時刻（HHMMSS） |
 | `study_description` | string | - | 検査説明 |
 | `referring_physician_name` | string | - | 紹介医名 |
@@ -264,9 +264,9 @@ transfer_syntax:
 **よく使う値**:
 
 ```yaml
-# 日本語（ISO 2022 IR 87）
+# 日本語（ASCII + 日本語）
 character_set:
-  specific_character_set: "ISO 2022 IR 87"
+  specific_character_set: "ISO 2022 IR 6\\ISO 2022 IR 87"
   use_ideographic: true
   use_phonetic: true
 
@@ -306,6 +306,12 @@ except ValidationError as e:
     print("❌ Validation failed:")
     print(e)
 ```
+
+追加で、以下を検証する:
+
+- `birth_date` と `study_date` が実在する暦日であること
+- `study_date >= birth_date` であること
+- DICOMタグ `(0010,1010) PatientAge` は `birth_date` と `study_date` から自動算出されること
 
 ---
 
@@ -405,7 +411,7 @@ transfer_syntax:
   is_little_endian: true
 
 character_set:
-  specific_character_set: "ISO 2022 IR 87"
+  specific_character_set: "ISO 2022 IR 6\\ISO 2022 IR 87"
   use_ideographic: true
   use_phonetic: true
 ```
