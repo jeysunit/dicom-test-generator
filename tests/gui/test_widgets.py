@@ -1,9 +1,10 @@
 """Widget unit tests."""
 
 from app.gui.widgets.patient_form import PatientForm
+from app.gui.widgets.series_config import SeriesConfigWidget
 from app.gui.widgets.template_selector import TemplateSelector
 
-from app.core.models import Patient, PatientName
+from app.core.models import Patient, PatientName, SeriesConfig
 
 
 class TestTemplateSelector:
@@ -52,3 +53,30 @@ class TestPatientForm:
         qtbot.addWidget(widget)
         widget.patient_combo.setCurrentIndex(0)
         assert widget.patient_id_edit.text() != ""
+
+
+class TestSeriesConfigWidget:
+    def test_initial_state(self, qtbot):
+        """初期状態でシリーズ数1であること."""
+        widget = SeriesConfigWidget()
+        qtbot.addWidget(widget)
+        assert widget.series_count_spin.value() == 1
+        assert len(widget.get_series_list()) == 1
+
+    def test_change_series_count(self, qtbot):
+        """シリーズ数を変更するとウィジェットが増えること."""
+        widget = SeriesConfigWidget()
+        qtbot.addWidget(widget)
+        widget.series_count_spin.setValue(3)
+        assert len(widget.get_series_list()) == 3
+
+    def test_get_series_list_returns_valid_configs(self, qtbot):
+        """SeriesConfig のリストが正しく返ること."""
+        widget = SeriesConfigWidget()
+        qtbot.addWidget(widget)
+        widget.series_count_spin.setValue(2)
+        series_list = widget.get_series_list()
+        assert len(series_list) == 2
+        for i, series in enumerate(series_list):
+            assert isinstance(series, SeriesConfig)
+            assert series.series_number == i + 1
