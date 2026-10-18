@@ -6,10 +6,12 @@
 from __future__ import annotations
 
 import socket
+import sqlite3
 import time
 from collections.abc import Iterator
+from contextlib import closing
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +35,13 @@ def free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind((LOCALHOST, 0))
         return int(sock.getsockname()[1])
+
+
+def age_job(db_path: Path, job_id: int, seconds: int) -> None:
+    """待ち行列の件の updated_at を過去にする（送信中のまま止まった件を作る）."""
+    old = (datetime.now() - timedelta(seconds=seconds)).isoformat(timespec="seconds")
+    with closing(sqlite3.connect(db_path)) as conn, conn:
+        conn.execute("UPDATE jobs SET updated_at = ? WHERE id = ?", (old, job_id))
 
 
 def _code_sequence(values: list[str] | None) -> list[Dataset]:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterator, Sequence
 from contextlib import closing, contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -18,6 +18,11 @@ from .store_scu import StoreFileResult
 JobStatus = Literal["pending", "sending", "sent", "failed"]
 JOB_STATUSES: tuple[str, ...] = ("pending", "sending", "sent", "failed")
 QUEUE_DB_NAME = "queue.sqlite3"
+# 送信中のままこの秒数より長く変わらない件は、送る手順が途中で落ちたとみなす（8.2）
+STALE_SENDING_SECONDS = 30 * 60
+STALE_SENDING_ERROR = "stale sending: the sender stopped before recording the result"
+_SENDABLE_STATUSES: tuple[str, ...] = ("pending", "failed")
+_SENDABLE_PLACEHOLDERS = ", ".join("?" for _ in _SENDABLE_STATUSES)
 
 _SCHEMA = (
     """
@@ -73,6 +78,7 @@ class QueueJob(BaseModel):
     last_error: str
     num_files: int
     num_sent: int
+    stale: bool = False  # 送信中のまま止まった件（8.2）
 
 
 class SendQueue:
@@ -109,12 +115,44 @@ class SendQueue:
         return job_id
 
     def mark_sending(self, job_id: int) -> None:
+        """待ち・失敗の件だけを送信中にする。同じ件を2つの手順が同時に送らない（8.2）."""
         with self._connect() as conn:
-            conn.execute(
+            cursor = conn.execute(
                 "UPDATE jobs SET status = 'sending', attempts = attempts + 1, updated_at = ?"
-                " WHERE id = ?",
-                (_now(), job_id),
+                f" WHERE id = ? AND status IN ({_SENDABLE_PLACEHOLDERS})",
+                (_now(), job_id, *_SENDABLE_STATUSES),
             )
+            if cursor.rowcount == 1:
+                return
+            row = conn.execute("SELECT status FROM jobs WHERE id = ?", (job_id,)).fetchone()
+        if row is None:
+            raise ModalityError(f"Queue job not found: {job_id}", {"job_id": job_id})
+        raise ModalityError(
+            f"Queue job cannot be sent now: {job_id}",
+            {"job_id": job_id, "status": str(row[0]), "sendable": ", ".join(_SENDABLE_STATUSES)},
+        )
+
+    def reset_stale_sending(self) -> list[int]:
+        """送信中のまま STALE_SENDING_SECONDS より長く変わらない件を失敗に戻す（8.2）.
+
+        戻した件の ID を返す。送る手順が途中で落ちた件を `queue retry --stale` で送り直すため。
+        """
+        cutoff = _stale_cutoff()
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT id FROM jobs WHERE status = 'sending' AND updated_at < ? ORDER BY id",
+                (cutoff,),
+            ).fetchall()
+            reset: list[int] = []
+            for (job_id,) in rows:
+                cursor = conn.execute(
+                    "UPDATE jobs SET status = 'failed', last_error = ?, updated_at = ?"
+                    " WHERE id = ? AND status = 'sending' AND updated_at < ?",
+                    (STALE_SENDING_ERROR, _now(), job_id, cutoff),
+                )
+                if cursor.rowcount == 1:
+                    reset.append(int(job_id))
+        return reset
 
     def record_results(self, job_id: int, results: Sequence[StoreFileResult]) -> JobStatus:
         """ファイルごとの結果を残し、検査の状態（送れた・失敗）を決めて返す."""
@@ -217,6 +255,7 @@ class SendQueue:
         )
         with self._connect() as conn:
             rows = conn.execute(query, params).fetchall()
+        cutoff = _stale_cutoff()
         return [
             QueueJob(
                 id=row[0],
@@ -230,6 +269,7 @@ class SendQueue:
                 last_error=row[8],
                 num_files=row[9] or 0,
                 num_sent=row[10] or 0,
+                stale=row[6] == "sending" and row[2] < cutoff,
             )
             for row in rows
         ]
@@ -242,3 +282,9 @@ class SendQueue:
 
 def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
+
+
+def _stale_cutoff() -> str:
+    """これより前の updated_at の送信中は止まったとみなす（_now と同じ形で比べる）."""
+    cutoff = datetime.now() - timedelta(seconds=STALE_SENDING_SECONDS)
+    return cutoff.isoformat(timespec="seconds")

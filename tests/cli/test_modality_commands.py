@@ -8,9 +8,10 @@ from pathlib import Path
 
 import pytest
 import yaml
-from modality_peers import LOCALHOST, free_port
+from modality_peers import LOCALHOST, age_job, free_port
 
 from app.cli.main import main
+from app.modality.queue import STALE_SENDING_SECONDS, SendQueue
 
 OWN_AE = "DTG_CT01"
 
@@ -238,6 +239,33 @@ def test_send_unreachable_is_exit_5_and_recorded(
     assert "could not connect" in err
     code, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "queue", "list", "--json")
     assert json.loads(out)[0]["status"] == "failed"
+
+
+def test_stale_sending_is_listed_and_retried(
+    monkeypatch, capsys, tmp_path, config, storage_scp
+) -> None:
+    """送信中のまま止まった件を queue list に出し、queue retry --stale で送る（8.2・11.5）."""
+    _, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0005",
+        "--patient-name", "STALE^TEST", "-i", "2", "--pixel-mode", "simple_text", "--json",
+    )
+    exam = json.loads(out)
+    db_path = tmp_path / "state" / "queue.sqlite3"
+    queue = SendQueue(db_path)
+    job_id = queue.add_job(exam["output_dir"], "PACS_TEST", exam["files"])
+    queue.mark_sending(job_id)
+    age_job(db_path, job_id, STALE_SENDING_SECONDS + 60)
+
+    code, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "queue", "list")
+    assert code == 0
+    assert "[STALE]" in out
+    code, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "queue", "list", "--json")
+    assert [job["stale"] for job in json.loads(out)] == [True]
+
+    code, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "queue", "retry", "--stale")
+    assert code == 0
+    assert "sent (2/2 files)" in out
+    assert queue.get_job(job_id).status == "sent"
 
 
 def test_bad_modality_config_is_exit_2(monkeypatch, capsys, tmp_path) -> None:

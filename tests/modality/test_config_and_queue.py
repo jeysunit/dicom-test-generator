@@ -6,10 +6,11 @@ from pathlib import Path
 
 import pytest
 import yaml
+from modality_peers import age_job
 
 from app.core.exceptions import ModalityConfigError, ModalityError
 from app.modality.config import load_modality_config
-from app.modality.queue import SendQueue
+from app.modality.queue import STALE_SENDING_SECONDS, SendQueue
 from app.modality.store_scu import StoreFileResult
 
 REPO_CONFIG = Path(__file__).resolve().parents[2] / "config" / "app_config.yaml"
@@ -126,3 +127,49 @@ def test_queue_job_failure_and_counters(tmp_path) -> None:
         queue.list_jobs("unknown")
     with pytest.raises(ModalityError):
         queue.get_job(999)
+
+
+def test_mark_sending_only_from_pending_or_failed(tmp_path) -> None:
+    """同じ件を2つの手順が同時に送らない（spec/12 の 8.2）."""
+    queue = SendQueue(tmp_path / "queue.sqlite3")
+    job_id = queue.add_job("exam", "PACS_TEST", ["a.dcm"])
+
+    queue.mark_sending(job_id)
+    with pytest.raises(ModalityError) as exc_info:
+        queue.mark_sending(job_id)
+    assert exc_info.value.details["status"] == "sending"
+    assert queue.get_job(job_id).attempts == 1
+
+    queue.record_job_failure(job_id, "could not connect")
+    queue.mark_sending(job_id)
+    queue.record_results(
+        job_id, [StoreFileResult(path="a.dcm", sop_instance_uid="1", status=0, outcome="success")]
+    )
+    with pytest.raises(ModalityError):
+        queue.mark_sending(job_id)
+    with pytest.raises(ModalityError):
+        queue.mark_sending(999)
+
+
+def test_stale_sending_is_listed_and_reset_to_failed(tmp_path) -> None:
+    db_path = tmp_path / "queue.sqlite3"
+    queue = SendQueue(db_path)
+    stale_id = queue.add_job("exam1", "PACS_TEST", ["a.dcm"])
+    fresh_id = queue.add_job("exam2", "PACS_TEST", ["b.dcm"])
+    queue.mark_sending(stale_id)
+    queue.mark_sending(fresh_id)
+    age_job(db_path, stale_id, STALE_SENDING_SECONDS + 60)
+
+    assert [(job.id, job.stale) for job in queue.list_jobs()] == [
+        (stale_id, True),
+        (fresh_id, False),
+    ]
+
+    assert queue.reset_stale_sending() == [stale_id]
+
+    stale = queue.get_job(stale_id)
+    assert stale.status == "failed"
+    assert stale.stale is False
+    assert "stale" in stale.last_error
+    assert queue.get_job(fresh_id).status == "sending"
+    assert queue.reset_stale_sending() == []

@@ -301,15 +301,21 @@ class ModalityService:
         job_id = self.queue.add_job(str(folder_path), node.name, files)
         return self._send_job(job_id, files)
 
-    def retry(self, job_id: int | None = None, all_failed: bool = False) -> list[SendResult]:
-        """失敗の分だけを送り直す（8.2）."""
-        if (job_id is None) == (not all_failed):
-            raise ConfigurationError("Specify exactly one of job_id or all_failed")
-        jobs = (
-            [self.queue.get_job(job_id)]
-            if job_id is not None
-            else self.queue.list_jobs("failed")
-        )
+    def retry(
+        self, job_id: int | None = None, all_failed: bool = False, stale: bool = False
+    ) -> list[SendResult]:
+        """失敗の分だけを送り直す（8.2）.
+
+        `stale` は、送信中のまま止まった件を失敗に戻してから送り直す。
+        """
+        if sum((job_id is not None, all_failed, stale)) != 1:
+            raise ConfigurationError("Specify exactly one of job_id, all_failed or stale")
+        if job_id is not None:
+            jobs = [self.queue.get_job(job_id)]
+        elif stale:
+            jobs = [self.queue.get_job(reset_id) for reset_id in self.queue.reset_stale_sending()]
+        else:
+            jobs = self.queue.list_jobs("failed")
         results = []
         for job in jobs:
             if job.status != "failed":

@@ -29,6 +29,7 @@ CHARSET_CHOICES = ("auto", "utf8", "jis", "jis_kana")
 PIXEL_MODE_CHOICES = ("simple_text", "ct_realistic")
 ABNORMAL_LEVEL_CHOICES = ("none", "mild", "moderate", "severe")
 QUEUE_STATUS_CHOICES = ("pending", "sending", "sent", "failed")
+STALE_MARK = "  [STALE]"
 
 
 def register_modality_commands(
@@ -111,6 +112,9 @@ def register_modality_commands(
     retry_target = retry_parser.add_mutually_exclusive_group(required=True)
     retry_target.add_argument("--all", action="store_true", help="失敗の全部")
     retry_target.add_argument("--job", type=int, help="待ち行列の ID")
+    retry_target.add_argument(
+        "--stale", action="store_true", help="送信中のまま止まった件の全部（失敗に戻して送る）"
+    )
     retry_parser.set_defaults(func=queue_retry_command)
 ZERO_ITEMS_MESSAGE = "予約はありません。条件を広げるか、緊急の患者で撮ってください"
 NON_ASCII_HINT = (
@@ -234,14 +238,14 @@ def queue_list_command(args: argparse.Namespace) -> int:
         sent = f"{job.num_sent}/{job.num_files}"
         _emit(
             f"{job.id:>4}  {job.status:8s} {job.destination:12s} {sent:>9}  "
-            f"{job.updated_at:19s}  {job.folder}"
+            f"{job.updated_at:19s}  {job.folder}{STALE_MARK if job.stale else ''}"
         )
     _emit(f"[INFO] {len(jobs)} job(s).")
     return 0
 
 
 def queue_retry_command(args: argparse.Namespace) -> int:
-    results = _service(args).retry(job_id=args.job, all_failed=args.all)
+    results = _service(args).retry(job_id=args.job, all_failed=args.all, stale=args.stale)
     if args.json:
         _print_json([result.model_dump() for result in results])
     else:
