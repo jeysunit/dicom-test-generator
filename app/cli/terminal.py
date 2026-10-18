@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 _C0_MAX = 0x1F
@@ -35,6 +36,17 @@ def is_unsafe_char(char: str) -> bool:
 def sanitize_for_terminal(text: str) -> str:
     """危ない字を `\\x1b`・`\\u202e` のような見える形に置き換える."""
     return "".join(_visible(char) if is_unsafe_char(char) else char for char in text)
+
+
+class TerminalSafeFormatter(logging.Formatter):
+    """整えた後のログの文を、行ごとに sanitize_for_terminal に通す（改行は残す）.
+
+    例外の Traceback も整えた文に入るので、同じく見える形になる。
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        text = super().format(record)
+        return "\n".join(sanitize_for_terminal(line) for line in text.split("\n"))
 
 
 def json_for_terminal(data: Any) -> str:

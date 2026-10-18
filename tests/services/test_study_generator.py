@@ -267,3 +267,40 @@ def test_generate_sanitizes_patient_id_from_job_config(tmp_path) -> None:
     files = list(tmp_path.rglob("*.dcm"))
     assert [path.parent for path in files] == [output_dir]
     assert files[0].name.startswith(".._.._evil_")
+
+
+ESC_PATIENT_ID = "P\x1b]0;x\x07"
+
+
+def _escaped_patient_config(tmp_path):
+    config = _make_config(tmp_path=tmp_path, num_series=1, images_per_series=[1])
+    patient = config.patient.model_copy(update={"patient_id": ESC_PATIENT_ID})
+    return config.model_copy(update={"patient": patient})
+
+
+def test_generation_logs_patient_id_with_repr(tmp_path, caplog) -> None:
+    """ワークリストから来る Patient ID の制御文字をログに生で出さない（spec/12 の 11.7）."""
+    caplog.set_level("INFO", logger="app.services.study_generator")
+
+    StudyGeneratorService().generate(config=_escaped_patient_config(tmp_path))
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert len(messages) == 2
+    assert all(repr(ESC_PATIENT_ID) in message for message in messages)
+    assert not any("\x1b" in message or "\x07" in message for message in messages)
+
+
+def test_generation_failure_logs_patient_id_with_repr(tmp_path, caplog) -> None:
+    caplog.set_level("INFO", logger="app.services.study_generator")
+    ctx = _scheduled_context(
+        patient=ScheduledPatient(patient_id="P000002", patient_name="TAKAHASHI=髙橋"),
+        specific_character_set=["", "ISO 2022 IR 87"],
+    )
+
+    with pytest.raises(WorklistMappingError):
+        StudyGeneratorService().generate(config=_escaped_patient_config(tmp_path), scheduled=ctx)
+
+    failed = [r.getMessage() for r in caplog.records if r.levelname == "ERROR"]
+    assert len(failed) == 1
+    assert repr(ESC_PATIENT_ID) in failed[0]
+    assert "\x1b" not in failed[0]

@@ -19,7 +19,7 @@ from app.cli.commands import (
     version_command,
 )
 from app.cli.modality_commands import register_modality_commands
-from app.cli.terminal import sanitize_for_terminal
+from app.cli.terminal import TerminalSafeFormatter, sanitize_for_terminal
 from app.core import (
     AssociationError,
     ConfigurationError,
@@ -63,7 +63,8 @@ def setup_logging(verbose: bool, quiet: bool, log_file: str) -> None:
     log_path = Path(log_file)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    formatter = logging.Formatter("[%(levelname)s] %(asctime)s - %(message)s")
+    log_format = "[%(levelname)s] %(asctime)s - %(message)s"
+    formatter = logging.Formatter(log_format)
 
     file_handler = RotatingFileHandler(
         filename=log_path,
@@ -77,7 +78,8 @@ def setup_logging(verbose: bool, quiet: bool, log_file: str) -> None:
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(console_level)
-    console_handler.setFormatter(formatter)
+    # 端末には相手から来る値の制御文字を生で出さない（spec/12 の 11.7）
+    console_handler.setFormatter(TerminalSafeFormatter(log_format))
     root_logger.addHandler(console_handler)
 
 

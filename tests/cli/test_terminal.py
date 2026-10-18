@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import logging
 
 import pytest
 
+from app.cli.main import setup_logging
 from app.cli.terminal import json_for_terminal, sanitize_for_terminal
 
 UNSAFE = [
@@ -48,3 +50,39 @@ def test_json_escapes_but_round_trips(value: str) -> None:
     assert "\u202e" not in text and "\u2066" not in text
     assert json.loads(text) == {"name": value, "kanji": "山田"}
     assert "山田" in text
+
+
+@pytest.fixture
+def restore_root_logging():
+    root = logging.getLogger()
+    saved_handlers, saved_level = list(root.handlers), root.level
+    yield
+    for handler in list(root.handlers):
+        root.removeHandler(handler)
+        handler.close()
+    for handler in saved_handlers:
+        root.addHandler(handler)
+    root.setLevel(saved_level)
+
+
+def test_console_log_neutralizes_control_chars_but_keeps_newlines(
+    tmp_path, capsys, restore_root_logging
+) -> None:
+    """端末に出すログを行ごとに sanitize_for_terminal に通す（spec/12 の 11.7）."""
+    log_file = tmp_path / "cli.log"
+    setup_logging(verbose=False, quiet=False, log_file=str(log_file))
+    logger = logging.getLogger("tests.terminal")
+
+    logger.info("first \x1b[2J line\nsecond ‮ line")
+    try:
+        raise RuntimeError("boom \x1b]0;owned\x07")
+    except RuntimeError:
+        logger.error("failed", exc_info=True)
+
+    err = capsys.readouterr().err
+    assert "\x1b" not in err and "\x07" not in err and "‮" not in err
+    assert "first \\x1b[2J line\nsecond \\u202e line" in err
+    assert "boom \\x1b]0;owned\\x07" in err
+    assert "Traceback (most recent call last):\n" in err
+    # ファイルのログはそのまま
+    assert "first \x1b[2J line" in log_file.read_text(encoding="utf-8")

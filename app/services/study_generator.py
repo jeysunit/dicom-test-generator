@@ -76,7 +76,7 @@ class StudyGeneratorService:
         """
         total_images = sum(series.num_images for series in config.series_list)
         logger.info(
-            "Generation started: job_name=%s patient_id=%s total_images=%s output_dir=%s",
+            "Generation started: job_name=%r patient_id=%r total_images=%s output_dir=%s",
             config.job_name,
             config.patient.patient_id,
             total_images,
@@ -194,7 +194,7 @@ class StudyGeneratorService:
                         progress_callback(generated_count, total_images)
 
             logger.info(
-                "Generation completed: patient_id=%s generated=%s output_dir=%s",
+                "Generation completed: patient_id=%r generated=%s output_dir=%s",
                 config.patient.patient_id,
                 generated_count,
                 output_dir,
@@ -202,7 +202,7 @@ class StudyGeneratorService:
             return output_dir
         except DICOMGeneratorError:
             logger.error(
-                "Generation failed: patient_id=%s output_dir=%s",
+                "Generation failed: patient_id=%r output_dir=%s",
                 config.patient.patient_id,
                 config.output_dir,
                 exc_info=True,
@@ -210,7 +210,7 @@ class StudyGeneratorService:
             raise
         except Exception as exc:
             logger.error(
-                "Generation failed unexpectedly: patient_id=%s output_dir=%s",
+                "Generation failed unexpectedly: patient_id=%r output_dir=%s",
                 config.patient.patient_id,
                 config.output_dir,
                 exc_info=True,
