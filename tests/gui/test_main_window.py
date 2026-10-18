@@ -131,6 +131,8 @@ def test_collect_config_builds_generation_config(monkeypatch, qtbot, tmp_path):
     monkeypatch.setattr(window.template_selector, "get_modality", lambda: "ct_modality")
     monkeypatch.setattr(window.template_selector, "get_hospital", lambda: "hospital_a")
 
+    window.accession_number_edit.setText("ACC-MANUAL-01")
+
     config = window._collect_config()
 
     assert config.job_name == "GUI_20260203_040506"
@@ -139,7 +141,7 @@ def test_collect_config_builds_generation_config(monkeypatch, qtbot, tmp_path):
     assert config.series_list == series_list
     assert config.modality_template == "ct_modality"
     assert config.hospital_template == "hospital_a"
-    assert config.study.accession_number == "ACC20260203040506"
+    assert config.study.accession_number == "ACC-MANUAL-01"
     assert config.study.study_date == "20260203"
     assert config.study.study_time == "040506"
     assert config.study.num_series == 2
