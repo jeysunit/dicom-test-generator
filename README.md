@@ -67,7 +67,7 @@ Pixel data is synthetic and not intended for clinical use.
 
 ※いずれも実画像ではありません。
 
-### 🔲 モダリティのダミー（Phase 3・仕様の案）
+### 🔲 モダリティのダミー（Phase 3・仕様は承認済み）
 
 * ワークリストを引き、予約の値で画像を作り、PACS へ送る（ウェブの画面と
   CLI。[spec/12_modality_emulator.md](spec/12_modality_emulator.md)）
