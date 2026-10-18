@@ -67,10 +67,11 @@ Pixel data is synthetic and not intended for clinical use.
 
 ※いずれも実画像ではありません。
 
-### 🔲 モダリティのダミー（Phase 3・仕様は承認済み）
+### ✅ モダリティのダミー（Phase 3a・3b。3c は未実装）
 
 * ワークリストを引き、予約の値で画像を作り、PACS へ送る（ウェブの画面と
-  CLI。[spec/12_modality_emulator.md](spec/12_modality_emulator.md)）
+  CLI。[spec/12_modality_emulator.md](spec/12_modality_emulator.md)）。
+  起動のしかたは下の「モダリティのダミーのウェブの画面」
 
 ### ✅ テンプレートベース設計
 
@@ -211,6 +212,58 @@ character_set:
 ## Storage SCP（Phase 1.5）
 
 DICOM通信による受信機能を追加予定。
+
+---
+
+## モダリティのダミーのウェブの画面（Phase 3b）
+
+ワークリスト・撮影・PACS・設定の4つの画面で「引く→選ぶ→撮る→送る→確かめる」を
+流します（[spec/12_modality_emulator.md](spec/12_modality_emulator.md) の 10 章）。
+試験用の PACS・RIS にだけつないでください。
+
+### 起動
+
+```bash
+# 設定は config/app_config.yaml の modality: と web: の節
+python -m app.web
+python -m app.web --config config/app_config.yaml
+```
+
+ブラウザで <http://127.0.0.1:8080/> を開きます。既定は手元（127.0.0.1）だけで
+待ち受け、認証はありません。Node も Tailwind CSS の実行ファイルも要りません
+（作った CSS と htmx を `app/web/static/` に置いてあります）。
+
+### 網に出すとき
+
+`web.bind_address` を手元の外（`0.0.0.0` など）にするときは HTTP Basic が必須です。
+パスワードを1行だけ書いたファイルを作り、環境の変数で指します。ファイルが無い・空なら
+起動しません（終了コード 2）。利用者の名前は `dtg` です。
+
+```bash
+DTG_WEB_PASSWORD_FILE=/path/to/password.txt python -m app.web
+```
+
+* パスワードは設定のファイルに書きません
+* この画面は HTTPS を持ちません。網に出すときは、前段の逆プロキシで TLS を付けてください
+  （`Host` の見出しをそのまま渡す設定にします）
+* 書き込みの要求は、同じ origin と CSRF の token のときだけ受けます
+
+### 画面の静的な物の出どころ
+
+| 物 | 版 | 取得の元 | sha256 |
+|----|----|----------|--------|
+| htmx（`app/web/static/htmx.min.js`） | v2.0.9 | GitHub の bigskysoftware/htmx の releases | `57d9191515339922bd1356d7b2d80b1ee3b29f1b3a2c65a078bb8b2e8fd9ae5f` |
+| Lucide のアイコン（`app/web/static/icons/`。ISC License、同じ所に `LICENSE`） | 1.48.0 | GitHub の lucide-icons/lucide の releases（`lucide-icons-1.48.0.zip`） | `e27a6b58bebc563581f89668a5a652782075a85a07568e4fd8051a17ce81dba6`（zip） |
+| Tailwind CSS の standalone の実行ファイル（CSS を作るときだけ） | v4.3.3 | GitHub の tailwindlabs/tailwindcss の releases | `scripts/build_css.sh` に OS ごとに固定 |
+
+取り直す・作り直すときは次を流します。どちらも sha256 が合わなければ止まります。
+
+```bash
+bash scripts/fetch_web_assets.sh   # htmx と Lucide のアイコン
+bash scripts/build_css.sh          # app/web/styles/input.css から app/web/static/app.css
+```
+
+CI は CSS を作り直し、commit した `app.css` と差が無いことを確かめます。
 
 ---
 
