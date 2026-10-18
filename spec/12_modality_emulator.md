@@ -215,7 +215,9 @@ RAD TF-2 Table 4.5-3 の、SCU が R+・R+* の値をすべて求める。
 
 - 応答の Specific Character Set を読み、値を Python の文字列に戻す
   （pydicom）。戻せない値は「読めない値」として画面に出し、
-  その予約は撮影に進めない
+  その予約は撮影に進めない。写す Sequence の中の値（入れ子を含む）も
+  確かめ、`ReferencedStudySequence>ReferencedSOPClassUID` のように
+  `Sequence>属性` の形で名前を残す
 - 一覧の1件ごとに、この道具の中だけで使う鍵（予約の鍵）を付ける。
   鍵は `Study Instance UID`・`Requested Procedure ID`・
   `Scheduled Procedure Step ID`・`Accession Number` をこの順に `|` で
@@ -225,6 +227,9 @@ RAD TF-2 Table 4.5-3 の、SCU が R+・R+* の値をすべて求める。
   保存する。CLI はこれを読む
 - 相手が Pending を返し続けて決めた時間（既定 30 秒）を過ぎたら
   C-CANCEL を送り、「途中まで」として受け取った分を出す
+- `exam --refresh`（その予約だけを引き直す）のときは、時間の上限で
+  途中までになったら撮らずに `WorklistQueryError`（終了コード 5）で止める。
+  ほかの引き方は途中までを返すまま
 
 ### 5.5 応答の上限
 
@@ -363,6 +368,14 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID
   確かめる。外なら書かずに止める（`FileWriteError`。終了コード 3）
 - Job YAML の Patient ID から作るファイルの名前（既存の生成）も同じ
   決まりで作る
+- 撮る前に、写す値の形を確かめる。外れたら撮らずに
+  `WorklistMappingError`（終了コード 4）で止める
+  - Patient ID は空でなく 16 字まで（spec/03 の `Patient`・
+    `ScheduledPatient` と同じ制約。LO の 64 字ではない）
+  - Patient's Weight・Patient's Size は空か DS（PS3.5 の Decimal
+    String：16 字まで、`+`・`-` の付いてよい10進の数、指数も可）
+  - Study Instance UID は空か UID の形（`^[0-9]+(\.[0-9]+)*$`・64 字まで・
+    各成分は `0` か、`0` で始まらない数字の並び。PS3.5 9.1）
 
 ---
 
@@ -398,7 +411,12 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID
   明示して選んだときだけ行う。Phase 3a ではこの選択を作らない
   （表せない字があれば必ず止める）
 - 確かめるのは画像のすべての文字の属性（予約から写した値と
-  テンプレートの値）。止めるのは書き出す前で、ファイルは残さない
+  テンプレートの値）。止めるのは書き出す前で、ファイルは残さない。
+  撮影のために作った出力のフォルダが空のまま残るなら、それも消す
+- ISO 2022 IR 13 で受ける字（ASCII のほか）は半角カナ（JIS X 0201 の
+  0xA1〜0xDF）だけにする。`¥`・`‾` は IR 13 では 0x5C・0x7E になり、
+  読み戻すと `\`（値の区切り）・`~` に化けるため、表せない字として止める。
+  確かめは pydicom.charset で書いて読み戻し、元の字に戻るかで行う
 - PN の漢字・かなの成分は、`jis`・`jis_kana` では ISO 2022 IR 87 の
   エスケープで書く。`jis_kana` の英字の成分の半角カナは IR 13 で書く
 - pydicom の版によって、ISO 2022 IR 13 と IR 87 の組の書き出しの
@@ -433,6 +451,11 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID
   `sqlite3`）に残す。新しい外部の包みは足さない
 - 画像のファイルは出力のフォルダに残す（送れても消さない）。
   消すのは利用者の操作だけ
+- 送信中にするのは、待ち・失敗の件だけ（条件つきの更新で、変わった行が
+  無ければ止める）。同じ件を2つの手順が同時に送らない
+- 送信中のまま 30 分より長く変わらない件は、送る手順が途中で落ちたと
+  みなす（「止まった送信中」）。`queue list` に出し、
+  `queue retry --stale` で失敗に戻してから送り直す
 
 ### 8.3 保管の確認（Phase 3c）
 
@@ -927,14 +950,18 @@ python -m app.cli send output/modality/A0001_20261018090000/ --to PACS_TEST
 python -m app.cli queue list --status failed
 python -m app.cli queue retry --all
 python -m app.cli queue retry --job 3
+python -m app.cli queue retry --stale
 ```
 
 - `send FOLDER`：フォルダの `*.dcm` を待ち行列に1件（1つの検査）として
   入れ、すぐに送る。`--to` が無ければ既定の送り先
 - `queue list`：`--status` は `pending`（待ち）・`sending`（送信中）・
   `sent`（送れた）・`failed`（失敗）。`--json` で JSON
-- `queue retry`：`--all`（失敗の全部）か `--job ID` のどちらかを必須に
-  する。失敗のファイルだけを送り直す
+- `queue list`：止まった送信中（8.2）の件には `[STALE]` を付ける。
+  `--json` では `stale` が `true`
+- `queue retry`：`--all`（失敗の全部）・`--job ID`・`--stale`（止まった
+  送信中の全部。失敗に戻してから送る）のどれか1つを必須にする。
+  失敗のファイルだけを送り直す
 
 ### 11.6 終了コード
 
@@ -969,7 +996,11 @@ python -m app.cli queue retry --job 3
   エラーの文も同じ
 - `--json`：同じ字を JSON の `\uXXXX` に直す（`json_for_terminal`）。
   読み戻すと元の値に戻る（値そのものは変えない）
-- ログに相手から来る値を出すときは `%r` で出す（制御文字が逃げる）
+- ログに相手から来る値を出すときは `%r` で出す（制御文字が逃げる）。
+  Patient ID も相手から来る値として扱う
+- 端末（標準エラー）に出すログは、整えた後の文を行ごとに
+  `sanitize_for_terminal` に通す（改行は残す。例外の Traceback も同じ）。
+  ファイルのログはそのまま
 
 ---
 
