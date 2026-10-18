@@ -19,11 +19,29 @@ from app.cli.commands import (
     validate_command,
     version_command,
 )
+from app.cli.modality_commands import register_modality_commands
+from app.cli.terminal import TerminalSafeFormatter, sanitize_for_terminal
 from app.core import (
+    AssociationError,
     ConfigurationError,
     DICOMGeneratorError,
     IOError as CoreIOError,
+    ModalityConfigError,
+    MPPSError,
+    StorageCommitmentError,
+    StoreError,
     ValidationError as CoreValidationError,
+    WorklistMappingError,
+    WorklistQueryError,
+)
+
+EXIT_COMMUNICATION_ERROR = 5
+_COMMUNICATION_ERRORS = (
+    AssociationError,
+    WorklistQueryError,
+    StoreError,
+    StorageCommitmentError,
+    MPPSError,
 )
 
 DEFAULT_LOG_FILE = "logs/dicom_generator.log"
@@ -46,7 +64,8 @@ def setup_logging(verbose: bool, quiet: bool, log_file: str) -> None:
     log_path = Path(log_file)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    formatter = logging.Formatter("[%(levelname)s] %(asctime)s - %(message)s")
+    log_format = "[%(levelname)s] %(asctime)s - %(message)s"
+    formatter = logging.Formatter(log_format)
 
     file_handler = RotatingFileHandler(
         filename=log_path,
@@ -60,7 +79,8 @@ def setup_logging(verbose: bool, quiet: bool, log_file: str) -> None:
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(console_level)
-    console_handler.setFormatter(formatter)
+    # 端末には相手から来る値の制御文字を生で出さない（spec/12 の 11.7）
+    console_handler.setFormatter(TerminalSafeFormatter(log_format))
     root_logger.addHandler(console_handler)
 
 
@@ -97,13 +117,19 @@ _EPILOG = """\
   python -m app.cli version
   python -m app.cli scp start
   python -m app.cli scp start --config config/app_config.yaml
+  python -m app.cli echo --to PACS_TEST
+  python -m app.cli worklist query --date today --modality CT
+  python -m app.cli exam --from-worklist 3f9a1c0b2e -s 2 -i 1,20 --send
+  python -m app.cli exam --emergency --patient-id E0001 --patient-name "KINKYU^TARO"
+  python -m app.cli queue list --status failed
 
 終了コード:
   0  成功
   1  一般エラー（生成失敗）
-  2  設定エラー（Job YAML不正）
+  2  設定エラー（Job YAML不正・modality の設定の誤り）
   3  ファイルI/Oエラー
-  4  バリデーションエラー
+  4  バリデーションエラー（予約の値が写せない・表せない字を含む）
+  5  通信エラー（Association を張れない・相手が Failure を返した・時間切れ）
 """
 
 
@@ -199,25 +225,36 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     scp_start_parser.set_defaults(func=scp_start_command)
 
+    register_modality_commands(subparsers, DEFAULT_LOG_FILE)
+
     return parser
 
 
 def _map_exception_to_exit_code(exc: Exception) -> int:
+    if isinstance(exc, ModalityConfigError):
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
+        return 2
+    if isinstance(exc, WorklistMappingError):
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
+        return 4
+    if isinstance(exc, _COMMUNICATION_ERRORS):
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
+        return EXIT_COMMUNICATION_ERROR
     if isinstance(exc, ConfigurationError):
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
         return 2
     if isinstance(exc, CoreIOError):
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
         return 3
     if isinstance(exc, CoreValidationError):
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
         return 4
     if isinstance(exc, PydanticValidationError):
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
         return 4
     if isinstance(exc, DICOMGeneratorError):
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
         return 1
-    print(f"[ERROR] {exc}", file=sys.stderr)
+    print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
     return 1
 

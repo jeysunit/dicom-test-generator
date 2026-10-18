@@ -35,10 +35,24 @@ DICOMGeneratorError (Base)
 │   ├── FileReadError
 │   └── DirectoryCreateError
 │
-└── ValidationError
-    ├── JobValidationError
-    └── DICOMValidationError
+├── ValidationError
+│   ├── JobValidationError
+│   └── DICOMValidationError
+│
+└── ModalityError（モダリティのダミー。spec/12）
+    ├── ModalityConfigError      # modality: の節の誤り
+    ├── AssociationError         # Association を張れない・断られた・切れた
+    ├── WorklistQueryError       # C-FIND の失敗・時間切れ
+    ├── WorklistMappingError     # 予約の値が写せない（文字・長さ・モダリティ）
+    ├── StoreError               # C-STORE の失敗
+    ├── StorageCommitmentError   # 保管の確認の失敗・時間切れ（Phase 3c）
+    └── MPPSError                # N-CREATE・N-SET の失敗（Phase 3c）
 ```
+
+`ModalityError` は `ConfigurationError` などとは別の系統にする
+（`ModalityConfigError` は `ConfigurationError` の子にしない）。
+`app/core/exceptions.py` に置き、`app/modality/` と `app/core/` の
+写し方（`worklist_mapping.py`）が使う。
 
 ---
 
@@ -348,7 +362,11 @@ class MainWindow(QMainWindow):
 | 1 | 一般エラー | GenerationError |
 | 2 | 設定エラー | ConfigurationError |
 | 3 | ファイルI/Oエラー | IOError |
-| 4 | バリデーションエラー | ValidationError |
+| 4 | バリデーションエラー | ValidationError・WorklistMappingError |
+| 5 | 通信エラー | AssociationError・WorklistQueryError・StoreError・StorageCommitmentError・MPPSError |
+
+- `ModalityConfigError` は 2（設定エラー）にする
+- ほかの `ModalityError`（例：最後に引いた結果に無い予約の鍵）は 1
 
 ---
 

@@ -216,3 +216,74 @@ class GenerationConfig(BaseModel):
                 {},
             )
         return self
+
+
+# --- モダリティのダミー（spec/12_modality_emulator.md・spec/03_data_models.md）---
+
+PATIENT_ID_MAX_LENGTH = 16
+DicomJsonSequences = dict[str, list[dict]]
+
+
+class WorklistItem(BaseModel):
+    """ワークリストの1件（C-FIND MWL の応答）を読んだ値."""
+
+    model_config = {"frozen": True}
+
+    key: str = Field(..., description="予約の鍵（SHA-1 の先頭 10 桁）")
+    patient_name: str = ""
+    patient_id: str = ""
+    issuer_of_patient_id: str = ""
+    birth_date: str = ""
+    sex: str = ""
+    weight: str = ""
+    size: str = ""
+    study_instance_uid: str = ""
+    accession_number: str = ""
+    referring_physician_name: str = ""
+    requested_procedure_id: str = ""
+    requested_procedure_description: str = ""
+    reason_for_requested_procedure: str = ""
+    scheduled_procedure_step_id: str = ""
+    scheduled_procedure_step_description: str = ""
+    scheduled_start_date: str = ""
+    scheduled_start_time: str = ""
+    modality: str = ""
+    scheduled_station_ae_title: str = ""
+    institution_name: str = ""
+    specific_character_set: list[str] = Field(default_factory=list)
+    sequences: DicomJsonSequences = Field(default_factory=dict)
+    unreadable_attributes: list[str] = Field(default_factory=list)
+
+
+class ScheduledPatient(BaseModel):
+    """予約から写す患者の値。生年月日・性別の空を許す（Patient とは別）."""
+
+    model_config = {"frozen": True}
+
+    patient_id: str = Field(..., min_length=1, max_length=PATIENT_ID_MAX_LENGTH)
+    patient_name: str = Field(..., description="PN の文字列（=・^ 区切り）")
+    issuer_of_patient_id: str = ""
+    birth_date: str = Field("", pattern=r"^(\d{8})?$")
+    sex: str = Field("", pattern=r"^(M|F|O)?$")
+    weight: str = ""
+    size: str = ""
+
+
+class ScheduledContext(BaseModel):
+    """画像に写す予約の値（予約あり・予約なしの両方）."""
+
+    model_config = {"frozen": True}
+
+    scheduled: bool
+    patient: ScheduledPatient
+    study_instance_uid: str | None = None
+    accession_number: str = ""
+    referring_physician_name: str = ""
+    study_id: str = ""
+    study_description: str = ""
+    performed_procedure_step_id: str
+    institution_name: str = ""
+    request_attributes: dict | None = None
+    sequences: DicomJsonSequences = Field(default_factory=dict)
+    specific_character_set: list[str] = Field(default_factory=list)
+    source_ae_title: str = ""

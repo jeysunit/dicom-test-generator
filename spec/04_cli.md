@@ -25,6 +25,15 @@ python -m app.cli <command> [options]
 | `quick` | 簡易生成（1コマンド） | 1 |
 | `version` | バージョン表示 | 1 |
 | `profiles list` | 読める装置のプロファイルの一覧（spec/13） | P1 |
+| `scp start` | Storage SCP を起動 | 1.5 |
+| `echo` | C-ECHO | 3a |
+| `worklist query`・`worklist show` | ワークリストを引く・1件を出す | 3a |
+| `exam` | 予約（または緊急の患者）で撮る | 3a |
+| `send` | 出力のフォルダの画像を送る | 3a |
+| `queue list`・`queue retry` | 待ち行列と履歴・失敗の再送 | 3a |
+
+モダリティのダミーのコマンド（Phase 3a）の引数・出力・終了コードは
+[12_modality_emulator.md](12_modality_emulator.md) の 11 章で決める。
 
 ---
 

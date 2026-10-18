@@ -15,10 +15,17 @@ def test_scp_config_defaults() -> None:
     assert config.enabled is False
     assert config.ae_title == "DICOM_GEN_SCP"
     assert config.port == 11112
-    assert config.bind_address == "0.0.0.0"
+    # 既定は手元だけで待ち受ける（spec/11・ADR-0010 の 7）
+    assert config.bind_address == "127.0.0.1"
     assert config.storage_dir == "scp_storage"
     assert config.duplicate_handling == "overwrite"
     assert config.supported_sop_classes == ["1.2.840.10008.5.1.4.1.1.2"]
+
+
+def test_repository_config_listens_on_localhost() -> None:
+    config = load_scp_config(Path(__file__).resolve().parents[2] / "config" / "app_config.yaml")
+
+    assert config.bind_address == "127.0.0.1"
 
 
 @pytest.mark.parametrize("invalid_port", [1023, 65536])

@@ -44,3 +44,6 @@ output/
 # under profiles/ (e.g. profiles/private/) is never tracked.
 /profiles/*
 !/profiles/examples/
+
+# Modality emulator state (spec/12)
+modality_state/

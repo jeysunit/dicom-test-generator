@@ -61,7 +61,7 @@ storage_scp:
   enabled: false  # Phase 1.5で有効化
   ae_title: "DICOM_GEN_SCP"
   port: 11112
-  bind_address: "0.0.0.0"  # すべてのネットワークインターフェース
+  bind_address: "127.0.0.1"  # 既定は手元だけ。外から受けるときだけ "0.0.0.0" などにする
   storage_dir: "scp_storage"
   duplicate_handling: "overwrite"  # overwrite, reject, rename
   supported_sop_classes:
@@ -79,6 +79,29 @@ storage_scp:
 5. CLI `scp start` は `Ctrl+C` で正常停止、終了コード `0`
 6. 依存ライブラリは `requirements.txt` に `pynetdicom>=2.0.0` を追加して管理する
 7. 最低限の自動テストは「起動停止」「受信成功」「重複処理3モード」「設定エラー」を必須とする
+8. 待ち受けの既定は `127.0.0.1`（手元だけ）。外のモダリティから受けるときは、
+   設定で `bind_address` を明示して変える（2026-10-18、ADR-0010 の 7）
+
+### 受けた値は信用しない（2026-10-18）
+
+受けた画像の Patient ID・UID は、送ってきた相手が自由に入れられる値として扱う。
+そのままフォルダ・ファイルの名前に使わない（spec/12 の 6.5 と同じ決まり）。
+
+- Patient ID のフォルダの名前は `app/core/path_safety.py` の
+  `safe_path_component(patient_id, "UNKNOWN")` で作る
+- Study・Series・SOP Instance の UID は、UID の形（`^[0-9]+(\.[0-9]+)*$`・
+  64 字まで・各成分は `0` か `0` で始まらない数字。`app/core/uid_format.py`）
+  を確かめ、外れたら保存せずに `0xC000`（Error: Cannot understand）を返す
+- 組み立てたフォルダ・ファイルのパスは `ensure_within(storage_dir, …)` で
+  `storage_dir` の中にあることを確かめる。外なら保存せずに Failure を返す
+- フォルダを作れない・書けない・`storage_dir` の外（`FileWriteError`）は
+  `0xA700`（Refused: Out of Resources）を返す
+- UID の短縮の衝突を調べるときも、先に Study・Series のフォルダが
+  `storage_dir` の中かを確かめ、リンク・通常でないファイルは読まない
+- `rename` の候補の名前は、リンク（壊れたリンクを含む）があれば使わず、
+  `storage_dir` の中かを確かめる。`overwrite` の先がハードリンクなら、
+  名前を外してから書く（外のファイルの中身を書き換えない）
+- ログに受けた値（Patient ID・UID）を出すときは `%r` で出す
 
 ---
 
