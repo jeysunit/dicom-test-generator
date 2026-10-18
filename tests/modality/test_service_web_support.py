@@ -17,7 +17,9 @@ from app.modality.worklist_scu import WorklistQuery
 EXAMPLE_PROFILE = "dtg_synthetic_ct"
 
 
-def _service(tmp_path: Path, worklist_port: int, storage_port: int = 104, **extra) -> ModalityService:
+def _service(
+    tmp_path: Path, worklist_port: int, storage_port: int = 104, **extra
+) -> ModalityService:
     config = ModalityConfig.model_validate(
         {
             "ae_title": "DTG_CT01",
@@ -120,3 +122,15 @@ def test_send_exam_output_sends_inside_output_root(tmp_path, worklist_scp, stora
 
     assert sent.status == "sent"
     assert len(storage_scp.received) == 1
+
+
+def test_image_character_set_for_the_band(tmp_path, worklist_scp) -> None:
+    """画面の帯の「ワークリスト → 画像」の文字コード（spec/12 の 7.1）."""
+    service = _service(tmp_path, worklist_scp.port)
+
+    assert service.image_character_set(["ISO_IR 192"]) == ["ISO_IR 192"]
+    assert service.image_character_set([]) == ["ISO_IR 192"]
+    assert service.image_character_set(["ISO_IR 192"], "jis_kana") == [
+        "ISO 2022 IR 13",
+        "ISO 2022 IR 87",
+    ]

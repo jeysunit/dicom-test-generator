@@ -228,6 +228,16 @@ class ModalityService:
 
     # --- 撮影 -----------------------------------------------------------
 
+    def image_character_set(
+        self, worklist_character_set: list[str] | None, choice: str | None = None
+    ) -> list[str]:
+        """画像に使う文字コード（7.1）。`choice` が無ければ設定の既定."""
+        return resolve_image_character_set(
+            choice or self.config.character_set,
+            worklist_character_set,
+            self.config.character_set_fallback,
+        )
+
     def available_templates(self) -> list[str]:
         return self._template_loader.list_modality_templates()
 
