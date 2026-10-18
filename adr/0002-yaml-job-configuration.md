@@ -122,7 +122,7 @@ series_list:
   - series_number: 3
     num_images: 20
 
-modality_template: "fujifilm_scenaria_view_ct"
+modality_template: "ct_generic"
 pixel_spec:
   mode: "ct_realistic"
 # ...

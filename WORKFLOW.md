@@ -66,7 +66,7 @@ pytest --cov=app --cov-report=term-missing
 python -m app.cli generate examples/job_minimal.yaml
 python -m app.cli generate examples/job_full.yaml -o output/ --verbose
 python -m app.cli validate examples/job_minimal.yaml
-python -m app.cli quick -p P000001 -m fujifilm_scenaria_view_ct -s 3 -i 1,20,20 -o output/
+python -m app.cli quick -p P000001 -m ct_generic -s 3 -i 1,20,20 -o output/
 python -m app.cli version
 python -m app.cli scp start
 python -m app.cli scp start --config config/app_config.yaml

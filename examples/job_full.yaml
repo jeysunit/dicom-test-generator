@@ -48,7 +48,7 @@ series_list:
     slice_spacing: 5.0
     start_z: 100.0
 
-modality_template: "fujifilm_scenaria_view_ct"
+modality_template: "ct_generic"
 hospital_template: "hospital_a"
 
 uid_method: "uuid_2_25"

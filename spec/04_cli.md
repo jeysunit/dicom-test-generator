@@ -73,7 +73,7 @@ python -m app.cli generate job.yaml --dry-run
 [INFO] Loading job: job.yaml
 [INFO] Validating configuration...
 [INFO] Loading patient master: data/patients_master.yaml
-[INFO] Loading templates: fujifilm_scenaria_view_ct + hospital_a
+[INFO] Loading templates: ct_generic + hospital_a
 [INFO] Starting generation...
 [INFO] Study: 2.25.123456789012345678901234567890
 [INFO] Series 1/3: 1 images
@@ -172,7 +172,7 @@ python -m app.cli quick [options]
 | オプション | 短縮 | 説明 | 例 |
 |-----------|------|------|-----|
 | `--patient ID` | `-p` | 患者ID | P000001 |
-| `--modality NAME` | `-m` | モダリティテンプレート | fujifilm_scenaria_view_ct |
+| `--modality NAME` | `-m` | モダリティテンプレート | ct_generic |
 | `--series N` | `-s` | シリーズ数 | 3 |
 | `--images LIST` | `-i` | 各シリーズの画像枚数（カンマ区切り） | 1,20,20 |
 | `--output DIR` | `-o` | 出力ディレクトリ | output/ |
@@ -192,7 +192,7 @@ python -m app.cli quick [options]
 # 最小構成
 python -m app.cli quick \
   -p P000001 \
-  -m fujifilm_scenaria_view_ct \
+  -m ct_generic \
   -s 3 \
   -i 1,20,20 \
   -o output/
@@ -200,7 +200,7 @@ python -m app.cli quick \
 # 病院テンプレート指定
 python -m app.cli quick \
   -p P000001 \
-  -m fujifilm_scenaria_view_ct \
+  -m ct_generic \
   --hospital hospital_a \
   -s 2 \
   -i 10,10 \
@@ -209,7 +209,7 @@ python -m app.cli quick \
 # ピクセルモード指定
 python -m app.cli quick \
   -p P000001 \
-  -m fujifilm_scenaria_view_ct \
+  -m ct_generic \
   -s 1 \
   -i 5 \
   -o output/ \

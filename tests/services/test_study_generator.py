@@ -39,7 +39,7 @@ def _make_config(tmp_path, num_series=1, images_per_series=None):
             SeriesConfig(series_number=i + 1, num_images=n)
             for i, n in enumerate(images_per_series)
         ],
-        modality_template="fujifilm_scenaria_view_ct",
+        modality_template="ct_generic",
         pixel_spec=PixelSpecSimple(),
         transfer_syntax=TransferSyntaxConfig(),
         character_set=CharacterSetConfig(
@@ -135,7 +135,7 @@ def test_japanese_patient_name_roundtrip(tmp_path) -> None:
             num_series=1,
         ),
         series_list=[SeriesConfig(series_number=1, num_images=1)],
-        modality_template="fujifilm_scenaria_view_ct",
+        modality_template="ct_generic",
         pixel_spec=PixelSpecSimple(),
         transfer_syntax=TransferSyntaxConfig(),
         character_set=CharacterSetConfig(),

@@ -73,10 +73,18 @@ class TemplateError(ConfigurationError):
 class TemplateNotFoundError(TemplateError):
     """テンプレートが見つからない"""
     
-    def __init__(self, template_name: str):
+    def __init__(self, template_name: str, renamed_to: str | None = None):
+        # renamed_to: 名前を変えたテンプレートの新しい名前
+        # （古い名前で読みに来たとき。spec/12_modality_emulator.md の 17）
+        if renamed_to is None:
+            super().__init__(
+                f"Template not found: {template_name}",
+                {"template_name": template_name}
+            )
+            return
         super().__init__(
-            f"Template not found: {template_name}",
-            {"template_name": template_name}
+            f"Template not found: {template_name} (renamed to {renamed_to})",
+            {"template_name": template_name, "renamed_to": renamed_to}
         )
 
 class TemplateParseError(TemplateError):
@@ -371,8 +379,8 @@ class MainWindow(QMainWindow):
 ### 良い例
 
 ```python
-raise TemplateNotFoundError("fujifilm_scenaria_view_ct")
-# => "Template not found: fujifilm_scenaria_view_ct (template_name=fujifilm_scenaria_view_ct)"
+raise TemplateNotFoundError("mr_head_generic")
+# => "Template not found: mr_head_generic (template_name=mr_head_generic)"
 ```
 
 ```python

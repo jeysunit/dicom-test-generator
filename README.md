@@ -148,7 +148,7 @@ python -m app.cli generate examples/job_full.yaml -o output/ --verbose
 python -m app.cli validate examples/job_minimal.yaml
 
 # CLI引数のみで簡易生成
-python -m app.cli quick -p P000001 -m fujifilm_scenaria_view_ct -s 3 -i 1,20,20 -o output/
+python -m app.cli quick -p P000001 -m ct_generic -s 3 -i 1,20,20 -o output/
 
 # バージョン表示
 python -m app.cli version
@@ -181,7 +181,7 @@ series_list:
   - series_number: 1
     num_images: 10
 
-modality_template: "fujifilm_scenaria_view_ct"
+modality_template: "ct_generic"
 pixel_spec:
   mode: "simple_text"
 
