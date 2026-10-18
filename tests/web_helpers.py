@@ -75,7 +75,7 @@ def post_headers(token: str) -> dict[str, str]:
 
 
 def query_worklist(client: TestClient, **form: str) -> str:
-    """ワークリストの画面の「引く」（HTMX の POST）."""
+    """ワークリストの画面の「ワークリストを取得」（HTMX の POST）."""
     token = csrf_token(client)
     response = client.post(
         "/worklist/query", data={"day": "today", **form}, headers=post_headers(token)

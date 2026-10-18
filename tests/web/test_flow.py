@@ -1,4 +1,4 @@
-"""画面から「引く→選ぶ→撮る→送る→確かめる」の一巡り（spec/12 の 15 章の 3b の完了の線）.
+"""画面から「取得→選ぶ→撮る→送る→確かめる」の一巡り（spec/12 の 15 章の 3b の完了の線）.
 
 手元の MWL の SCP と Storage の SCP（tests/modality_peers.py）を相手にする。
 """
@@ -49,13 +49,16 @@ def test_pick_exam_send_and_confirm(client, worklist_scp, storage_scp) -> None:
 
 
 def test_exam_with_profile_then_send_from_result(client, storage_scp) -> None:
-    """予約なしの緊急の患者を、装置を選んで撮り、結果の [送る] で送る."""
+    """予約なしの緊急の患者を、装置を選んで撮り、結果の [送る] で送る.
+
+    氏名は空白で区切って入れる（スクリプトが切れていてもサーバーで ^ にする。10.5）。
+    """
     token = csrf_token(client, "/exam")
     form = {
         "mode": "emergency",
         "patient_id": "E0001",
-        "name_alphabetic": "KINKYU^TARO",
-        "name_ideographic": "緊急^太郎",
+        "name_alphabetic": " KINKYU  TARO ",
+        "name_ideographic": "緊急　太郎",
         "name_phonetic": "",
         "birth_date": "1980-01-01",
         "sex": "M",

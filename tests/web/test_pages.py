@@ -17,7 +17,7 @@ def test_root_redirects_to_worklist(client) -> None:
 @pytest.mark.parametrize(
     ("path", "text"),
     [
-        ("/worklist", "引く"),
+        ("/worklist", "ワークリストを取得"),
         ("/exam", "緊急の患者"),
         ("/pacs", "C-ECHO"),
         ("/settings", OWN_AE),
@@ -82,7 +82,7 @@ def test_worklist_detail_and_refresh(client, worklist_scp) -> None:
     refreshed = client.post("/worklist/refresh", data={"key": key}, headers=post_headers(token))
     assert refreshed.status_code == 200
     assert "胸部 CT（直した）" in refreshed.text
-    assert "引き直しました" in refreshed.text
+    assert "取得し直しました" in refreshed.text
 
 
 def test_exam_page_is_read_only_and_lists_profiles(client) -> None:
@@ -199,6 +199,79 @@ def test_pacs_echo(client) -> None:
 
     unknown = client.post("/pacs/echo/NOPE", headers=post_headers(token))
     assert 'role="alert"' in unknown.text
+
+
+def test_screens_say_get_the_worklist_not_hiku(client) -> None:
+    """画面の言葉は「ワークリストを取得」「取得し直す」（2026-10-19。spec/12 の 10.4）."""
+    page = client.get("/worklist").text
+    results = _query(client)
+    exam = client.get(f"/exam?key={_key_for(results, 'A0001')}").text
+    for html in (page, results, exam):
+        assert "引" not in html
+    assert "ワークリストを取得" in page
+    assert "取得し直す" in results
+
+
+def _field(html: str, name: str) -> str:
+    """欄の name を含む <label> の中身."""
+    end = html.index(f'name="{name}"')
+    start = html.rindex("<label", 0, end)
+    return html[start : html.index("</label>", end)]
+
+
+def test_required_fields_are_marked(client) -> None:
+    """必須の欄に「必須」の印と required（spec/12 の 10.5）."""
+    html = client.get("/exam").text
+    for name in ("patient_id", "name_alphabetic", "series", "images"):
+        field = _field(html, name)
+        assert "必須" in field, name
+        assert " required" in field, name
+    for name in ("name_ideographic", "name_phonetic", "birth_date", "study_description"):
+        assert "必須" not in _field(html, name), name
+    for name in ("name_alphabetic", "name_ideographic", "name_phonetic"):
+        assert "data-person-name" in _field(html, name), name
+
+
+def _emergency(client, **fields: str) -> str:
+    token = csrf_token(client, "/exam")
+    form = {
+        "mode": "emergency",
+        "patient_id": "E0001",
+        "name_alphabetic": "KINKYU^TARO",
+        "series": "1",
+        "images": "1",
+        "action": "exam",
+        **fields,
+    }
+    return client.post("/exam", data=form, headers=post_headers(token)).text
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"name_alphabetic": ""},
+        {"name_alphabetic": "　 "},
+        {"patient_id": ""},
+        {"name_alphabetic": "A=B"},
+        {"name_ideographic": "山田\x1b太郎"},
+    ],
+)
+def test_emergency_required_and_bad_names_are_refused_on_the_server(
+    client, tmp_path, fields
+) -> None:
+    html = _emergency(client, **fields)
+    assert 'role="alert"' in html
+    assert "撮影しました" not in html
+    assert not list((tmp_path / "output").rglob("*.dcm"))
+
+
+def test_person_name_script_replaces_spaces_on_blur() -> None:
+    """画面のスクリプトは補助：欄から離れたとき（focusout）に空白を ^ にする."""
+    from app.web.app import STATIC_DIR
+
+    script = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
+    assert "focusout" in script and "data-person-name" in script
+    assert "\\s*\\^\\s*" in script and "\\s+" in script
 
 
 def test_settings_page_is_read_only(client) -> None:

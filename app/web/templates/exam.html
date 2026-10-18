@@ -34,29 +34,29 @@
       {% endfor %}
     </ul>
     {% endif %}
-    <p class="mt-4 text-xs text-label">値を直すときは RIS の側で直し、ワークリストで「この予約を引き直す」を押してください。</p>
+    <p class="mt-4 text-xs text-label">値を直すときは RIS の側で直し、ワークリストで「取得し直す」を押してください。</p>
   </section>
   {% else %}
   <input type="hidden" name="mode" value="emergency">
   <section class="panel">
     <h2 class="panel-title">緊急の患者（予約なし）</h2>
-    <p class="mb-4 text-xs text-label">予約なし（受付番号は空）。予約から撮るときは、<a class="link" href="/worklist">ワークリスト</a>で予約を選んでください。</p>
+    <p class="mb-4 text-xs text-label">予約なし（受付番号は空）。予約から撮るときは、<a class="link" href="/worklist">ワークリスト</a>で予約を選んでください。姓と名は空白で区切って入れてください（DICOM の区切りの ^ に置き換えます）。</p>
     <div class="grid gap-4 sm:grid-cols-3">
       <label class="field">
-        <span class="field-label">患者 ID（必須）</span>
-        <input type="text" name="patient_id" class="input" maxlength="16" required>
+        <span class="field-label">患者 ID <span class="badge text-danger">必須</span></span>
+        <input type="text" name="patient_id" class="input" maxlength="16" required aria-required="true">
       </label>
       <label class="field">
-        <span class="field-label">氏名（英字。例 KINKYU^TARO）</span>
-        <input type="text" name="name_alphabetic" class="input" maxlength="64" required>
+        <span class="field-label">氏名（英字。例 KINKYU TARO） <span class="badge text-danger">必須</span></span>
+        <input type="text" name="name_alphabetic" class="input" maxlength="64" data-person-name required aria-required="true">
       </label>
       <label class="field">
-        <span class="field-label">氏名（漢字。例 緊急^太郎）</span>
-        <input type="text" name="name_ideographic" class="input" maxlength="64">
+        <span class="field-label">氏名（漢字。例 緊急 太郎）</span>
+        <input type="text" name="name_ideographic" class="input" maxlength="64" data-person-name>
       </label>
       <label class="field">
         <span class="field-label">氏名（かな）</span>
-        <input type="text" name="name_phonetic" class="input" maxlength="64">
+        <input type="text" name="name_phonetic" class="input" maxlength="64" data-person-name>
       </label>
       <label class="field">
         <span class="field-label">生年月日</span>
@@ -98,12 +98,12 @@
         </select>
       </label>
       <label class="field">
-        <span class="field-label">シリーズ数</span>
-        <input type="number" name="series" value="1" min="1" max="99" class="input" required>
+        <span class="field-label">シリーズ数 <span class="badge text-danger">必須</span></span>
+        <input type="number" name="series" value="1" min="1" max="99" class="input" required aria-required="true">
       </label>
       <label class="field">
-        <span class="field-label">枚数（シリーズごと。例 1,20）</span>
-        <input type="text" name="images" value="1" class="input" required>
+        <span class="field-label">枚数（シリーズごと。例 1,20） <span class="badge text-danger">必須</span></span>
+        <input type="text" name="images" value="1" class="input" required aria-required="true">
       </label>
       <label class="field">
         <span class="field-label">異常のデータ</span>

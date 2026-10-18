@@ -22,6 +22,7 @@ from app.core.exceptions import (
     ModalityError,
     ProfileError,
     ProfileMismatchError,
+    ValidationError,
     WorklistQueryError,
 )
 from app.core.models import (
@@ -38,6 +39,7 @@ from app.core.models import (
     WorklistItem,
 )
 from app.core.path_safety import ensure_within, safe_path_component
+from app.core.person_name import GROUP_SEPARATOR, compose_person_name
 from app.core.worklist_charset import resolve_image_character_set
 from app.core.worklist_mapping import (
     build_carrier_patient,
@@ -228,6 +230,14 @@ class ModalityService:
 
     # --- 撮影 -----------------------------------------------------------
 
+    @staticmethod
+    def emergency_person_name(alphabetic: str, ideographic: str, phonetic: str) -> str:
+        """手で入れた3つの氏名の欄を PN にする。空白は `^` にする（spec/12 の 10.5）.
+
+        画面のスクリプトの置き換えは補助で、ここで必ず同じ置き換えをする。
+        """
+        return compose_person_name(alphabetic, ideographic, phonetic)
+
     def image_character_set(
         self, worklist_character_set: list[str] | None, choice: str | None = None
     ) -> list[str]:
@@ -312,6 +322,12 @@ class ModalityService:
             emergency_patient = request.emergency_patient
             if emergency_patient is None:
                 raise ConfigurationError("emergency_patient is required for an emergency exam")
+            if not emergency_patient.patient_name.split(GROUP_SEPARATOR, 1)[0].strip():
+                # 緊急の患者の氏名（英字）は必須（spec/12 の 10.5）。画面と CLI の両方に効く
+                raise ValidationError(
+                    "緊急の患者の氏名（英字）は必須です",
+                    {"patient_id": emergency_patient.patient_id},
+                )
             character_set = resolve_image_character_set(
                 choice, None, self.config.character_set_fallback
             )

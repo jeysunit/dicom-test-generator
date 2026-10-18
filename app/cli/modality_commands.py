@@ -121,7 +121,7 @@ def register_modality_commands(
     retry_parser.set_defaults(func=queue_retry_command)
 ZERO_ITEMS_MESSAGE = "予約はありません。条件を広げるか、緊急の患者で撮ってください"
 NON_ASCII_HINT = (
-    "日本語の条件は相手の文字コードの扱いに左右されます。患者 ID か受付番号でも引いてください"
+    "日本語の条件は相手の文字コードの扱いに左右されます。患者 ID か受付番号でも取得してください"
 )
 
 

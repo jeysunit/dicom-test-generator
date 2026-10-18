@@ -25,4 +25,15 @@
       });
     }
   });
+
+  // 氏名の欄：カーソルが離れたら空白を ^ にする（spec/12 の 10.5）。補助で、
+  // サーバーの側でも同じ置き換えをする（app/core/person_name.py）。
+  // JavaScript の \s は全角の空白（U+3000）も含む。
+  document.addEventListener("focusout", function (event) {
+    var input = event.target;
+    if (!(input instanceof HTMLInputElement) || !input.hasAttribute("data-person-name")) {
+      return;
+    }
+    input.value = input.value.trim().replace(/\s*\^\s*/g, "^").replace(/\s+/g, "^");
+  });
 })();

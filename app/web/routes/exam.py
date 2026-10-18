@@ -113,7 +113,10 @@ def exam_run(
         if mode == MODE_EMERGENCY:
             emergency_patient = ScheduledPatient(
                 patient_id=patient_id.strip(),
-                patient_name=_person_name(name_alphabetic, name_ideographic, name_phonetic),
+                # 空白を ^ にする置き換えはサーバーの側で必ず行う（スクリプトは補助。10.5）
+                patient_name=service.emergency_person_name(
+                    name_alphabetic, name_ideographic, name_phonetic
+                ),
                 birth_date=birth_date.replace("-", "").strip(),
                 sex=sex,
             )
@@ -173,14 +176,6 @@ def _blocker(
     except DICOMGeneratorError as exc:
         return str(exc)
     return ""
-
-
-def _person_name(alphabetic: str, ideographic: str, phonetic: str) -> str:
-    """英字・漢字・かなを PN の `=` 区切りにする。後ろの空の群は付けない."""
-    groups = [alphabetic.strip(), ideographic.strip(), phonetic.strip()]
-    while groups and not groups[-1]:
-        groups.pop()
-    return "=".join(groups)
 
 
 def _parse_images(images: str, series: str) -> list[int]:

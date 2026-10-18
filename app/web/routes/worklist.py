@@ -28,7 +28,7 @@ STATION_OWN = "own"
 STATION_ANY = "any"
 ZERO_ITEMS_MESSAGE = "予約はありません。条件を広げるか、緊急の患者で撮ってください"
 NON_ASCII_HINT = (
-    "日本語の条件は相手の文字コードの扱いに左右されます。患者 ID か受付番号でも引いてください"
+    "日本語の条件は相手の文字コードの扱いに左右されます。患者 ID か受付番号でも取得してください"
 )
 PARTIAL_MESSAGE = "途中まで（相手が返し続けたため C-CANCEL を送った）"
 FormStr = Annotated[str, Form()]
@@ -101,14 +101,14 @@ def worklist_refresh(request: Request, key: FormStr = "") -> HTMLResponse:
     try:
         service.refresh_item(key)
     except DICOMGeneratorError as exc:
-        # 引き直せなくても一覧は消さず、上に理由を出す（10.3 の知らせ）
+        # 取得し直せなくても一覧は消さず、上に理由を出す（10.3 の知らせ）
         error = error_text(exc)
     try:
         state = service.last_worklist_state()
     except DICOMGeneratorError as exc:
         return render_error(request, exc)
     results = _results(
-        request, state, state.partial, selected=key, notice="" if error else "引き直しました"
+        request, state, state.partial, selected=key, notice="" if error else "取得し直しました"
     )
     results["error"] = error
     return render(request, "_worklist_results.html", oob_band=True, results=results)

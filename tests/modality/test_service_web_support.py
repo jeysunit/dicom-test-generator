@@ -13,6 +13,7 @@ from app.core.exceptions import (
     FileWriteError,
     ProfileMismatchError,
     TemplateNotFoundError,
+    ValidationError,
 )
 from app.core.models import ScheduledPatient
 from app.modality.config import ModalityConfig
@@ -138,6 +139,25 @@ def test_template_name_must_be_a_listed_template(tmp_path, worklist_scp, name) -
     patient = ScheduledPatient(patient_id="E0001", patient_name="A^B")
     with pytest.raises(TemplateNotFoundError):
         service.exam(ExamRequest(emergency_patient=patient, template=name or "x/y"))
+
+
+def test_emergency_person_name_is_normalized_on_the_server(tmp_path, worklist_scp) -> None:
+    service = _service(tmp_path, worklist_scp.port)
+    assert service.emergency_person_name(" Kinkyu  Taro ", "緊急　太郎", "") == (
+        "Kinkyu^Taro=緊急^太郎"
+    )
+    with pytest.raises(ValidationError):
+        service.emergency_person_name("A=B", "", "")
+
+
+@pytest.mark.parametrize("name", ["", "=緊急^太郎", "  "])
+def test_emergency_exam_requires_alphabetic_name(tmp_path, worklist_scp, name) -> None:
+    """緊急の患者の氏名（英字）は必須。CLI からも同じ（spec/12 の 10.5・11.4）."""
+    service = _service(tmp_path, worklist_scp.port)
+    patient = ScheduledPatient(patient_id="E0001", patient_name=name)
+    with pytest.raises(ValidationError):
+        service.exam(ExamRequest(emergency_patient=patient, pixel_mode="simple_text"))
+    assert not list((tmp_path / "output").rglob("*.dcm"))
 
 
 def test_image_character_set_for_the_band(tmp_path, worklist_scp) -> None:

@@ -6,7 +6,7 @@
 {% with error = results.error %}{% include "_notice.html" %}{% endwith %}
 {% endif %}
 {% if not results.queried %}
-<p class="text-label">まだ引いていません。条件を選んで「引く」を押してください。</p>
+<p class="text-label">まだ取得していません。条件を選んで「ワークリストを取得」を押してください。</p>
 {% elif not results.rows %}
 <div class="panel space-y-3">
   <p>{{ results.zero_message }}</p>
@@ -50,12 +50,12 @@
     </table>
   </div>
   <div class="flex flex-wrap items-center gap-3">
-    <span class="text-xs text-label">{{ results.rows|length }} 件（{{ results.queried_at }} に引いた）</span>
+    <span class="text-xs text-label">{{ results.rows|length }} 件（{{ results.queried_at }} に取得）</span>
     {% if results.partial_message %}<span role="status" class="text-xs text-danger">{{ results.partial_message }}</span>{% endif %}
     <div class="ml-auto flex flex-wrap gap-2">
       <a class="btn btn-ghost" href="/exam">緊急の患者で撮る</a>
       <button type="button" class="btn btn-outline" hx-post="/worklist/refresh" hx-include="#pick" hx-target="#results">
-        <span class="icon icon-refresh-cw" aria-hidden="true"></span>この予約を引き直す
+        <span class="icon icon-refresh-cw" aria-hidden="true"></span>取得し直す
       </button>
       <button type="submit" class="btn btn-primary">選んで撮影へ</button>
     </div>
