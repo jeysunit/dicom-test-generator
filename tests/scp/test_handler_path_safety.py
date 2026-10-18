@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -11,6 +13,7 @@ from app.scp.handler import (
     STATUS_FAILURE,
     STATUS_OUT_OF_RESOURCES,
     STATUS_SUCCESS,
+    UID_SHORT_LENGTH,
     StorageHandler,
 )
 from app.scp.models import SCPConfig
@@ -97,6 +100,105 @@ def test_write_failure_is_out_of_resources(tmp_path: Path) -> None:
 
     assert status == STATUS_OUT_OF_RESOURCES
     assert dataset.saved_paths == []
+
+
+def _series_dir(storage_dir: Path) -> Path:
+    values = MockDataset()._values
+    return (
+        storage_dir
+        / values["PatientID"]
+        / values["StudyInstanceUID"][:UID_SHORT_LENGTH]
+        / values["SeriesInstanceUID"][:UID_SHORT_LENGTH]
+    )
+
+
+def test_rename_skips_dangling_link_candidate(tmp_path: Path, monkeypatch) -> None:
+    """rename の候補の名前に外を指す壊れたリンクがあっても、外に書かない（Codex の指摘）."""
+    storage_dir = tmp_path / "storage"
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    handler = StorageHandler(SCPConfig(storage_dir=str(storage_dir), duplicate_handling="rename"))
+    assert handler.handle_store(_build_event(MockDataset())) == STATUS_SUCCESS
+
+    stamps = iter(["20261018000000000001", "20261018000000000002"])
+
+    class FixedClock:
+        @staticmethod
+        def now() -> SimpleNamespace:
+            stamp = next(stamps)
+            return SimpleNamespace(strftime=lambda _fmt: stamp)
+
+    monkeypatch.setattr("app.scp.handler.datetime", FixedClock)
+    sop = MockDataset()._values["SOPInstanceUID"]
+    trap = _series_dir(storage_dir) / f"{sop}_20261018000000000001.dcm"
+    trap.symlink_to(outside / "planted.dcm")
+
+    dataset = MockDataset()
+    status = handler.handle_store(_build_event(dataset))
+
+    assert status == STATUS_SUCCESS
+    assert dataset.saved_paths[0].name == f"{sop}_20261018000000000002.dcm"
+    assert list(outside.iterdir()) == []
+
+
+def test_collision_check_does_not_read_outside_through_link(tmp_path: Path, monkeypatch) -> None:
+    """Study のフォルダの名前が外へのリンクなら、中を読まずに止める（Codex の指摘）."""
+    storage_dir = tmp_path / "storage"
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "other.dcm").write_bytes(b"")
+    patient_dir = storage_dir / "P000001"
+    patient_dir.mkdir(parents=True)
+    (patient_dir / GOOD_STUDY[:UID_SHORT_LENGTH]).symlink_to(outside, target_is_directory=True)
+    read: list[Path] = []
+    monkeypatch.setattr(
+        "app.scp.handler.dcmread", lambda path, **_kwargs: read.append(Path(path))
+    )
+
+    status, dataset, _ = _store(tmp_path)
+
+    assert status == STATUS_OUT_OF_RESOURCES
+    assert read == []
+    assert dataset.saved_paths == []
+
+
+def test_collision_check_skips_linked_files(tmp_path: Path, monkeypatch) -> None:
+    storage_dir = tmp_path / "storage"
+    outside = tmp_path / "outside.dcm"
+    outside.write_bytes(b"")
+    study_dir = storage_dir / "P000001" / GOOD_STUDY[:UID_SHORT_LENGTH]
+    study_dir.mkdir(parents=True)
+    (study_dir / "linked.dcm").symlink_to(outside)
+    read: list[Path] = []
+    monkeypatch.setattr(
+        "app.scp.handler.dcmread", lambda path, **_kwargs: read.append(Path(path))
+    )
+
+    _store(tmp_path)
+
+    assert outside not in read and study_dir / "linked.dcm" not in read
+
+
+def test_overwrite_does_not_write_through_hard_link(tmp_path: Path) -> None:
+    """上書きの先が外のファイルへのハードリンクでも、外の中身を変えない（Codex の指摘）."""
+    status, dataset, storage_dir = _store(tmp_path)
+    assert status == STATUS_SUCCESS
+    stored = dataset.saved_paths[0]
+    # 外のファイル（中身は受けた画像と同じ UID の DICOM）に、保存先の名前からハードリンクを張る
+    victim = tmp_path / "victim.dcm"
+    original = stored.read_bytes()
+    victim.write_bytes(original)
+    stored.unlink()
+    os.link(victim, stored)
+
+    handler = StorageHandler(SCPConfig(storage_dir=str(storage_dir), duplicate_handling="overwrite"))
+    second = MockDataset()
+    assert handler.handle_store(_build_event(second)) == STATUS_SUCCESS
+
+    assert second.saved_paths == [stored.resolve()]
+    assert stored.stat().st_ino != victim.stat().st_ino
+    assert victim.stat().st_nlink == 1
+    assert victim.read_bytes() == original
 
 
 def test_logs_received_values_with_repr(tmp_path: Path, caplog) -> None:

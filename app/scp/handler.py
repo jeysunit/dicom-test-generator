@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from pydicom import dcmread
+from pydicom.errors import InvalidDicomError
 
 from app.core.exceptions import FileWriteError, SCPStoreError
 from app.core.path_safety import ensure_within, safe_path_component
@@ -99,9 +101,22 @@ class StorageHandler:
                 if self.config.duplicate_handling == "reject":
                     logger.warning("Duplicate SOP Instance UID rejected: sop_uid=%r", sop_uid)
                     return STATUS_FAILURE
-                if self.config.duplicate_handling == "rename":
-                    filepath = self._build_renamed_path(target_dir, sop_uid)
-                    logger.info("Duplicate SOP renamed: sop_uid=%r", sop_uid)
+                try:
+                    if self.config.duplicate_handling == "rename":
+                        filepath = self._build_renamed_path(target_dir, sop_uid)
+                        logger.info("Duplicate SOP renamed: sop_uid=%r", sop_uid)
+                    elif os.lstat(filepath).st_nlink > 1:
+                        # 外のファイルへのハードリンクを書き換えないよう、名前を外してから書く
+                        filepath.unlink()
+                except FileWriteError as exc:
+                    logger.error(
+                        "Refused to store outside of storage_dir: sop_uid=%r reason=%s", sop_uid, exc
+                    )
+                    return STATUS_OUT_OF_RESOURCES
+                except OSError as exc:
+                    err = SCPStoreError(f"Failed to replace the duplicate: {exc}", sop_uid=sop_uid)
+                    logger.error("%s", err)
+                    return STATUS_OUT_OF_RESOURCES
 
             if hasattr(event, "file_meta"):
                 dataset.file_meta = event.file_meta
@@ -136,6 +151,8 @@ class StorageHandler:
         append ``_<sha1[:8]>`` to avoid collisions.
         """
         target = dirpath / base_name
+        # 外へのリンクなら中を読む前に止める（FileWriteError。呼ぶ側で Failure にする）
+        ensure_within(self.storage_dir, target)
         if not target.exists() or not target.is_dir():
             return base_name
 
@@ -150,6 +167,9 @@ class StorageHandler:
         """Return (has_dicom_files, contains_uid)."""
         has_dicom_files = False
         for dcm_file in directory.rglob("*.dcm"):
+            # リンク・通常のファイルでないもの（FIFO など）は読まない
+            if dcm_file.is_symlink() or not dcm_file.is_file():
+                continue
             has_dicom_files = True
             try:
                 ds = dcmread(
@@ -157,7 +177,7 @@ class StorageHandler:
                     stop_before_pixels=True,
                     specific_tags=["StudyInstanceUID", "SeriesInstanceUID"],
                 )
-            except (OSError, ValueError):
+            except (OSError, ValueError, InvalidDicomError):
                 continue
 
             study_uid = str(ds.get("StudyInstanceUID", "")).strip()
@@ -171,5 +191,6 @@ class StorageHandler:
         while True:
             timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
             candidate = target_dir / f"{sop_uid}_{timestamp}.dcm"
-            if not candidate.exists():
-                return candidate
+            # 壊れたリンクは exists() が False になるので、リンクも「ある」とみなす
+            if not candidate.exists() and not candidate.is_symlink():
+                return ensure_within(self.storage_dir, candidate)
