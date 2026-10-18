@@ -11,8 +11,10 @@ import re
 from typing import Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydicom import config
 from pydicom.datadict import dictionary_VR, tag_for_keyword
 from pydicom.dataset import Dataset
+from pydicom.valuerep import validate_value
 
 UID_PATTERN = r"^[0-2](\.(0|[1-9][0-9]*))+$"
 PROFILE_NAME_PATTERN = r"^[a-z0-9][a-z0-9_]*$"
@@ -56,6 +58,34 @@ PROTECTED_KEYWORDS: frozenset[str] = frozenset(
     }
 )
 
+# attributes.omit で消せない属性（spec/13 の 3.3）。この道具が CT Image で出す
+# Type 1・Type 2 の属性。omit は装置の表に無い Type 3 を消すためのもので、
+# 必須の属性を欠いた画像は異常のデータ（abnormal）の仕事にする。
+OMIT_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "Modality",
+        "StudyDate",
+        "StudyTime",
+        "AccessionNumber",
+        "ReferringPhysicianName",
+        "StudyID",
+        "SeriesNumber",
+        "InstanceNumber",
+        "AcquisitionNumber",
+        "ContentDate",
+        "ContentTime",
+        "ImagePositionPatient",
+        "ImageOrientationPatient",
+        "PixelSpacing",
+        "SliceThickness",
+        "KVP",
+        "RescaleIntercept",
+        "RescaleSlope",
+        "ImageType",
+        "InstanceCreatorUID",
+    }
+)
+
 # 数の値だけを受ける VR（バイナリの数）
 _BINARY_NUMBER_VRS = frozenset({"US", "UL", "SS", "SL", "FL", "FD"})
 _INTEGER_VRS = frozenset({"US", "UL", "SS", "SL"})
@@ -86,7 +116,20 @@ def normalize_character_set(value: str | list[str] | tuple[str, ...] | None) -> 
     return tuple(parts)
 
 
+def to_dicom_value(value: AttributeValue, vr: str) -> AttributeValue:
+    """YAML の値を Dataset に入れる形にする（文字の VR の数は文字にする）."""
+    if vr in _BINARY_NUMBER_VRS:
+        return value
+    if isinstance(value, list):
+        return [item if isinstance(item, str) else str(item) for item in value]
+    return value if isinstance(value, str) else str(value)
+
+
 def _check_value_for_vr(value: AttributeValue, vr: str, label: str) -> None:
+    """VR に合う値かを確かめる（型・数の範囲・文字の長さと字）.
+
+    生成のときではなく読み込みのときに分かる誤り（ProfileParseError）にする。
+    """
     values = value if isinstance(value, list) else [value]
     for item in values:
         if isinstance(item, bool):
@@ -96,6 +139,12 @@ def _check_value_for_vr(value: AttributeValue, vr: str, label: str) -> None:
                 raise ValueError(f"{label}: VR {vr} needs a number, got {item!r}")
             if vr in _INTEGER_VRS and not isinstance(item, int):
                 raise ValueError(f"{label}: VR {vr} needs an integer, got {item!r}")
+        converted = to_dicom_value(item, vr)
+        try:
+            validate_value(vr, converted, config.RAISE)
+        except ValueError as exc:
+            reason = str(exc).split(" Please see")[0]
+            raise ValueError(f"{label}: {reason}") from exc
 
 
 class _StrictModel(BaseModel):
@@ -215,6 +264,11 @@ class ProfileAttributes(_StrictModel):
                         f"and attributes.{group}"
                     )
                 seen[keyword] = group
+                if group == "omit" and keyword in OMIT_FORBIDDEN_KEYWORDS:
+                    raise ValueError(
+                        f"{keyword} is a Type 1/2 attribute and cannot be omitted "
+                        "(use abnormal data to break required attributes)"
+                    )
                 if group == "set":
                     if " or " in vr:
                         raise ValueError(f"{keyword}: VR {vr} is ambiguous")
@@ -333,7 +387,7 @@ def apply_device_profile(
 
     attributes = profile.attributes
     for keyword, value in attributes.set_values.items():
-        setattr(ds, keyword, value)
+        setattr(ds, keyword, to_dicom_value(value, _keyword_vr(keyword)))
     for keyword in attributes.empty:
         tag = tag_for_keyword(keyword)
         ds.add_new(tag, dictionary_VR(tag), None)
@@ -344,4 +398,8 @@ def apply_device_profile(
     for block in profile.private_tags:
         private_block = ds.private_block(block.group_number, block.creator, create=True)
         for element in block.elements:
-            private_block.add_new(element.offset_number, element.vr, element.value)
+            private_block.add_new(
+                element.offset_number,
+                element.vr,
+                to_dicom_value(element.value, element.vr),
+            )

@@ -132,7 +132,7 @@ class ProfileLoaderService:
         try:
             with self._config_path.open("r", encoding="utf-8") as fp:
                 loaded = yaml.safe_load(fp)
-        except (yaml.YAMLError, OSError) as exc:
+        except (yaml.YAMLError, OSError, UnicodeDecodeError) as exc:
             raise ProfileError(
                 f"Failed to read configuration file: {self._config_path}",
                 {"reason": str(exc)},
@@ -147,7 +147,18 @@ class ProfileLoaderService:
         section = loaded.get("profiles")
         if section is None:
             return []
-        raw_paths = section.get("search_paths", []) if isinstance(section, dict) else None
+        if not isinstance(section, dict):
+            raise ProfileError(
+                "'profiles' section must be a mapping",
+                {"config_path": str(self._config_path)},
+            )
+        unknown = sorted(set(section) - {"search_paths"})
+        if unknown:
+            raise ProfileError(
+                "Unknown keys in 'profiles' section",
+                {"config_path": str(self._config_path), "keys": ", ".join(unknown)},
+            )
+        raw_paths = section.get("search_paths")
         if raw_paths is None:
             return []
         if not isinstance(raw_paths, list) or not all(
@@ -170,6 +181,8 @@ class ProfileLoaderService:
                 loaded = yaml.safe_load(fp)
         except yaml.YAMLError as exc:
             raise ProfileParseError(str(path), f"YAML: {exc}") from exc
+        except UnicodeDecodeError as exc:
+            raise ProfileParseError(str(path), f"file must be UTF-8: {exc}") from exc
         except OSError as exc:
             raise ProfileParseError(str(path), str(exc)) from exc
 

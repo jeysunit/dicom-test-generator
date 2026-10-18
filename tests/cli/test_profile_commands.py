@@ -119,6 +119,38 @@ def test_profiles_list_reports_broken_profile(tmp_path, monkeypatch, capsys) -> 
     assert "broken.yaml" in captured.err
 
 
+def test_quick_uses_first_transfer_syntax_and_does_not_fall_back(
+    tmp_path, monkeypatch
+) -> None:
+    from app.cli.commands import _profile_transfer_syntax
+    from app.core import ProfileMismatchError
+
+    external = tmp_path / "private"
+    external.mkdir()
+    base = {
+        "schema_version": 1,
+        "device": {
+            "modality": "CT",
+            "manufacturer": "Site Maker",
+            "manufacturers_model_name": "Site CT",
+        },
+    }
+    for name, syntaxes in (
+        ("explicit_first", ["1.2.840.10008.1.2.1", "1.2.840.10008.1.2"]),
+        ("jpeg_first", ["1.2.840.10008.1.2.4.70", "1.2.840.10008.1.2"]),
+    ):
+        data = dict(base, name=name, storage={
+            "sop_classes": ["1.2.840.10008.5.1.4.1.1.2"],
+            "transfer_syntaxes": syntaxes,
+        })
+        (external / f"{name}.yaml").write_text(yaml.safe_dump(data), encoding="utf-8")
+    monkeypatch.setenv(PROFILE_DIRS_ENV, str(external))
+
+    assert _profile_transfer_syntax("explicit_first").uid == "1.2.840.10008.1.2.1"
+    with pytest.raises(ProfileMismatchError, match="1.2.840.10008.1.2.4.70"):
+        _profile_transfer_syntax("jpeg_first")
+
+
 def test_old_device_template_name_points_to_profiles(monkeypatch) -> None:
     """装置ごとの古いテンプレートの名前は、プロファイルの置き場へ案内する."""
     import hashlib

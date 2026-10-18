@@ -166,6 +166,16 @@ services:
   決める属性（Manufacturer・Manufacturer's Model Name・Software
   Versions・Device Serial Number・Station Name）
 - 1つの属性を `set`・`empty`・`omit` の2つ以上に書けば誤り
+- `omit` では、この道具が CT Image で出す Type 1・Type 2 の属性
+  （Modality・Study Date/Time・Accession Number・Referring Physician's
+  Name・Study ID・Series Number・Instance Number・Acquisition Number・
+  Content Date/Time・Image Position/Orientation (Patient)・Pixel
+  Spacing・Slice Thickness・KVP・Rescale Intercept/Slope・Image Type・
+  Instance Creator UID）を消せない。必須の属性を欠いた画像は、異常の
+  データ（`abnormal`）の仕事にする
+- `attributes.set` と `private_tags` の値は、読み込みのときに VR に
+  合うかを確かめる（型・数の範囲・文字の長さと字。pydicom の
+  `validate_value`）。文字の VR（DS・IS など）に書いた数は文字にして入れる
 - `private_tags` の群は奇数の 4 桁の16進で、`0009`〜`FFFF`
   （`0001`・`0003`・`0005`・`0007` は使えない。PS3.5 7.8.1）。
   `offset` は `10`〜`FF`。1つの群に同じ Creator を2回書かない。
@@ -312,6 +322,9 @@ profiles:
 - 指したフォルダが無ければ誤り（`ProfileError`）。綴りの誤りで、
   黙って例のプロファイルに落ちないため。確かめるのはプロファイルを
   使うとき・一覧を出すときだけ（プロファイルを使わない生成は止めない）
+- 設定の `profiles` が対応表でない、知らない鍵がある、`search_paths` が
+  文字の並びでないときも誤り（黙って例の置き場だけにしない）
+- プロファイルのファイルは UTF-8。読めなければ `ProfileParseError`
 - **同じ名前のプロファイルが2か所以上にあれば誤り**
   （`DuplicateProfileError`。どちらのパスかを出す）。上の置き場が
   黙って下を隠すと、どちらで作ったかが分からなくなるため

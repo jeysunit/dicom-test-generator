@@ -193,23 +193,24 @@ def profiles_list_command(args: argparse.Namespace) -> int:
 
 
 def _profile_transfer_syntax(profile_name: str) -> TransferSyntaxConfig:
-    """プロファイルの好みの順で、最初の作れる転送の形を選ぶ."""
+    """プロファイルの最初の転送の形（装置の好み）を使う（spec/13 の 4.3）.
+
+    最初の形をこの道具が作れなければ止める（黙って次の形に替えない）。
+    """
     profile = ProfileLoaderService().load(profile_name)
-    for uid in profile.storage.transfer_syntaxes:
-        if uid in _QUICK_TRANSFER_SYNTAXES:
-            name, is_implicit_vr, is_little_endian = _QUICK_TRANSFER_SYNTAXES[uid]
-            return TransferSyntaxConfig(
-                uid=uid,
-                name=name,
-                is_implicit_vr=is_implicit_vr,
-                is_little_endian=is_little_endian,
-            )
-    raise ProfileMismatchError(
-        "None of the device's Transfer Syntaxes can be generated",
-        {
-            "profile": profile_name,
-            "transfer_syntaxes": ", ".join(profile.storage.transfer_syntaxes),
-        },
+    uid = profile.storage.transfer_syntaxes[0]
+    if uid not in _QUICK_TRANSFER_SYNTAXES:
+        raise ProfileMismatchError(
+            f"The device's first Transfer Syntax {uid} cannot be generated "
+            f"(supported: {', '.join(_QUICK_TRANSFER_SYNTAXES)})",
+            {"profile": profile_name},
+        )
+    name, is_implicit_vr, is_little_endian = _QUICK_TRANSFER_SYNTAXES[uid]
+    return TransferSyntaxConfig(
+        uid=uid,
+        name=name,
+        is_implicit_vr=is_implicit_vr,
+        is_little_endian=is_little_endian,
     )
 
 

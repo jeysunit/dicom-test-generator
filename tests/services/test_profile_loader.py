@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -229,6 +230,36 @@ def test_invalid_config_search_paths_is_an_error(tmp_path) -> None:
         loader.search_paths()
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "profiles: not-a-mapping\n",
+        "profiles:\n  search_path: []\n",
+    ],
+)
+def test_invalid_profiles_section_is_an_error(tmp_path, text) -> None:
+    config_path = tmp_path / "app_config.yaml"
+    config_path.write_text(text, encoding="utf-8")
+    loader = ProfileLoaderService(config_path=config_path, environ={})
+
+    with pytest.raises(ProfileError, match="profiles"):
+        loader.search_paths()
+
+
+def test_non_utf8_profile_is_reported_and_others_are_listed(tmp_path) -> None:
+    external = tmp_path / "a"
+    _write(external, "site_ct", _profile("site_ct"))
+    (external / "latin1.yaml").write_bytes("name: \"caf\xe9\"\n".encode("latin-1"))
+    loader = _loader(tmp_path, env_dirs=[external])
+
+    entries, errors = loader.list_profiles()
+
+    assert "site_ct" in [entry.name for entry in entries]
+    assert len(errors) == 1
+    assert isinstance(errors[0], ProfileParseError)
+    assert "UTF-8" in str(errors[0])
+
+
 def test_missing_config_file_uses_env_and_examples_only(tmp_path) -> None:
     loader = ProfileLoaderService(config_path=tmp_path / "none.yaml", environ={})
 
@@ -255,10 +286,14 @@ def test_repository_profiles_contain_only_fictional_examples() -> None:
 
     assert tracked, "profiles/examples should be tracked"
     for path in tracked:
-        assert path.startswith("profiles/examples/"), path
+        # 例は profiles/examples/ の直下の YAML だけ（下のフォルダも置かない）
+        assert re.fullmatch(r"profiles/examples/[a-z0-9_]+\.yaml", path), path
 
     loader = ProfileLoaderService(environ={})
-    for path in sorted(EXAMPLES_DIR.glob("*.yaml")):
+    for path in sorted(EXAMPLES_DIR.rglob("*")):
+        if path.is_dir():
+            continue
+        assert path.parent == EXAMPLES_DIR, path
         profile = loader.load(path.stem)
         assert profile.device.manufacturer.startswith("DTG")
         assert profile.device.manufacturers_model_name.startswith("DTG")

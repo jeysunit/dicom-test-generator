@@ -112,6 +112,12 @@ def test_software_versions_accepts_single_string() -> None:
         ("private_tags.0.elements.0.vr", "SQ", "vr"),
         ("private_tags.0.elements.1.value", "three", "US"),
         ("private_tags.0.creator", "", "creator"),
+        ("private_tags.0.elements.1.value", -1, "offset 11"),
+        ("private_tags.0.elements.0.value", "x" * 65, "offset 10"),
+        ("attributes.omit", ["Modality"], "Modality"),
+        ("attributes.omit", ["ImagePositionPatient"], "ImagePositionPatient"),
+        ("attributes.set", {"KVP": "not-a-number"}, "KVP"),
+        ("attributes.set", {"BodyPartExamined": "chest"}, "BodyPartExamined"),
     ],
 )
 def test_invalid_profile_is_rejected(path, value, fragment) -> None:
@@ -119,6 +125,17 @@ def test_invalid_profile_is_rejected(path, value, fragment) -> None:
         DeviceProfile.model_validate(_with(path, value))
 
     assert fragment in str(exc_info.value)
+
+
+def test_numbers_for_string_vrs_are_written_as_strings() -> None:
+    data = _with("attributes.set", {"KVP": 120, "BodyPartExamined": "CHEST"})
+    profile = DeviceProfile.model_validate(data)
+    ds = _dataset()
+
+    apply_device_profile(ds, profile)
+
+    assert ds.KVP == 120
+    assert ds["KVP"].VR == "DS"
 
 
 def test_duplicate_private_offset_is_rejected() -> None:
