@@ -58,7 +58,21 @@ pytest tests/gui/ -v
 
 # カバレッジ
 pytest --cov=app --cov-report=term-missing
+
+# 表示の無い環境で GUI の試験を流す（CI と同じ）
+QT_QPA_PLATFORM=offscreen pytest
 ```
+
+### CI
+
+`.github/workflows/ci.yml` が、PR と `main` への push で次を流す。
+
+- pytest（Python 3.10・3.12）。GUI の試験は Qt の offscreen の描き先で
+  動かす（X のサーバーを立てない）
+- markdownlint（`.markdownlint-cli2.yaml` の設定）
+
+ruff は、設定のファイルが無く、いまのコードに指摘が残っているため、
+CI にはまだ入れていない。
 
 ## CLI 使用例
 
