@@ -327,6 +327,21 @@ UID (0008,0018) を置かない（IHE-A.1.4・A.1.5）。画像を指す
 Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID
 (0008,1155)（Performed Series Sequence の中）は入れる。
 
+### 6.5 予約の値は信用しない
+
+**ワークリストの応答の値（Patient ID・受付番号・UID・氏名など）は、
+相手の SCP が自由に入れられる信用できない値として扱う。** 画像の
+属性には写すが、ファイル・フォルダの名前にはそのまま使わない。
+
+- 名前に使うときは `[A-Za-z0-9._-]` 以外の字を `_` に置き換え、長さを
+  64 字までにし、空・`.`・`..` などの点だけの名前は決まった名前
+  （例：`emergency`・`UNKNOWN`）にし、Windows の予約名（`CON`・`NUL`・
+  `COM1` など）は先頭に `_` を足す（`app/core/path_safety.py`）
+- 組み立てたパスは `resolve()` して、出力の根のフォルダの中にあることを
+  確かめる。外なら書かずに止める（`FileWriteError`。終了コード 3）
+- Job YAML の Patient ID から作るファイルの名前（既存の生成）も同じ
+  決まりで作る
+
 ---
 
 ## 7. 文字コード
@@ -867,6 +882,7 @@ python -m app.cli exam --emergency --patient-id E0001 \
 `--from-worklist` と `--emergency` はどちらか1つを必須にする。
 
 - 出力は `<出力のフォルダ>/<受付番号か emergency>_<撮影の日時 YYYYMMDDHHMMSS>/`
+  （受付番号は 6.5 の決まりで名前に直す）
   に書く。同じ予約で2回撮ると、別のフォルダに同じ Study の新しい
   シリーズができる
 - `-i` の数は `-s` と同じ数にする（`quick` と同じ）

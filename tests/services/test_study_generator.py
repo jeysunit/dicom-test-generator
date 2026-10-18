@@ -232,3 +232,38 @@ def test_generate_with_scheduled_context_stops_on_unrepresentable_char(tmp_path)
         service.generate(config=config, scheduled=ctx)
 
     assert list((tmp_path / "output").glob("*.dcm")) == []
+
+
+@pytest.mark.parametrize("patient_id", ["../../evil", "/etc/evil", "a\x00b", "..", "CON"])
+def test_generate_keeps_files_inside_output_dir_for_untrusted_patient_id(
+    tmp_path, patient_id
+) -> None:
+    """予約・Job の Patient ID をそのままファイルの名前に使わない（spec/12 の 6.5）."""
+    service = StudyGeneratorService()
+    config = _make_config(tmp_path=tmp_path, num_series=1, images_per_series=[1])
+    # ModalityService は予約の Patient ID を仮の Patient にも入れる
+    carrier = config.patient.model_copy(update={"patient_id": patient_id})
+    config = config.model_copy(update={"patient": carrier})
+    ctx = _scheduled_context(
+        patient=ScheduledPatient(patient_id=patient_id, patient_name="EVIL^NAME")
+    )
+
+    output_dir = service.generate(config=config, scheduled=ctx)
+
+    files = [path for path in tmp_path.rglob("*.dcm")]
+    assert len(files) == 1
+    assert files[0].parent == output_dir
+    assert files[0].name.endswith("_CT_0001.dcm")
+
+
+def test_generate_sanitizes_patient_id_from_job_config(tmp_path) -> None:
+    service = StudyGeneratorService()
+    config = _make_config(tmp_path=tmp_path, num_series=1, images_per_series=[1])
+    evil_patient = config.patient.model_copy(update={"patient_id": "../../evil"})
+    config = config.model_copy(update={"patient": evil_patient})
+
+    output_dir = service.generate(config=config)
+
+    files = list(tmp_path.rglob("*.dcm"))
+    assert [path.parent for path in files] == [output_dir]
+    assert files[0].name.startswith(".._.._evil_")

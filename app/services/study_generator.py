@@ -27,6 +27,7 @@ from app.core import (
     UIDContext,
     UIDGenerator,
 )
+from app.core.path_safety import ensure_within, safe_path_component
 from app.core.worklist_charset import ensure_dataset_encodable
 from app.core.worklist_mapping import apply_scheduled_context
 
@@ -171,11 +172,15 @@ class StudyGeneratorService:
                         apply_scheduled_context(dataset, scheduled)
                         ensure_dataset_encodable(dataset)
 
+                    # Patient ID・検査日・モダリティは信用できない値（予約・Job）なので、
+                    # 決まった字だけにしてから名前に使う（spec/12 の 6.5）
                     filename = (
-                        f"{config.patient.patient_id}_{config.study.study_date}_"
-                        f"{modality}_{file_sequence:0{sequence_width}d}.dcm"
+                        f"{safe_path_component(config.patient.patient_id, 'UNKNOWN')}_"
+                        f"{safe_path_component(config.study.study_date, 'NODATE')}_"
+                        f"{safe_path_component(modality, 'OT')}_"
+                        f"{file_sequence:0{sequence_width}d}.dcm"
                     )
-                    filepath = output_dir / filename
+                    filepath = ensure_within(output_dir, output_dir / filename)
                     try:
                         pydicom.dcmwrite(
                             str(filepath), dataset, enforce_file_format=True
