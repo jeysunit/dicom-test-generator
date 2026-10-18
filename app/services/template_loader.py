@@ -39,6 +39,10 @@ class TemplateLoaderService:
         self._modality_dir = self._project_root / "templates" / "modality"
         self._hospital_dir = self._project_root / "templates" / "hospital"
 
+    def list_modality_templates(self) -> list[str]:
+        """読めるモダリティテンプレートの名前（拡張子を除く）を名前の順で返す."""
+        return sorted(path.stem for path in self._modality_dir.glob("*.yaml") if path.is_file())
+
     def load_modality_template(self, name: str) -> dict:
         """モダリティテンプレートを読み込む."""
         template_path = self._modality_dir / f"{name}.yaml"

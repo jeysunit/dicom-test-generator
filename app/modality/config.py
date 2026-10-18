@@ -97,6 +97,7 @@ class ModalityConfig(BaseModel):
     character_set: CharacterSetChoice = "auto"
     character_set_fallback: FallbackChoice = "utf8"
     default_template: str = "ct_generic"
+    default_profile: str | None = None  # 装置のプロファイル（spec/13 の 8）。None は重ねない
     default_hospital: str | None = None
     default_pixel_mode: PixelMode = "ct_realistic"
     worklist: WorklistPeerConfig

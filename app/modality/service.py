@@ -20,6 +20,8 @@ from app.core.exceptions import (
     FileReadError,
     FileWriteError,
     ModalityError,
+    ProfileError,
+    ProfileMismatchError,
     WorklistQueryError,
 )
 from app.core.models import (
@@ -43,7 +45,8 @@ from app.core.worklist_mapping import (
     ensure_modality_matches,
     scheduled_context_from_item,
 )
-from app.services import StudyGeneratorService, TemplateLoaderService
+from app.services import ProfileLoaderService, StudyGeneratorService, TemplateLoaderService
+from app.services.profile_loader import profile_transfer_syntax
 
 from .config import ModalityConfig
 from .queue import QUEUE_DB_NAME, QueueJob, SendQueue
@@ -73,6 +76,7 @@ class ExamRequest(BaseModel):
     emergency_patient: ScheduledPatient | None = None
     study_description: str = ""
     template: str | None = None
+    profile: str | None = None
     hospital: str | None = None
     images_per_series: list[int] = Field(default_factory=lambda: [1], min_length=1)
     pixel_mode: str | None = None
@@ -103,6 +107,28 @@ class SendResult(BaseModel):
     error: str = ""
 
 
+class WorklistState(BaseModel):
+    """最後に引いたワークリスト（状態の置き場に保存した物。5.4）."""
+
+    model_config = {"frozen": True}
+
+    queried_at: str = ""
+    response_character_set: list[str] = Field(default_factory=list)
+    partial: bool = False
+    items: list[WorklistItem] = Field(default_factory=list)
+
+
+class ProfileInfo(BaseModel):
+    """撮影の画面の「装置」に並べる、装置のプロファイルの要約."""
+
+    model_config = {"frozen": True}
+
+    name: str
+    modality: str
+    manufacturer: str
+    model_name: str
+
+
 class ModalityService:
     """ワークリストを引く・予約で撮る・送る、の手順."""
 
@@ -111,9 +137,11 @@ class ModalityService:
         config: ModalityConfig,
         generator: StudyGeneratorService | None = None,
         template_loader: TemplateLoaderService | None = None,
+        profile_loader: ProfileLoaderService | None = None,
     ) -> None:
         self.config = config
-        self._generator = generator or StudyGeneratorService()
+        self._profile_loader = profile_loader or ProfileLoaderService()
+        self._generator = generator or StudyGeneratorService(self._profile_loader)
         self._template_loader = template_loader or TemplateLoaderService()
         self._state_dir = Path(config.state_dir)
         self._queue: SendQueue | None = None
@@ -150,12 +178,16 @@ class ModalityService:
         return result
 
     def last_worklist(self) -> list[WorklistItem]:
+        return self.last_worklist_state().items
+
+    def last_worklist_state(self) -> WorklistState:
+        """最後に引いた結果を、引いた時刻・応答の文字コードと一緒に返す（画面の帯。7.1）."""
         path = self._state_dir / WORKLIST_STATE_FILE
         if not path.exists():
-            return []
+            return WorklistState()
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-            return [WorklistItem.model_validate(raw) for raw in data.get("items", [])]
+            return WorklistState.model_validate(data)
         except (OSError, ValueError) as exc:
             raise FileReadError(str(path), str(exc)) from exc
 
@@ -195,6 +227,34 @@ class ModalityService:
         )
 
     # --- 撮影 -----------------------------------------------------------
+
+    def available_templates(self) -> list[str]:
+        return self._template_loader.list_modality_templates()
+
+    def available_profiles(self) -> tuple[list[ProfileInfo], list[ProfileError]]:
+        """読める装置のプロファイルと、読めなかった物の誤り（spec/13 の 7.2）."""
+        entries, errors = self._profile_loader.list_profiles()
+        infos = [
+            ProfileInfo(
+                name=entry.name,
+                modality=entry.profile.device.modality,
+                manufacturer=entry.profile.device.manufacturer,
+                model_name=entry.profile.device.manufacturers_model_name,
+            )
+            for entry in entries
+        ]
+        return infos, errors
+
+    def check_profile_modality(self, profile_name: str | None, modality: str) -> None:
+        """プロファイルのモダリティが予約・テンプレートと違えば止める（spec/13 の 8）."""
+        if not profile_name:
+            return
+        profile = self._profile_loader.load(profile_name)
+        if profile.device.modality != modality:
+            raise ProfileMismatchError(
+                f"Device profile modality {profile.device.modality} does not match {modality}",
+                {"profile": profile_name},
+            )
 
     def template_modality(self, template_name: str) -> str:
         template = self._template_loader.load_modality_template(template_name)
@@ -301,6 +361,17 @@ class ModalityService:
         job_id = self.queue.add_job(str(folder_path), node.name, files)
         return self._send_job(job_id, files)
 
+    def send_exam_output(self, folder: str, destination: str | None = None) -> SendResult:
+        """撮影の出力のフォルダを送る。出力の根の中のフォルダだけを受ける（6.5）.
+
+        画面のフォームから来るフォルダの名前は信用しない。根の外を指せば送らずに止める。
+        """
+        root = Path(self.config.output_dir)
+        resolved = ensure_within(root, Path(folder))
+        if resolved == root.resolve():
+            raise FileWriteError(str(folder), "the output root itself is not an exam folder")
+        return self.send(str(resolved), destination)
+
     def retry(
         self, job_id: int | None = None, all_failed: bool = False, stale: bool = False
     ) -> list[SendResult]:
@@ -405,6 +476,12 @@ class ModalityService:
         else:
             raise ConfigurationError("Unsupported pixel mode", {"pixel_mode": pixel_mode})
         study_date = now.strftime("%Y%m%d")
+        profile_name = request.profile or self.config.default_profile
+        transfer_syntax = (
+            profile_transfer_syntax(self._profile_loader.load(profile_name))
+            if profile_name
+            else TransferSyntaxConfig()
+        )
         return GenerationConfig(
             job_name=f"exam_{request.worklist_key or EMERGENCY_FOLDER_NAME}",
             output_dir=str(output_dir),
@@ -420,9 +497,10 @@ class ModalityService:
                 for index, count in enumerate(request.images_per_series)
             ],
             modality_template=template,
+            device_profile=profile_name,
             hospital_template=request.hospital or self.config.default_hospital,
             pixel_spec=pixel_spec,
-            transfer_syntax=TransferSyntaxConfig(),
+            transfer_syntax=transfer_syntax,
             character_set=CharacterSetConfig(
                 specific_character_set="\\".join(ctx.specific_character_set),
                 use_ideographic=True,

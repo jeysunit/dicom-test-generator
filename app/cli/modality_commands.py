@@ -83,6 +83,9 @@ def register_modality_commands(
     exam_parser.add_argument("--sex", choices=("M", "F", "O"), help="緊急の患者の性別")
     exam_parser.add_argument("--study-description", help="検査の記述（--emergency のとき）")
     exam_parser.add_argument("-m", "--modality", help="モダリティテンプレート")
+    exam_parser.add_argument(
+        "--profile", help="装置のプロファイル（spec/13。default: 設定の default_profile）"
+    )
     exam_parser.add_argument("--hospital", help="病院テンプレート")
     exam_parser.add_argument("-s", "--series", type=int, default=1, help="シリーズ数")
     exam_parser.add_argument("-i", "--images", default="1", help="各シリーズの枚数（カンマ区切り）")
@@ -190,6 +193,7 @@ def exam_command(args: argparse.Namespace) -> int:
             emergency_patient=emergency_patient,
             study_description=args.study_description or "",
             template=args.modality,
+            profile=args.profile,
             hospital=args.hospital,
             images_per_series=images,
             pixel_mode=args.pixel_mode,
