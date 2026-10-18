@@ -8,3 +8,9 @@ storage_scp:
   supported_sop_classes:
     - "1.2.840.10008.5.1.4.1.1.2"
 
+# 装置のプロファイルの置き場（spec/13_device_profiles.md の 6）。
+# 実在の装置のプロファイルはリポジトリの外に置き、ここか環境の変数
+# DTG_PROFILE_DIRS で指す。相対のパスはこのファイルの場所から。
+profiles:
+  search_paths: []
+

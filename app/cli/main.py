@@ -13,6 +13,7 @@ from pydantic import ValidationError as PydanticValidationError
 
 from app.cli.commands import (
     generate_command,
+    profiles_list_command,
     quick_command,
     scp_start_command,
     validate_command,
@@ -91,6 +92,8 @@ _EPILOG = """\
   python -m app.cli generate job.yaml --dry-run
   python -m app.cli validate job.yaml
   python -m app.cli quick -p P000001 -m ct_generic -s 3 -i 1,20,20 -o output/
+  python -m app.cli quick -p P000001 -m ct_generic --profile dtg_synthetic_ct -s 1 -i 3 -o output/
+  python -m app.cli profiles list
   python -m app.cli version
   python -m app.cli scp start
   python -m app.cli scp start --config config/app_config.yaml
@@ -133,6 +136,10 @@ def _create_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="生成は行わず設定検証のみを実行",
     )
+    generate_parser.add_argument(
+        "--profile",
+        help="装置のプロファイル名（Job YAML の device_profile を上書き。spec/13）",
+    )
     generate_parser.set_defaults(func=generate_command)
 
     validate_parser = subparsers.add_parser("validate", help="Job YAMLを検証")
@@ -162,11 +169,22 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     quick_parser.add_argument("--hospital", help="病院テンプレート名")
     quick_parser.add_argument(
+        "--profile",
+        help="装置のプロファイル名（spec/13）。転送の形はプロファイルの最初の形",
+    )
+    quick_parser.add_argument(
         "--pixel-mode",
         default="ct_realistic",
         help="ピクセルモード（simple_text / ct_realistic）",
     )
     quick_parser.set_defaults(func=quick_command)
+
+    profiles_parser = subparsers.add_parser("profiles", help="装置のプロファイルの操作")
+    profiles_subparsers = profiles_parser.add_subparsers(dest="profiles_command")
+    profiles_list_parser = profiles_subparsers.add_parser(
+        "list", help="読める装置のプロファイルを一覧にする"
+    )
+    profiles_list_parser.set_defaults(func=profiles_list_command)
 
     version_parser = subparsers.add_parser("version", help="バージョン表示")
     version_parser.set_defaults(func=version_command)

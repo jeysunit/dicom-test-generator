@@ -83,15 +83,15 @@ def test_generic_ct_template_has_no_commercial_names() -> None:
     assert equipment["station_name"].startswith("DTG")
 
 
-def test_renamed_template_raises_with_new_name(monkeypatch) -> None:
-    """名前を変えたテンプレートの古い名前は、新しい名前を添えたエラーにする."""
+def test_device_specific_template_raises_with_profile_hint(monkeypatch) -> None:
+    """装置ごとの古いテンプレートの名前は、プロファイルの置き場へ案内する（spec/13 の 7.3）."""
     import app.services.template_loader as template_loader_module
 
     old_name = "old_vendor_ct"
     digest = hashlib.sha256(old_name.encode("utf-8")).hexdigest()
     monkeypatch.setattr(
         template_loader_module,
-        "RENAMED_MODALITY_TEMPLATES",
+        "DEVICE_SPECIFIC_TEMPLATES",
         {digest: "ct_generic"},
     )
     service = TemplateLoaderService()
@@ -99,25 +99,27 @@ def test_renamed_template_raises_with_new_name(monkeypatch) -> None:
     with pytest.raises(TemplateNotFoundError) as exc_info:
         service.load_modality_template(old_name)
 
-    assert exc_info.value.details["renamed_to"] == "ct_generic"
-    assert "renamed to ct_generic" in str(exc_info.value)
+    hint = exc_info.value.details["hint"]
+    assert "device profile" in hint
+    assert "--profile" in hint
+    assert "--modality ct_generic" in hint
 
 
-def test_renamed_template_targets_exist() -> None:
-    """名前の変更の表の行き先は、どれも実在するテンプレート."""
-    from app.services.template_loader import RENAMED_MODALITY_TEMPLATES
+def test_device_specific_template_bases_exist() -> None:
+    """案内に出す土台のテンプレートは、どれも実在する."""
+    from app.services.template_loader import DEVICE_SPECIFIC_TEMPLATES
 
     service = TemplateLoaderService()
 
-    assert RENAMED_MODALITY_TEMPLATES
-    for new_name in RENAMED_MODALITY_TEMPLATES.values():
-        assert isinstance(service.load_modality_template(new_name), dict)
+    assert DEVICE_SPECIFIC_TEMPLATES
+    for base_name in DEVICE_SPECIFIC_TEMPLATES.values():
+        assert isinstance(service.load_modality_template(base_name), dict)
 
 
-def test_unknown_template_has_no_renamed_to() -> None:
+def test_unknown_template_has_no_hint() -> None:
     service = TemplateLoaderService()
 
     with pytest.raises(TemplateNotFoundError) as exc_info:
         service.load_modality_template("does_not_exist")
 
-    assert "renamed_to" not in exc_info.value.details
+    assert "hint" not in exc_info.value.details

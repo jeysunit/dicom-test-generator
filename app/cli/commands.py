@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import platform
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -20,14 +21,27 @@ from app.core import (
     GenerationConfig,
     PixelSpecCTRealistic,
     PixelSpecSimple,
+    ProfileMismatchError,
     SeriesConfig,
     StudyConfig,
     TransferSyntaxConfig,
 )
-from app.services import PatientLoaderService, StudyGeneratorService, TemplateLoaderService
+from app.services import (
+    PatientLoaderService,
+    ProfileLoaderService,
+    StudyGeneratorService,
+    TemplateLoaderService,
+)
 
 TOOL_NAME = "DICOMテストデータ生成ツール"
 VERSION = "1.1.0"
+
+# quick で装置のプロファイルを選んだときに使える転送の形（spec/06 の Transfer Syntax）
+_QUICK_TRANSFER_SYNTAXES = {
+    "1.2.840.10008.1.2": ("Implicit VR Little Endian", True, True),
+    "1.2.840.10008.1.2.1": ("Explicit VR Little Endian", False, True),
+    "1.2.840.10008.1.2.2": ("Explicit VR Big Endian", False, False),
+}
 
 
 def generate_command(args: argparse.Namespace) -> int:
@@ -35,6 +49,9 @@ def generate_command(args: argparse.Namespace) -> int:
     job_data = _load_job_yaml(args.job_file)
     if args.output:
         job_data["output_dir"] = args.output
+    profile_name = getattr(args, "profile", None)
+    if profile_name:
+        job_data["device_profile"] = profile_name
 
     config = GenerationConfig.model_validate(job_data)
 
@@ -112,6 +129,11 @@ def quick_command(args: argparse.Namespace) -> int:
             {"pixel_mode": args.pixel_mode},
         )
 
+    profile_name = getattr(args, "profile", None)
+    transfer_syntax = TransferSyntaxConfig()
+    if profile_name:
+        transfer_syntax = _profile_transfer_syntax(profile_name)
+
     config = GenerationConfig(
         job_name=f"quick_{args.accession_number}",
         output_dir=args.output,
@@ -120,10 +142,11 @@ def quick_command(args: argparse.Namespace) -> int:
         series_list=series_list,
         modality_template=args.modality,
         hospital_template=args.hospital,
+        device_profile=profile_name,
         uid_method="uuid_2_25",
         uid_custom_root=None,
         pixel_spec=pixel_spec,
-        transfer_syntax=TransferSyntaxConfig(),
+        transfer_syntax=transfer_syntax,
         character_set=CharacterSetConfig(),
         abnormal=AbnormalConfig(),
     )
@@ -147,6 +170,47 @@ def scp_start_command(args: argparse.Namespace) -> int:
         scp.shutdown()
         print("\nSCP stopped by user")
     return 0
+
+
+def profiles_list_command(args: argparse.Namespace) -> int:
+    """読める装置のプロファイルを一覧にする（spec/13 の 7.2）.
+
+    壊れたプロファイルがあっても一覧は出し、誤りは標準エラーに出して
+    終了コード 2 を返す。
+    """
+    _ = args
+    entries, errors = ProfileLoaderService().list_profiles()
+    print("NAME\tMODALITY\tMANUFACTURER\tMODEL\tPATH")
+    for entry in entries:
+        device = entry.profile.device
+        print(
+            f"{entry.name}\t{device.modality}\t{device.manufacturer}\t"
+            f"{device.manufacturers_model_name}\t{entry.path}"
+        )
+    for error in errors:
+        print(f"[ERROR] {error}", file=sys.stderr)
+    return 2 if errors else 0
+
+
+def _profile_transfer_syntax(profile_name: str) -> TransferSyntaxConfig:
+    """プロファイルの好みの順で、最初の作れる転送の形を選ぶ."""
+    profile = ProfileLoaderService().load(profile_name)
+    for uid in profile.storage.transfer_syntaxes:
+        if uid in _QUICK_TRANSFER_SYNTAXES:
+            name, is_implicit_vr, is_little_endian = _QUICK_TRANSFER_SYNTAXES[uid]
+            return TransferSyntaxConfig(
+                uid=uid,
+                name=name,
+                is_implicit_vr=is_implicit_vr,
+                is_little_endian=is_little_endian,
+            )
+    raise ProfileMismatchError(
+        "None of the device's Transfer Syntaxes can be generated",
+        {
+            "profile": profile_name,
+            "transfer_syntaxes": ", ".join(profile.storage.transfer_syntaxes),
+        },
+    )
 
 
 def version_command(args: argparse.Namespace) -> int:
