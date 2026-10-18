@@ -38,3 +38,6 @@ Thumbs.db
 # Generated DICOM files
 output/
 *.dcm
+
+# Modality emulator state (spec/12)
+modality_state/

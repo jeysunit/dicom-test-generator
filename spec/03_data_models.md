@@ -270,6 +270,76 @@ class GenerationResult(BaseModel):
 
 ---
 
+## モダリティのダミーのモデル（Phase 3a）
+
+`spec/12_modality_emulator.md` の 5・6 章の値を持つ。`app/core/models.py`
+に置き、どれも frozen にする。
+
+```python
+class WorklistItem(BaseModel):
+    """ワークリストの1件（C-FIND MWL の応答）を読んだ値."""
+    key: str                          # 予約の鍵（SHA-1 の先頭 10 桁）
+    patient_name: str                 # PN をそのまま（成分は = と ^ で区切る）
+    patient_id: str
+    issuer_of_patient_id: str = ""
+    birth_date: str = ""              # Type 2。空を許す
+    sex: str = ""                     # Type 2。空を許す
+    weight: str = ""                  # DS の文字列（kg）
+    size: str = ""                    # DS の文字列（m）
+    study_instance_uid: str = ""
+    accession_number: str = ""
+    referring_physician_name: str = ""
+    requested_procedure_id: str = ""
+    requested_procedure_description: str = ""
+    reason_for_requested_procedure: str = ""
+    scheduled_procedure_step_id: str = ""
+    scheduled_procedure_step_description: str = ""
+    scheduled_start_date: str = ""
+    scheduled_start_time: str = ""
+    modality: str = ""
+    scheduled_station_ae_title: str = ""
+    institution_name: str = ""
+    specific_character_set: list[str] = []  # 応答の (0008,0005)
+    sequences: dict[str, list[dict]] = {}   # 写す Sequence（DICOM JSON）
+    unreadable_attributes: list[str] = []   # 文字コードで戻せなかった属性
+
+class ScheduledPatient(BaseModel):
+    """予約から写す患者の値。生年月日・性別の空を許す（Patient とは別）."""
+    patient_id: str                   # 16 文字以内（GenerationConfig と同じ制約）
+    patient_name: str                 # PN の文字列
+    issuer_of_patient_id: str = ""
+    birth_date: str = ""              # 空 か YYYYMMDD
+    sex: str = ""                     # 空 か M/F/O
+    weight: str = ""
+    size: str = ""
+
+class ScheduledContext(BaseModel):
+    """画像に写す予約の値（予約あり・予約なしの両方）."""
+    scheduled: bool                   # False は緊急の患者（予約なし）
+    patient: ScheduledPatient
+    study_instance_uid: str | None    # None ならこの道具が作る
+    accession_number: str = ""        # 予約なしは空（長さ0）
+    referring_physician_name: str = ""
+    study_id: str
+    study_description: str = ""
+    performed_procedure_step_id: str
+    institution_name: str = ""        # 空なら病院テンプレートの値のまま
+    request_attributes: dict | None   # Request Attributes Sequence の1項目（DICOM JSON）
+    sequences: dict[str, list[dict]]  # Procedure Code・Issuer of Accession Number・Referenced Study
+    specific_character_set: list[str] # 画像の (0008,0005)
+    source_ae_title: str              # File Meta (0002,0016)
+```
+
+- `GenerationConfig.patient`（`Patient`）は変えない。予約から撮るとき
+  `ModalityService` は、生成のための仮の `Patient` を作って
+  `GenerationConfig` に入れ、画像の患者の値は `ScheduledContext` で
+  上書きする（生年月日が空なら仮の生年月日は検査日にし、画像では
+  空にして Patient's Age を出さない）
+- `StudyGeneratorService.generate` は `scheduled: ScheduledContext | None`
+  を受ける。渡さなければいまと同じ動き
+
+---
+
 ## Spatial Coordinates
 
 ```python

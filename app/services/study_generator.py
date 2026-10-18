@@ -22,10 +22,14 @@ from app.core import (
     InstanceConfig,
     PixelGenerator,
     PixelSpecCTRealistic,
+    ScheduledContext,
     SpatialCalculator,
     UIDContext,
     UIDGenerator,
 )
+from app.core.path_safety import ensure_within, safe_path_component
+from app.core.worklist_charset import ensure_dataset_encodable
+from app.core.worklist_mapping import apply_scheduled_context
 
 from .template_loader import TemplateLoaderService
 
@@ -61,11 +65,18 @@ class StudyGeneratorService:
         self,
         config: GenerationConfig,
         progress_callback: Callable[[int, int], None] | None = None,
+        scheduled: ScheduledContext | None = None,
     ) -> Path:
-        """設定に基づいてDICOMファイルを生成する."""
+        """設定に基づいてDICOMファイルを生成する.
+
+        `scheduled` を渡すと、予約の値（spec/12 の 6 章）を画像に写す。
+        予約に Study Instance UID があればそれを使う。各画像は書き出す前に
+        文字コードで表せるかを確かめ、表せなければ WorklistMappingError で止める。
+        渡さなければいまと同じ動き。
+        """
         total_images = sum(series.num_images for series in config.series_list)
         logger.info(
-            "Generation started: job_name=%s patient_id=%s total_images=%s output_dir=%s",
+            "Generation started: job_name=%r patient_id=%r total_images=%s output_dir=%s",
             config.job_name,
             config.patient.patient_id,
             total_images,
@@ -77,7 +88,11 @@ class StudyGeneratorService:
                 method=config.uid_method,
                 custom_root=config.uid_custom_root or "",
             )
-            study_uid = uid_generator.generate_study_uid()
+            study_uid = (
+                scheduled.study_instance_uid
+                if scheduled is not None and scheduled.study_instance_uid
+                else uid_generator.generate_study_uid()
+            )
             frame_of_reference_uid = uid_generator.generate_frame_of_reference_uid()
             implementation_class_uid = uid_generator.generate_instance_creator_uid()
             instance_creator_uid = uid_generator.generate_instance_creator_uid()
@@ -153,12 +168,19 @@ class StudyGeneratorService:
                         bits_stored=bits_stored,
                     )
                     self._apply_template_attributes(dataset, template)
+                    if scheduled is not None:
+                        apply_scheduled_context(dataset, scheduled)
+                        ensure_dataset_encodable(dataset)
 
+                    # Patient ID・検査日・モダリティは信用できない値（予約・Job）なので、
+                    # 決まった字だけにしてから名前に使う（spec/12 の 6.5）
                     filename = (
-                        f"{config.patient.patient_id}_{config.study.study_date}_"
-                        f"{modality}_{file_sequence:0{sequence_width}d}.dcm"
+                        f"{safe_path_component(config.patient.patient_id, 'UNKNOWN')}_"
+                        f"{safe_path_component(config.study.study_date, 'NODATE')}_"
+                        f"{safe_path_component(modality, 'OT')}_"
+                        f"{file_sequence:0{sequence_width}d}.dcm"
                     )
-                    filepath = output_dir / filename
+                    filepath = ensure_within(output_dir, output_dir / filename)
                     try:
                         pydicom.dcmwrite(
                             str(filepath), dataset, enforce_file_format=True
@@ -172,7 +194,7 @@ class StudyGeneratorService:
                         progress_callback(generated_count, total_images)
 
             logger.info(
-                "Generation completed: patient_id=%s generated=%s output_dir=%s",
+                "Generation completed: patient_id=%r generated=%s output_dir=%s",
                 config.patient.patient_id,
                 generated_count,
                 output_dir,
@@ -180,7 +202,7 @@ class StudyGeneratorService:
             return output_dir
         except DICOMGeneratorError:
             logger.error(
-                "Generation failed: patient_id=%s output_dir=%s",
+                "Generation failed: patient_id=%r output_dir=%s",
                 config.patient.patient_id,
                 config.output_dir,
                 exc_info=True,
@@ -188,7 +210,7 @@ class StudyGeneratorService:
             raise
         except Exception as exc:
             logger.error(
-                "Generation failed unexpectedly: patient_id=%s output_dir=%s",
+                "Generation failed unexpectedly: patient_id=%r output_dir=%s",
                 config.patient.patient_id,
                 config.output_dir,
                 exc_info=True,

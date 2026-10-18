@@ -1,6 +1,7 @@
 """Core engine public API."""
 
 from .exceptions import (
+    AssociationError,
     ConfigurationError,
     DICOMBuildError,
     DICOMGeneratorError,
@@ -13,10 +14,15 @@ from .exceptions import (
     IOError,
     JobSchemaError,
     JobValidationError,
+    ModalityConfigError,
+    ModalityError,
+    MPPSError,
     PatientDataError,
     PatientDataInvalidError,
     PatientNotFoundError,
     PixelGenerationError,
+    StorageCommitmentError,
+    StoreError,
     TemplateError,
     TemplateNotFoundError,
     TemplateParseError,
@@ -25,6 +31,8 @@ from .exceptions import (
     SCPStoreError,
     UIDGenerationError,
     ValidationError,
+    WorklistMappingError,
+    WorklistQueryError,
 )
 from .abnormal_generator import AbnormalGenerator
 from .generator import CT_IMAGE_STORAGE, DICOMBuilder
@@ -38,11 +46,14 @@ from .models import (
     PixelSpec,
     PixelSpecCTRealistic,
     PixelSpecSimple,
+    ScheduledContext,
+    ScheduledPatient,
     SeriesConfig,
     SpatialCoordinates,
     StudyConfig,
     TransferSyntaxConfig,
     UIDContext,
+    WorklistItem,
 )
 from .pixel_generator import PixelGenerator
 from .dicom_writer import FileMetaBuilder, SpatialCalculator
@@ -51,6 +62,17 @@ from .uid_generator import UIDGenerator
 __all__ = [
     "AbnormalConfig",
     "AbnormalGenerator",
+    "AssociationError",
+    "MPPSError",
+    "ModalityConfigError",
+    "ModalityError",
+    "ScheduledContext",
+    "ScheduledPatient",
+    "StorageCommitmentError",
+    "StoreError",
+    "WorklistItem",
+    "WorklistMappingError",
+    "WorklistQueryError",
     "CharacterSetConfig",
     "CT_IMAGE_STORAGE",
     "ConfigurationError",

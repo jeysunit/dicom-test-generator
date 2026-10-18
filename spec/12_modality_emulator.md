@@ -17,7 +17,7 @@ Tailwind CSS）で作る。明るい地を既定にし、暗い地にも切り�
 同じ操作を CLI でも行え、自動の試験から使える。
 
 **状態**: 承認済み（2026-10-18。決まったことは「18. 決まったこと」）。
-未実装
+Phase 3a（CLI）を実装した。3b・3c は未実装
 
 **目的の線**: この道具は診療のためではなく、治験やシステムの試験の
 スタブ（モダリティの役の代わり）に使う。機能は少なくてよい。
@@ -215,15 +215,42 @@ RAD TF-2 Table 4.5-3 の、SCU が R+・R+* の値をすべて求める。
 
 - 応答の Specific Character Set を読み、値を Python の文字列に戻す
   （pydicom）。戻せない値は「読めない値」として画面に出し、
-  その予約は撮影に進めない
+  その予約は撮影に進めない。写す Sequence の中の値（入れ子を含む）も
+  確かめ、`ReferencedStudySequence>ReferencedSOPClassUID` のように
+  `Sequence>属性` の形で名前を残す。Sequence の中の UID（VR が UI）は、
+  UID の形（6.5）でなければ読めない値とする
 - 一覧の1件ごとに、この道具の中だけで使う鍵（予約の鍵）を付ける。
   鍵は `Study Instance UID`・`Requested Procedure ID`・
-  `Scheduled Procedure Step ID`・`Accession Number` を連ねた文字列の
-  SHA-1 の先頭 10 桁。CLI の `--from-worklist <鍵>` で使う
+  `Scheduled Procedure Step ID`・`Accession Number` をこの順に `|` で
+  連ねた文字列（UTF-8）の SHA-1 の16進の先頭 10 桁。CLI の
+  `--from-worklist <鍵>` で使う
 - 最後に引いた結果を状態の置き場（「12. 設定」の `state_dir`）に
   保存する。CLI はこれを読む
 - 相手が Pending を返し続けて決めた時間（既定 30 秒）を過ぎたら
   C-CANCEL を送り、「途中まで」として受け取った分を出す
+- `exam --refresh`（その予約だけを引き直す）のときは、時間の上限で
+  途中までになったら撮らずに `WorklistQueryError`（終了コード 5）で止める。
+  ほかの引き方は途中までを返すまま
+
+### 5.5 応答の上限
+
+**相手が返す応答は、受け取りながら数え、上限を超えたら C-CANCEL を
+送って Association を切り、`WorklistQueryError`（終了コード 5）で
+止める。** 途中まで受け取った分は出さない。例外は1つ：時間の上限
+（`timeout_seconds`）は 5.4 のとおり C-CANCEL して「途中まで」を出す。
+
+| 上限 | 設定（`modality.worklist`） | 既定 |
+|------|------------------------------|------|
+| 件数 | `max_results` | 1000 |
+| 1件の大きさ（Implicit VR で書いたときのバイト数） | `max_item_bytes` | 256 KiB |
+| 合計の大きさ | `max_total_bytes` | 16 MiB |
+| C-CANCEL の後に返し続ける時間 | `timeout_seconds` と同じ長さ | 30 秒 |
+
+- 上限は、その件を一覧に足す前に確かめる。1件の大きさは pynetdicom が
+  1件を受け取った後でしか量れない（受け取りの途中で止める口が無い）。
+  1件がメモリに載る大きさは pynetdicom の受け取りに任せる
+- C-CANCEL の後も相手が返し続けたら、待つのは `timeout_seconds` の分
+  だけにし、Association を切って `WorklistQueryError` にする
 
 ---
 
@@ -248,15 +275,15 @@ RAD TF-2 Table 4.5-3 の、SCU が R+・R+* の値をすべて求める。
 | Issuer of Patient ID | (0010,0021) | 写す（あれば） | 空 | 同上 |
 | Patient's Birth Date | (0010,0030) | 写す。**空なら空で写す**（6.3） | 手で入れる | 同上、PS3.4 Table K.6-1（Type 2） |
 | Patient's Sex | (0010,0040) | 写す。**空なら空で写す**（6.3） | 手で入れる | 同上 |
-| Patient's Weight | (0010,1030) | 写す（あれば。kg） | 手で入れる（任意） | 同上 |
-| Patient's Size | (0010,1020) | 写す（あれば。DICOM は m。内部の `Patient.size` へは 100 倍して cm で渡す） | 手で入れる（任意。cm） | 同上、ADR-0007 |
+| Patient's Weight | (0010,1030) | 写す（あれば。kg） | 出力しない（CLI では入れない） | 同上 |
+| Patient's Size | (0010,1020) | 写す（あれば。DICOM の m の値をそのまま写す。内部の `Patient.size`（cm）は通さない） | 出力しない（CLI では入れない） | 同上、ADR-0007 |
 | Patient's Age | (0010,1010) | 生年月日と検査日から算出。生年月日が空なら出さない | 同じ | ADR-0008 |
 | Study Instance UID | (0020,000D) | **予約にあれば写す。無ければ作る**（2.25） | 作る | RAD TF-2x Table A.1-1・A.1-2、RAD TF-2 4.8.4.1.1.1 |
 | Accession Number | (0008,0050) | 写す | **空（長さ0）** | 同上（IHE-A.1.1） |
 | Issuer of Accession Number Sequence | (0008,0051) | 写す（あれば） | 空 | Table A.1-1 |
 | Referenced Study Sequence | (0008,1110) | 写す（あれば） | 出力しない | Table A.1-1 |
 | Referring Physician's Name | (0008,0090) | 写す | 空 | RAD TF-2 Table 4.5-3 |
-| Study ID | (0020,0010) | Requested Procedure ID | 作る（連番） | Table A.1-1（IHE の勧め） |
+| Study ID | (0020,0010) | Requested Procedure ID | 作る（連番。`E` と 6 桁。状態の置き場の SQLite で数える） | Table A.1-1（IHE の勧め） |
 | Study Description | (0008,1030) | Requested Procedure Description | 撮影の画面の入力 | この仕様の決め（慣習。IHE の表には無い） |
 | Study Date・Time | (0008,0020)・(0008,0030) | 撮影した日時 | 同じ | この仕様の決め |
 | Procedure Code Sequence | (0008,1032) | Requested Procedure Code Sequence を写す | 入れない | Table A.1-1 |
@@ -267,14 +294,14 @@ RAD TF-2 Table 4.5-3 の、SCU が R+・R+* の値をすべて求める。
 | >Scheduled Procedure Step Description | (0040,0007) | 写す | — | 同上 |
 | >Scheduled Protocol Code Sequence | (0040,0008) | 写す | — | 同上 |
 | >Reason for the Requested Procedure | (0040,1002) | 写す（あれば） | — | 同上 |
-| Performed Procedure Step ID | (0040,0253) | 作る | 作る | Table A.1-1（IHE-A.1.2） |
+| Performed Procedure Step ID | (0040,0253) | 作る（連番。`PPS` と 6 桁） | 作る（同じ） | Table A.1-1（IHE-A.1.2） |
 | Performed Procedure Step Start Date・Time | (0040,0244)・(0040,0245) | Study Date・Time と同じ | 同じ | Table A.1-1（IHE の勧め） |
 | Performed Procedure Step Description | (0040,0254) | Study Description と同じ | 同じ | 同上 |
 | Referenced Performed Procedure Step Sequence | (0008,1111) | MPPS を使うときだけ、その SOP Instance UID | 同じ | Table A.1-1（IHE-A.1.3） |
 | Modality | (0008,0060) | テンプレートの値。予約の値と違えば撮影の画面で止める | テンプレートの値 | この仕様の決め |
 | Institution Name | (0008,0080) | 写す（あれば）。無ければ病院テンプレート | 病院テンプレート | Table A.1-1（Enterprise Identity Option のとき） |
 | Station Name | (0008,1010) | テンプレートの値 | 同じ | — |
-| Series Instance UID・Frame of Reference UID | (0020,000E)・(0020,0052) | シリーズごとに作る | 同じ | RAD TF-2 4.8.4.1.1.1 |
+| Series Instance UID・Frame of Reference UID | (0020,000E)・(0020,0052) | Series Instance UID はシリーズごとに作る。Frame of Reference UID は既存の生成のとおり検査ごとに1つ作る | 同じ | RAD TF-2 4.8.4.1.1.1 |
 | Source Application Entity Title（File Meta） | (0002,0016) | 自分の AE タイトル | 同じ | PS3.10 |
 
 Scheduled Station AE Title (0040,0001) は画像に写す属性ではない。
@@ -304,7 +331,9 @@ Scheduled Station AE Title (0040,0001) は画像に写す属性ではない。
   その旨を出す
 - 同じ予約で2回撮ると、同じ Study に新しいシリーズを足す
   （Study Instance UID は同じ、Series は新しく作る。RAD TF-2
-  4.8.4.1.1.1 の「終わった手順にシリーズを足さない」に従う）
+  4.8.4.1.1.1 の「終わった手順にシリーズを足さない」に従う）。予約に
+  Study Instance UID が無くこの道具が作ったときは、作った UID を予約の鍵
+  ごとに状態の置き場の SQLite に覚え、2回目も同じ UID を使う
 
 ### 6.4 MPPS に写す値（Phase 3c）
 
@@ -325,6 +354,29 @@ Class・Instance UID、N-SET の Requested SOP Class・Instance UID）で
 UID (0008,0018) を置かない（IHE-A.1.4・A.1.5）。画像を指す
 Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID
 (0008,1155)（Performed Series Sequence の中）は入れる。
+
+### 6.5 予約の値は信用しない
+
+**ワークリストの応答の値（Patient ID・受付番号・UID・氏名など）は、
+相手の SCP が自由に入れられる信用できない値として扱う。** 画像の
+属性には写すが、ファイル・フォルダの名前にはそのまま使わない。
+
+- 名前に使うときは `[A-Za-z0-9._-]` 以外の字を `_` に置き換え、長さを
+  64 字までにし、空・`.`・`..` などの点だけの名前は決まった名前
+  （例：`emergency`・`UNKNOWN`）にし、Windows の予約名（`CON`・`NUL`・
+  `COM1` など）は先頭に `_` を足す（`app/core/path_safety.py`）
+- 組み立てたパスは `resolve()` して、出力の根のフォルダの中にあることを
+  確かめる。外なら書かずに止める（`FileWriteError`。終了コード 3）
+- Job YAML の Patient ID から作るファイルの名前（既存の生成）も同じ
+  決まりで作る
+- 撮る前に、写す値の形を確かめる。外れたら撮らずに
+  `WorklistMappingError`（終了コード 4）で止める
+  - Patient ID は空でなく 16 字まで（spec/03 の `Patient`・
+    `ScheduledPatient` と同じ制約。LO の 64 字ではない）
+  - Patient's Weight・Patient's Size は空か DS（PS3.5 の Decimal
+    String：16 字まで、`+`・`-` の付いてよい10進の数、指数も可）
+  - Study Instance UID は空か UID の形（`^[0-9]+(\.[0-9]+)*$`・64 字まで・
+    各成分は `0` か、`0` で始まらない数字の並び。PS3.5 9.1）
 
 ---
 
@@ -357,7 +409,15 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID
   無い字）があれば、**黙って消さない**。撮影を止め、どの属性のどの字か
   を画面と CLI の標準エラーに出す
 - 「表せない字を `?` に置き換えて撮る」は、異常のデータの一つとして
-  明示して選んだときだけ行う
+  明示して選んだときだけ行う。Phase 3a ではこの選択を作らない
+  （表せない字があれば必ず止める）
+- 確かめるのは画像のすべての文字の属性（予約から写した値と
+  テンプレートの値）。止めるのは書き出す前で、ファイルは残さない。
+  撮影のために作った出力のフォルダが空のまま残るなら、それも消す
+- ISO 2022 IR 13 で受ける字（ASCII のほか）は半角カナ（JIS X 0201 の
+  0xA1〜0xDF）だけにする。`¥`・`‾` は IR 13 では 0x5C・0x7E になり、
+  読み戻すと `\`（値の区切り）・`~` に化けるため、表せない字として止める。
+  確かめは pydicom.charset で書いて読み戻し、元の字に戻るかで行う
 - PN の漢字・かなの成分は、`jis`・`jis_kana` では ISO 2022 IR 87 の
   エスケープで書く。`jis_kana` の英字の成分の半角カナは IR 13 で書く
 - pydicom の版によって、ISO 2022 IR 13 と IR 87 の組の書き出しの
@@ -392,6 +452,15 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID
   `sqlite3`）に残す。新しい外部の包みは足さない
 - 画像のファイルは出力のフォルダに残す（送れても消さない）。
   消すのは利用者の操作だけ
+- 送信中にするのは、待ち・失敗の件だけ（条件つきの更新で、変わった行が
+  無ければ止める）。同じ件を2つの手順が同時に送らない
+- 送信中のまま 30 分より長く変わらない件は、送る手順が途中で落ちたと
+  みなす（「止まった送信中」）。`queue list` に出し、
+  `queue retry --stale` で失敗に戻してから送り直す
+- 送っている間は、1ファイルを送るたびに時刻を進める（長い送信を
+  止まったとみなさない）。送信中にするたびに送る権利の札を作り、
+  時刻を進める・結果と失敗を残すのは札が合うときだけにする。札が合わない
+  （止まったとみなされて引き取られた）手順は、残りを送らずに止まる
 
 ### 8.3 保管の確認（Phase 3c）
 
@@ -458,6 +527,7 @@ SCP (app/scp/) ─┘→ Core (app/core/)
 app/
 ├── core/
 │   ├── worklist_mapping.py   # 予約 → 生成の設定（Pure）
+│   ├── worklist_charset.py   # 画像の文字コードの決め方・表せない字（Pure）
 │   └── models.py             # WorklistItem・ScheduledContext を足す
 ├── modality/
 │   ├── __init__.py
@@ -477,7 +547,8 @@ app/
 │   ├── templates/            # Jinja2
 │   └── static/               # 作った CSS・htmx・Lucide の SVG
 └── cli/
-    └── commands.py           # worklist・exam・send・echo・queue を足す
+    ├── main.py               # サブコマンドの引数を足す
+    └── modality_commands.py  # worklist・exam・send・echo・queue
 ```
 
 ### 9.4 Service Layer の変更（Phase 3a）
@@ -735,6 +806,11 @@ tsunagi-dicom と同じ値を書き、出典（リポジトリ・ファイル・
 | 止める知らせ | この予約は別の装置の予定です／予約は MR、テンプレートは CT です／「髙」は ISO 2022 IR 87 で表せません（Patient's Name の漢字） |
 | 0 件 | 予約はありません。条件を広げるか、緊急の患者で撮ってください |
 
+- **相手から来る値（ワークリストの値・相手の Status の文など）は、
+  画面に出すとき必ずエスケープする**（Jinja2 の自動エスケープを切らない。
+  `|safe`・`Markup` を相手から来る値に使わない。HTMX の部分の応答も同じ）。
+  制御文字・双方向の制御文字は 11.7 と同じく見える形にする
+
 ### 10.9 待ち受けと認証
 
 **既定は手元（`127.0.0.1`）だけで待ち受け、認証は付けない。** 例外は
@@ -760,6 +836,14 @@ tsunagi-dicom と同じ値を書き、出典（リポジトリ・ファイル・
 `spec/04_cli.md` の形に合わせ、`python -m app.cli` のサブコマンドとして
 足す。依頼の `dicom-gen` の名前は、いまの CLI の入口
 （`python -m app.cli`）に合わせて使わない。
+
+どのサブコマンドも次を持つ。
+
+| オプション | 説明 | デフォルト |
+|-----------|------|-----------|
+| `--config PATH` | 設定のファイル（`modality:` の節を読む） | `config/app_config.yaml` |
+| `-v, --verbose` | 詳しいログ（pynetdicom のログも DEBUG にする） | false |
+| `--log-file PATH` | ログのファイル | `logs/dicom_generator.log` |
 
 ### 11.1 サブコマンド
 
@@ -844,17 +928,45 @@ python -m app.cli exam --emergency --patient-id E0001 \
 | `-o, --output DIR` | 出力のフォルダ | 設定の既定 |
 | `--send` | 作った後に既定の送り先へ送る | false |
 | `--to NAME` | `--send` の送り先 | 既定の送り先 |
-| `--mpps` | MPPS を送る（Phase 3c） | 設定 |
+| `--study-description TEXT` | 検査の記述（`--emergency` のときだけ） | 空 |
+| `--patient-id`・`--patient-name` | 緊急の患者の ID・氏名（PN。`--emergency` のとき必須） | — |
+| `--birth-date`・`--sex` | 緊急の患者の生年月日（YYYYMMDD）・性別（M/F/O）。省くと空 | 空 |
+| `--json` | 結果を JSON で出す | false |
+| `--mpps` | MPPS を送る（Phase 3c。3a では作らない） | 設定 |
 
 `--from-worklist` と `--emergency` はどちらか1つを必須にする。
+
+- 出力は `<出力のフォルダ>/<受付番号か emergency>_<撮影の日時 YYYYMMDDHHMMSS>/`
+  に書く（受付番号は 6.5 の決まりで名前に直す。同じ秒に同じ名前が
+  あれば `_2`・`_3` を足す）。同じ予約で2回撮ると、別のフォルダに同じ
+  Study の新しいシリーズができる
+- `-i` の数は `-s` と同じ数にする（`quick` と同じ）
+- 撮影の画面の「止める・確かめる」は、CLI では次のとおりにする
+  - テンプレートと予約のモダリティが違う・値が長さの制約を超える・
+    表せない字・読めない値：止める（終了コード 4）
+  - 予約の予定の AE タイトルが自分と違う・Study Instance UID を作った・
+    生年月日や性別が空：知らせ（`[NOTICE]`。`--json` では `notices`）を
+    出して撮る
 
 ### 11.5 send・queue
 
 ```bash
-python -m app.cli send output/A0001/ --to PACS_TEST
+python -m app.cli send output/modality/A0001_20261018090000/ --to PACS_TEST
 python -m app.cli queue list --status failed
 python -m app.cli queue retry --all
+python -m app.cli queue retry --job 3
+python -m app.cli queue retry --stale
 ```
+
+- `send FOLDER`：フォルダの `*.dcm` を待ち行列に1件（1つの検査）として
+  入れ、すぐに送る。`--to` が無ければ既定の送り先
+- `queue list`：`--status` は `pending`（待ち）・`sending`（送信中）・
+  `sent`（送れた）・`failed`（失敗）。`--json` で JSON
+- `queue list`：止まった送信中（8.2）の件には `[STALE]` を付ける。
+  `--json` では `stale` が `true`
+- `queue retry`：`--all`（失敗の全部）・`--job ID`・`--stale`（止まった
+  送信中の全部。失敗に戻してから送る）のどれか1つを必須にする。
+  失敗のファイルだけを送り直す
 
 ### 11.6 終了コード
 
@@ -874,6 +986,26 @@ python -m app.cli queue retry --all
 
 - 結果は標準出力、エラーは標準エラー（`AI_DEVELOPMENT_RULES.md` 8）
 - `--json` のときは標準出力に JSON だけを出す
+
+### 11.7 相手から来る値を端末に出すとき
+
+**ワークリストの値（氏名・記述など、相手から来る値）は、端末に出す前に
+制御文字を見える形に置き換える。** 例外は無い。ESC・CSI・OSC などを
+そのまま出すと、端末の表示や題を書き換えられるため。
+
+- 置き換える字：C0（U+0000〜U+001F）・DEL（U+007F）・C1（U+0080〜
+  U+009F）・Unicode の双方向の制御（U+061C・U+200E・U+200F・U+202A〜
+  U+202E・U+2066〜U+2069）・行と段落の区切り（U+2028・U+2029）
+- 通常の出力：`\x1b`・`\u202e` のような見える形にする
+  （`app/cli/terminal.py` の `sanitize_for_terminal`）。標準エラーの
+  エラーの文も同じ
+- `--json`：同じ字を JSON の `\uXXXX` に直す（`json_for_terminal`）。
+  読み戻すと元の値に戻る（値そのものは変えない）
+- ログに相手から来る値を出すときは `%r` で出す（制御文字が逃げる）。
+  Patient ID も相手から来る値として扱う
+- 端末（標準エラー）に出すログは、整えた後の文を行ごとに
+  `sanitize_for_terminal` に通す（改行は残す。例外の Traceback も同じ）。
+  ファイルのログはそのまま
 
 ---
 
@@ -895,12 +1027,17 @@ modality:
   character_set: "auto"         # auto, utf8, jis, jis_kana
   character_set_fallback: "utf8"  # utf8, jis, jis_kana（auto は不可）
   default_template: "ct_generic"
+  default_hospital: null        # 病院テンプレート（null で使わない）
+  default_pixel_mode: "ct_realistic"  # simple_text, ct_realistic
   worklist:
     ae_title: "RIS_TEST"
     host: "127.0.0.1"
     port: 4242
     timeout_seconds: 30
     query_character_set: "ISO_IR 192"  # 条件に ASCII でない字があるとき
+    max_results: 1000             # 応答の上限（5.5）
+    max_item_bytes: 262144
+    max_total_bytes: 16777216
     use_mpps: false
   destinations:
     - name: "PACS_TEST"
@@ -908,6 +1045,7 @@ modality:
       host: "127.0.0.1"
       port: 4242
       storage_commitment: false
+      timeout_seconds: 30         # C-ECHO・C-STORE の時間切れ
   default_destination: "PACS_TEST"
   retry:
     max_attempts: 0             # 0 = 自動で再送しない
@@ -941,7 +1079,7 @@ web:
 
 | 種類 | 置き場 | 中身 |
 |------|--------|------|
-| Core | `tests/core/test_worklist_mapping.py` | 6 章の表の行ごとに、予約あり・予約なしで写した値を確かめる（生年月日・性別が空の予約、Patient's Size の m→cm、予約なしで Request Attributes Sequence・Referenced Study Sequence が無いことを含む）。外の資源を使わない |
+| Core | `tests/core/test_worklist_mapping.py` | 6 章の表の行ごとに、予約あり・予約なしで写した値を確かめる（生年月日・性別が空の予約、Patient's Size を m のまま写す、予約なしで Request Attributes Sequence・Referenced Study Sequence が無いことを含む）。外の資源を使わない |
 | 文字コード | `tests/core/test_worklist_charset.py` | 4つの選択それぞれで、漢字・かな・半角カナの氏名を書き出して読み戻す。表せない字で止まること |
 | Modality | `tests/modality/test_worklist_scu.py` | 手元の MWL の SCP（試験の fixture）に C-FIND。条件の組、Pending の打ち切り、時間切れ、文字コードの読み取り |
 | Modality | `tests/modality/test_store_scu.py` | 手元の Storage の SCP に C-STORE・C-ECHO。成功・Warning・Failure・つながらない |
