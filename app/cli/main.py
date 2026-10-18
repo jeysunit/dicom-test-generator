@@ -18,11 +18,28 @@ from app.cli.commands import (
     validate_command,
     version_command,
 )
+from app.cli.modality_commands import register_modality_commands
 from app.core import (
+    AssociationError,
     ConfigurationError,
     DICOMGeneratorError,
     IOError as CoreIOError,
+    ModalityConfigError,
+    MPPSError,
+    StorageCommitmentError,
+    StoreError,
     ValidationError as CoreValidationError,
+    WorklistMappingError,
+    WorklistQueryError,
+)
+
+EXIT_COMMUNICATION_ERROR = 5
+_COMMUNICATION_ERRORS = (
+    AssociationError,
+    WorklistQueryError,
+    StoreError,
+    StorageCommitmentError,
+    MPPSError,
 )
 
 DEFAULT_LOG_FILE = "logs/dicom_generator.log"
@@ -94,13 +111,19 @@ _EPILOG = """\
   python -m app.cli version
   python -m app.cli scp start
   python -m app.cli scp start --config config/app_config.yaml
+  python -m app.cli echo --to PACS_TEST
+  python -m app.cli worklist query --date today --modality CT
+  python -m app.cli exam --from-worklist 3f9a1c0b2e -s 2 -i 1,20 --send
+  python -m app.cli exam --emergency --patient-id E0001 --patient-name "KINKYU^TARO"
+  python -m app.cli queue list --status failed
 
 終了コード:
   0  成功
   1  一般エラー（生成失敗）
-  2  設定エラー（Job YAML不正）
+  2  設定エラー（Job YAML不正・modality の設定の誤り）
   3  ファイルI/Oエラー
-  4  バリデーションエラー
+  4  バリデーションエラー（予約の値が写せない・表せない字を含む）
+  5  通信エラー（Association を張れない・相手が Failure を返した・時間切れ）
 """
 
 
@@ -181,10 +204,21 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     scp_start_parser.set_defaults(func=scp_start_command)
 
+    register_modality_commands(subparsers, DEFAULT_LOG_FILE)
+
     return parser
 
 
 def _map_exception_to_exit_code(exc: Exception) -> int:
+    if isinstance(exc, ModalityConfigError):
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return 2
+    if isinstance(exc, WorklistMappingError):
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return 4
+    if isinstance(exc, _COMMUNICATION_ERRORS):
+        print(f"[ERROR] {exc}", file=sys.stderr)
+        return EXIT_COMMUNICATION_ERROR
     if isinstance(exc, ConfigurationError):
         print(f"[ERROR] {exc}", file=sys.stderr)
         return 2

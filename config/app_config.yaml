@@ -8,3 +8,36 @@ storage_scp:
   supported_sop_classes:
     - "1.2.840.10008.5.1.4.1.1.2"
 
+# モダリティのダミー（spec/12_modality_emulator.md の 12 章）。
+# 例は手元の住所と例の名前だけ。試験用の PACS・RIS にだけつなぐ。
+modality:
+  ae_title: "DTG_CT01"
+  station_name: "DTG_CT01"
+  listen:                         # 保管の確認の結果を受ける待ち受け（Phase 3c）
+    bind_address: "127.0.0.1"
+    port: 11113
+  state_dir: "modality_state"     # 予約の最後の結果・待ち行列（sqlite3）
+  output_dir: "output/modality"
+  character_set: "auto"           # auto, utf8, jis, jis_kana
+  character_set_fallback: "utf8"  # utf8, jis, jis_kana（auto は不可）
+  default_template: "ct_generic"
+  default_hospital: null
+  default_pixel_mode: "ct_realistic"  # simple_text, ct_realistic
+  worklist:
+    ae_title: "RIS_TEST"
+    host: "127.0.0.1"
+    port: 4242
+    timeout_seconds: 30
+    query_character_set: "ISO_IR 192"  # 条件に ASCII でない字があるとき
+    use_mpps: false
+  destinations:
+    - name: "PACS_TEST"
+      ae_title: "PACS_TEST"
+      host: "127.0.0.1"
+      port: 4242
+      storage_commitment: false
+      timeout_seconds: 30
+  default_destination: "PACS_TEST"
+  retry:
+    max_attempts: 0               # 0 = 自動で再送しない
+

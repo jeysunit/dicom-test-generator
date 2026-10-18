@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 
 from pydicom.dataset import Dataset
+from pydicom.multival import MultiValue
 from pydicom.sequence import Sequence
 
 from .exceptions import WorklistMappingError
@@ -74,7 +75,8 @@ def worklist_item_from_identifier(identifier: Dataset) -> WorklistItem:
         value = ds.get(keyword)
         if value is None:
             return ""
-        result = str(value)
+        # 値に `\` があると pydicom は複数の値にする。元の文字列に戻して扱う
+        result = "\\".join(str(v) for v in value) if isinstance(value, MultiValue) else str(value)
         if _REPLACEMENT_CHAR in result and keyword not in unreadable:
             unreadable.append(keyword)
         return result
