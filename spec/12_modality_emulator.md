@@ -217,7 +217,8 @@ RAD TF-2 Table 4.5-3 の、SCU が R+・R+* の値をすべて求める。
   （pydicom）。戻せない値は「読めない値」として画面に出し、
   その予約は撮影に進めない。写す Sequence の中の値（入れ子を含む）も
   確かめ、`ReferencedStudySequence>ReferencedSOPClassUID` のように
-  `Sequence>属性` の形で名前を残す
+  `Sequence>属性` の形で名前を残す。Sequence の中の UID（VR が UI）は、
+  UID の形（6.5）でなければ読めない値とする
 - 一覧の1件ごとに、この道具の中だけで使う鍵（予約の鍵）を付ける。
   鍵は `Study Instance UID`・`Requested Procedure ID`・
   `Scheduled Procedure Step ID`・`Accession Number` をこの順に `|` で
@@ -456,6 +457,10 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID
 - 送信中のまま 30 分より長く変わらない件は、送る手順が途中で落ちたと
   みなす（「止まった送信中」）。`queue list` に出し、
   `queue retry --stale` で失敗に戻してから送り直す
+- 送っている間は、1ファイルを送るたびに時刻を進める（長い送信を
+  止まったとみなさない）。送信中にするたびに送る権利の札を作り、
+  時刻を進める・結果と失敗を残すのは札が合うときだけにする。札が合わない
+  （止まったとみなされて引き取られた）手順は、残りを送らずに止まる
 
 ### 8.3 保管の確認（Phase 3c）
 
