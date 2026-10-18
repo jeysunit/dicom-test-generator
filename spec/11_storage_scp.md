@@ -96,6 +96,11 @@ storage_scp:
   `storage_dir` の中にあることを確かめる。外なら保存せずに Failure を返す
 - フォルダを作れない・書けない・`storage_dir` の外（`FileWriteError`）は
   `0xA700`（Refused: Out of Resources）を返す
+- UID の短縮の衝突を調べるときも、先に Study・Series のフォルダが
+  `storage_dir` の中かを確かめ、リンク・通常でないファイルは読まない
+- `rename` の候補の名前は、リンク（壊れたリンクを含む）があれば使わず、
+  `storage_dir` の中かを確かめる。`overwrite` の先がハードリンクなら、
+  名前を外してから書く（外のファイルの中身を書き換えない）
 - ログに受けた値（Patient ID・UID）を出すときは `%r` で出す
 
 ---
