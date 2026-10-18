@@ -16,9 +16,11 @@ from pydicom import dcmread
 from app.core.exceptions import (
     AssociationError,
     ConfigurationError,
+    DICOMGeneratorError,
     FileReadError,
     FileWriteError,
     ModalityError,
+    WorklistQueryError,
 )
 from app.core.models import (
     AbnormalConfig,
@@ -177,6 +179,12 @@ class ModalityService:
                 requested_procedure_id=current.requested_procedure_id,
             ),
         )
+        if result.partial:
+            # 途中までの応答で撮ると、引き直した値が古いまま・欠けたままになりうる（5.4）
+            raise WorklistQueryError(
+                f"Worklist refresh was cut off by the time limit: {key}",
+                {"worklist_key": key, "timeout_seconds": self.config.worklist.timeout_seconds},
+            )
         for item in result.items:
             if item.key == key:
                 self._replace_item(item)
@@ -253,7 +261,11 @@ class ModalityService:
 
         output_dir = self._exam_output_dir(request, ctx, now)
         config = self._generation_config(request, ctx, template, output_dir, now)
-        self._generator.generate(config=config, scheduled=ctx)
+        try:
+            self._generator.generate(config=config, scheduled=ctx)
+        except DICOMGeneratorError:
+            self._remove_if_empty(output_dir)
+            raise
         files = sorted(str(path) for path in output_dir.glob("*.dcm"))
         study_uid = self._read_study_uid(files)
         if request.worklist_key is not None and study_uid:
@@ -405,6 +417,19 @@ class ModalityService:
             ),
             abnormal=AbnormalConfig(level=request.abnormal_level),
         )
+
+    @staticmethod
+    def _remove_if_empty(output_dir: Path) -> None:
+        """撮影が止まったとき、撮影のために作った出力のフォルダが空なら消す（7.2）.
+
+        フォルダは _exam_output_dir が無いことを確かめた名前なので、この撮影が作ったもの。
+        中にファイルが残っていれば消さない（rmdir は空のときだけ消える）。
+        """
+        try:
+            if output_dir.is_dir() and not any(output_dir.iterdir()):
+                output_dir.rmdir()
+        except OSError:
+            logger.warning("Could not remove the empty output folder: %s", output_dir, exc_info=True)
 
     @staticmethod
     def _read_study_uid(files: list[str]) -> str:
