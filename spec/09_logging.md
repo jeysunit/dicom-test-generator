@@ -101,7 +101,7 @@ logs/
 
 ```text
 [INFO] 2025-02-21 14:30:00 - Generation started
-  Modality Template: FUJIFILM SCENARIA View CT
+  Modality Template: ct_generic
   Hospital Template: A病院（日本語使用）
   Patient ID: P000001
   Accession Number: ACC000001

@@ -90,7 +90,7 @@ _EPILOG = """\
   python -m app.cli generate job.yaml -o output/ --verbose
   python -m app.cli generate job.yaml --dry-run
   python -m app.cli validate job.yaml
-  python -m app.cli quick -p P000001 -m fujifilm_scenaria_view_ct -s 3 -i 1,20,20 -o output/
+  python -m app.cli quick -p P000001 -m ct_generic -s 3 -i 1,20,20 -o output/
   python -m app.cli version
   python -m app.cli scp start
   python -m app.cli scp start --config config/app_config.yaml

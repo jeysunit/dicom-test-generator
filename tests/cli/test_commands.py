@@ -25,7 +25,7 @@ def _write_job_yaml(path, output_dir):
             "num_series": 1,
         },
         "series_list": [{"series_number": 1, "num_images": 1}],
-        "modality_template": "fujifilm_scenaria_view_ct",
+        "modality_template": "ct_generic",
         "pixel_spec": {"mode": "simple_text"},
         "transfer_syntax": {
             "uid": "1.2.840.10008.1.2",
@@ -134,7 +134,7 @@ def test_validate_command_pydantic_validation_error_returns_4(tmp_path) -> None:
             "num_series": 1,
         },
         "series_list": [{"series_number": 1, "num_images": 1}],
-        "modality_template": "fujifilm_scenaria_view_ct",
+        "modality_template": "ct_generic",
         "pixel_spec": {"mode": "simple_text"},
         "transfer_syntax": {
             "uid": "1.2.840.10008.1.2",

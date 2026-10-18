@@ -376,7 +376,8 @@ ds2.save_as("output2.dcm")
 
 ## PatientAge (0010,1010)
 
-`PatientAge` は Job YAML の `patient.age` をそのまま使用せず、`birth_date` と `study_date` から **日本法基準** で算出する。
+`PatientAge` は Job YAML の `patient.age` をそのまま使用せず、
+`birth_date` と `study_date` から **日本法基準** で算出する。
 
 ### 法的根拠
 
@@ -486,6 +487,5 @@ def save_with_transfer_syntax(ds, filepath, transfer_syntax_uid):
 
 1. **DICOM Standard**: <https://www.dicomstandard.org/>
 2. **PyDicom Documentation**: <https://pydicom.github.io/>
-3. **FUJIFILM SCENARIA View Conformance Statement**: SCENARIA-View_DICOM-Conformance-Statement_rev01_20221025.pdf
-4. **IHE Japan**: <https://www.ihe-j.org/> (OID取得情報)
-5. **RFC 3061**: UUID Based OID (2.25系)
+3. **IHE Japan**: <https://www.ihe-j.org/> (OID取得情報)
+4. **RFC 3061**: UUID Based OID (2.25系)

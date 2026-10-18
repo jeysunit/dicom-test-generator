@@ -38,10 +38,16 @@ class TemplateError(ConfigurationError):
 
 
 class TemplateNotFoundError(TemplateError):
-    def __init__(self, template_name: str):
+    def __init__(self, template_name: str, renamed_to: str | None = None):
+        if renamed_to is None:
+            super().__init__(
+                f"Template not found: {template_name}",
+                {"template_name": template_name},
+            )
+            return
         super().__init__(
-            f"Template not found: {template_name}",
-            {"template_name": template_name},
+            f"Template not found: {template_name} (renamed to {renamed_to})",
+            {"template_name": template_name, "renamed_to": renamed_to},
         )
 
 

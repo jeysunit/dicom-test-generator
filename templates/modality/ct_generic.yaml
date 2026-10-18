@@ -1,13 +1,13 @@
-# Modality Template: FUJIFILM SCENARIA View CT
-# Based on SCENARIA View DICOM Conformance Statement
+# Modality Template: ct_generic
+# 一般の CT のテンプレート。装置の名前は架空（spec/12_modality_emulator.md の 17）
 
 info:
-  name: "fujifilm_scenaria_view_ct"
-  manufacturer: "FUJIFILM Healthcare"
-  model_name: "SCENARIA View"
+  name: "ct_generic"
+  manufacturer: "DTG Synthetic"
+  model_name: "DTG Synthetic CT"
   modality: "CT"
   version: "1.0"
-  description: "FUJIFILM SCENARIA View CT テンプレート"
+  description: "一般の CT テンプレート（合成）"
 
 file_meta:
   media_storage_sop_class_uid: "1.2.840.10008.5.1.4.1.1.2"
@@ -15,10 +15,10 @@ file_meta:
   implementation_version_name: "DICOM_GEN_1.1"
 
 general_equipment:
-  manufacturer: "FUJIFILM Healthcare"
+  manufacturer: "DTG Synthetic"
   institution_name: ""
-  station_name: "SCENARIA_VIEW"
-  manufacturers_model_name: "SCENARIA View"
+  station_name: "DTG_CT"
+  manufacturers_model_name: "DTG Synthetic CT"
   software_versions: "V4.0"
 
 ct_image:

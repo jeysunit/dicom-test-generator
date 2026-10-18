@@ -73,7 +73,7 @@ series_list:
     start_z: 100.0
 
 # テンプレート設定
-modality_template: "fujifilm_scenaria_view_ct"
+modality_template: "ct_generic"
 hospital_template: "hospital_a"  # null or 省略可
 
 # UID生成設定
@@ -136,7 +136,7 @@ series_list:
   - series_number: 1
     num_images: 1
 
-modality_template: "fujifilm_scenaria_view_ct"
+modality_template: "ct_generic"
 
 pixel_spec:
   mode: "simple_text"
@@ -419,7 +419,7 @@ series_list:
   - series_number: 1
     num_images: 10
 
-modality_template: "fujifilm_scenaria_view_ct"
+modality_template: "ct_generic"
 hospital_template: "hospital_a"
 
 pixel_spec:
@@ -462,7 +462,7 @@ series_list:
   - series_number: 1
     num_images: 5
 
-modality_template: "fujifilm_scenaria_view_ct"
+modality_template: "ct_generic"
 
 pixel_spec:
   mode: "simple_text"

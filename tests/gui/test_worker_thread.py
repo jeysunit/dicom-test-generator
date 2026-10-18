@@ -32,7 +32,7 @@ def _make_config(output_dir: str = "/tmp/test_gui_output") -> GenerationConfig:
             num_series=1,
         ),
         series_list=[SeriesConfig(series_number=1, num_images=2)],
-        modality_template="fujifilm_scenaria_view_ct",
+        modality_template="ct_generic",
         pixel_spec=PixelSpecSimple(),
         transfer_syntax=TransferSyntaxConfig(),
         character_set=CharacterSetConfig(),

@@ -12,10 +12,15 @@
 
 画面はウェブの画面（Python の側で描く。FastAPI・Jinja2・HTMX・
 Tailwind CSS）で作る。明るい地を既定にし、暗い地にも切り替えられる。
-見た目の値は tsunagi-dicom とそろえる。
+見た目の値は tsunagi-dicom とそろえ、画面はすっきりさせる（10 章の
+冒頭）。
 同じ操作を CLI でも行え、自動の試験から使える。
 
-**状態**: 仕様の案（未実装）
+**状態**: 承認済み（2026-10-18。決まったことは「18. 決まったこと」）。
+未実装
+
+**目的の線**: この道具は診療のためではなく、治験やシステムの試験の
+スタブ（モダリティの役の代わり）に使う。機能は少なくてよい。
 
 **Phase**: Phase 3a・3b・3c（「15. 段」）
 
@@ -58,7 +63,7 @@ RIS（ワークリスト）→ モダリティ → PACS
 - HL7 の受信・送信
 - 本番の PACS への接続を前提にした機能（認証の強化・監査の記録など）
 - 既存の PySide6 の GUI（`spec/05_gui.md`）の作り替え。
-  扱いは ADR-0011 の案で承認者が決める
+  扱いは ADR-0011 の案 B（ウェブの画面ができたら外す。それまでは凍結）
 
 ### spec/05_gui.md との関係
 
@@ -505,11 +510,32 @@ DICOMGeneratorError
 
 ## 10. ウェブの画面
 
-### 10.1 技術の比較と推奨
+### 画面の方向（2026-10-18 に承認者が決めた）
 
-**推奨は (a)：Python の側で描くウェブの画面（FastAPI・Jinja2・HTMX・
-Tailwind CSS）。** 見た目の値（色・文字・部品の形）は tsunagi-dicom と
-同じにする。
+**画面はすっきりさせる。余白を取り、部品を少なくし、一画面にやる
+ことを1つにする。** クラウド型の電子カルテのような、余白の多い
+静かな画面を目安にする。例外は無い。
+
+- 理由：この道具は診療のためではなく、治験やシステムの試験の
+  スタブとして使う。技師の操作の全部を写す必要は無く、試験に要る
+  「引く→選ぶ→撮る→送る→確かめる」が迷わず流せればよい
+- **機能を足すより削る。** 画面に何かを足したくなったら、まず
+  「試験のスタブに要るか」を問う。要らなければ足さない。CLI か設定の
+  ファイルでできることは、画面に出さなくてよい
+- 一画面の主のボタンは1つにする（例：ワークリストは「選んで撮影へ」、
+  撮影は「撮影して送る」）。ほかの操作は線か影のボタンにして控えめに
+  する
+- 詳しい値（予約の値の全部・UID など）は最初から並べず、開いて
+  見せる（パネル・折りたたみ）
+- 下の 10.3〜10.8 の部品・文字は、この方向で削ってよい。削った物は
+  Phase 3b の PR で、この文書から消す
+
+### 10.1 技術（決まった）
+
+**画面は (a)：Python の側で描くウェブの画面（FastAPI・Jinja2・HTMX・
+Tailwind CSS の standalone の実行ファイル）にする**（2026-10-18 に
+承認者が決めた）。見た目の値（色・文字・部品の形）は tsunagi-dicom と
+同じにする。下の表は決めたときの比較。
 
 | 観点 | (a) FastAPI＋Jinja2＋HTMX＋Tailwind | (b) Next.js の画面＋Python の API |
 |------|--------------------------------------|-----------------------------------|
@@ -531,9 +557,10 @@ Tailwind CSS）。** 見た目の値（色・文字・部品の形）は tsunagi
   読まない。手元だけで動かすため）
 - アイコンは Lucide（ISC License）の SVG を、使う分だけ
   `app/web/static/icons/` に置く。ライセンスの文を同じ場所に置く
-- 足す Python の包み（案。requirements.txt の変更は承認の後）：
-  `fastapi`・`uvicorn`・`jinja2`・`python-multipart`（フォーム）、
-  試験用に `httpx`（FastAPI の TestClient が使う）
+- 足す Python の包み（2026-10-18 に承認された。requirements.txt へは
+  使い始める Phase 3b の PR で足す）：`fastapi`・`uvicorn`・`jinja2`・
+  `python-multipart`（フォーム）、試験用に `httpx`（FastAPI の
+  TestClient が使う）
 - 画面の更新（待ち行列の状態など）は HTMX の定期の取得
   （`hx-trigger="every 2s"`）で行う。SSE・WebSocket は使わない
 
@@ -558,7 +585,7 @@ tsunagi-dicom と同じ値を書き、出典（リポジトリ・ファイル・
   `localStorage`）に覚える。覚えが無ければ明るい地
 - どちらの地でも、基準の文字 14px（0.875rem）・行間 1.5。表の行・
   入力の欄も 14px を下回らない（補いの文字だけ 12px）
-- 部品の間の余白は今のウェブの画面の感じにし、詰めすぎない：群
+- 部品の間の余白は広めに取り、詰めない（10 章の冒頭の方向）：群
   （パネル）の間は 16〜24px、群の中の欄の間は 12px 以上、頁の左右は
   16px 以上。1画面に詰め込まず、詳細はパネルを開いて見せる
 - 文字と地の対比は WCAG 2.2 の AA（4.5:1）以上にする
@@ -571,9 +598,9 @@ tsunagi-dicom と同じ値を書き、出典（リポジトリ・ファイル・
 | `--color-label` | `#59636e` | `#8a949e` | ラベル |
 | `--color-value` | `#1f2328`（太字） | `#ffffff`（太字） | 値 |
 | `--color-border` | `#d1d9e0` | `#2a2f36` | 線 |
-| `--color-muted` | 未定（tsunagi-dicom と同時に決める） | `#23272d` | 行の hover・弱い地 |
-| `--color-primary` | 未定（同上） | `#2f81f7` | 主のボタン・フォーカスの輪 |
-| `--color-primary-foreground` | 未定（同上） | `#ffffff` | 主のボタンの文字 |
+| `--color-muted` | 未定（Phase 3b の PR で決める） | `#23272d` | 行の hover・弱い地 |
+| `--color-primary` | `#0969da` | `#2f81f7` | 主のボタン・フォーカスの輪 |
+| `--color-primary-foreground` | `#ffffff` | `#ffffff` | 主のボタンの文字 |
 | `--font-sans` | `system-ui, "Noto Sans JP", sans-serif` | 同じ | 本文 |
 | `--font-mono` | `ui-monospace, "Noto Sans Mono", monospace` | 同じ | UID |
 
@@ -585,9 +612,13 @@ tsunagi-dicom と同じ値を書き、出典（リポジトリ・ファイル・
   14.8:1、ラベル `#59636e` は 6.1:1・5.7:1。暗い地の文字 `#e6edf3`
   は `#121417` に 15.6:1、ラベル `#8a949e` は `#1a1d21` に 5.5:1。
   いずれも AA を満たす
-- 主の色 `#2f81f7` は、白の文字・白の地との対比が 3.75:1 で、文字の
-  AA（4.5:1）に届かない。明るい地の主の色は tsunagi-dicom と同時に
-  決める（それまで Phase 3b に入らない）
+- **明るい地の主の色は `#0969da`**（2026-10-18 に承認者が決めた）。
+  白の地との対比は 5.19:1、`#f6f8fa` の地とは 4.88:1、主のボタンの
+  白の文字とは 5.19:1 で、どれも AA（4.5:1）を満たす。暗い地の主の色は
+  `#2f81f7` のまま（`#121417` の地に 4.92:1、`#1a1d21` の地に 4.51:1）
+- 残る点：暗い地の主のボタンの白の文字は `#2f81f7` の上で 3.75:1 で、
+  文字の AA に届かない。暗い地の `--color-primary-foreground` の扱いは
+  Phase 3b の PR で決める（承認者に確かめる）
 - 部品の形も tsunagi-dicom の `src/components/ui/` にそろえる：
   - ボタン：高さ 32px（`h-8 px-3`）、角 `rounded-md`、文字 `text-sm`
     `font-medium`、アイコン 16px。種類は主（`bg-primary`）・線
@@ -827,9 +858,19 @@ python -m app.cli queue retry --all
 
 ### 11.6 終了コード
 
-既存（0・1・2・3・4）に合わせる。通信の失敗（Association を張れない・
-相手が Failure を返した・時間切れ）は、承認者が決めるまで 1（一般の
-エラー）にする。5（通信のエラー）を足す案は「18. 決めてほしいこと」。
+既存（0・1・2・3・4）に **5（通信のエラー）を足す**（2026-10-18 に
+承認者が決めた）。通信の失敗（Association を張れない・断られた・
+相手が Failure を返した・時間切れ）は 5 にする。`spec/04_cli.md` と
+`AI_DEVELOPMENT_RULES.md` 8 の表も同じにする。
+
+| コード | 意味 | この章で起きる例 |
+|-------|------|------------------|
+| 0 | 成功 | — |
+| 1 | 一般のエラー | 生成の失敗 |
+| 2 | 設定のエラー | `modality:` の節の誤り（`ModalityConfigError`） |
+| 3 | I/O のエラー | 出力のフォルダに書けない |
+| 4 | バリデーションのエラー | 予約の値が写せない（`WorklistMappingError`）・表せない字 |
+| 5 | 通信のエラー | `AssociationError`・`WorklistQueryError`・`StoreError` |
 
 - 結果は標準出力、エラーは標準エラー（`AI_DEVELOPMENT_RULES.md` 8）
 - `--json` のときは標準出力に JSON だけを出す
@@ -838,7 +879,9 @@ python -m app.cli queue retry --all
 
 ## 12. 設定
 
-`config/app_config.yaml` に `modality:` の節を足す（案）。
+`config/app_config.yaml` に `modality:` と `web:` の節を足す。節の名前と
+既定のポート（保管の確認の待ち受け 11113・画面 8080）は 2026-10-18 に
+承認者が決めた。
 
 ```yaml
 modality:
@@ -924,7 +967,7 @@ web:
 | **3b** | ウェブの画面（10 章）：ワークリスト・撮影・PACS・設定、見た目の基準、待ち受けと認証 | Web の試験が通る。手元で起動し、手元の MWL の SCP と Storage の SCP を相手に「予約を引く→選ぶ→撮る→送る→確かめる」が画面で通る。CSS を作り直して差が無い |
 | **3c** | 保管の確認（N-ACTION・N-EVENT-REPORT・待ち受け）、MPPS（N-CREATE・N-SET）、画面と CLI の `commit`・`--mpps` | Modality（commitment・mpps）の試験が通る。試験用の Orthanc で保管の確認が「確認済」になることを手で確かめ、手順を README に書く |
 
-- 3a の前に、この仕様と ADR-0011 の承認を得る
+- 3a の前に、この仕様と ADR-0011 の承認を得る（2026-10-18 に得た）
 - 各段は別の PR（1PR 1目的）。各段で `spec/` の関係する文書を先に直す
 
 ---
@@ -969,13 +1012,14 @@ web:
 
 ---
 
-## 17. テンプレートの名前の決まり（案）
+## 17. テンプレートの名前の決まり
 
-### 17.1 決まりの案
+### 17.1 決まり
 
 **テンプレートの名前は一般の名前にし、商用の製品の名前・会社の名前を
-使わない。** 形は `<モダリティ>_<部位や用途>_<番号や特徴>`（小文字・
-`_` 区切り）。例：`ct_generic`・`ct_chest_5mm`・`mr_head_generic`。
+使わない**（2026-10-18 に承認者が採った）。形は
+`<モダリティ>_<部位や用途>_<番号や特徴>`（小文字・`_` 区切り）。
+例：`ct_generic`・`ct_chest_5mm`・`mr_head_generic`。
 
 - 実在の装置の値に寄せたいときも、名前・`manufacturer`・
   `manufacturers_model_name`・`station_name` に商用の名前を書かない
@@ -985,53 +1029,52 @@ web:
 - 理由：公開のリポジトリで、実在の製品の出力と誤解されないため。
   tsunagi-dicom の原則 6（商用の製品の名前を使わない）とそろえる
 
-### 17.2 いまの違反と影響の一覧（この PR では変えない）
+### 17.2 名前を変えた（2026-10-18）
 
-いまの `templates/modality/fujifilm_scenaria_view_ct.yaml` は、名前と
-中身（`manufacturer`・`model_name`・`station_name`・コメント）が
-実在の製品の名前。名前を変えるなら別の PR にする。2026-10-18 の
-main で、名前（大文字・小文字を問わない）が出る所：
+この決まりを採った PR で、CT のテンプレートを `ct_generic`
+（`templates/modality/ct_generic.yaml`）にした。
 
-| 種類 | ファイル | 出る回数 |
-|------|----------|----------|
-| テンプレート | `templates/modality/fujifilm_scenaria_view_ct.yaml` | 9 |
-| コード | `app/cli/main.py` | 1 |
-| 試験 | `tests/services/test_template_loader.py` | 4 |
-| 試験 | `tests/services/test_study_generator.py` | 2 |
-| 試験 | `tests/cli/test_commands.py` | 2 |
-| 試験 | `tests/gui/test_main_window.py` | 1 |
-| 試験 | `tests/gui/test_worker_thread.py` | 1 |
-| 例 | `examples/job_minimal.yaml`・`examples/job_full.yaml`・`examples/job_acc000003.yaml` | 各 1 |
-| 仕様 | `spec/04_cli.md` | 5 |
-| 仕様 | `spec/07_job_schema.md` | 4 |
-| 仕様 | `spec/08_error_handling.md` | 2 |
-| 仕様 | `spec/05_gui.md`・`spec/06_dicom_rules.md`・`spec/09_logging.md` | 各 1 |
-| ADR | `adr/0002-yaml-job-configuration.md` | 1 |
-| 文書 | `README.md` | 2 |
-| 文書 | `WORKFLOW.md` | 1 |
-
-名前を変える PR の案：新しい名前（例 `ct_generic`）のファイルを作り、
-上の所をすべて直し、古い名前を読みに来た Job YAML には「名前が
-変わりました（新しい名前）」のエラーを出す（別名で黙って読まない）。
+- 中身の `manufacturer`・`model_name`・`manufacturers_model_name`・
+  `station_name`・`description`・コメントも架空の名前
+  （`DTG Synthetic`・`DTG Synthetic CT`・`DTG_CT`）にした。撮影の値
+  （`ct_image`・`spatial`・`window_presets`）は変えていない
+- 名前が出ていた 19 のファイル（テンプレート・コード・試験・例・
+  仕様・ADR・README・WORKFLOW）をすべて直した。仕様の出典の一覧
+  （`spec/06_dicom_rules.md`）から、適合性宣言の行を消した
+- **古い名前を読みに来た Job YAML・CLI には、「名前が変わりました」の
+  エラーを出す**（`TemplateNotFoundError`。新しい名前を
+  `renamed_to` に入れる。別名で黙って読まない）。古い名前は商用の名前を
+  含むため、コードには名前そのものでなく SHA-256 の値で持つ
+  （`app/services/template_loader.py`）
 
 ---
 
-## 18. 決めてほしいこと（未決）
+## 18. 決まったこと（2026-10-18 に承認者が決めた）
 
-1. この仕様と ADR-0011 を受け入れるか
-2. 画面の技術：(a) FastAPI＋Jinja2＋HTMX＋Tailwind（推奨）か、
-   (b) Next.js＋Python の API か
-3. requirements.txt に `fastapi`・`uvicorn`・`jinja2`・
-   `python-multipart`・`httpx`（試験）を足してよいか（Phase 3b）
-4. 既存の PySide6 の GUI の扱い（ADR-0011 の案 A・B・C）
-5. CLI の終了コードに 5（通信のエラー）を足すか
-   （`AI_DEVELOPMENT_RULES.md` 8 と `spec/04_cli.md` の変更になる）
-6. テンプレートの名前の決まり（17 章）を採るか。採るなら、名前を
-   変える PR をいつ出すか
-7. 設定の節の名前（`modality:`・`web:`）と既定のポート
-   （待ち受け 11113・画面 8080）
-8. 明るい地の主の色・弱い地の色（`--color-primary`・`--color-muted`）。
-   tsunagi-dicom と同時に決める（10.2）
+承認者は、この章の旧版（決めてほしいこと）の8つをすべて推奨のとおりに
+決めた。本文の該当の所も、この決まりに合わせてある。
+
+| # | 論点 | 決まったこと | 本文 |
+|---|------|--------------|------|
+| 1 | この仕様と ADR-0011 | 受け入れた（状態は承認済み。ADR-0011 は Accepted） | 冒頭・ADR-0011 |
+| 2 | 画面の技術 | (a) FastAPI＋Jinja2＋HTMX＋Tailwind CSS（standalone の実行ファイル） | 10.1 |
+| 3 | 足す包み | `fastapi`・`uvicorn`・`jinja2`・`python-multipart`・`httpx`（試験用）を足してよい。足すのは Phase 3b の PR | 10.1 |
+| 4 | 既存の PySide6 の GUI | 案 B：ウェブの画面が生成の機能も持てたら、別の PR で外す。それまでは凍結 | ADR-0011・`spec/05_gui.md` |
+| 5 | CLI の終了コード | 5（通信のエラー）を足す | 11.6・`spec/04_cli.md` |
+| 6 | テンプレートの名前 | 一般の名前にする決まりを採る。名前を変える PR は、この決まりを写す PR と同じ | 17 |
+| 7 | 設定の節の名前・既定のポート | `modality:`・`web:`。待ち受け 11113・画面 8080 | 12 |
+| 8 | 明るい地の主の色 | `#0969da`（白の上で 5.19:1）。暗い地の主の色は `#2f81f7` のまま | 10.2 |
+
+同じ日に、承認者は画面の見た目の方向も決めた：**すっきりした画面**
+（余白を取り、部品を少なく、一画面にやることを1つ）。この道具は
+診療のためではなく、治験やシステムの試験のスタブとして使うので、
+機能は少なくてよい（10 章の冒頭）。
+
+### 18.1 まだ決まっていないこと
+
+- 明るい地の `--color-muted`（弱い地）の値。Phase 3b の PR で決める
+- 暗い地の主のボタンの文字の色（白は `#2f81f7` の上で 3.75:1）。
+  Phase 3b の PR で決める（10.2）
 
 ---
 

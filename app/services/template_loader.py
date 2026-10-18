@@ -2,11 +2,20 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import yaml
 
 from app.core.exceptions import TemplateNotFoundError, TemplateParseError
+
+# 名前を変えたモダリティテンプレート：古い名前の SHA-256 → 新しい名前。
+# 古い名前は商用の製品の名前を含むため、名前そのものを書かない
+# （spec/12_modality_emulator.md の 17）。別名として黙って読まず、
+# 新しい名前を添えた TemplateNotFoundError にする。
+RENAMED_MODALITY_TEMPLATES: dict[str, str] = {
+    "ece4615a3432602c091b9c7abcc6e0578ee7cc1762e1360414e3c3b516859422": "ct_generic",
+}
 
 
 class TemplateLoaderService:
@@ -20,6 +29,11 @@ class TemplateLoaderService:
     def load_modality_template(self, name: str) -> dict:
         """モダリティテンプレートを読み込む."""
         template_path = self._modality_dir / f"{name}.yaml"
+        if not template_path.exists():
+            digest = hashlib.sha256(name.encode("utf-8")).hexdigest()
+            renamed_to = RENAMED_MODALITY_TEMPLATES.get(digest)
+            if renamed_to is not None:
+                raise TemplateNotFoundError(name, renamed_to=renamed_to)
         return self._load_yaml_template(template_path, name)
 
     def load_hospital_template(self, name: str) -> dict:

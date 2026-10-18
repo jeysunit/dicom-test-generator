@@ -37,11 +37,11 @@ SCP (app/scp/) ─┘
 | Phase 0 | Core Engine（モデル、UID、ピクセル、DICOM構築） | ✅ 完了 |
 | Phase 1 | CLI + Service Layer（テンプレート、患者、生成、CLI） | ✅ 完了 |
 | Phase 2a | GUI MVP（PySide6 基本ウィジェット + 生成フロー） | ✅ 完了 |
-| Phase 2b | GUI フル機能（メニュー、ダイアログ、スタイル） | 未着手 |
+| Phase 2b | GUI フル機能（メニュー、ダイアログ、スタイル） | 進めない（PySide6 の画面は凍結。ADR-0011 の案 B） |
 | Phase 1.5 | Storage SCP（PyNetDICOM） | ✅ 完了 |
-| Phase 3a | モダリティのダミー：ワークリスト（C-FIND MWL）・予約からの生成・送信（C-STORE・C-ECHO）を CLI で（`spec/12_modality_emulator.md`） | 仕様の案 |
-| Phase 3b | モダリティのダミー：ウェブの画面（ワークリスト・撮影・PACS・設定） | 仕様の案 |
-| Phase 3c | モダリティのダミー：保管の確認（Storage Commitment）・MPPS（選べる形） | 仕様の案 |
+| Phase 3a | モダリティのダミー：ワークリスト（C-FIND MWL）・予約からの生成・送信（C-STORE・C-ECHO）を CLI で（`spec/12_modality_emulator.md`） | 仕様は承認済み・未着手 |
+| Phase 3b | モダリティのダミー：ウェブの画面（ワークリスト・撮影・PACS・設定） | 仕様は承認済み・未着手 |
+| Phase 3c | モダリティのダミー：保管の確認（Storage Commitment）・MPPS（選べる形） | 仕様は承認済み・未着手 |
 
 ## テスト実行
 
@@ -58,7 +58,21 @@ pytest tests/gui/ -v
 
 # カバレッジ
 pytest --cov=app --cov-report=term-missing
+
+# 表示の無い環境で GUI の試験を流す（CI と同じ）
+QT_QPA_PLATFORM=offscreen pytest
 ```
+
+### CI
+
+`.github/workflows/ci.yml` が、PR と `main` への push で次を流す。
+
+- pytest（Python 3.10・3.12）。GUI の試験は Qt の offscreen の描き先で
+  動かす（X のサーバーを立てない）
+- markdownlint（`.markdownlint-cli2.yaml` の設定）
+
+ruff は、設定のファイルが無く、いまのコードに指摘が残っているため、
+CI にはまだ入れていない。
 
 ## CLI 使用例
 
@@ -66,7 +80,7 @@ pytest --cov=app --cov-report=term-missing
 python -m app.cli generate examples/job_minimal.yaml
 python -m app.cli generate examples/job_full.yaml -o output/ --verbose
 python -m app.cli validate examples/job_minimal.yaml
-python -m app.cli quick -p P000001 -m fujifilm_scenaria_view_ct -s 3 -i 1,20,20 -o output/
+python -m app.cli quick -p P000001 -m ct_generic -s 3 -i 1,20,20 -o output/
 python -m app.cli version
 python -m app.cli scp start
 python -m app.cli scp start --config config/app_config.yaml
