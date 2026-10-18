@@ -35,6 +35,7 @@ STUDY_DESCRIPTION_MAX_LENGTH = 64
 CARRIER_SEX = "O"
 CARRIER_PATIENT_NAME = "SCHEDULED^PATIENT"
 _REPLACEMENT_CHAR = "�"
+_UID_VR = "UI"
 _BIRTH_DATE_LENGTH = 8
 _VALID_SEXES = frozenset({"", "M", "F", "O"})
 DS_MAX_LENGTH = 16
@@ -383,17 +384,24 @@ def _collect_sequence(
 
 
 def _unreadable_paths(ds: Dataset, prefix: str) -> Iterator[str]:
-    """Sequence の項目の中（入れ子を含む）で、置き換えの字を含む文字の値の名前."""
+    """Sequence の項目の中（入れ子を含む）の読めない値の名前.
+
+    文字の値は置き換えの字を含むもの、UID（UI）は UID の形でないもの（5.4）。
+    """
     for element in ds:
         name = element.keyword or str(element.tag)
         if element.VR == "SQ":
             for item in element.value or []:
                 yield from _unreadable_paths(item, prefix=f"{prefix}{name}>")
             continue
-        if element.VR not in TEXT_VRS or element.value is None:
+        if element.value is None or element.VR not in TEXT_VRS | {_UID_VR}:
             continue
         values = element.value if isinstance(element.value, MultiValue) else [element.value]
-        if any(_REPLACEMENT_CHAR in str(value) for value in values):
+        if element.VR == _UID_VR:
+            unreadable = any(str(v) and not is_valid_uid(str(v)) for v in values)
+        else:
+            unreadable = any(_REPLACEMENT_CHAR in str(v) for v in values)
+        if unreadable:
             yield f"{prefix}{name}"
 
 

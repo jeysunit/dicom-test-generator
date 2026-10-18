@@ -404,6 +404,26 @@ def test_item_from_identifier_marks_unreadable_value_in_sequences() -> None:
     assert exc_info.value.details["attribute"] == "RequestedProcedureCodeSequence>CodeMeaning"
 
 
+def test_item_from_identifier_marks_bad_uid_in_sequences() -> None:
+    """Sequence の中の UID が UID の形でなければ読めない値とする（spec/12 の 5.4）."""
+    ds = _identifier()
+    ref = ds.ReferencedStudySequence[0]
+    ref.ReferencedSOPClassUID = "1.2.840.10008.3.1.2.3.1"
+    ref.ReferencedSOPInstanceUID = "9.9.9.9"
+
+    replacements = {
+        b"1.2.840.10008.3.1.2.3.1": b"1.2.840.10008.3.\xff.2.3.1",
+        b"9.9.9.9\x00": b"../../x\x00",
+    }
+
+    item = worklist_item_from_identifier(_from_wire(ds, replacements))
+
+    assert item.unreadable_attributes == [
+        "ReferencedStudySequence>ReferencedSOPClassUID",
+        "ReferencedStudySequence>ReferencedSOPInstanceUID",
+    ]
+
+
 def test_item_from_identifier_reads_clean_sequences() -> None:
     item = worklist_item_from_identifier(_from_wire(_identifier(), {}))
 
