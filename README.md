@@ -69,7 +69,7 @@ Pixel data is synthetic and not intended for clinical use.
 
 ### ✅ モダリティのダミー（Phase 3a・3b。3c は未実装）
 
-* ワークリストを引き、予約の値で画像を作り、PACS へ送る（ウェブの画面と
+* ワークリストを取得し、予約の値で画像を作り、PACS へ送る（ウェブの画面と
   CLI。[spec/12_modality_emulator.md](spec/12_modality_emulator.md)）。
   起動のしかたは下の「モダリティのダミーのウェブの画面」
 
@@ -217,7 +217,7 @@ DICOM通信による受信機能を追加予定。
 
 ## モダリティのダミーのウェブの画面（Phase 3b）
 
-ワークリスト・撮影・PACS・設定の4つの画面で「引く→選ぶ→撮る→送る→確かめる」を
+ワークリスト・撮影・PACS・設定の4つの画面で「取得→選ぶ→撮る→送る→確かめる」を
 流します（[spec/12_modality_emulator.md](spec/12_modality_emulator.md) の 10 章）。
 試験用の PACS・RIS にだけつないでください。
 
