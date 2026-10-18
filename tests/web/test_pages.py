@@ -95,6 +95,8 @@ def test_exam_page_is_read_only_and_lists_profiles(client) -> None:
     assert "dtg_synthetic_ct" in html
     assert "ct_generic" in html
     assert "撮影して送る" in html
+    # 確かめ直しの GET は、CSRF の token を URL に載せない（要る欄だけを送る）
+    assert 'hx-include="#exam-form"' not in html
     assert "disabled" not in html.split('id="actions"', 1)[1].split("</div>", 1)[0]
 
 
@@ -137,6 +139,46 @@ def test_emergency_form_validation_error_is_shown(client) -> None:
     )
     assert response.status_code == 200
     assert 'role="alert"' in response.text
+
+
+@pytest.mark.parametrize(("series", "images"), [("100", "1"), ("1", "1001"), ("2", "1,0")])
+def test_exam_size_is_bounded_on_the_server(client, tmp_path, series, images) -> None:
+    """シリーズ数・枚数の上限は画面の欄だけでなくサーバーで確かめる（10.5）."""
+    token = csrf_token(client, "/exam")
+    form = {
+        "mode": "emergency",
+        "patient_id": "E1",
+        "name_alphabetic": "A^B",
+        "series": series,
+        "images": images,
+        "action": "exam",
+    }
+    html = client.post("/exam", data=form, headers=post_headers(token)).text
+    assert 'role="alert"' in html
+    assert not list((tmp_path / "output").rglob("*.dcm"))
+
+
+def test_template_name_from_the_form_is_not_a_path(client) -> None:
+    html = client.get("/exam/check", params={"template": "../../config/app_config"}).text
+    assert "disabled" in html
+    assert "app_config.yaml" not in html
+
+
+def test_failed_refresh_keeps_the_list(client) -> None:
+    html = _query(client)
+    token = csrf_token(client)
+    failed = client.post("/worklist/refresh", data={"key": ""}, headers=post_headers(token)).text
+    assert 'role="alert"' in failed
+    assert "A0001" in failed and "選んで撮影へ" in failed
+    assert "A0001" in html
+
+
+def test_htmx_swaps_error_responses() -> None:
+    """403 などの失敗の応答も画面に出す（htmx 2 の既定は 4xx・5xx を出さない）."""
+    from app.web.templating import TEMPLATES_DIR
+
+    base = (TEMPLATES_DIR / "base.html").read_text(encoding="utf-8")
+    assert '"responseHandling"' in base and '"[45]..", "swap": true' in base
 
 
 def test_pacs_queue_partial_polls(client) -> None:

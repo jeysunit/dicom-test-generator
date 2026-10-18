@@ -9,7 +9,13 @@ import pytest
 from web_helpers import ORIGIN, csrf_token, make_client, post_headers
 
 from app.web.__main__ import main
-from app.web.auth import PASSWORD_FILE_ENV, USERNAME, WebStartupError, startup_password
+from app.web.auth import (
+    PASSWORD_FILE_ENV,
+    USERNAME,
+    WebStartupError,
+    host_header_is_loopback,
+    startup_password,
+)
 from app.web.templating import TEMPLATES_DIR, create_environment
 
 WEB_DIR = Path(__file__).resolve().parents[2] / "app" / "web"
@@ -88,6 +94,11 @@ def test_loopback_rejects_foreign_host_header(client) -> None:
     """DNS rebinding：手元で待ち受けるとき、Host が手元の名前でなければ断る（10.9）."""
     assert client.get("/worklist", headers={"Host": "evil.example:8080"}).status_code == 400
     assert client.get("/worklist", headers={"Host": "localhost:8080"}).status_code == 200
+
+
+@pytest.mark.parametrize("host", ["evil.example@localhost", "localhost/x", "localhost?x", ""])
+def test_odd_host_headers_are_not_loopback(host) -> None:
+    assert not host_header_is_loopback(host)
 
 
 def test_post_requires_same_origin_and_csrf_token(client) -> None:

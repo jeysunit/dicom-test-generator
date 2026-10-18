@@ -13,7 +13,7 @@
     <dt>文字コード</dt><dd>{{ item.specific_character_set|charset_label }}</dd>
     <dt>Study Instance UID</dt><dd>{% with uid = item.study_instance_uid %}{% include "_uid.html" %}{% endwith %}</dd>
     {% if item.unreadable_attributes %}
-    <dt>読めない値</dt><dd class="text-danger">{{ item.unreadable_attributes|join(", ") }}</dd>
+    <dt>読めない値</dt><dd class="text-danger">{% for name in item.unreadable_attributes %}{{ name }}{% if not loop.last %}, {% endif %}{% endfor %}</dd>
     {% endif %}
   </dl>
 </div>

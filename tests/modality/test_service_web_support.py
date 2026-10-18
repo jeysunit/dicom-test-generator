@@ -8,7 +8,12 @@ import pytest
 from modality_peers import LOCALHOST
 from pydicom import dcmread
 
-from app.core.exceptions import FileReadError, FileWriteError, ProfileMismatchError
+from app.core.exceptions import (
+    FileReadError,
+    FileWriteError,
+    ProfileMismatchError,
+    TemplateNotFoundError,
+)
 from app.core.models import ScheduledPatient
 from app.modality.config import ModalityConfig
 from app.modality.service import ExamRequest, ModalityService
@@ -122,6 +127,17 @@ def test_send_exam_output_sends_inside_output_root(tmp_path, worklist_scp, stora
 
     assert sent.status == "sent"
     assert len(storage_scp.received) == 1
+
+
+@pytest.mark.parametrize("name", ["../../config/app_config", "/etc/hosts", "ct_generic/../x", ""])
+def test_template_name_must_be_a_listed_template(tmp_path, worklist_scp, name) -> None:
+    """画面から来るテンプレートの名前で、テンプレートの置き場の外を読まない."""
+    service = _service(tmp_path, worklist_scp.port)
+    with pytest.raises(TemplateNotFoundError):
+        service.template_modality(name)
+    patient = ScheduledPatient(patient_id="E0001", patient_name="A^B")
+    with pytest.raises(TemplateNotFoundError):
+        service.exam(ExamRequest(emergency_patient=patient, template=name or "x/y"))
 
 
 def test_image_character_set_for_the_band(tmp_path, worklist_scp) -> None:

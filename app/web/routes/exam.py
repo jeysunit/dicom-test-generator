@@ -28,6 +28,9 @@ SEX_CHOICES = (("", "空"), ("M", "男"), ("F", "女"), ("O", "その他"))
 ACTION_EXAM = "exam"
 ACTION_EXAM_SEND = "exam_send"
 MODE_EMERGENCY = "emergency"
+# 画面から1回で作る量の上限（1つの要求でディスクを埋めない。spec/12 の 10.5）
+MAX_SERIES = 99
+MAX_IMAGES_PER_SERIES = 1000
 FormStr = Annotated[str, Form()]
 
 
@@ -190,8 +193,12 @@ def _parse_images(images: str, series: str) -> list[int]:
             "シリーズ数と枚数は整数で入れてください（枚数はカンマ区切り）",
             {"series": series, "images": images},
         ) from exc
-    if any(value <= 0 for value in values):
-        raise ConfigurationError("枚数は 1 以上にしてください", {"images": images})
+    if not 1 <= count <= MAX_SERIES:
+        raise ConfigurationError(f"シリーズ数は 1〜{MAX_SERIES} にしてください", {"series": series})
+    if any(not 1 <= value <= MAX_IMAGES_PER_SERIES for value in values):
+        raise ConfigurationError(
+            f"枚数は 1〜{MAX_IMAGES_PER_SERIES} にしてください", {"images": images}
+        )
     if len(values) != count:
         raise ConfigurationError(
             "枚数の数をシリーズ数と同じにしてください", {"series": count, "images": images}

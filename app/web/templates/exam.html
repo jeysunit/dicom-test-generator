@@ -80,13 +80,13 @@
     <div class="grid gap-4 sm:grid-cols-3">
       <label class="field">
         <span class="field-label">テンプレート</span>
-        <select name="template" class="input" hx-get="/exam/check" hx-include="#exam-form" hx-target="#actions" hx-trigger="change">
+        <select name="template" class="input" hx-get="/exam/check" hx-include="#exam-form [name='key'], #exam-form [name='profile']" hx-target="#actions" hx-trigger="change">
           {% for name in templates %}<option value="{{ name }}"{% if name == selected_template %} selected{% endif %}>{{ name }}</option>{% endfor %}
         </select>
       </label>
       <label class="field">
         <span class="field-label">装置（装置のプロファイル）</span>
-        <select name="profile" class="input" hx-get="/exam/check" hx-include="#exam-form" hx-target="#actions" hx-trigger="change">
+        <select name="profile" class="input" hx-get="/exam/check" hx-include="#exam-form [name='key'], #exam-form [name='template']" hx-target="#actions" hx-trigger="change">
           <option value=""{% if not selected_profile %} selected{% endif %}>なし</option>
           {% for profile in profiles %}<option value="{{ profile.name }}"{% if profile.name == selected_profile %} selected{% endif %}>{{ profile.name }}（{{ profile.modality }}・{{ profile.model_name }}）</option>{% endfor %}
         </select>

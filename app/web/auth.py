@@ -28,6 +28,8 @@ SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 HTTP_FORBIDDEN = 403
 _LOCALHOST_NAME = "localhost"
 _TOKEN_BYTES = 32
+# Host の見出しに来ない字（来たら手元の名前と見なさない）
+_HOST_FORBIDDEN_CHARS = frozenset("@/?#\\ ")
 
 
 class WebStartupError(ConfigurationError):
@@ -47,7 +49,7 @@ def is_loopback(host: str) -> bool:
 
 def host_header_is_loopback(host_header: str) -> bool:
     """`Host` の見出し（`名前:ポート`・`[::1]:ポート`）が手元の名前か."""
-    if not host_header:
+    if not host_header or any(char in host_header for char in _HOST_FORBIDDEN_CHARS):
         return False
     hostname = urlsplit(f"//{host_header}").hostname
     return hostname is not None and is_loopback(hostname)

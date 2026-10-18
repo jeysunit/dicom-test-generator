@@ -2,6 +2,9 @@
 {% if results.notice %}
 <p role="status" class="notice notice-ok">{{ results.notice }}</p>
 {% endif %}
+{% if results.error %}
+{% with error = results.error %}{% include "_notice.html" %}{% endwith %}
+{% endif %}
 {% if not results.queried %}
 <p class="text-label">まだ引いていません。条件を選んで「引く」を押してください。</p>
 {% elif not results.rows %}

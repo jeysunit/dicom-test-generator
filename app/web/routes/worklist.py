@@ -14,7 +14,7 @@ from app.modality.service import WorklistState
 from app.modality.worklist_scu import WorklistQuery, parse_date_option
 
 from ..display import item_marks
-from ..rendering import render, render_error, service_of
+from ..rendering import error_text, render, render_error, service_of
 
 router = APIRouter()
 
@@ -97,17 +97,21 @@ def worklist_query(
 @router.post("/worklist/refresh", response_class=HTMLResponse)
 def worklist_refresh(request: Request, key: FormStr = "") -> HTMLResponse:
     service = service_of(request)
+    error = ""
     try:
         service.refresh_item(key)
+    except DICOMGeneratorError as exc:
+        # 引き直せなくても一覧は消さず、上に理由を出す（10.3 の知らせ）
+        error = error_text(exc)
+    try:
         state = service.last_worklist_state()
     except DICOMGeneratorError as exc:
         return render_error(request, exc)
-    return render(
-        request,
-        "_worklist_results.html",
-        oob_band=True,
-        results=_results(request, state, state.partial, selected=key, notice="引き直しました"),
+    results = _results(
+        request, state, state.partial, selected=key, notice="" if error else "引き直しました"
     )
+    results["error"] = error
+    return render(request, "_worklist_results.html", oob_band=True, results=results)
 
 
 @router.get("/worklist/item/{key}", response_class=HTMLResponse)
@@ -140,6 +144,7 @@ def _results(
         "non_ascii_hint": NON_ASCII_HINT if non_ascii and not rows else "",
         "selected": selected,
         "notice": notice,
+        "error": "",
     }
 
 

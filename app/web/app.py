@@ -8,11 +8,13 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.modality.config import ModalityConfig
 from app.modality.service import ModalityService
 
 from .auth import basic_auth_ok, csrf_guard, host_header_is_loopback, is_loopback, new_csrf_token
+from .rendering import render
 from .routes import exam, pacs, settings, worklist
 from .settings import WebConfig
 from .templating import create_environment
@@ -85,6 +87,13 @@ def create_app(
             response = await call_next(request)
         for name, value in SECURITY_HEADERS.items():
             response.headers.setdefault(name, value)
+        return response
+
+    @app.exception_handler(StarletteHTTPException)
+    async def http_error(request: Request, exc: StarletteHTTPException) -> Response:
+        # 断った理由を、HTMX が差し込める短い HTML で返す（10.3 の知らせ）
+        response = render(request, "_notice.html", error=f"{exc.status_code}: {exc.detail}")
+        response.status_code = exc.status_code
         return response
 
     @app.get("/")
