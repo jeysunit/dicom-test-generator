@@ -193,7 +193,20 @@ RAD TF-2 Table 4.5-3 の、SCU が R+・R+* の値をすべて求める。
 - Specific Character Set (0008,0005)
 - Institution Name（返ってくれば）
 
-### 5.3 応答の扱い
+### 5.3 問い合わせの文字コード
+
+- 引く条件がすべて ASCII なら、問い合わせに Specific Character Set を
+  入れない（既定の文字の集まり。PS3.4 C.2.2.2）
+- 氏名などに ASCII でない字があれば、設定の
+  `worklist.query_character_set`（既定 `ISO_IR 192`。`jis`・`jis_kana`
+  の値も選べる）で書き、その値を問い合わせの Specific Character Set に
+  入れる
+- 相手がその文字コードを扱わないと、一致のしかたは相手次第になる
+  （PS3.4 C.2.2.2）。0 件のときは画面に「日本語の条件は相手の文字コード
+  の扱いに左右されます。患者 ID か受付番号でも引いてください」と出す
+- 画像の文字コードの `auto`（7 章）は、問い合わせには使わない
+
+### 5.4 応答の扱い
 
 - 応答の Specific Character Set を読み、値を Python の文字列に戻す
   （pydicom）。戻せない値は「読めない値」として画面に出し、
@@ -228,19 +241,21 @@ RAD TF-2 Table 4.5-3 の、SCU が R+・R+* の値をすべて求める。
 | Patient's Name | (0010,0010) | 写す | 手で入れる | RAD TF-2 Table 4.5-3 |
 | Patient ID | (0010,0020) | 写す | 手で入れる（仮の ID の案を出す） | 同上 |
 | Issuer of Patient ID | (0010,0021) | 写す（あれば） | 空 | 同上 |
-| Patient's Birth Date | (0010,0030) | 写す | 手で入れる | 同上 |
-| Patient's Sex | (0010,0040) | 写す | 手で入れる | 同上 |
-| Patient's Weight・Size | (0010,1030)・(0010,1020) | 写す（あれば） | 手で入れる（任意） | 同上 |
-| Patient's Age | (0010,1010) | 生年月日と検査日から算出 | 同じ | ADR-0008 |
+| Patient's Birth Date | (0010,0030) | 写す。**空なら空で写す**（6.3） | 手で入れる | 同上、PS3.4 Table K.6-1（Type 2） |
+| Patient's Sex | (0010,0040) | 写す。**空なら空で写す**（6.3） | 手で入れる | 同上 |
+| Patient's Weight | (0010,1030) | 写す（あれば。kg） | 手で入れる（任意） | 同上 |
+| Patient's Size | (0010,1020) | 写す（あれば。DICOM は m。内部の `Patient.size` へは 100 倍して cm で渡す） | 手で入れる（任意。cm） | 同上、ADR-0007 |
+| Patient's Age | (0010,1010) | 生年月日と検査日から算出。生年月日が空なら出さない | 同じ | ADR-0008 |
 | Study Instance UID | (0020,000D) | **予約にあれば写す。無ければ作る**（2.25） | 作る | RAD TF-2x Table A.1-1・A.1-2、RAD TF-2 4.8.4.1.1.1 |
 | Accession Number | (0008,0050) | 写す | **空（長さ0）** | 同上（IHE-A.1.1） |
 | Issuer of Accession Number Sequence | (0008,0051) | 写す（あれば） | 空 | Table A.1-1 |
+| Referenced Study Sequence | (0008,1110) | 写す（あれば） | 出力しない | Table A.1-1 |
 | Referring Physician's Name | (0008,0090) | 写す | 空 | RAD TF-2 Table 4.5-3 |
 | Study ID | (0020,0010) | Requested Procedure ID | 作る（連番） | Table A.1-1（IHE の勧め） |
 | Study Description | (0008,1030) | Requested Procedure Description | 撮影の画面の入力 | この仕様の決め（慣習。IHE の表には無い） |
 | Study Date・Time | (0008,0020)・(0008,0030) | 撮影した日時 | 同じ | この仕様の決め |
 | Procedure Code Sequence | (0008,1032) | Requested Procedure Code Sequence を写す | 入れない | Table A.1-1 |
-| Request Attributes Sequence | (0040,0275) | 1 項目を作り、下の値を写す | **入れない（空）** | Table A.1-1・A.1-2 |
+| Request Attributes Sequence | (0040,0275) | 1 項目を作り、下の値を写す | **属性を出力しない**（空の Sequence も置かない。Table A.1-2 の `n.a.`） | Table A.1-1・A.1-2 |
 | >Requested Procedure ID | (0040,1001) | 写す | — | Table A.1-1 |
 | >Requested Procedure Description | (0032,1060) | 写す | — | 同上 |
 | >Scheduled Procedure Step ID | (0040,0009) | 写す | — | 同上 |
@@ -272,6 +287,13 @@ Scheduled Station AE Title (0040,0001) は画像に写す属性ではない。
   （Orthanc Book「Worklists plugin」）
 - 予約に Study Instance UID が無いときは作り、撮影の画面に
   「予約に Study Instance UID が無いため、この道具が作りました」と出す
+- **生年月日・性別が空の予約も撮れる。** どちらもワークリストでは
+  Type 2 で、空で返りうる（PS3.4 Table K.6-1）。空なら画像にも空で
+  写し（Type 2）、Patient's Age は出さない。撮影の画面に「生年月日が
+  空です」と出す。既存の `Patient` のモデル（`spec/03_data_models.md`。
+  生年月日 8 桁・性別 M/F/O が必須）は変えず、予約から作る道では
+  空を許す別のモデル（`ScheduledPatient`）を使う。生成の設定へ渡す
+  ところの変更は Phase 3a の PR で 03 に書く
 - 異常のデータ（`abnormal`）は、写した値にも効く。異常のレベルを
   上げると、写した値が壊れることがある。画面の「異常のデータ」に
   その旨を出す
@@ -291,9 +313,13 @@ Modality、Performed Station AE Title（自分の AE タイトル）。
 N-SET（状態 `COMPLETED`）で Performed Series Sequence（シリーズごとの
 Series Instance UID と、作った画像の SOP Class・Instance UID）と
 End Date・Time を送る。予約なしの形では Referenced Study Sequence を
-空にする（RAD TF-2x Table A.1-2）。SOP Class・Instance UID は
-DIMSE のコマンドの欄で送り、データセットに入れない（IHE-A.1.4・
-A.1.5）。
+空にする（RAD TF-2x Table A.1-2）。**MPPS そのものの** SOP Class・
+Instance UID は DIMSE のコマンドの欄（N-CREATE の Affected SOP
+Class・Instance UID、N-SET の Requested SOP Class・Instance UID）で
+送り、データセットの一番上に SOP Class UID (0008,0016)・SOP Instance
+UID (0008,0018) を置かない（IHE-A.1.4・A.1.5）。画像を指す
+Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID
+(0008,1155)（Performed Series Sequence の中）は入れる。
 
 ---
 
@@ -306,11 +332,13 @@ A.1.5）。
 
 | 選択 | 画像の Specific Character Set | 用途 |
 |------|-------------------------------|------|
-| `auto`（既定） | ワークリストの応答と同じ値。応答に無ければ設定の既定 | 本物のモダリティの多くの動き |
+| `auto`（既定） | ワークリストの応答と同じ値。応答に無いとき・予約なしのときは `character_set_fallback`（既定 `utf8`） | 本物のモダリティの多くの動き |
 | `utf8` | `ISO_IR 192` | UTF-8 の PACS |
 | `jis` | `\ISO 2022 IR 87`（値 1 は空＝ISO 2022 IR 6） | 漢字を JIS で |
 | `jis_kana` | `ISO 2022 IR 13\ISO 2022 IR 87` | 半角カナ＋漢字（日本の装置に多い組） |
 
+- `character_set_fallback` には `auto` を選べない（`utf8`・`jis`・
+  `jis_kana` のどれか）。これで `auto` の行き先が必ず1つに決まる
 - 値 1 が空の複数の値は、値 1 を ISO 2022 IR 6 とみなす
   （PS3.3 C.12.1.1.2）。既存の病院テンプレートの
   `ISO 2022 IR 6\ISO 2022 IR 87` も `jis` と同じ意味で受け付ける
@@ -407,8 +435,11 @@ GUI (app/gui/) ─┤→ Service (app/services/) ──→ Core (app/core/)
 SCP (app/scp/) ─┘→ Core (app/core/)
 ```
 
-- `app/modality/` は `app/services/`・`app/core/` だけを import する。
-  `app/cli/`・`app/web/`・`app/gui/`・`app/scp/` を import しない
+- `app/modality/` が import する**このプロジェクトの中の**層は
+  `app/services/`・`app/core/` だけ。`app/cli/`・`app/web/`・
+  `app/gui/`・`app/scp/` を import しない。外の包み（pynetdicom・
+  pydicom・Pydantic・PyYAML）と標準ライブラリ（`sqlite3` など）は
+  使ってよい。通信と永続化を Core へ移さない（Core は Pure のまま）
 - `app/scp/`（Storage SCP、Phase 1.5）は「受ける側」の道具で、
   `app/modality/`（送る側）とは互いに import しない。並べて使うと、
   この道具だけで「撮る→送る→受ける」を閉じた試験にできる
@@ -819,12 +850,14 @@ modality:
   state_dir: "modality_state"   # 予約の最後の結果・待ち行列（sqlite3）
   output_dir: "output/modality"
   character_set: "auto"         # auto, utf8, jis, jis_kana
+  character_set_fallback: "utf8"  # utf8, jis, jis_kana（auto は不可）
   default_template: "ct_generic"
   worklist:
     ae_title: "RIS_TEST"
     host: "127.0.0.1"
     port: 4242
     timeout_seconds: 30
+    query_character_set: "ISO_IR 192"  # 条件に ASCII でない字があるとき
     use_mpps: false
   destinations:
     - name: "PACS_TEST"
@@ -865,7 +898,7 @@ web:
 
 | 種類 | 置き場 | 中身 |
 |------|--------|------|
-| Core | `tests/core/test_worklist_mapping.py` | 6 章の表の行ごとに、予約あり・予約なしで写した値を確かめる。外の資源を使わない |
+| Core | `tests/core/test_worklist_mapping.py` | 6 章の表の行ごとに、予約あり・予約なしで写した値を確かめる（生年月日・性別が空の予約、Patient's Size の m→cm、予約なしで Request Attributes Sequence・Referenced Study Sequence が無いことを含む）。外の資源を使わない |
 | 文字コード | `tests/core/test_worklist_charset.py` | 4つの選択それぞれで、漢字・かな・半角カナの氏名を書き出して読み戻す。表せない字で止まること |
 | Modality | `tests/modality/test_worklist_scu.py` | 手元の MWL の SCP（試験の fixture）に C-FIND。条件の組、Pending の打ち切り、時間切れ、文字コードの読み取り |
 | Modality | `tests/modality/test_store_scu.py` | 手元の Storage の SCP に C-STORE・C-ECHO。成功・Warning・Failure・つながらない |
