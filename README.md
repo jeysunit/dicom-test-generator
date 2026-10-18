@@ -76,6 +76,9 @@ Pixel data is synthetic and not intended for clinical use.
 
 * モダリティテンプレート
 * 病院設定テンプレート
+* 装置のプロファイル：装置のコンフォーマンスステートメントを読んで写し、
+  その装置の DICOM の出し方を擬態する。実在の装置のプロファイルは
+  リポジトリの外に置く（[spec/13_device_profiles.md](spec/13_device_profiles.md)）
 * YAML設定による柔軟な構成
 
 ---
@@ -227,6 +230,7 @@ dicom-test-generator/
 ├── adr/                # 設計判断記録
 ├── docs/               # MkDocsドキュメント
 ├── templates/          # モダリティ・病院テンプレート（YAML）
+├── profiles/examples/  # 架空の装置のプロファイルの例（実在の装置は外に置く）
 ├── data/               # 患者マスターデータ
 ├── examples/           # Job YAML設定例
 └── README.md           # 本ファイル

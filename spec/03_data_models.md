@@ -207,6 +207,7 @@ class GenerationConfig(BaseModel):
     # テンプレート設定
     modality_template: str = Field(..., description="モダリティテンプレート名")
     hospital_template: str | None = Field(None, description="病院テンプレート名")
+    device_profile: str | None = Field(None, description="装置のプロファイル名（spec/13）")
     
     # UID生成設定
     uid_method: str = Field("uuid_2_25", pattern=r"^(uuid_2_25|custom_root)$")

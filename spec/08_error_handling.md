@@ -17,6 +17,11 @@ DICOMGeneratorError (Base)
 │   ├── PatientDataError
 │   │   ├── PatientNotFoundError
 │   │   └── PatientDataInvalidError
+│   ├── ProfileError                  # 装置のプロファイル（spec/13 の 9）
+│   │   ├── ProfileNotFoundError
+│   │   ├── ProfileParseError
+│   │   ├── DuplicateProfileError
+│   │   └── ProfileMismatchError
 │   └── JobSchemaError
 │
 ├── GenerationError
@@ -73,19 +78,13 @@ class TemplateError(ConfigurationError):
 class TemplateNotFoundError(TemplateError):
     """テンプレートが見つからない"""
     
-    def __init__(self, template_name: str, renamed_to: str | None = None):
-        # renamed_to: 名前を変えたテンプレートの新しい名前
-        # （古い名前で読みに来たとき。spec/12_modality_emulator.md の 17）
-        if renamed_to is None:
-            super().__init__(
-                f"Template not found: {template_name}",
-                {"template_name": template_name}
-            )
-            return
-        super().__init__(
-            f"Template not found: {template_name} (renamed to {renamed_to})",
-            {"template_name": template_name, "renamed_to": renamed_to}
-        )
+    def __init__(self, template_name: str, hint: str | None = None):
+        # hint: 古い名前（装置ごとのテンプレート）で読みに来たときの案内
+        # （装置のプロファイルの置き場へ。spec/13_device_profiles.md の 7.3）
+        details = {"template_name": template_name}
+        if hint is not None:
+            details["hint"] = hint
+        super().__init__(f"Template not found: {template_name}", details)
 
 class TemplateParseError(TemplateError):
     """テンプレートのパースエラー"""
