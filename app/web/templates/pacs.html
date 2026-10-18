@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}PACS{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2 class="panel-title">送り先</h2>
+  <div class="overflow-x-auto">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">名前</th>
+          <th scope="col">AE タイトル</th>
+          <th scope="col">住所</th>
+          <th scope="col">保管の確認</th>
+          <th scope="col"><span class="sr-only">C-ECHO</span></th>
+          <th scope="col">C-ECHO の結果</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for destination in destinations %}
+        <tr>
+          <td>{{ destination.name }}{% if destination.name == config.default_destination %} <span class="badge">既定</span>{% endif %}</td>
+          <td class="font-mono">{{ destination.ae_title }}</td>
+          <td class="font-mono">{{ destination.host }}:{{ destination.port }}</td>
+          <td>{{ "使う" if destination.storage_commitment else "使わない" }}</td>
+          <td>
+            <button type="button" class="btn btn-outline" hx-post="/pacs/echo/{{ destination.name|urlencode }}" hx-target="#echo-{{ loop.index }}" hx-disabled-elt="this">
+              <span class="icon icon-activity" aria-hidden="true"></span>C-ECHO
+            </button>
+          </td>
+          <td id="echo-{{ loop.index }}" class="text-xs text-label">—</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+<section class="panel">
+  <div class="mb-4 flex flex-wrap items-center gap-3">
+    <h2 class="panel-title mb-0">送信の待ち行列と履歴</h2>
+    <button type="button" class="btn btn-outline ml-auto" hx-post="/pacs/retry-failed" hx-target="#queue" hx-disabled-elt="this">
+      <span class="icon icon-refresh-cw" aria-hidden="true"></span>失敗をすべて再送
+    </button>
+  </div>
+  <div id="queue" hx-get="/pacs/queue" hx-trigger="{{ poll_trigger }}">
+    {% include "_queue.html" %}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,8 @@
+<span class="inline-flex items-center gap-1">
+  <span class="uid">{{ uid or "—" }}</span>
+  {% if uid %}
+  <button type="button" class="btn-icon" data-copy="{{ uid }}" aria-label="コピー" title="コピー">
+    <span class="icon icon-copy" aria-hidden="true"></span>
+  </button>
+  {% endif %}
+</span>

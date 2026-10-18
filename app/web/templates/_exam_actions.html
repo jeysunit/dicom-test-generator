@@ -1,0 +1,7 @@
+<div class="flex flex-wrap items-center justify-end gap-2">
+  {% if blocker %}<p role="alert" class="mr-auto text-danger">{{ blocker }}</p>{% endif %}
+  <button type="submit" name="action" value="exam" class="btn btn-outline"{% if blocker %} disabled{% endif %}>撮影</button>
+  <button type="submit" name="action" value="exam_send" class="btn btn-primary"{% if blocker %} disabled{% endif %}>
+    <span class="icon icon-send" aria-hidden="true"></span>撮影して送る
+  </button>
+</div>

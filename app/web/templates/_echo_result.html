@@ -1,0 +1,5 @@
+{% if result %}
+<span role="status" class="text-value">つながった（{{ result.elapsed_ms }} ms）</span>
+{% else %}
+<span role="alert" class="text-danger">つながらない（{{ error }}）</span>
+{% endif %}

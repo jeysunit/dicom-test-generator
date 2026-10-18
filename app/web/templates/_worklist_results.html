@@ -1,0 +1,61 @@
+{% if oob_band %}{% include "_band.html" %}{% endif %}
+{% if results.notice %}
+<p role="status" class="notice notice-ok">{{ results.notice }}</p>
+{% endif %}
+{% if not results.queried %}
+<p class="text-label">まだ引いていません。条件を選んで「引く」を押してください。</p>
+{% elif not results.rows %}
+<div class="panel space-y-3">
+  <p>{{ results.zero_message }}</p>
+  {% if results.non_ascii_hint %}<p class="text-xs text-label">{{ results.non_ascii_hint }}</p>{% endif %}
+  <a class="btn btn-outline" href="/exam">緊急の患者で撮る</a>
+</div>
+{% else %}
+<form id="pick" action="/exam" method="get" class="panel space-y-4">
+  <div class="overflow-x-auto">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col"><span class="sr-only">選ぶ</span></th>
+          <th scope="col">時刻</th>
+          <th scope="col">患者 ID</th>
+          <th scope="col">氏名</th>
+          <th scope="col">生年月日・性別</th>
+          <th scope="col">受付番号</th>
+          <th scope="col">検査の記述</th>
+          <th scope="col"><span class="sr-only">印</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item, marks in results.rows %}
+        {% set alphabetic, ideographic, phonetic = item.patient_name|name_parts %}
+        <tr>
+          <td><input type="radio" name="key" value="{{ item.key }}" required aria-label="この予約を選ぶ" hx-get="/worklist/item/{{ item.key }}" hx-target="#detail" hx-trigger="change"{% if item.key == results.selected %} checked{% endif %}></td>
+          <td>{{ item.scheduled_start_time|time_label }}</td>
+          <td class="font-mono">{{ item.patient_id }}</td>
+          <td>
+            <div class="font-semibold text-value">{{ ideographic or alphabetic }}</div>
+            {% if phonetic or (ideographic and alphabetic) %}<div class="text-xs text-label">{{ phonetic or alphabetic }}</div>{% endif %}
+          </td>
+          <td>{{ item|birth_label }}</td>
+          <td class="font-mono">{{ item.accession_number }}</td>
+          <td>{{ item.requested_procedure_description }}</td>
+          <td>{% for mark in marks %}<span class="badge">{{ mark }}</span>{% endfor %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="flex flex-wrap items-center gap-3">
+    <span class="text-xs text-label">{{ results.rows|length }} 件（{{ results.queried_at }} に引いた）</span>
+    {% if results.partial_message %}<span role="status" class="text-xs text-danger">{{ results.partial_message }}</span>{% endif %}
+    <div class="ml-auto flex flex-wrap gap-2">
+      <a class="btn btn-ghost" href="/exam">緊急の患者で撮る</a>
+      <button type="button" class="btn btn-outline" hx-post="/worklist/refresh" hx-include="#pick" hx-target="#results">
+        <span class="icon icon-refresh-cw" aria-hidden="true"></span>この予約を引き直す
+      </button>
+      <button type="submit" class="btn btn-primary">選んで撮影へ</button>
+    </div>
+  </div>
+</form>
+{% endif %}

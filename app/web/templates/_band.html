@@ -1,0 +1,9 @@
+<div id="band"{% if oob_band %} hx-swap-oob="true"{% endif %} class="border-t border-border">
+  <p class="mx-auto flex max-w-6xl flex-wrap gap-x-4 gap-y-1 px-4 py-1.5 text-xs text-label">
+    <span>自分: {{ band.own_ae }}</span>
+    <span>ワークリスト: {{ band.worklist_ae }}</span>
+    <span>送り先: {{ band.destination }}</span>
+    <span>文字: {% if band.worklist_charset is none %}未取得{% else %}{{ band.worklist_charset|charset_label }}{% endif %} → {{ band.image_charset|charset_label }}</span>
+    {% if band.error %}<span role="alert" class="text-danger">{{ band.error }}</span>{% endif %}
+  </p>
+</div>
