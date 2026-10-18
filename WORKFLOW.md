@@ -23,10 +23,16 @@ git branch --show-current
 ## レイヤー構造
 
 ```text
-GUI (app/gui/) ─┐
-CLI (app/cli/) ─┤→ Service Layer (app/services/) → Core Engine (app/core/)
-SCP (app/scp/) ─┘
+CLI (app/cli/) ─┬→ Modality (app/modality/) → Service (app/services/)
+                │                                   ↓
+GUI (app/gui/) ─┼→ Service (app/services/) ──→ Core (app/core/)
+SCP (app/scp/) ─┘→ Core (app/core/)
 ```
+
+- `app/modality/`（モダリティのダミーの通信と手順）は Service Layer の
+  一部として扱い、`app/services/`・`app/core/` だけを import する
+  （`spec/12_modality_emulator.md` 9 章）
+- `app/web/`（Phase 3b）は CLI と同じ所から `app/modality/` を呼ぶ
 
 上位レイヤーは下位レイヤーのみに依存する。逆方向の依存は禁止。
 
