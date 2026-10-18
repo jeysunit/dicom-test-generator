@@ -4,6 +4,11 @@
 
 PySide6を使用したデスクトップGUIアプリケーション。
 
+> この文書は生成の道具の画面の仕様。モダリティのダミーの画面
+> （ワークリスト・撮影・PACS・設定）はウェブの画面で、
+> [12_modality_emulator.md](12_modality_emulator.md) で決める
+> （ADR-0011）。
+
 **Phase**: Phase 2
 
 **依存**: Phase 0 (Core Engine), Phase 1 (Service Layer)
