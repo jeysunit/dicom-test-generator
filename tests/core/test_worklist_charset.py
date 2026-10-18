@@ -143,3 +143,30 @@ def test_ensure_dataset_encodable_accepts_ascii_without_character_set() -> None:
     ds.PatientName = "YAMADA^TARO"
 
     ensure_dataset_encodable(ds)
+
+
+@pytest.mark.parametrize("character_set", [JIS_KANA, ["ISO 2022 IR 13"], ["ISO_IR 13"]])
+def test_ir13_rejects_yen_and_overline(character_set: list[str]) -> None:
+    """IR 13 では ¥・‾ が 0x5C（値の区切り）・0x7E に化ける（spec/12 の 7.2）."""
+    assert find_unrepresentable_chars("A¥B", character_set) == ["¥"]
+    assert find_unrepresentable_chars("A‾B", character_set) == ["‾"]
+    assert find_unrepresentable_chars("｡ｱﾟ", character_set) == []
+
+
+def test_ensure_dataset_encodable_stops_on_yen_in_jis_kana() -> None:
+    ds = Dataset()
+    ds.SpecificCharacterSet = JIS_KANA
+    ds.PatientName = "A¥B"
+
+    with pytest.raises(WorklistMappingError) as exc_info:
+        ensure_dataset_encodable(ds)
+
+    assert exc_info.value.details == {
+        "attribute": "PatientName",
+        "characters": "¥",
+        "character_set": "ISO 2022 IR 13\\ISO 2022 IR 87",
+    }
+
+
+def test_yen_is_still_fine_in_utf8() -> None:
+    assert find_unrepresentable_chars("A¥B‾", UTF8) == []

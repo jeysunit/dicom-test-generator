@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
 
-from pydicom.charset import python_encoding
+from pydicom.charset import decode_bytes, python_encoding
 from pydicom.dataset import Dataset
 from pydicom.multival import MultiValue
 
@@ -31,6 +31,9 @@ _JIS_X_0201_TERMS = frozenset({"ISO 2022 IR 13", "ISO_IR 13"})
 _UTF8_TERMS = frozenset({"ISO_IR 192"})
 _JIS_X_0208_ESCAPES = (b"\x1b$B", b"\x1b$@")
 _ASCII_MAX = 0x7F
+# JIS X 0201 の半角カナの段（IR 13 の G1）
+_HALFWIDTH_KATAKANA_MIN = 0xA1
+_HALFWIDTH_KATAKANA_MAX = 0xDF
 
 
 def resolve_image_character_set(
@@ -118,12 +121,27 @@ def _term_accepts(term: str, char: str) -> bool:
             return False
         return any(escape in encoded for escape in _JIS_X_0208_ESCAPES)
     if term in _JIS_X_0201_TERMS:
-        try:
-            return len(char.encode("shift_jis")) == 1
-        except UnicodeEncodeError:
-            return False
+        return _ir13_accepts(term, char)
     codec = python_encoding.get(term)
     return codec is not None and _encodes(char, codec)
+
+
+def _ir13_accepts(term: str, char: str) -> bool:
+    """IR 13 で受けるのは半角カナ（0xA1〜0xDF）だけ（7.2）.
+
+    `¥`・`‾` は shift_jis で 0x5C・0x7E になり、読み戻すと `\\`（値の区切り）・
+    `~` に化ける。pydicom.charset で書いて読み戻し、元の字に戻るかも確かめる。
+    """
+    codec = python_encoding.get(term)
+    if codec is None:
+        return False
+    try:
+        encoded = char.encode(codec)
+    except UnicodeEncodeError:
+        return False
+    if len(encoded) != 1 or not _HALFWIDTH_KATAKANA_MIN <= encoded[0] <= _HALFWIDTH_KATAKANA_MAX:
+        return False
+    return decode_bytes(encoded, [codec], set()) == char
 
 
 def _encodes(char: str, codec: str) -> bool:
