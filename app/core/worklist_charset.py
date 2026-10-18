@@ -24,7 +24,7 @@ CHOICE_TO_CHARACTER_SET: dict[str, list[str]] = {
 }
 
 # 文字コードの影響を受ける VR（PS3.5 6.1.2.3）
-_TEXT_VRS = frozenset({"SH", "LO", "ST", "LT", "UT", "PN", "UC"})
+TEXT_VRS = frozenset({"SH", "LO", "ST", "LT", "UT", "PN", "UC"})
 _DEFAULT_REPERTOIRE_TERMS = frozenset({"", "ISO_IR 6", "ISO 2022 IR 6"})
 _JIS_X_0208_TERMS = frozenset({"ISO 2022 IR 87", "ISO_IR 87"})
 _JIS_X_0201_TERMS = frozenset({"ISO 2022 IR 13", "ISO_IR 13"})
@@ -160,7 +160,7 @@ def _iter_text_values(ds: Dataset, prefix: str) -> Iterator[tuple[str, str]]:
             for item in element.value:
                 yield from _iter_text_values(item, prefix=f"{path}>")
             continue
-        if element.VR not in _TEXT_VRS or element.value is None:
+        if element.VR not in TEXT_VRS or element.value is None:
             continue
         values = element.value if isinstance(element.value, (list, MultiValue)) else [element.value]
         for value in values:

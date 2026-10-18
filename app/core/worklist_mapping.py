@@ -8,12 +8,16 @@ Table A.1-2（予約なし）。
 from __future__ import annotations
 
 import hashlib
+import re
+from collections.abc import Iterator
 
 from pydicom.dataset import Dataset
 from pydicom.multival import MultiValue
 from pydicom.sequence import Sequence
 
 from .exceptions import WorklistMappingError
+from .uid_format import is_valid_uid
+from .worklist_charset import TEXT_VRS
 from .models import (
     PATIENT_ID_MAX_LENGTH,
     Patient,
@@ -33,6 +37,8 @@ CARRIER_PATIENT_NAME = "SCHEDULED^PATIENT"
 _REPLACEMENT_CHAR = "�"
 _BIRTH_DATE_LENGTH = 8
 _VALID_SEXES = frozenset({"", "M", "F", "O"})
+DS_MAX_LENGTH = 16
+_DECIMAL_STRING = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?")
 
 # 応答の一番上から写す Sequence
 _TOP_LEVEL_SEQUENCES = (
@@ -83,8 +89,8 @@ def worklist_item_from_identifier(identifier: Dataset) -> WorklistItem:
 
     sequences: dict[str, list[dict]] = {}
     for keyword in _TOP_LEVEL_SEQUENCES:
-        _collect_sequence(identifier, keyword, sequences)
-    _collect_sequence(sps, "ScheduledProtocolCodeSequence", sequences)
+        _collect_sequence(identifier, keyword, sequences, unreadable)
+    _collect_sequence(sps, "ScheduledProtocolCodeSequence", sequences, unreadable)
 
     values = {
         "patient_name": text(identifier, "PatientName"),
@@ -147,6 +153,13 @@ def scheduled_context_from_item(
         item.key,
     )
     _check_patient_values(item.birth_date, item.sex, item.key)
+    _check_decimal_string("PatientWeight", item.weight, item.key)
+    _check_decimal_string("PatientSize", item.size, item.key)
+    if item.study_instance_uid and not is_valid_uid(item.study_instance_uid):
+        raise WorklistMappingError(
+            "予約の Study Instance UID が UID の形ではありません",
+            {"attribute": "StudyInstanceUID", "worklist_key": item.key},
+        )
     if not item.patient_id:
         raise WorklistMappingError(
             "予約に Patient ID がありません",
@@ -337,6 +350,17 @@ def _check_patient_values(birth_date: str, sex: str, worklist_key: str) -> None:
         )
 
 
+def _check_decimal_string(attribute: str, value: str, worklist_key: str) -> None:
+    """空か DS（PS3.5 の Decimal String。16 字まで）であることを確かめる（6.5）."""
+    if not value:
+        return
+    if len(value) > DS_MAX_LENGTH or not _DECIMAL_STRING.fullmatch(value.strip(" ")):
+        raise WorklistMappingError(
+            f"予約の {attribute} が DS（10進の数）の形ではありません",
+            {"attribute": attribute, "worklist_key": worklist_key},
+        )
+
+
 def _first_item(ds: Dataset, keyword: str) -> Dataset:
     sequence = ds.get(keyword)
     if sequence:
@@ -344,10 +368,33 @@ def _first_item(ds: Dataset, keyword: str) -> Dataset:
     return Dataset()
 
 
-def _collect_sequence(ds: Dataset, keyword: str, sequences: dict[str, list[dict]]) -> None:
+def _collect_sequence(
+    ds: Dataset, keyword: str, sequences: dict[str, list[dict]], unreadable: list[str]
+) -> None:
+    """写す Sequence を DICOM JSON にし、中の読めない値を `Seq>Attr` の形で足す（5.4）."""
     sequence = ds.get(keyword)
-    if sequence:
-        sequences[keyword] = [item.to_json_dict() for item in sequence]
+    if not sequence:
+        return
+    for item in sequence:
+        for path in _unreadable_paths(item, prefix=f"{keyword}>"):
+            if path not in unreadable:
+                unreadable.append(path)
+    sequences[keyword] = [item.to_json_dict() for item in sequence]
+
+
+def _unreadable_paths(ds: Dataset, prefix: str) -> Iterator[str]:
+    """Sequence の項目の中（入れ子を含む）で、置き換えの字を含む文字の値の名前."""
+    for element in ds:
+        name = element.keyword or str(element.tag)
+        if element.VR == "SQ":
+            for item in element.value or []:
+                yield from _unreadable_paths(item, prefix=f"{prefix}{name}>")
+            continue
+        if element.VR not in TEXT_VRS or element.value is None:
+            continue
+        values = element.value if isinstance(element.value, MultiValue) else [element.value]
+        if any(_REPLACEMENT_CHAR in str(value) for value in values):
+            yield f"{prefix}{name}"
 
 
 def _sequence_from_json(items: list[dict]) -> Sequence:

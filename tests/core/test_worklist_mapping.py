@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import hashlib
+from io import BytesIO
 
 import pytest
+from pydicom import dcmread
 from pydicom.dataelem import RawDataElement
 from pydicom.dataset import Dataset, FileMetaDataset
+from pydicom.filebase import DicomBytesIO
+from pydicom.filewriter import write_dataset
 from pydicom.tag import Tag
 
 from app.core.exceptions import WorklistMappingError
@@ -352,3 +356,113 @@ def test_build_carrier_patient_handles_empty_birth_date() -> None:
     carrier = build_carrier_patient(patient, study_date="20261018")
     assert carrier.birth_date == "19800115"
     assert carrier.sex == "F"
+
+
+def _from_wire(ds: Dataset, replacements: dict[bytes, bytes]) -> Dataset:
+    """相手の SCP が送るバイト列に直し、値のバイトを置き換えて読み戻す（応答の形）."""
+    fp = DicomBytesIO()
+    fp.is_little_endian = True
+    fp.is_implicit_VR = True
+    write_dataset(fp, ds)
+    raw = fp.getvalue()
+    for old, new in replacements.items():
+        assert len(old) == len(new) and old in raw
+        raw = raw.replace(old, new)
+    return dcmread(BytesIO(raw), force=True)
+
+
+def _scheduled(item):
+    return scheduled_context_from_item(
+        item,
+        performed_procedure_step_id="PPS000001",
+        specific_character_set=UTF8,
+        source_ae_title="DTG_CT01",
+    )
+
+
+def test_item_from_identifier_marks_unreadable_value_in_sequences() -> None:
+    """写す Sequence の中（入れ子を含む）の読めない値も確かめる（spec/12 の 5.4）."""
+    ds = _identifier()
+    code = ds.RequestedProcedureCodeSequence[0]
+    code.CodeMeaning = "ZZZZ"
+    nested = Dataset()
+    nested.CodeMeaning = "YYYY"
+    code.ConceptNameCodeSequence = [nested]
+    ds.ScheduledProcedureStepSequence[0].ScheduledProtocolCodeSequence[0].CodeMeaning = "XXXX"
+
+    item = worklist_item_from_identifier(
+        _from_wire(ds, {b"ZZZZ": b"\xff\xfeAB", b"YYYY": b"\xff\xfeCD", b"XXXX": b"\xff\xfeEF"})
+    )
+
+    assert item.unreadable_attributes == [
+        "RequestedProcedureCodeSequence>CodeMeaning",
+        "RequestedProcedureCodeSequence>ConceptNameCodeSequence>CodeMeaning",
+        "ScheduledProtocolCodeSequence>CodeMeaning",
+    ]
+    with pytest.raises(WorklistMappingError) as exc_info:
+        _scheduled(item)
+    assert exc_info.value.details["attribute"] == "RequestedProcedureCodeSequence>CodeMeaning"
+
+
+def test_item_from_identifier_reads_clean_sequences() -> None:
+    item = worklist_item_from_identifier(_from_wire(_identifier(), {}))
+
+    assert item.unreadable_attributes == []
+
+
+@pytest.mark.parametrize("value", [b"abc ", b"1e  ", b"--1 ", b"1.2.", b"0x10", b"1 2 "])
+@pytest.mark.parametrize(("keyword", "placeholder"), [("PatientWeight", b"65.5"),
+                                                      ("PatientSize", b"1.72")])
+def test_scheduled_context_rejects_weight_and_size_not_ds(
+    keyword: str, placeholder: bytes, value: bytes
+) -> None:
+    """予約の Weight・Size が DS の形でなければ 4 で止める（spec/12 の 6.5）."""
+    item = worklist_item_from_identifier(_from_wire(_identifier(), {placeholder: value}))
+
+    with pytest.raises(WorklistMappingError) as exc_info:
+        _scheduled(item)
+
+    assert exc_info.value.details["attribute"] == keyword
+
+
+@pytest.mark.filterwarnings("ignore::UserWarning")
+def test_scheduled_context_rejects_ds_longer_than_16() -> None:
+    item = worklist_item_from_identifier(_identifier(PatientWeight="0.0000000000000001"))
+
+    with pytest.raises(WorklistMappingError) as exc_info:
+        _scheduled(item)
+
+    assert exc_info.value.details["attribute"] == "PatientWeight"
+
+
+@pytest.mark.parametrize("value", ["65", "65.5", "-1.5", "+.5", "1e3", "1.5E-02", "  7 ", ""])
+def test_scheduled_context_accepts_ds_forms(value: str) -> None:
+    item = worklist_item_from_identifier(_identifier()).model_copy(update={"weight": value})
+
+    _scheduled(item)
+
+
+@pytest.mark.filterwarnings("ignore::UserWarning")
+@pytest.mark.parametrize(
+    "uid",
+    ["1..2", "../x", "01.2", "1.02.3", "1.2.a", "1.2.", ".1.2", "1.2\x00", "1" * 65, "/1.2"],
+)
+def test_scheduled_context_rejects_bad_study_instance_uid(uid: str) -> None:
+    """予約の Study Instance UID の形を確かめ、外れたら 4 で止める（spec/12 の 6.5）."""
+    item = worklist_item_from_identifier(_identifier()).model_copy(
+        update={"study_instance_uid": uid}
+    )
+
+    with pytest.raises(WorklistMappingError) as exc_info:
+        _scheduled(item)
+
+    assert exc_info.value.details["attribute"] == "StudyInstanceUID"
+
+
+@pytest.mark.parametrize("uid", ["0.1.2", "2.25.0", "1.2.840.10008.1.2.1", "1." + "2" * 62])
+def test_scheduled_context_accepts_valid_study_instance_uid(uid: str) -> None:
+    item = worklist_item_from_identifier(_identifier()).model_copy(
+        update={"study_instance_uid": uid}
+    )
+
+    assert _scheduled(item).study_instance_uid == uid
