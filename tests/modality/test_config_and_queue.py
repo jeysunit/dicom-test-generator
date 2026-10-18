@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -173,3 +175,64 @@ def test_stale_sending_is_listed_and_reset_to_failed(tmp_path) -> None:
     assert "stale" in stale.last_error
     assert queue.get_job(fresh_id).status == "sending"
     assert queue.reset_stale_sending() == []
+
+
+def test_progress_keeps_long_send_fresh(tmp_path) -> None:
+    """送っている間はファイルごとに時刻を進め、長い送信を止まったとみなさない（8.2）."""
+    db_path = tmp_path / "queue.sqlite3"
+    queue = SendQueue(db_path)
+    job_id = queue.add_job("exam", "PACS_TEST", ["a.dcm", "b.dcm"])
+    token = queue.mark_sending(job_id)
+    age_job(db_path, job_id, STALE_SENDING_SECONDS + 60)
+
+    queue.touch_sending(job_id, token)
+
+    assert queue.get_job(job_id).stale is False
+    assert queue.reset_stale_sending() == []
+
+
+def test_old_sender_cannot_overwrite_after_stale_takeover(tmp_path) -> None:
+    """止まったとみなして引き取った後、古い手順は進み・結果・失敗を書けない（8.2）."""
+    db_path = tmp_path / "queue.sqlite3"
+    queue = SendQueue(db_path)
+    job_id = queue.add_job("exam", "PACS_TEST", ["a.dcm"])
+    old_token = queue.mark_sending(job_id)
+    age_job(db_path, job_id, STALE_SENDING_SECONDS + 60)
+    assert queue.reset_stale_sending() == [job_id]
+    new_token = queue.mark_sending(job_id)
+    assert new_token != old_token
+    success = [StoreFileResult(path="a.dcm", sop_instance_uid="1", status=0, outcome="success")]
+    failure = [
+        StoreFileResult(
+            path="a.dcm", sop_instance_uid="1", status=0xA700, outcome="failure",
+            reason="status 0xA700",
+        )
+    ]
+
+    with pytest.raises(ModalityError):
+        queue.touch_sending(job_id, old_token)
+    with pytest.raises(ModalityError):
+        queue.record_results(job_id, failure, token=old_token)
+    with pytest.raises(ModalityError):
+        queue.record_job_failure(job_id, "late failure", token=old_token)
+    assert queue.get_job(job_id).status == "sending"
+    assert queue.unsent_files(job_id) == ["a.dcm"]
+
+    assert queue.record_results(job_id, success, token=new_token) == "sent"
+    assert queue.get_job(job_id).last_error == ""
+
+
+def test_queue_adds_token_column_to_older_database(tmp_path) -> None:
+    db_path = tmp_path / "queue.sqlite3"
+    with closing(sqlite3.connect(db_path)) as conn, conn:
+        conn.execute(
+            "CREATE TABLE jobs (id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT NOT NULL,"
+            " updated_at TEXT NOT NULL, folder TEXT NOT NULL, destination TEXT NOT NULL,"
+            " accession_number TEXT NOT NULL DEFAULT '', status TEXT NOT NULL,"
+            " attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '')"
+        )
+
+    queue = SendQueue(db_path)
+    job_id = queue.add_job("exam", "PACS_TEST", ["a.dcm"])
+
+    assert queue.mark_sending(job_id)

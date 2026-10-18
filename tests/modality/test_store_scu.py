@@ -17,7 +17,7 @@ from app.core import (
     StudyConfig,
     TransferSyntaxConfig,
 )
-from app.core.exceptions import AssociationError
+from app.core.exceptions import AssociationError, ModalityError
 from app.modality.config import DestinationConfig
 from app.modality.store_scu import echo, store_files
 from app.services import StudyGeneratorService
@@ -75,6 +75,33 @@ def test_store_success(storage_scp, dicom_files) -> None:
     assert {r.sop_instance_uid for r in results} == {
         str(ds.SOPInstanceUID) for ds in storage_scp.received
     }
+
+
+def test_store_reports_progress_per_file(storage_scp, dicom_files) -> None:
+    """送っている間、ファイルごとに知らせる（待ち行列の送信中の時刻を進めるため。8.2）."""
+    calls: list[int] = []
+
+    store_files(
+        OWN_AE, _node(storage_scp.port), dicom_files, timeout_seconds=5,
+        on_progress=lambda: calls.append(len(storage_scp.received)),
+    )
+
+    assert calls == [1, 2, 3]
+
+
+def test_store_stops_when_progress_raises(storage_scp, dicom_files) -> None:
+    """送る権利を失ったら（止まったとみなされ引き取られたら）、残りを送らない."""
+
+    def lost_ownership() -> None:
+        raise ModalityError("taken over")
+
+    with pytest.raises(ModalityError):
+        store_files(
+            OWN_AE, _node(storage_scp.port), dicom_files, timeout_seconds=5,
+            on_progress=lost_ownership,
+        )
+
+    assert len(storage_scp.received) == 1
 
 
 def test_store_warning_counts_as_sent(storage_scp, dicom_files) -> None:

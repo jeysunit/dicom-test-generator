@@ -337,15 +337,22 @@ class ModalityService:
         error = ""
         pending = [Path(path) for path in files]
         for _attempt in range(attempts):
-            self.queue.mark_sending(job_id)
+            token = self.queue.mark_sending(job_id)
             try:
-                results = store_files(self.config.ae_title, node, pending, node.timeout_seconds)
+                results = store_files(
+                    self.config.ae_title,
+                    node,
+                    pending,
+                    node.timeout_seconds,
+                    # 1ファイルごとに時刻を進め、札が違えば（引き取られたら）残りを送らない
+                    on_progress=lambda token=token: self.queue.touch_sending(job_id, token),
+                )
             except AssociationError as exc:
                 error = str(exc)
-                self.queue.record_job_failure(job_id, error)
+                self.queue.record_job_failure(job_id, error, token=token)
                 logger.warning("Send failed: job_id=%s destination=%s", job_id, node.name)
                 continue
-            status = self.queue.record_results(job_id, results)
+            status = self.queue.record_results(job_id, results, token=token)
             if status == "sent":
                 error = ""
                 break

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Literal
 
@@ -89,10 +89,13 @@ def store_files(
     node: NodeConfig,
     paths: Sequence[Path],
     timeout_seconds: float,
+    on_progress: Callable[[], None] | None = None,
 ) -> list[StoreFileResult]:
     """1つの検査の画像を、1つの Association で送る（8.2）.
 
     Association を張れなければ AssociationError。ファイルごとの成否は結果に残す。
+    `on_progress` は1ファイルを送るたびに呼ぶ（待ち行列の送信中の時刻を進める）。
+    そこで例外が起きたら（送る権利を失ったら）、残りを送らずに Association を閉じて上げる。
     """
     readable, results = _read_headers(paths)
     contexts: dict[str, set[str]] = {}
@@ -118,6 +121,8 @@ def store_files(
     try:
         for path, sop_uid, _sop_class, _ts in readable:
             results.append(_store_one(assoc, path, sop_uid))
+            if on_progress is not None:
+                on_progress()
     finally:
         if assoc.is_established:
             assoc.release()

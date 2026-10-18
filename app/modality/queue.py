@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 import sqlite3
 from collections.abc import Iterator, Sequence
 from contextlib import closing, contextmanager
@@ -21,6 +22,7 @@ QUEUE_DB_NAME = "queue.sqlite3"
 # 送信中のままこの秒数より長く変わらない件は、送る手順が途中で落ちたとみなす（8.2）
 STALE_SENDING_SECONDS = 30 * 60
 STALE_SENDING_ERROR = "stale sending: the sender stopped before recording the result"
+SEND_TOKEN_BYTES = 16
 _SENDABLE_STATUSES: tuple[str, ...] = ("pending", "failed")
 _SENDABLE_PLACEHOLDERS = ", ".join("?" for _ in _SENDABLE_STATUSES)
 
@@ -35,7 +37,8 @@ _SCHEMA = (
         accession_number TEXT NOT NULL DEFAULT '',
         status TEXT NOT NULL,
         attempts INTEGER NOT NULL DEFAULT 0,
-        last_error TEXT NOT NULL DEFAULT ''
+        last_error TEXT NOT NULL DEFAULT '',
+        send_token TEXT NOT NULL DEFAULT ''
     )
     """,
     """
@@ -91,6 +94,12 @@ class SendQueue:
             with self._connect() as conn:
                 for statement in _SCHEMA:
                     conn.execute(statement)
+                columns = {row[1] for row in conn.execute("PRAGMA table_info(jobs)")}
+                if "send_token" not in columns:
+                    # 札の列が無い前の版の待ち行列に足す
+                    conn.execute(
+                        "ALTER TABLE jobs ADD COLUMN send_token TEXT NOT NULL DEFAULT ''"
+                    )
         except (OSError, sqlite3.Error) as exc:
             raise ModalityError(
                 f"Failed to open the send queue: {db_path}",
@@ -114,16 +123,22 @@ class SendQueue:
             )
         return job_id
 
-    def mark_sending(self, job_id: int) -> None:
-        """待ち・失敗の件だけを送信中にする。同じ件を2つの手順が同時に送らない（8.2）."""
+    def mark_sending(self, job_id: int) -> str:
+        """待ち・失敗の件だけを送信中にし、送る権利の札を返す（8.2）.
+
+        同じ件を2つの手順が同時に送らない。札は touch_sending・record_results・
+        record_job_failure に渡し、止まったとみなされて別の手順が引き取った後に、
+        古い手順が書き込めないようにする。
+        """
+        token = secrets.token_hex(SEND_TOKEN_BYTES)
         with self._connect() as conn:
             cursor = conn.execute(
-                "UPDATE jobs SET status = 'sending', attempts = attempts + 1, updated_at = ?"
-                f" WHERE id = ? AND status IN ({_SENDABLE_PLACEHOLDERS})",
-                (_now(), job_id, *_SENDABLE_STATUSES),
+                "UPDATE jobs SET status = 'sending', attempts = attempts + 1, updated_at = ?,"
+                f" send_token = ? WHERE id = ? AND status IN ({_SENDABLE_PLACEHOLDERS})",
+                (_now(), token, job_id, *_SENDABLE_STATUSES),
             )
             if cursor.rowcount == 1:
-                return
+                return token
             row = conn.execute("SELECT status FROM jobs WHERE id = ?", (job_id,)).fetchone()
         if row is None:
             raise ModalityError(f"Queue job not found: {job_id}", {"job_id": job_id})
@@ -146,17 +161,29 @@ class SendQueue:
             reset: list[int] = []
             for (job_id,) in rows:
                 cursor = conn.execute(
-                    "UPDATE jobs SET status = 'failed', last_error = ?, updated_at = ?"
-                    " WHERE id = ? AND status = 'sending' AND updated_at < ?",
+                    "UPDATE jobs SET status = 'failed', last_error = ?, updated_at = ?,"
+                    " send_token = '' WHERE id = ? AND status = 'sending' AND updated_at < ?",
                     (STALE_SENDING_ERROR, _now(), job_id, cutoff),
                 )
                 if cursor.rowcount == 1:
                     reset.append(int(job_id))
         return reset
 
-    def record_results(self, job_id: int, results: Sequence[StoreFileResult]) -> JobStatus:
-        """ファイルごとの結果を残し、検査の状態（送れた・失敗）を決めて返す."""
+    def touch_sending(self, job_id: int, token: str) -> None:
+        """送っている間に時刻を進める（長い送信を止まったとみなさない）。札が違えば止める."""
         with self._connect() as conn:
+            self._claim(conn, job_id, token)
+
+    def record_results(
+        self, job_id: int, results: Sequence[StoreFileResult], token: str | None = None
+    ) -> JobStatus:
+        """ファイルごとの結果を残し、検査の状態（送れた・失敗）を決めて返す.
+
+        `token` を渡すと、その札の送信中のときだけ書く（違えば ModalityError で何も書かない）。
+        """
+        with self._connect() as conn:
+            if token is not None:
+                self._claim(conn, job_id, token)
             for result in results:
                 conn.execute(
                     "UPDATE job_files SET sop_instance_uid = ?, status = ?, status_code = ?,"
@@ -176,22 +203,42 @@ class SendQueue:
             status: JobStatus = "failed" if failed else "sent"
             last_error = failed[0][0] if failed else ""
             conn.execute(
-                "UPDATE jobs SET status = ?, last_error = ?, updated_at = ? WHERE id = ?",
+                "UPDATE jobs SET status = ?, last_error = ?, updated_at = ?, send_token = ''"
+                " WHERE id = ?",
                 (status, last_error, _now(), job_id),
             )
         return status
 
-    def record_job_failure(self, job_id: int, reason: str) -> None:
-        """Association を張れないなど、ファイルに届く前の失敗を残す."""
+    def record_job_failure(self, job_id: int, reason: str, token: str | None = None) -> None:
+        """Association を張れないなど、ファイルに届く前の失敗を残す.
+
+        `token` を渡すと、その札の送信中のときだけ書く（違えば ModalityError で何も書かない）。
+        """
         with self._connect() as conn:
+            if token is not None:
+                self._claim(conn, job_id, token)
             conn.execute(
                 "UPDATE job_files SET status = 'failed', error = ? WHERE job_id = ?"
                 " AND status != 'sent'",
                 (reason, job_id),
             )
             conn.execute(
-                "UPDATE jobs SET status = 'failed', last_error = ?, updated_at = ? WHERE id = ?",
+                "UPDATE jobs SET status = 'failed', last_error = ?, updated_at = ?, send_token = ''"
+                " WHERE id = ?",
                 (reason, _now(), job_id),
+            )
+
+    @staticmethod
+    def _claim(conn: sqlite3.Connection, job_id: int, token: str) -> None:
+        """札の送信中なら時刻を進める。違えば止める（同じ取引の中の書き込みは巻き戻る）."""
+        cursor = conn.execute(
+            "UPDATE jobs SET updated_at = ? WHERE id = ? AND status = 'sending' AND send_token = ?",
+            (_now(), job_id, token),
+        )
+        if cursor.rowcount != 1:
+            raise ModalityError(
+                f"Queue job is no longer owned by this sender: {job_id}",
+                {"job_id": job_id, "hint": "it was reset as stale or finished elsewhere"},
             )
 
     def unsent_files(self, job_id: int) -> list[str]:
