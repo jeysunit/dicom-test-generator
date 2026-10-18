@@ -22,9 +22,16 @@ tqdm>=4.0.0
 # GUI framework (Phase 2)
 PySide6>=6.5.0
 
+# Web UI of the modality emulator (Phase 3b, spec/12 10.1. Approved 2026-10-18)
+fastapi>=0.110
+uvicorn>=0.29
+jinja2>=3.1
+python-multipart>=0.0.9
+
 # Testing
 pytest>=7.0
 pytest-qt>=4.0.0
+httpx>=0.27  # FastAPI の TestClient（Phase 3b）
 
 # Documentation (optional)
 # mkdocs>=1.5.0

@@ -7,10 +7,12 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from datetime import date, datetime
 from pathlib import Path
 
 from pydantic import BaseModel, Field
+from pydantic import ValidationError as PydanticValidationError
 from pydicom import dcmread
 
 from app.core.exceptions import (
@@ -20,6 +22,9 @@ from app.core.exceptions import (
     FileReadError,
     FileWriteError,
     ModalityError,
+    ProfileError,
+    ProfileMismatchError,
+    ValidationError,
     WorklistQueryError,
 )
 from app.core.models import (
@@ -36,6 +41,8 @@ from app.core.models import (
     WorklistItem,
 )
 from app.core.path_safety import ensure_within, safe_path_component
+from app.core.person_name import GROUP_SEPARATOR, compose_person_name
+from app.core.validation_text import describe_validation_error
 from app.core.worklist_charset import resolve_image_character_set
 from app.core.worklist_mapping import (
     build_carrier_patient,
@@ -43,7 +50,8 @@ from app.core.worklist_mapping import (
     ensure_modality_matches,
     scheduled_context_from_item,
 )
-from app.services import StudyGeneratorService, TemplateLoaderService
+from app.services import ProfileLoaderService, StudyGeneratorService, TemplateLoaderService
+from app.services.profile_loader import profile_transfer_syntax
 
 from .config import ModalityConfig
 from .queue import QUEUE_DB_NAME, QueueJob, SendQueue
@@ -61,6 +69,22 @@ PPS_ID_PREFIX = "PPS"
 COUNTER_WIDTH = 6
 DEFAULT_TEMPLATE_MODALITY = "CT"
 MAX_FOLDER_SUFFIX = 100
+EXAM_BUSY_MESSAGE = "ほかの撮影が走っています。終わってから撮ってください"
+
+
+def check_send_files(folder: Path, files: list[str]) -> None:
+    """送るファイルを確かめる：symbolic link を断り、フォルダの中の普通のファイルだけ（8.2）.
+
+    中を指す link も断る（送るまでに指す先を替えられるため）。外れたら FileReadError。
+    """
+    root = folder.resolve()
+    for name in files:
+        path = Path(name)
+        if path.is_symlink():
+            raise FileReadError(name, "symbolic links are not sent")
+        resolved = path.resolve()
+        if resolved.parent != root or not resolved.is_file():
+            raise FileReadError(name, f"not a regular file directly inside {root}")
 
 
 class ExamRequest(BaseModel):
@@ -73,6 +97,7 @@ class ExamRequest(BaseModel):
     emergency_patient: ScheduledPatient | None = None
     study_description: str = ""
     template: str | None = None
+    profile: str | None = None
     hospital: str | None = None
     images_per_series: list[int] = Field(default_factory=lambda: [1], min_length=1)
     pixel_mode: str | None = None
@@ -103,6 +128,28 @@ class SendResult(BaseModel):
     error: str = ""
 
 
+class WorklistState(BaseModel):
+    """最後に引いたワークリスト（状態の置き場に保存した物。5.4）."""
+
+    model_config = {"frozen": True}
+
+    queried_at: str = ""
+    response_character_set: list[str] = Field(default_factory=list)
+    partial: bool = False
+    items: list[WorklistItem] = Field(default_factory=list)
+
+
+class ProfileInfo(BaseModel):
+    """撮影の画面の「装置」に並べる、装置のプロファイルの要約."""
+
+    model_config = {"frozen": True}
+
+    name: str
+    modality: str
+    manufacturer: str
+    model_name: str
+
+
 class ModalityService:
     """ワークリストを引く・予約で撮る・送る、の手順."""
 
@@ -111,12 +158,16 @@ class ModalityService:
         config: ModalityConfig,
         generator: StudyGeneratorService | None = None,
         template_loader: TemplateLoaderService | None = None,
+        profile_loader: ProfileLoaderService | None = None,
     ) -> None:
         self.config = config
-        self._generator = generator or StudyGeneratorService()
+        self._profile_loader = profile_loader or ProfileLoaderService()
+        self._generator = generator or StudyGeneratorService(self._profile_loader)
         self._template_loader = template_loader or TemplateLoaderService()
         self._state_dir = Path(config.state_dir)
         self._queue: SendQueue | None = None
+        # 同時に走る撮影は1つ（画面のプロセスの中。spec/12 の 10.5）
+        self._exam_lock = threading.Lock()
 
     @property
     def queue(self) -> SendQueue:
@@ -150,12 +201,19 @@ class ModalityService:
         return result
 
     def last_worklist(self) -> list[WorklistItem]:
+        return self.last_worklist_state().items
+
+    def last_worklist_state(self) -> WorklistState:
+        """最後に引いた結果を、引いた時刻・応答の文字コードと一緒に返す（画面の帯。7.1）."""
         path = self._state_dir / WORKLIST_STATE_FILE
         if not path.exists():
-            return []
+            return WorklistState()
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-            return [WorklistItem.model_validate(raw) for raw in data.get("items", [])]
+            return WorklistState.model_validate(data)
+        except PydanticValidationError as exc:
+            # 値（氏名など）を出さず、項目の名前と原因だけにする（spec/12 の 12 章）
+            raise FileReadError(str(path), describe_validation_error(exc)) from exc
         except (OSError, ValueError) as exc:
             raise FileReadError(str(path), str(exc)) from exc
 
@@ -196,6 +254,52 @@ class ModalityService:
 
     # --- 撮影 -----------------------------------------------------------
 
+    @staticmethod
+    def emergency_person_name(alphabetic: str, ideographic: str, phonetic: str) -> str:
+        """手で入れた3つの氏名の欄を PN にする。空白は `^` にする（spec/12 の 10.5）.
+
+        画面のスクリプトの置き換えは補助で、ここで必ず同じ置き換えをする。
+        """
+        return compose_person_name(alphabetic, ideographic, phonetic)
+
+    def image_character_set(
+        self, worklist_character_set: list[str] | None, choice: str | None = None
+    ) -> list[str]:
+        """画像に使う文字コード（7.1）。`choice` が無ければ設定の既定."""
+        return resolve_image_character_set(
+            choice or self.config.character_set,
+            worklist_character_set,
+            self.config.character_set_fallback,
+        )
+
+    def available_templates(self) -> list[str]:
+        return self._template_loader.list_modality_templates()
+
+    def available_profiles(self) -> tuple[list[ProfileInfo], list[ProfileError]]:
+        """読める装置のプロファイルと、読めなかった物の誤り（spec/13 の 7.2）."""
+        entries, errors = self._profile_loader.list_profiles()
+        infos = [
+            ProfileInfo(
+                name=entry.name,
+                modality=entry.profile.device.modality,
+                manufacturer=entry.profile.device.manufacturer,
+                model_name=entry.profile.device.manufacturers_model_name,
+            )
+            for entry in entries
+        ]
+        return infos, errors
+
+    def check_profile_modality(self, profile_name: str | None, modality: str) -> None:
+        """プロファイルのモダリティが予約・テンプレートと違えば止める（spec/13 の 8）."""
+        if not profile_name:
+            return
+        profile = self._profile_loader.load(profile_name)
+        if profile.device.modality != modality:
+            raise ProfileMismatchError(
+                f"Device profile modality {profile.device.modality} does not match {modality}",
+                {"profile": profile_name},
+            )
+
     def template_modality(self, template_name: str) -> str:
         template = self._template_loader.load_modality_template(template_name)
         info = template.get("info", {})
@@ -204,6 +308,22 @@ class ModalityService:
         return DEFAULT_TEMPLATE_MODALITY
 
     def exam(self, request: ExamRequest) -> ExamResult:
+        """予約（または緊急の患者）で撮る。量の上限と、同時に1つだけを守る（10.5）."""
+        total = sum(request.images_per_series)
+        limit = self.config.max_images_per_exam
+        if total > limit:
+            raise ValidationError(
+                f"1回の撮影は合計 {limit} 枚までです（{total} 枚を求められました）",
+                {"max_images_per_exam": limit, "requested": total},
+            )
+        if not self._exam_lock.acquire(blocking=False):
+            raise ModalityError(EXAM_BUSY_MESSAGE)
+        try:
+            return self._exam(request)
+        finally:
+            self._exam_lock.release()
+
+    def _exam(self, request: ExamRequest) -> ExamResult:
         if (request.worklist_key is None) == (request.emergency_patient is None):
             raise ConfigurationError(
                 "Specify exactly one of worklist_key or emergency_patient",
@@ -242,6 +362,12 @@ class ModalityService:
             emergency_patient = request.emergency_patient
             if emergency_patient is None:
                 raise ConfigurationError("emergency_patient is required for an emergency exam")
+            if not emergency_patient.patient_name.split(GROUP_SEPARATOR, 1)[0].strip():
+                # 緊急の患者の氏名（英字）は必須（spec/12 の 10.5）。画面と CLI の両方に効く
+                raise ValidationError(
+                    "緊急の患者の氏名（英字）は必須です",
+                    {"patient_id": emergency_patient.patient_id},
+                )
             character_set = resolve_image_character_set(
                 choice, None, self.config.character_set_fallback
             )
@@ -298,8 +424,21 @@ class ModalityService:
         files = sorted(str(path) for path in folder_path.glob("*.dcm"))
         if not files:
             raise FileReadError(str(folder_path), "No .dcm files in the folder")
+        # 待ち行列に入れる前に、送ってよいファイルかを確かめる（8.2）
+        check_send_files(folder_path, files)
         job_id = self.queue.add_job(str(folder_path), node.name, files)
         return self._send_job(job_id, files)
+
+    def send_exam_output(self, folder: str, destination: str | None = None) -> SendResult:
+        """撮影の出力のフォルダを送る。出力の根の中のフォルダだけを受ける（6.5）.
+
+        画面のフォームから来るフォルダの名前は信用しない。根の外を指せば送らずに止める。
+        """
+        root = Path(self.config.output_dir)
+        resolved = ensure_within(root, Path(folder))
+        if resolved == root.resolve():
+            raise FileWriteError(str(folder), "the output root itself is not an exam folder")
+        return self.send(str(resolved), destination)
 
     def retry(
         self, job_id: int | None = None, all_failed: bool = False, stale: bool = False
@@ -338,6 +477,14 @@ class ModalityService:
         pending = [Path(path) for path in files]
         for _attempt in range(attempts):
             token = self.queue.mark_sending(job_id)
+            try:
+                # 再送でも確かめる。入れた後にファイルが替えられても送らない（8.2）
+                check_send_files(Path(job.folder), [str(path) for path in pending])
+            except FileReadError as exc:
+                error = str(exc)
+                self.queue.record_job_failure(job_id, error, token=token)
+                logger.warning("Send refused: job_id=%s unsafe file in the folder", job_id)
+                break
             try:
                 results = store_files(
                     self.config.ae_title,
@@ -405,6 +552,12 @@ class ModalityService:
         else:
             raise ConfigurationError("Unsupported pixel mode", {"pixel_mode": pixel_mode})
         study_date = now.strftime("%Y%m%d")
+        profile_name = request.profile or self.config.default_profile
+        transfer_syntax = (
+            profile_transfer_syntax(self._profile_loader.load(profile_name))
+            if profile_name
+            else TransferSyntaxConfig()
+        )
         return GenerationConfig(
             job_name=f"exam_{request.worklist_key or EMERGENCY_FOLDER_NAME}",
             output_dir=str(output_dir),
@@ -420,9 +573,10 @@ class ModalityService:
                 for index, count in enumerate(request.images_per_series)
             ],
             modality_template=template,
+            device_profile=profile_name,
             hospital_template=request.hospital or self.config.default_hospital,
             pixel_spec=pixel_spec,
-            transfer_syntax=TransferSyntaxConfig(),
+            transfer_syntax=transfer_syntax,
             character_set=CharacterSetConfig(
                 specific_character_set="\\".join(ctx.specific_character_set),
                 use_ideographic=True,

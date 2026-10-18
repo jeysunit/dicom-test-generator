@@ -47,3 +47,7 @@ output/
 
 # Modality emulator state (spec/12)
 modality_state/
+
+# Downloaded build tools and assets for the web UI (scripts/build_css.sh,
+# scripts/fetch_web_assets.sh). The results are committed under app/web/static/.
+.cache/

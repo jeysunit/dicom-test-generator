@@ -9,6 +9,7 @@ import yaml
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from app.core.exceptions import ModalityConfigError
+from app.core.validation_text import describe_validation_error
 
 AE_TITLE_MAX_LENGTH = 16
 PORT_MIN = 1
@@ -20,6 +21,7 @@ DEFAULT_MAX_RESULTS = 1000
 MAX_RESULTS_LIMIT = 100_000
 DEFAULT_MAX_ITEM_BYTES = 256 * 1024
 DEFAULT_MAX_TOTAL_BYTES = 16 * 1024 * 1024
+DEFAULT_MAX_IMAGES_PER_EXAM = 2000  # 1回の撮影の合計の枚数（spec/12 の 10.5）
 _PRINTABLE_ASCII_MIN = 0x20
 _PRINTABLE_ASCII_MAX = 0x7E
 
@@ -97,12 +99,14 @@ class ModalityConfig(BaseModel):
     character_set: CharacterSetChoice = "auto"
     character_set_fallback: FallbackChoice = "utf8"
     default_template: str = "ct_generic"
+    default_profile: str | None = None  # 装置のプロファイル（spec/13 の 8）。None は重ねない
     default_hospital: str | None = None
     default_pixel_mode: PixelMode = "ct_realistic"
     worklist: WorklistPeerConfig
     destinations: list[DestinationConfig] = Field(..., min_length=1)
     default_destination: str
     retry: RetryConfig = Field(default_factory=RetryConfig)
+    max_images_per_exam: int = Field(DEFAULT_MAX_IMAGES_PER_EXAM, ge=1)
 
     @field_validator("ae_title")
     @classmethod
@@ -163,5 +167,5 @@ def load_modality_config(config_path: Path) -> ModalityConfig:
     except ValidationError as exc:
         raise ModalityConfigError(
             "Invalid modality configuration",
-            {"config_path": str(config_path), "reason": str(exc)},
+            {"config_path": str(config_path), "reason": describe_validation_error(exc)},
         ) from exc

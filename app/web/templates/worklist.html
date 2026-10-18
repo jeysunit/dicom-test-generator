@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}ワークリスト{% endblock %}
+{% block content %}
+{% if load_error %}
+{% with error = load_error %}{% include "_notice.html" %}{% endwith %}
+{% endif %}
+<section class="panel">
+  <form id="query-form" hx-post="/worklist/query" hx-target="#results" hx-disabled-elt="find button" class="grid gap-4 sm:grid-cols-3">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label class="field">
+      <span class="field-label">予定の日</span>
+      <select name="day" class="input">
+        {% for value, label in day_choices %}
+        <option value="{{ value }}"{% if value == "today" %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="field">
+      <span class="field-label">日付（日付を指定のとき）</span>
+      <input type="date" name="date" class="input">
+    </label>
+    <label class="field">
+      <span class="field-label">モダリティ（空で絞らない）</span>
+      <input type="text" name="modality" value="{{ default_modality }}" class="input" maxlength="16">
+    </label>
+    <label class="field">
+      <span class="field-label">予定の AE</span>
+      <select name="station" class="input">
+        <option value="own" selected>自分（{{ config.ae_title }}）</option>
+        <option value="any">絞らない</option>
+      </select>
+    </label>
+    <label class="field">
+      <span class="field-label">患者 ID</span>
+      <input type="text" name="patient_id" class="input" maxlength="64">
+    </label>
+    <label class="field">
+      <span class="field-label">氏名</span>
+      <input type="text" name="patient_name" class="input" maxlength="64">
+    </label>
+    <label class="field">
+      <span class="field-label">受付番号</span>
+      <input type="text" name="accession" class="input" maxlength="16">
+    </label>
+    <div class="flex items-end justify-end sm:col-span-2">
+      <button type="submit" class="btn btn-outline">
+        <span class="icon icon-search" aria-hidden="true"></span>ワークリストを取得
+      </button>
+    </div>
+  </form>
+</section>
+<section id="results" aria-live="polite">
+  {% if results %}{% include "_worklist_results.html" %}{% endif %}
+</section>
+<section id="detail"></section>
+{% endblock %}

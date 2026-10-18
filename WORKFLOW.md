@@ -46,7 +46,7 @@ SCP (app/scp/) ─┘→ Core (app/core/)
 | Phase 2b | GUI フル機能（メニュー、ダイアログ、スタイル） | 進めない（PySide6 の画面は凍結。ADR-0011 の案 B） |
 | Phase 1.5 | Storage SCP（PyNetDICOM） | ✅ 完了 |
 | Phase 3a | モダリティのダミー：ワークリスト（C-FIND MWL）・予約からの生成・送信（C-STORE・C-ECHO）を CLI で（`spec/12_modality_emulator.md`） | ✅ 完了（CLI） |
-| Phase 3b | モダリティのダミー：ウェブの画面（ワークリスト・撮影・PACS・設定） | 仕様は承認済み・未着手 |
+| Phase 3b | モダリティのダミー：ウェブの画面（ワークリスト・撮影・PACS・設定） | ✅ 完了（`python -m app.web`） |
 | Phase 3c | モダリティのダミー：保管の確認（Storage Commitment）・MPPS（選べる形） | 仕様は承認済み・未着手 |
 
 ## テスト実行
@@ -61,6 +61,7 @@ pytest tests/services/ -v
 pytest tests/scp/ -v
 pytest tests/cli/ -v
 pytest tests/gui/ -v
+pytest tests/web/ -v
 
 # カバレッジ
 pytest --cov=app --cov-report=term-missing
@@ -76,6 +77,9 @@ QT_QPA_PLATFORM=offscreen pytest
 - pytest（Python 3.10・3.12）。GUI の試験は Qt の offscreen の描き先で
   動かす（X のサーバーを立てない）
 - markdownlint（`.markdownlint-cli2.yaml` の設定）
+- 画面の CSS：`scripts/build_css.sh`（版と sha256 を固定した Tailwind CSS の
+  standalone の実行ファイル）で作り直し、commit した `app/web/static/app.css` と
+  差が無いことを確かめる
 
 ruff は、設定のファイルが無く、いまのコードに指摘が残っているため、
 CI にはまだ入れていない。
@@ -100,6 +104,9 @@ python -m app.cli exam --from-worklist <鍵> -s 2 -i 1,20 --send
 python -m app.cli exam --emergency --patient-id E0001 --patient-name "KINKYU^TARO"
 python -m app.cli queue list --status failed
 python -m app.cli queue retry --all
+
+# モダリティのダミーのウェブの画面（Phase 3b。既定は http://127.0.0.1:8080/）
+python -m app.web
 
 # GUI 起動
 python -m app.gui

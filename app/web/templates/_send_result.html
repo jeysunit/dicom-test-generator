@@ -1,0 +1,5 @@
+{% set sent_count = send.results|selectattr("sent")|list|length %}
+<div {% if send.status == "sent" %}role="status" class="notice notice-ok"{% else %}role="alert" class="notice notice-error"{% endif %}>
+  <span>送信：{{ STATUS_LABELS.get(send.status, send.status) }}（{{ send.destination }}・{{ sent_count }}/{{ send.results|length }} 枚・待ち行列の {{ send.job_id }}）</span>
+  {% if send.error %}<span class="block text-xs">{{ send.error }}</span>{% endif %}
+</div>

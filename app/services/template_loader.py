@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from pathlib import Path
 
 import yaml
@@ -10,6 +11,9 @@ import yaml
 from app.core.exceptions import TemplateNotFoundError, TemplateParseError
 
 from .profile_loader import PROFILE_DIRS_ENV
+
+# テンプレートの名前（spec/12 の 17：小文字・数字・`_` 区切り。既存の名前も読めるよう `-` と大文字も許す）
+TEMPLATE_NAME_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
 
 # 装置ごとだった古いモダリティテンプレート：古い名前の SHA-256 → 土台のテンプレート。
 # 古い名前は商用の製品の名前を含むため、名前そのものを書かない
@@ -39,22 +43,28 @@ class TemplateLoaderService:
         self._modality_dir = self._project_root / "templates" / "modality"
         self._hospital_dir = self._project_root / "templates" / "hospital"
 
+    def list_modality_templates(self) -> list[str]:
+        """読めるモダリティテンプレートの名前（拡張子を除く）を名前の順で返す."""
+        return sorted(path.stem for path in self._modality_dir.glob("*.yaml") if path.is_file())
+
     def load_modality_template(self, name: str) -> dict:
         """モダリティテンプレートを読み込む."""
-        template_path = self._modality_dir / f"{name}.yaml"
-        if not template_path.exists():
-            digest = hashlib.sha256(name.encode("utf-8")).hexdigest()
-            base_template = DEVICE_SPECIFIC_TEMPLATES.get(digest)
-            if base_template is not None:
-                raise TemplateNotFoundError(
-                    name, hint=_device_profile_hint(base_template)
-                )
-        return self._load_yaml_template(template_path, name)
+        digest = hashlib.sha256(name.encode("utf-8")).hexdigest()
+        base_template = DEVICE_SPECIFIC_TEMPLATES.get(digest)
+        if base_template is not None and not (self._modality_dir / f"{name}.yaml").exists():
+            raise TemplateNotFoundError(name, hint=_device_profile_hint(base_template))
+        return self._load_yaml_template(self._template_path(self._modality_dir, name), name)
 
     def load_hospital_template(self, name: str) -> dict:
         """病院テンプレートを読み込む."""
-        template_path = self._hospital_dir / f"{name}.yaml"
-        return self._load_yaml_template(template_path, name)
+        return self._load_yaml_template(self._template_path(self._hospital_dir, name), name)
+
+    @staticmethod
+    def _template_path(directory: Path, name: str) -> Path:
+        """名前は1つのファイルの名前だけを受ける（画面・Job から来る名前で置き場の外を読まない）."""
+        if not TEMPLATE_NAME_PATTERN.fullmatch(name):
+            raise TemplateNotFoundError(name)
+        return directory / f"{name}.yaml"
 
     def merge_templates(self, modality_name: str, hospital_name: str | None) -> dict:
         """テンプレートを浅いマージで統合する."""

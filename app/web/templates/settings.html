@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}設定{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2 class="panel-title">設定（読むだけ）</h2>
+  <p class="text-xs text-label">直すときは設定のファイル <span class="uid">{{ config_path }}</span> の <code>modality:</code>・<code>web:</code> の節を直し、画面を起動し直してください。</p>
+</section>
+<section class="panel">
+  <h2 class="panel-title">自分</h2>
+  <dl class="values">
+    <dt>AE タイトル</dt><dd class="font-mono">{{ config.ae_title }}</dd>
+    <dt>Station Name</dt><dd>{{ config.station_name or "—" }}</dd>
+    <dt>保管の確認の待ち受け</dt><dd class="font-mono">{{ config.listen.bind_address }}:{{ config.listen.port }}（3c）</dd>
+    <dt>画面の待ち受け</dt><dd class="font-mono">{{ web.bind_address }}:{{ web.port }}</dd>
+  </dl>
+</section>
+<section class="panel">
+  <h2 class="panel-title">ワークリストの相手</h2>
+  <dl class="values">
+    <dt>AE タイトル</dt><dd class="font-mono">{{ config.worklist.ae_title }}</dd>
+    <dt>住所</dt><dd class="font-mono">{{ config.worklist.host }}:{{ config.worklist.port }}</dd>
+    <dt>時間切れ</dt><dd>{{ config.worklist.timeout_seconds }} 秒</dd>
+    <dt>MPPS</dt><dd>{{ "使う" if config.worklist.use_mpps else "使わない" }}（3c）</dd>
+  </dl>
+</section>
+<section class="panel">
+  <h2 class="panel-title">送り先</h2>
+  <dl class="values">
+    {% for destination in config.destinations %}
+    <dt>{{ destination.name }}{% if destination.name == config.default_destination %}（既定）{% endif %}</dt>
+    <dd class="font-mono">{{ destination.ae_title }} {{ destination.host }}:{{ destination.port }}・保管の確認 {{ "使う" if destination.storage_commitment else "使わない" }}</dd>
+    {% endfor %}
+  </dl>
+</section>
+<section class="panel">
+  <h2 class="panel-title">文字コードと撮影</h2>
+  <dl class="values">
+    <dt>文字コード</dt><dd>{{ config.character_set }}（予約が無いとき {{ config.character_set_fallback }}）</dd>
+    <dt>テンプレート</dt><dd>{{ config.default_template }}</dd>
+    <dt>装置</dt><dd>{{ config.default_profile or "なし" }}</dd>
+    <dt>病院</dt><dd>{{ config.default_hospital or "なし" }}</dd>
+    <dt>ピクセル</dt><dd>{{ config.default_pixel_mode }}</dd>
+    <dt>出力のフォルダ</dt><dd class="uid">{{ config.output_dir }}</dd>
+    <dt>状態の置き場</dt><dd class="uid">{{ config.state_dir }}</dd>
+  </dl>
+</section>
+{% endblock %}

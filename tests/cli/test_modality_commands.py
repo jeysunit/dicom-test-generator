@@ -6,6 +6,7 @@ import json
 import sys
 from pathlib import Path
 
+import pydicom
 import pytest
 import yaml
 from modality_peers import LOCALHOST, age_job, free_port
@@ -161,6 +162,24 @@ def test_exam_emergency_json(monkeypatch, capsys, tmp_path, config) -> None:
     assert data["send"] is None
 
 
+def test_exam_with_profile(monkeypatch, capsys, tmp_path, config) -> None:
+    """exam --profile：装置のプロファイルを重ねる。無い名前は終了コード 2（spec/13 の 8・9）."""
+    code, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0001",
+        "--patient-name", "KINKYU^TARO", "--profile", "dtg_synthetic_ct",
+        "--pixel-mode", "simple_text", "--json",
+    )
+    assert code == 0
+    assert pydicom.dcmread(json.loads(out)["files"][0]).Manufacturer == "DTG Synthetic"
+
+    code, _, err = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0001",
+        "--patient-name", "KINKYU^TARO", "--profile", "no_such_profile",
+    )
+    assert code == 2
+    assert "no_such_profile" in err
+
+
 def test_exam_emergency_unrepresentable_char_is_exit_4(
     monkeypatch, capsys, tmp_path, config
 ) -> None:
@@ -276,6 +295,22 @@ def test_bad_modality_config_is_exit_2(monkeypatch, capsys, tmp_path) -> None:
 
     assert code == 2
     assert "Invalid modality configuration" in err
+
+
+def test_broken_state_error_shows_no_values(monkeypatch, capsys, tmp_path, config) -> None:
+    """壊れた保存のデータの誤りに、入っていた値（氏名）を出さない（spec/12 の 12 章）."""
+    state = tmp_path / "state"
+    state.mkdir(exist_ok=True)
+    (state / "worklist_last.json").write_text(
+        '{"items": [{"patient_name": "SECRET^PATIENTNAME", "birth_date": 19800101}]}',
+        encoding="utf-8",
+    )
+
+    code, out, err = run_cli(monkeypatch, capsys, tmp_path, config, "worklist", "show", "x")
+
+    assert code != 0
+    assert "SECRET" not in out + err
+    assert "items.0" in err
 
 
 def test_worklist_output_neutralizes_control_chars(

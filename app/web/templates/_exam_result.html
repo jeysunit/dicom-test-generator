@@ -1,0 +1,28 @@
+<div class="panel space-y-3" role="status">
+  <p class="flex items-center gap-1 font-semibold text-value">
+    <span class="icon icon-check" aria-hidden="true"></span>撮影しました：{{ result.files|length }} 枚
+  </p>
+  <dl class="values">
+    <dt>出力のフォルダ</dt><dd>{% with uid = result.output_dir %}{% include "_uid.html" %}{% endwith %}</dd>
+    <dt>Study Instance UID</dt><dd>{% with uid = result.study_instance_uid %}{% include "_uid.html" %}{% endwith %}</dd>
+    <dt>文字コード</dt><dd>{{ result.character_set|charset_label }}</dd>
+  </dl>
+  {% if result.notices %}
+  <ul class="space-y-1 text-xs">
+    {% for notice in result.notices %}<li>{{ notice }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  <div id="send-result">
+    {% if send %}
+    {% include "_send_result.html" %}
+    {% elif send_error %}
+    {% with error = send_error %}{% include "_notice.html" %}{% endwith %}
+    {% else %}
+    <form hx-post="/exam/send" hx-target="#send-result" hx-disabled-elt="find button" class="flex justify-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="output_dir" value="{{ result.output_dir }}">
+      <button type="submit" class="btn btn-primary"><span class="icon icon-send" aria-hidden="true"></span>送る</button>
+    </form>
+    {% endif %}
+  </div>
+</div>

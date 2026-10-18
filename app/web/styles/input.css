@@ -1,0 +1,176 @@
+/*
+ * Tailwind CSS v4 の入力（scripts/build_css.sh で app/web/static/app.css を作る）。
+ * 色・文字の値は spec/12_modality_emulator.md の 10.2 の表と同じ。
+ * 出典：tsunagi-dicom（GitHub）の docs/spec.md 2 と src/app/globals.css（2026-10-18）。
+ * 値がずれたら tests/web/test_theme_tokens.py が落ちる。
+ */
+@import "tailwindcss" source(none);
+@source "../templates";
+@source "../static/app.js";
+
+@theme {
+  --color-background: #ffffff;
+  --color-surface: #f6f8fa;
+  --color-foreground: #1f2328;
+  --color-label: #59636e;
+  --color-value: #1f2328;
+  --color-border: #d1d9e0;
+  --color-muted: #eff2f5;
+  --color-primary: #0969da;
+  --color-primary-foreground: #ffffff;
+  --color-danger: #d1242f;
+  --font-sans: system-ui, "Noto Sans JP", sans-serif;
+  --font-mono: ui-monospace, "Noto Sans Mono", monospace;
+}
+
+:root[data-theme="dark"] {
+  --color-background: #121417;
+  --color-surface: #1a1d21;
+  --color-foreground: #e6edf3;
+  --color-label: #8a949e;
+  --color-value: #ffffff;
+  --color-border: #2a2f36;
+  --color-muted: #23272d;
+  --color-primary: #1f6feb;
+  --color-primary-foreground: #ffffff;
+  --color-danger: #ff7b72;
+  color-scheme: dark;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-medium whitespace-nowrap;
+  }
+  .btn:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+  .btn-primary {
+    @apply bg-primary text-primary-foreground;
+  }
+  .btn-outline {
+    @apply border border-border bg-background hover:bg-muted;
+  }
+  .btn-ghost {
+    @apply hover:bg-muted;
+  }
+  .btn-icon {
+    @apply inline-flex h-6 w-6 items-center justify-center rounded-md text-label hover:bg-muted;
+  }
+  .btn-icon.copied {
+    @apply text-primary;
+  }
+  .nav-link {
+    @apply rounded-md px-3 py-1 text-label hover:bg-muted;
+  }
+  .nav-active {
+    @apply bg-muted font-medium text-value;
+  }
+  .panel {
+    @apply rounded-md border border-border bg-background p-4 sm:p-6;
+  }
+  .panel-title {
+    @apply mb-4 font-semibold text-value;
+  }
+  .field {
+    @apply flex flex-col gap-1;
+  }
+  .field-label {
+    @apply text-xs text-label;
+  }
+  .input {
+    @apply h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground;
+  }
+  .table {
+    @apply w-full border-collapse text-left;
+  }
+  .table th {
+    @apply h-9 border-b border-border px-2 font-normal text-label;
+  }
+  .table td {
+    @apply border-b border-border px-2 py-1.5 align-top;
+  }
+  .table tbody tr {
+    @apply hover:bg-muted/50;
+  }
+  .values {
+    @apply grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-[12rem_1fr];
+  }
+  .values dt {
+    @apply text-label;
+  }
+  .values dd {
+    @apply font-semibold break-all text-value;
+  }
+  .uid {
+    @apply font-mono text-xs font-normal break-all text-label;
+  }
+  .badge {
+    @apply mr-1 inline-block rounded-md border border-border px-1.5 text-xs text-label;
+  }
+  .status-sent {
+    @apply text-value;
+  }
+  .status-failed {
+    @apply font-semibold text-danger;
+  }
+  .status-pending,
+  .status-sending {
+    @apply text-label;
+  }
+  .notice {
+    @apply flex items-start gap-2 rounded-md border px-3 py-2;
+  }
+  .notice-ok {
+    @apply border-border bg-surface text-foreground;
+  }
+  .notice-error {
+    @apply border-danger text-danger;
+  }
+  .link {
+    @apply underline;
+  }
+
+  /* Lucide のアイコン（app/web/static/icons/）。文字の色で塗る */
+  .icon {
+    display: inline-block;
+    flex: none;
+    width: 1rem;
+    height: 1rem;
+    background-color: currentColor;
+    mask: var(--icon) center / contain no-repeat;
+  }
+  .icon-activity { --icon: url("/static/icons/activity.svg"); }
+  .icon-check { --icon: url("/static/icons/check.svg"); }
+  .icon-copy { --icon: url("/static/icons/copy.svg"); }
+  .icon-info { --icon: url("/static/icons/info.svg"); }
+  .icon-moon { --icon: url("/static/icons/moon.svg"); }
+  .icon-refresh-cw { --icon: url("/static/icons/refresh-cw.svg"); }
+  .icon-search { --icon: url("/static/icons/search.svg"); }
+  .icon-send { --icon: url("/static/icons/send.svg"); }
+  .icon-sun { --icon: url("/static/icons/sun.svg"); }
+  .icon-triangle-alert { --icon: url("/static/icons/triangle-alert.svg"); }
+
+  /* 地の切り替えのボタンは、いまの地のアイコンを出す */
+  .show-dark {
+    display: none;
+  }
+  :root[data-theme="dark"] .show-light {
+    display: none;
+  }
+  :root[data-theme="dark"] .show-dark {
+    display: inline-block;
+  }
+}

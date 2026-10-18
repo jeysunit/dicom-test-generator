@@ -65,3 +65,20 @@ jobs:
       - name: Run markdownlint-cli2
         # 設定は .markdownlint-cli2.yaml。版を固定する。
         run: npx --yes markdownlint-cli2@0.18.1 "**/*.md"
+
+  css:
+    name: web CSS is up to date
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      # actions/checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Rebuild the CSS with the pinned Tailwind CSS standalone binary
+        # 版と sha256 は scripts/build_css.sh に固定してある（spec/12 の 10.1）
+        run: bash scripts/build_css.sh
+
+      - name: Committed CSS must match the rebuilt CSS
+        run: git diff --exit-code -- app/web/static/app.css
