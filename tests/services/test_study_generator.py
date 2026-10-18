@@ -3,6 +3,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pydicom
+import pytest
 
 from app.core import (
     CharacterSetConfig,
@@ -10,9 +11,12 @@ from app.core import (
     Patient,
     PatientName,
     PixelSpecSimple,
+    ScheduledContext,
+    ScheduledPatient,
     SeriesConfig,
     StudyConfig,
     TransferSyntaxConfig,
+    WorklistMappingError,
 )
 from app.services.study_generator import StudyGeneratorService
 
@@ -159,3 +163,72 @@ def test_sequence_width_minimum_four() -> None:
 def test_sequence_width_expands_with_total_images() -> None:
     assert StudyGeneratorService._sequence_width(10000) == 5
     assert StudyGeneratorService._sequence_width(100000) == 6
+
+
+def _scheduled_context(**overrides):
+    values = {
+        "scheduled": True,
+        "patient": ScheduledPatient(
+            patient_id="P000002",
+            patient_name="YAMADA^TARO=山田^太郎",
+            birth_date="",
+            sex="",
+        ),
+        "study_instance_uid": "2.25.123456789",
+        "accession_number": "A0001",
+        "study_id": "RP0001",
+        "study_description": "胸部 CT",
+        "performed_procedure_step_id": "PPS000001",
+        "request_attributes": {"00401001": {"vr": "SH", "Value": ["RP0001"]}},
+        "specific_character_set": ["ISO_IR 192"],
+        "source_ae_title": "DTG_CT01",
+    }
+    values.update(overrides)
+    return ScheduledContext(**values)
+
+
+def test_generate_with_scheduled_context_copies_values(tmp_path) -> None:
+    service = StudyGeneratorService()
+    config = _make_config(tmp_path=tmp_path, num_series=1, images_per_series=[2])
+
+    output_dir = service.generate(config=config, scheduled=_scheduled_context())
+    files = sorted(output_dir.glob("*.dcm"))
+    ds = pydicom.dcmread(files[0])
+
+    assert len(files) == 2
+    assert ds.StudyInstanceUID == "2.25.123456789"
+    assert str(ds.PatientName) == "YAMADA^TARO=山田^太郎"
+    assert ds.PatientID == "P000002"
+    assert ds.PatientBirthDate == ""
+    assert "PatientAge" not in ds
+    assert ds.AccessionNumber == "A0001"
+    assert ds.SpecificCharacterSet == "ISO_IR 192"
+    assert ds.RequestAttributesSequence[0].RequestedProcedureID == "RP0001"
+    assert ds.file_meta.SourceApplicationEntityTitle == "DTG_CT01"
+
+
+def test_generate_with_scheduled_context_generates_study_uid_when_missing(tmp_path) -> None:
+    service = StudyGeneratorService()
+    config = _make_config(tmp_path=tmp_path, num_series=1, images_per_series=[1])
+
+    output_dir = service.generate(
+        config=config, scheduled=_scheduled_context(study_instance_uid=None)
+    )
+    ds = pydicom.dcmread(next(output_dir.glob("*.dcm")))
+
+    assert ds.StudyInstanceUID.startswith("2.25.")
+    assert ds.StudyInstanceUID != "2.25.123456789"
+
+
+def test_generate_with_scheduled_context_stops_on_unrepresentable_char(tmp_path) -> None:
+    service = StudyGeneratorService()
+    config = _make_config(tmp_path=tmp_path, num_series=1, images_per_series=[1])
+    ctx = _scheduled_context(
+        patient=ScheduledPatient(patient_id="P000002", patient_name="TAKAHASHI=髙橋"),
+        specific_character_set=["", "ISO 2022 IR 87"],
+    )
+
+    with pytest.raises(WorklistMappingError):
+        service.generate(config=config, scheduled=ctx)
+
+    assert list((tmp_path / "output").glob("*.dcm")) == []

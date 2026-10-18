@@ -23,9 +23,12 @@ from app.core import (
     PixelGenerator,
     PixelSpecCTRealistic,
     SpatialCalculator,
+    ScheduledContext,
     UIDContext,
     UIDGenerator,
 )
+from app.core.worklist_charset import ensure_dataset_encodable
+from app.core.worklist_mapping import apply_scheduled_context
 
 from .template_loader import TemplateLoaderService
 
@@ -61,8 +64,15 @@ class StudyGeneratorService:
         self,
         config: GenerationConfig,
         progress_callback: Callable[[int, int], None] | None = None,
+        scheduled: ScheduledContext | None = None,
     ) -> Path:
-        """設定に基づいてDICOMファイルを生成する."""
+        """設定に基づいてDICOMファイルを生成する.
+
+        `scheduled` を渡すと、予約の値（spec/12 の 6 章）を画像に写す。
+        予約に Study Instance UID があればそれを使う。各画像は書き出す前に
+        文字コードで表せるかを確かめ、表せなければ WorklistMappingError で止める。
+        渡さなければいまと同じ動き。
+        """
         total_images = sum(series.num_images for series in config.series_list)
         logger.info(
             "Generation started: job_name=%s patient_id=%s total_images=%s output_dir=%s",
@@ -77,7 +87,11 @@ class StudyGeneratorService:
                 method=config.uid_method,
                 custom_root=config.uid_custom_root or "",
             )
-            study_uid = uid_generator.generate_study_uid()
+            study_uid = (
+                scheduled.study_instance_uid
+                if scheduled is not None and scheduled.study_instance_uid
+                else uid_generator.generate_study_uid()
+            )
             frame_of_reference_uid = uid_generator.generate_frame_of_reference_uid()
             implementation_class_uid = uid_generator.generate_instance_creator_uid()
             instance_creator_uid = uid_generator.generate_instance_creator_uid()
@@ -153,6 +167,9 @@ class StudyGeneratorService:
                         bits_stored=bits_stored,
                     )
                     self._apply_template_attributes(dataset, template)
+                    if scheduled is not None:
+                        apply_scheduled_context(dataset, scheduled)
+                        ensure_dataset_encodable(dataset)
 
                     filename = (
                         f"{config.patient.patient_id}_{config.study.study_date}_"

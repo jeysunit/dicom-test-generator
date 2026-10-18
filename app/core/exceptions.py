@@ -156,3 +156,35 @@ class SCPStoreError(SCPError):
 
     def __init__(self, message: str, sop_uid: str | None = None):
         super().__init__(message, {"sop_uid": sop_uid} if sop_uid else {})
+
+
+class ModalityError(DICOMGeneratorError):
+    """モダリティのダミーの例外の基底（spec/12_modality_emulator.md 9.5）."""
+
+
+class ModalityConfigError(ModalityError):
+    """modality: の節の設定の誤り."""
+
+
+class AssociationError(ModalityError):
+    """Association を張れない・断られた・切れた."""
+
+
+class WorklistQueryError(ModalityError):
+    """C-FIND（MWL）の失敗・時間切れ."""
+
+
+class WorklistMappingError(ModalityError):
+    """予約の値を画像に写せない（文字・長さ・モダリティ）."""
+
+
+class StoreError(ModalityError):
+    """C-STORE の失敗."""
+
+
+class StorageCommitmentError(ModalityError):
+    """保管の確認の失敗・時間切れ（Phase 3c）."""
+
+
+class MPPSError(ModalityError):
+    """N-CREATE・N-SET の失敗（Phase 3c）."""
