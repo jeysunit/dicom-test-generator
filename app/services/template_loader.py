@@ -9,13 +9,26 @@ import yaml
 
 from app.core.exceptions import TemplateNotFoundError, TemplateParseError
 
-# 名前を変えたモダリティテンプレート：古い名前の SHA-256 → 新しい名前。
+from .profile_loader import PROFILE_DIRS_ENV
+
+# 装置ごとだった古いモダリティテンプレート：古い名前の SHA-256 → 土台のテンプレート。
 # 古い名前は商用の製品の名前を含むため、名前そのものを書かない
-# （spec/12_modality_emulator.md の 17）。別名として黙って読まず、
-# 新しい名前を添えた TemplateNotFoundError にする。
-RENAMED_MODALITY_TEMPLATES: dict[str, str] = {
+# （spec/12_modality_emulator.md の 17）。装置ごとの写しは装置のプロファイルに
+# なった（spec/13_device_profiles.md の 7.3）。別名として黙って読まず、
+# プロファイルの置き場へ案内する TemplateNotFoundError にする。
+DEVICE_SPECIFIC_TEMPLATES: dict[str, str] = {
     "ece4615a3432602c091b9c7abcc6e0578ee7cc1762e1360414e3c3b516859422": "ct_generic",
 }
+
+
+def _device_profile_hint(base_template: str) -> str:
+    return (
+        "this name was a device-specific template; device-specific output is now "
+        "a device profile (spec/13). Put the profile in an external profile "
+        f"directory ({PROFILE_DIRS_ENV} or profiles.search_paths in "
+        "config/app_config.yaml) and generate with "
+        f"--modality {base_template} --profile <profile name>"
+    )
 
 
 class TemplateLoaderService:
@@ -31,9 +44,11 @@ class TemplateLoaderService:
         template_path = self._modality_dir / f"{name}.yaml"
         if not template_path.exists():
             digest = hashlib.sha256(name.encode("utf-8")).hexdigest()
-            renamed_to = RENAMED_MODALITY_TEMPLATES.get(digest)
-            if renamed_to is not None:
-                raise TemplateNotFoundError(name, renamed_to=renamed_to)
+            base_template = DEVICE_SPECIFIC_TEMPLATES.get(digest)
+            if base_template is not None:
+                raise TemplateNotFoundError(
+                    name, hint=_device_profile_hint(base_template)
+                )
         return self._load_yaml_template(template_path, name)
 
     def load_hospital_template(self, name: str) -> dict:

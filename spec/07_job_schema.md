@@ -75,6 +75,7 @@ series_list:
 # テンプレート設定
 modality_template: "ct_generic"
 hospital_template: "hospital_a"  # null or 省略可
+device_profile: "dtg_synthetic_ct"  # 装置のプロファイル。null or 省略可（spec/13）
 
 # UID生成設定
 uid_method: "uuid_2_25"  # または "custom_root"

@@ -38,17 +38,11 @@ class TemplateError(ConfigurationError):
 
 
 class TemplateNotFoundError(TemplateError):
-    def __init__(self, template_name: str, renamed_to: str | None = None):
-        if renamed_to is None:
-            super().__init__(
-                f"Template not found: {template_name}",
-                {"template_name": template_name},
-            )
-            return
-        super().__init__(
-            f"Template not found: {template_name} (renamed to {renamed_to})",
-            {"template_name": template_name, "renamed_to": renamed_to},
-        )
+    def __init__(self, template_name: str, hint: str | None = None):
+        details = {"template_name": template_name}
+        if hint is not None:
+            details["hint"] = hint
+        super().__init__(f"Template not found: {template_name}", details)
 
 
 class TemplateParseError(TemplateError):
@@ -57,6 +51,42 @@ class TemplateParseError(TemplateError):
             f"Failed to parse template: {template_path}",
             {"template_path": template_path, "error": parse_error},
         )
+
+
+class ProfileError(ConfigurationError):
+    """装置のプロファイルの誤り（spec/13 の 9）."""
+
+    pass
+
+
+class ProfileNotFoundError(ProfileError):
+    def __init__(self, profile_name: str, searched: list[str]):
+        super().__init__(
+            f"Device profile not found: {profile_name}",
+            {"profile_name": profile_name, "searched": ", ".join(searched)},
+        )
+
+
+class ProfileParseError(ProfileError):
+    def __init__(self, profile_path: str, reason: str):
+        super().__init__(
+            f"Invalid device profile: {profile_path}",
+            {"profile_path": profile_path, "errors": reason},
+        )
+
+
+class DuplicateProfileError(ProfileError):
+    def __init__(self, profile_name: str, paths: list[str]):
+        super().__init__(
+            f"Device profile '{profile_name}' exists in more than one place",
+            {"profile_name": profile_name, "paths": ", ".join(paths)},
+        )
+
+
+class ProfileMismatchError(ProfileError):
+    """プロファイルがテンプレート・Job と合わない（spec/13 の 4.3）."""
+
+    pass
 
 
 class PatientDataError(ConfigurationError):

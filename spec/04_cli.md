@@ -24,6 +24,7 @@ python -m app.cli <command> [options]
 | `validate` | Job YAML検証のみ | 1 |
 | `quick` | 簡易生成（1コマンド） | 1 |
 | `version` | バージョン表示 | 1 |
+| `profiles list` | 読める装置のプロファイルの一覧（spec/13） | P1 |
 | `scp start` | Storage SCP を起動 | 1.5 |
 | `echo` | C-ECHO | 3a |
 | `worklist query`・`worklist show` | ワークリストを引く・1件を出す | 3a |
@@ -59,6 +60,7 @@ python -m app.cli generate <job_file> [options]
 | `--quiet` | `-q` | エラー以外非表示 | false |
 | `--log-file FILE` | | ログファイルパス | logs/dicom_generator.log |
 | `--dry-run` | | 実行せず検証のみ | false |
+| `--profile NAME` | | 装置のプロファイル（Job YAML の `device_profile` を上書き。spec/13） | Job YAMLの設定 |
 
 ### 使用例
 
@@ -193,6 +195,7 @@ python -m app.cli quick [options]
 | `--accession-number ACC` | Accession Number | ACC000001 |
 | `--study-date DATE` | 検査日（YYYYMMDD） | 今日 |
 | `--hospital NAME` | 病院テンプレート | なし |
+| `--profile NAME` | 装置のプロファイル（spec/13）。転送の形はプロファイルの最初の形 | なし |
 | `--pixel-mode MODE` | ピクセルモード | ct_realistic |
 
 ### 使用例

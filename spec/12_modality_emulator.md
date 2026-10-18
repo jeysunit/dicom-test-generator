@@ -751,7 +751,7 @@ tsunagi-dicom と同じ値を書き、出典（リポジトリ・ファイル・
 │ 受付番号 A0001   検査の記述 胸部 CT   Study UID 2.25.1234… [⧉]    │
 │ 文字コード：ワークリスト ISO_IR 192 → 画像 [auto ▼]               │
 ├ 撮影の設定 ─────────────────────────────────────────────────────┤
-│ テンプレート [ct_generic ▼]  病院 [なし ▼]                         │
+│ テンプレート [ct_generic ▼]  装置 [なし ▼]  病院 [なし ▼]          │
 │ シリーズ数 [2]  枚数 [1, 20]  ピクセル [CT 風 ▼]                   │
 │ 異常のデータ [なし ▼]                                             │
 ├─────────────────────────────────────────────────────────────────┤
@@ -763,6 +763,9 @@ tsunagi-dicom と同じ値を書き、出典（リポジトリ・ファイル・
   直して「引き直す」
 - テンプレートのモダリティと予約のモダリティが違えば、[撮影] を
   押せなくし、「予約は MR、テンプレートは CT です」と出す
+- 「装置」は装置のプロファイル（`spec/13_device_profiles.md`）。選べば
+  テンプレートの上に重ねる。プロファイルのモダリティが予約と違うときも
+  同じく止める
 - 「緊急の患者」：予約なしで開いたときは、患者の値（ID・氏名の
   英字・漢字・かな・生年月日・性別）を入力の欄にする。受付番号は
   空で固定し、「予約なし（受付番号は空）」と出す
@@ -922,6 +925,7 @@ python -m app.cli exam --emergency --patient-id E0001 \
 | `--refresh` | 撮る前にその予約を引き直す | false |
 | `--emergency` | 予約なし。`--patient-*` が必須 | false |
 | `-m, --modality NAME` | テンプレート | 設定の既定 |
+| `--profile NAME` | 装置のプロファイル（spec/13。未実装、spec/13 の 11 の段 3a で足す） | 設定の既定（`default_profile`） |
 | `--hospital NAME` | 病院テンプレート | 設定の既定 |
 | `-s, --series N` | シリーズ数 | 1 |
 | `-i, --images LIST` | 各シリーズの枚数 | 1 |
@@ -1030,6 +1034,7 @@ modality:
   character_set: "auto"         # auto, utf8, jis, jis_kana
   character_set_fallback: "utf8"  # utf8, jis, jis_kana（auto は不可）
   default_template: "ct_generic"
+  default_profile: null         # 装置のプロファイル（spec/13、3a で効かせる）。null は重ねない
   default_hospital: null        # 病院テンプレート（null で使わない）
   default_pixel_mode: "ct_realistic"  # simple_text, ct_realistic
   worklist:
@@ -1162,11 +1167,14 @@ web:
 `<モダリティ>_<部位や用途>_<番号や特徴>`（小文字・`_` 区切り）。
 例：`ct_generic`・`ct_chest_5mm`・`mr_head_generic`。
 
-- 実在の装置の値に寄せたいときも、名前・`manufacturer`・
-  `manufacturers_model_name`・`station_name` に商用の名前を書かない
-  （`DTG Synthetic CT` のような架空の名前にする）
-- 装置の適合性宣言（Conformance Statement）を参考にしたときは、
-  その事実を文書に書かず、値だけを使う
+- 公開のテンプレートと、公開の例のプロファイル（`profiles/examples/`）の
+  名前・`manufacturer`・`manufacturers_model_name`・`station_name` に
+  商用の名前を書かない（`DTG Synthetic CT` のような架空の名前にする）
+- **実在の装置に寄せたいときは、装置のプロファイルにする**
+  （`spec/13_device_profiles.md`。2026-10-18 に承認者が案 A を選んだ）。
+  コンフォーマンスステートメントを読んで写し、リポジトリの外の置き場に
+  置く。外の置き場のプロファイルには、この決まりを当てない（実在の装置の
+  名前と、写した文書の題・版・入手先を書いてよい）
 - 理由：公開のリポジトリで、実在の製品の出力と誤解されないため。
   tsunagi-dicom の原則 6（商用の製品の名前を使わない）とそろえる
 
@@ -1182,9 +1190,11 @@ web:
 - 名前が出ていた 19 のファイル（テンプレート・コード・試験・例・
   仕様・ADR・README・WORKFLOW）をすべて直した。仕様の出典の一覧
   （`spec/06_dicom_rules.md`）から、適合性宣言の行を消した
-- **古い名前を読みに来た Job YAML・CLI には、「名前が変わりました」の
-  エラーを出す**（`TemplateNotFoundError`。新しい名前を
-  `renamed_to` に入れる。別名で黙って読まない）。古い名前は商用の名前を
+  （**誤り**。テンプレートの目的は装置の擬態だった。spec/13 の PR で
+  擬態の行を戻し、仕組みを装置のプロファイルにした。ADR-0012）
+- **古い名前を読みに来た Job YAML・CLI には、プロファイルの置き場へ
+  案内するエラーを出す**（`TemplateNotFoundError`。案内を `hint` に
+  入れる。別名で黙って読まない。spec/13 の 7.3）。古い名前は商用の名前を
   含むため、コードには名前そのものでなく SHA-256 の値で持つ
   （`app/services/template_loader.py`）
 

@@ -7,6 +7,7 @@ from .exceptions import (
     DICOMGeneratorError,
     DICOMValidationError,
     DirectoryCreateError,
+    DuplicateProfileError,
     FileMetaError,
     FileReadError,
     FileWriteError,
@@ -21,6 +22,10 @@ from .exceptions import (
     PatientDataInvalidError,
     PatientNotFoundError,
     PixelGenerationError,
+    ProfileError,
+    ProfileMismatchError,
+    ProfileNotFoundError,
+    ProfileParseError,
     StorageCommitmentError,
     StoreError,
     TemplateError,
@@ -35,6 +40,7 @@ from .exceptions import (
     WorklistQueryError,
 )
 from .abnormal_generator import AbnormalGenerator
+from .device_profile import DeviceProfile, apply_device_profile, normalize_character_set
 from .generator import CT_IMAGE_STORAGE, DICOMBuilder
 from .models import (
     AbnormalConfig,
@@ -80,7 +86,9 @@ __all__ = [
     "DICOMBuilder",
     "DICOMGeneratorError",
     "DICOMValidationError",
+    "DeviceProfile",
     "DirectoryCreateError",
+    "DuplicateProfileError",
     "FileMetaBuilder",
     "GenerationConfig",
     "FileMetaError",
@@ -98,6 +106,10 @@ __all__ = [
     "PatientNotFoundError",
     "PixelGenerationError",
     "PixelGenerator",
+    "ProfileError",
+    "ProfileMismatchError",
+    "ProfileNotFoundError",
+    "ProfileParseError",
     "SCPConfigError",
     "SCPError",
     "SCPStoreError",
@@ -116,4 +128,6 @@ __all__ = [
     "UIDGenerationError",
     "UIDGenerator",
     "ValidationError",
+    "apply_device_profile",
+    "normalize_character_set",
 ]

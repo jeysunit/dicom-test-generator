@@ -6,6 +6,16 @@
 
 **重要**: この仕様は医療標準に準拠しており、変更不可。
 
+### 装置のコンフォーマンスステートメントからの擬態
+
+特定の装置の DICOM の出し方（製造者・型名・ソフトウェアの版・
+文字コードの組・必ず出す属性・空で出す属性・プライベートタグ・転送の
+形）は、その装置のコンフォーマンスステートメント（DICOM PS3.2）を読んで
+**装置のプロファイル**に写し、モダリティのテンプレートの上に重ねて
+擬態する。形・写す手順・置き場は
+[spec/13_device_profiles.md](13_device_profiles.md)。実在の装置の
+プロファイルは公開のリポジトリに置かない（ADR-0012）。
+
 ---
 
 ## File Meta Information
@@ -489,3 +499,6 @@ def save_with_transfer_syntax(ds, filepath, transfer_syntax_uid):
 2. **PyDicom Documentation**: <https://pydicom.github.io/>
 3. **IHE Japan**: <https://www.ihe-j.org/> (OID取得情報)
 4. **RFC 3061**: UUID Based OID (2.25系)
+5. **装置のコンフォーマンスステートメント**（DICOM PS3.2 Annex N の形）：
+   擬態する装置ごとに読む。どの文書のどの版を写したかは、外の置き場の
+   プロファイルの `source` に書く（spec/13）

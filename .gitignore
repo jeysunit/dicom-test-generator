@@ -39,5 +39,11 @@ Thumbs.db
 output/
 *.dcm
 
+# Device profiles: only the fictional examples are public (spec/13, ADR-0012).
+# Profiles of real devices live outside the repository; anything else placed
+# under profiles/ (e.g. profiles/private/) is never tracked.
+/profiles/*
+!/profiles/examples/
+
 # Modality emulator state (spec/12)
 modality_state/
