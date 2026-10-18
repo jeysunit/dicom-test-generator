@@ -16,6 +16,10 @@ PORT_MAX = 65535
 DEFAULT_TIMEOUT_SECONDS = 30.0
 DEFAULT_LISTEN_PORT = 11113
 MAX_RETRY_ATTEMPTS = 10
+DEFAULT_MAX_RESULTS = 1000
+MAX_RESULTS_LIMIT = 100_000
+DEFAULT_MAX_ITEM_BYTES = 256 * 1024
+DEFAULT_MAX_TOTAL_BYTES = 16 * 1024 * 1024
 _PRINTABLE_ASCII_MIN = 0x20
 _PRINTABLE_ASCII_MAX = 0x7E
 
@@ -55,6 +59,10 @@ class NodeConfig(BaseModel):
 
 class WorklistPeerConfig(NodeConfig):
     timeout_seconds: float = Field(DEFAULT_TIMEOUT_SECONDS, gt=0)
+    # 相手が返す応答の上限（5.5）。受け取りながら数え、超えたら C-CANCEL して止める
+    max_results: int = Field(DEFAULT_MAX_RESULTS, ge=1, le=MAX_RESULTS_LIMIT)
+    max_item_bytes: int = Field(DEFAULT_MAX_ITEM_BYTES, ge=1024)
+    max_total_bytes: int = Field(DEFAULT_MAX_TOTAL_BYTES, ge=1024)
     query_character_set: QueryCharacterSet = "ISO_IR 192"
     use_mpps: bool = False  # Phase 3c
 

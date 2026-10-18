@@ -24,6 +24,8 @@ WORKLIST_YAML = Path(__file__).parent / "modality" / "data" / "worklist.yaml"
 STATUS_PENDING = 0xFF00
 STATUS_CANCEL = 0xFE00
 STATUS_SUCCESS = 0x0000
+# 試験の SCP の handler が返し続ける時間の上限（試験が止まらないことを防ぐ）
+MAX_HANDLER_SECONDS = 10
 
 
 def free_port() -> int:
@@ -121,6 +123,9 @@ class WorklistSCP:
     endless_pending: bool = False
     first_response_delay: float = 0.0
     final_status: int = STATUS_SUCCESS
+    ignore_cancel: bool = False
+    repeat: int = 1
+    big_value_bytes: int = 0
     queries: list[Dataset] = field(default_factory=list)
     cancelled: bool = False
     port: int = 0
@@ -138,12 +143,18 @@ class WorklistSCP:
             for raw in self.items
             if _matches(build_worklist_dataset(raw, self.character_set), query)
         ]
+        if self.big_value_bytes and matched:
+            matched[0].RequestedProcedureDescription = "X" * 64
+            matched[0].PatientComments = "X" * self.big_value_bytes
+        matched = matched * self.repeat
         index = 0
-        while True:
+        stop_at = time.monotonic() + MAX_HANDLER_SECONDS
+        while time.monotonic() < stop_at and event.assoc.is_established:
             if event.is_cancelled:
                 self.cancelled = True
-                yield (STATUS_CANCEL, None)
-                return
+                if not self.ignore_cancel:
+                    yield (STATUS_CANCEL, None)
+                    return
             if index < len(matched):
                 yield (STATUS_PENDING, matched[index])
                 index += 1

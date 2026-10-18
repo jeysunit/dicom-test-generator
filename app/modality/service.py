@@ -259,7 +259,7 @@ class ModalityService:
         if request.worklist_key is not None and study_uid:
             self.queue.remember_study_uid(request.worklist_key, study_uid)
         logger.info(
-            "Exam completed: worklist_key=%s accession=%s files=%s output_dir=%s",
+            "Exam completed: worklist_key=%s accession=%r files=%s output_dir=%s",
             request.worklist_key,
             ctx.accession_number,
             len(files),

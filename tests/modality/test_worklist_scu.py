@@ -30,6 +30,56 @@ def _peer(scp, timeout: float = 5.0, query_character_set: str = "ISO_IR 192") ->
     )
 
 
+def _limited_peer(scp, **limits) -> WorklistPeerConfig:
+    return WorklistPeerConfig(
+        ae_title=scp.ae_title, host=LOCALHOST, port=scp.port, timeout_seconds=1, **limits
+    )
+
+
+def test_too_many_results_are_cancelled_with_error(worklist_scp) -> None:
+    worklist_scp.repeat = 50
+
+    with pytest.raises(WorklistQueryError) as exc_info:
+        query_worklist(OWN_AE, _limited_peer(worklist_scp, max_results=10), WorklistQuery())
+
+    assert exc_info.value.details["limit"] == "max_results=10"
+    assert exc_info.value.details["received"] == 10
+
+
+def test_too_large_item_is_cancelled_with_error(worklist_scp) -> None:
+    worklist_scp.big_value_bytes = 200_000
+
+    with pytest.raises(WorklistQueryError) as exc_info:
+        query_worklist(
+            OWN_AE, _limited_peer(worklist_scp, max_item_bytes=64 * 1024), WorklistQuery()
+        )
+
+    assert exc_info.value.details["limit"] == "max_item_bytes=65536"
+    assert exc_info.value.details["received"] == 0
+
+
+def test_total_size_limit_is_cancelled_with_error(worklist_scp) -> None:
+    worklist_scp.repeat = 50
+
+    with pytest.raises(WorklistQueryError) as exc_info:
+        query_worklist(
+            OWN_AE, _limited_peer(worklist_scp, max_total_bytes=4 * 1024), WorklistQuery()
+        )
+
+    assert exc_info.value.details["limit"] == "max_total_bytes=4096"
+
+
+def test_peer_ignoring_cancel_is_stopped(worklist_scp) -> None:
+    worklist_scp.endless_pending = True
+    worklist_scp.ignore_cancel = True
+
+    with pytest.raises(WorklistQueryError) as exc_info:
+        query_worklist(OWN_AE, _peer(worklist_scp, timeout=0.5), WorklistQuery())
+
+    assert worklist_scp.cancelled is True
+    assert exc_info.value.details["limit"] == "time"
+
+
 def _today_range() -> str:
     return parse_date_option("today", date.today())
 

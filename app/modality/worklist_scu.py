@@ -6,9 +6,12 @@ import logging
 import re
 import time
 from datetime import date
+from typing import Any
 
 from pydantic import BaseModel, Field
 from pydicom.dataset import Dataset
+from pydicom.filebase import DicomBytesIO
+from pydicom.filewriter import write_dataset
 from pynetdicom.sop_class import ModalityWorklistInformationFind
 
 from app.core.exceptions import ValidationError, WorklistQueryError
@@ -25,6 +28,8 @@ STATUS_SUCCESS = 0x0000
 STATUS_CANCEL = 0xFE00
 PENDING_STATUSES = frozenset({0xFF00, 0xFF01})
 MESSAGE_ID = 1
+# C-CANCEL の後、相手が止まるのを timeout_seconds のこの倍だけ待つ
+CANCEL_GRACE_FACTOR = 1
 DATE_FORMAT = "%Y%m%d"
 _DATE_PATTERN = re.compile(r"^\d{8}$")
 _ASCII_MAX = 0x7F
@@ -174,7 +179,9 @@ def query_worklist(
     items: list[WorklistItem] = []
     response_character_set: list[str] = []
     cancelled = False
+    total_bytes = 0
     started = time.monotonic()
+    hard_deadline = started + peer.timeout_seconds * (1 + CANCEL_GRACE_FACTOR)
     try:
         responses = assoc.send_c_find(identifier, ModalityWorklistInformationFind, msg_id=MESSAGE_ID)
         for status, response in responses:
@@ -187,11 +194,20 @@ def query_worklist(
                 )
             code = int(status.Status)
             if code in PENDING_STATUSES:
+                now = time.monotonic()
+                if cancelled and now > hard_deadline:
+                    # C-CANCEL の後も返し続ける相手：Association を切って止める（5.5）
+                    _stop(assoc, cancel=False)
+                    raise WorklistQueryError(
+                        "C-FIND peer kept responding after C-CANCEL",
+                        {"peer": peer.ae_title, "limit": "time", "received": len(items)},
+                    )
                 if response is not None and not cancelled:
+                    total_bytes += _check_limits(assoc, peer, response, len(items), total_bytes)
                     item = worklist_item_from_identifier(response)
                     items.append(item)
                     response_character_set = response_character_set or item.specific_character_set
-                if not cancelled and time.monotonic() - started > peer.timeout_seconds:
+                if not cancelled and now - started > peer.timeout_seconds:
                     logger.warning(
                         "C-FIND pending over %ss; sending C-CANCEL (received=%s)",
                         peer.timeout_seconds,
@@ -222,3 +238,48 @@ def query_worklist(
         response_character_set=response_character_set,
         query_non_ascii="SpecificCharacterSet" in identifier,
     )
+
+
+def _check_limits(
+    assoc: Any, peer: WorklistPeerConfig, response: Dataset, received: int, total_bytes: int
+) -> int:
+    """応答の1件を数える前に上限を確かめ、その件の大きさを返す（5.5）.
+
+    超えたら C-CANCEL を送り、Association を切って WorklistQueryError で止める。
+    """
+    size = _encoded_size(response)
+    limit = ""
+    if received + 1 > peer.max_results:
+        limit = f"max_results={peer.max_results}"
+    elif size > peer.max_item_bytes:
+        limit = f"max_item_bytes={peer.max_item_bytes}"
+    elif total_bytes + size > peer.max_total_bytes:
+        limit = f"max_total_bytes={peer.max_total_bytes}"
+    if not limit:
+        return size
+    logger.warning("C-FIND response over the limit (%s); cancelling", limit)
+    _stop(assoc, cancel=True)
+    raise WorklistQueryError(
+        f"C-FIND response exceeded the limit: {limit}",
+        {"peer": peer.ae_title, "limit": limit, "received": received},
+    )
+
+
+def _stop(assoc: Any, cancel: bool) -> None:
+    if cancel and assoc.is_established:
+        assoc.send_c_cancel(MESSAGE_ID, query_model=ModalityWorklistInformationFind)
+    if assoc.is_established:
+        assoc.abort()
+
+
+def _encoded_size(ds: Dataset) -> int:
+    buffer = DicomBytesIO()
+    buffer.is_little_endian = True
+    buffer.is_implicit_VR = True
+    try:
+        write_dataset(buffer, ds)
+    except (ValueError, TypeError, OverflowError, KeyError) as exc:
+        raise WorklistQueryError(
+            "C-FIND response could not be measured", {"reason": str(exc)}
+        ) from exc
+    return len(buffer.getvalue())

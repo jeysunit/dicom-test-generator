@@ -29,6 +29,9 @@ modality:
     port: 4242
     timeout_seconds: 30
     query_character_set: "ISO_IR 192"  # 条件に ASCII でない字があるとき
+    max_results: 1000             # 応答の上限（spec/12 の 5.5）
+    max_item_bytes: 262144
+    max_total_bytes: 16777216
     use_mpps: false
   destinations:
     - name: "PACS_TEST"

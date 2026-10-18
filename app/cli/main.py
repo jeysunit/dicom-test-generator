@@ -19,6 +19,7 @@ from app.cli.commands import (
     version_command,
 )
 from app.cli.modality_commands import register_modality_commands
+from app.cli.terminal import sanitize_for_terminal
 from app.core import (
     AssociationError,
     ConfigurationError,
@@ -211,29 +212,29 @@ def _create_parser() -> argparse.ArgumentParser:
 
 def _map_exception_to_exit_code(exc: Exception) -> int:
     if isinstance(exc, ModalityConfigError):
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
         return 2
     if isinstance(exc, WorklistMappingError):
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
         return 4
     if isinstance(exc, _COMMUNICATION_ERRORS):
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
         return EXIT_COMMUNICATION_ERROR
     if isinstance(exc, ConfigurationError):
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
         return 2
     if isinstance(exc, CoreIOError):
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
         return 3
     if isinstance(exc, CoreValidationError):
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
         return 4
     if isinstance(exc, PydanticValidationError):
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
         return 4
     if isinstance(exc, DICOMGeneratorError):
-        print(f"[ERROR] {exc}", file=sys.stderr)
+        print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
         return 1
-    print(f"[ERROR] {exc}", file=sys.stderr)
+    print(f"[ERROR] {sanitize_for_terminal(str(exc))}", file=sys.stderr)
     return 1
 

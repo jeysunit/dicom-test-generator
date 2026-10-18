@@ -248,3 +248,29 @@ def test_bad_modality_config_is_exit_2(monkeypatch, capsys, tmp_path) -> None:
 
     assert code == 2
     assert "Invalid modality configuration" in err
+
+
+def test_worklist_output_neutralizes_control_chars(
+    monkeypatch, capsys, tmp_path, config, worklist_scp, worklist_items
+) -> None:
+    evil = dict(worklist_items[0])
+    evil["requested_procedure_description"] = "\x1b]0;owned\x07胸部\x1b[2J"
+    evil["patient_name"] = "EVIL^\u202eNAME"
+    worklist_scp.items = [evil]
+
+    code, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "worklist", "query")
+    assert code == 0
+    assert "\x1b" not in out and "\x07" not in out
+    assert "\\x1b]0;owned\\x07胸部\\x1b[2J" in out
+
+    key = json.loads(
+        run_cli(monkeypatch, capsys, tmp_path, config, "worklist", "query", "--json")[1]
+    )["items"][0]["key"]
+    code, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "worklist", "show", key)
+    assert "\u202e" not in out and "\\u202e" in out
+
+    code, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "worklist", "show", key, "--json"
+    )
+    assert "\x1b" not in out and "\u202e" not in out
+    assert json.loads(out)["patient_name"] == "EVIL^\u202eNAME"

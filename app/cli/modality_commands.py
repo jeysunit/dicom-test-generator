@@ -6,13 +6,13 @@
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
+from app.cli.terminal import json_for_terminal, sanitize_for_terminal
 from app.core.exceptions import ConfigurationError, StoreError
 from app.core.models import ScheduledPatient, WorklistItem
 from app.modality.config import load_modality_config
@@ -124,7 +124,7 @@ def echo_command(args: argparse.Namespace) -> int:
     if args.json:
         _print_json(result.model_dump())
     else:
-        print(
+        _emit(
             f"C-ECHO {result.ae_title} ({result.host}:{result.port}): "
             f"つながった（{result.elapsed_ms} ms）"
         )
@@ -159,7 +159,7 @@ def worklist_show_command(args: argparse.Namespace) -> int:
             value = ", ".join(value) or "-"
         elif isinstance(value, list):
             value = "\\".join(value) or "-"
-        print(f"{name:40s} {value}")
+        _emit(f"{name:40s} {value}")
     return 0
 
 
@@ -202,8 +202,8 @@ def exam_command(args: argparse.Namespace) -> int:
         _print_json(payload)
     else:
         for notice in result.notices:
-            print(f"[NOTICE] {notice}")
-        print(
+            _emit(f"[NOTICE] {notice}")
+        _emit(
             f"Exam completed: {result.output_dir} ({len(result.files)} files, "
             f"SpecificCharacterSet: {_charset_label(result.character_set)})"
         )
@@ -229,14 +229,14 @@ def queue_list_command(args: argparse.Namespace) -> int:
     if args.json:
         _print_json([job.model_dump() for job in jobs])
         return 0
-    print(f"{'ID':>4}  {'STATUS':8s} {'DEST':12s} {'SENT':>9}  {'UPDATED':19s}  FOLDER")
+    _emit(f"{'ID':>4}  {'STATUS':8s} {'DEST':12s} {'SENT':>9}  {'UPDATED':19s}  FOLDER")
     for job in jobs:
         sent = f"{job.num_sent}/{job.num_files}"
-        print(
+        _emit(
             f"{job.id:>4}  {job.status:8s} {job.destination:12s} {sent:>9}  "
             f"{job.updated_at:19s}  {job.folder}"
         )
-    print(f"[INFO] {len(jobs)} job(s).")
+    _emit(f"[INFO] {len(jobs)} job(s).")
     return 0
 
 
@@ -247,7 +247,7 @@ def queue_retry_command(args: argparse.Namespace) -> int:
     else:
         for result in results:
             _print_send_result(result)
-        print(f"[INFO] {len(results)} job(s) retried.")
+        _emit(f"[INFO] {len(results)} job(s) retried.")
     _raise_if_failed(results)
     return 0
 
@@ -273,26 +273,26 @@ def _build_query(service: ModalityService, args: argparse.Namespace) -> Worklist
 
 
 def _print_worklist(service: ModalityService, result: WorklistQueryResult) -> None:
-    print(
+    _emit(
         f"[INFO] Worklist: {service.config.worklist.ae_title}  "
         f"SpecificCharacterSet: {_charset_label(result.response_character_set)}"
     )
     if not result.items:
-        print(ZERO_ITEMS_MESSAGE)
+        _emit(ZERO_ITEMS_MESSAGE)
         if result.query_non_ascii:
-            print(NON_ASCII_HINT)
+            _emit(NON_ASCII_HINT)
         return
-    print(f"{'KEY':10s}  {'TIME':5s}  {'PATIENT_ID':10s}  {'ACCESSION':9s}  {'MODALITY':8s}  DESCRIPTION")
+    _emit(f"{'KEY':10s}  {'TIME':5s}  {'PATIENT_ID':10s}  {'ACCESSION':9s}  {'MODALITY':8s}  DESCRIPTION")
     for item in result.items:
-        print(
+        _emit(
             f"{item.key:10s}  {_time(item.scheduled_start_time):5s}  {item.patient_id:10s}  "
             f"{item.accession_number:9s}  {item.modality:8s}  "
             f"{item.requested_procedure_description}{_item_marks(service, item)}"
         )
     if result.partial:
-        print("[WARN] 途中まで（相手が返し続けたため C-CANCEL を送った）")
+        _emit("[WARN] 途中まで（相手が返し続けたため C-CANCEL を送った）")
     state = Path(service.config.state_dir) / "worklist_last.json"
-    print(f"[INFO] {len(result.items)} item(s). Saved to {state}")
+    _emit(f"[INFO] {len(result.items)} item(s). Saved to {state}")
 
 
 def _item_marks(service: ModalityService, item: WorklistItem) -> str:
@@ -309,14 +309,14 @@ def _item_marks(service: ModalityService, item: WorklistItem) -> str:
 
 def _print_send_result(result: SendResult) -> None:
     sent = sum(1 for r in result.results if r.sent)
-    print(
+    _emit(
         f"Send job {result.job_id} to {result.destination}: {result.status} "
         f"({sent}/{len(result.results)} files)"
     )
     for failure in (r for r in result.results if not r.sent):
-        print(f"[ERROR] {failure.path}: {failure.reason}", file=sys.stderr)
+        _emit(f"[ERROR] {failure.path}: {failure.reason}", file=sys.stderr)
     if result.error and not result.results:
-        print(f"[ERROR] {result.error}", file=sys.stderr)
+        _emit(f"[ERROR] {result.error}", file=sys.stderr)
 
 
 def _raise_if_failed(results: list[SendResult]) -> None:
@@ -356,4 +356,9 @@ def _time(value: str) -> str:
 
 
 def _print_json(data: Any) -> None:
-    print(json.dumps(data, ensure_ascii=False, indent=2))
+    print(json_for_terminal(data))
+
+
+def _emit(*values: object, file: TextIO | None = None) -> None:
+    """相手から来る値を含む行を、制御文字を見える形にしてから出す（11.7）."""
+    print(*(sanitize_for_terminal(str(value)) for value in values), file=file)
