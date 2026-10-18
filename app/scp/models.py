@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, ValidationError
 from app.core.exceptions import SCPConfigError
 
 CT_IMAGE_STORAGE_UID = "1.2.840.10008.5.1.4.1.1.2"
+DEFAULT_BIND_ADDRESS = "127.0.0.1"
 
 
 class SCPConfig(BaseModel):
@@ -21,7 +22,8 @@ class SCPConfig(BaseModel):
     enabled: bool = False
     ae_title: str = Field("DICOM_GEN_SCP", max_length=16)
     port: int = Field(11112, ge=1024, le=65535)
-    bind_address: str = "0.0.0.0"
+    # 既定は手元だけ。外から受けるときは設定で明示する（spec/11・ADR-0010 の 7）
+    bind_address: str = DEFAULT_BIND_ADDRESS
     storage_dir: str = "scp_storage"
     duplicate_handling: Literal["overwrite", "reject", "rename"] = "overwrite"
     supported_sop_classes: list[str] = Field(
