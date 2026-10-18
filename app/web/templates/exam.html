@@ -112,7 +112,7 @@
         </select>
       </label>
     </div>
-    <p class="mt-4 text-xs text-label">異常のデータは、予約から写した値も壊すことがあります。</p>
+    <p class="mt-4 text-xs text-label">1回の撮影は合計 {{ config.max_images_per_exam }} 枚まで。異常のデータは、予約から写した値も壊すことがあります。</p>
     {% for error in profile_errors %}<p role="alert" class="mt-2 text-xs text-danger">{{ error }}</p>{% endfor %}
   </section>
   <div id="actions">{% include "_exam_actions.html" %}</div>

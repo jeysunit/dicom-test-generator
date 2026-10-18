@@ -297,6 +297,22 @@ def test_bad_modality_config_is_exit_2(monkeypatch, capsys, tmp_path) -> None:
     assert "Invalid modality configuration" in err
 
 
+def test_broken_state_error_shows_no_values(monkeypatch, capsys, tmp_path, config) -> None:
+    """壊れた保存のデータの誤りに、入っていた値（氏名）を出さない（spec/12 の 12 章）."""
+    state = tmp_path / "state"
+    state.mkdir(exist_ok=True)
+    (state / "worklist_last.json").write_text(
+        '{"items": [{"patient_name": "SECRET^PATIENTNAME", "birth_date": 19800101}]}',
+        encoding="utf-8",
+    )
+
+    code, out, err = run_cli(monkeypatch, capsys, tmp_path, config, "worklist", "show", "x")
+
+    assert code != 0
+    assert "SECRET" not in out + err
+    assert "items.0" in err
+
+
 def test_worklist_output_neutralizes_control_chars(
     monkeypatch, capsys, tmp_path, config, worklist_scp, worklist_items
 ) -> None:

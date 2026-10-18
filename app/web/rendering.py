@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
 from app.core.exceptions import DICOMGeneratorError
+from app.core.validation_text import describe_validation_error
 from app.modality.service import ModalityService
 
 logger = logging.getLogger(__name__)
@@ -52,11 +53,8 @@ def render_error(request: Request, exc: DICOMGeneratorError | ValidationError) -
 
 def error_text(exc: DICOMGeneratorError | ValidationError) -> str:
     if isinstance(exc, ValidationError):
-        parts = []
-        for error in exc.errors():
-            location = ".".join(str(item) for item in error["loc"]) or "(input)"
-            parts.append(f"{location}: {error['msg']}")
-        return "入力の値が正しくありません：" + "; ".join(parts)
+        # 項目の名前と原因だけ。入っていた値は出さない（spec/12 の 12 章）
+        return "入力の値が正しくありません：" + describe_validation_error(exc)
     return str(exc)
 
 

@@ -7,10 +7,12 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from datetime import date, datetime
 from pathlib import Path
 
 from pydantic import BaseModel, Field
+from pydantic import ValidationError as PydanticValidationError
 from pydicom import dcmread
 
 from app.core.exceptions import (
@@ -40,6 +42,7 @@ from app.core.models import (
 )
 from app.core.path_safety import ensure_within, safe_path_component
 from app.core.person_name import GROUP_SEPARATOR, compose_person_name
+from app.core.validation_text import describe_validation_error
 from app.core.worklist_charset import resolve_image_character_set
 from app.core.worklist_mapping import (
     build_carrier_patient,
@@ -66,6 +69,22 @@ PPS_ID_PREFIX = "PPS"
 COUNTER_WIDTH = 6
 DEFAULT_TEMPLATE_MODALITY = "CT"
 MAX_FOLDER_SUFFIX = 100
+EXAM_BUSY_MESSAGE = "ほかの撮影が走っています。終わってから撮ってください"
+
+
+def check_send_files(folder: Path, files: list[str]) -> None:
+    """送るファイルを確かめる：symbolic link を断り、フォルダの中の普通のファイルだけ（8.2）.
+
+    中を指す link も断る（送るまでに指す先を替えられるため）。外れたら FileReadError。
+    """
+    root = folder.resolve()
+    for name in files:
+        path = Path(name)
+        if path.is_symlink():
+            raise FileReadError(name, "symbolic links are not sent")
+        resolved = path.resolve()
+        if resolved.parent != root or not resolved.is_file():
+            raise FileReadError(name, f"not a regular file directly inside {root}")
 
 
 class ExamRequest(BaseModel):
@@ -147,6 +166,8 @@ class ModalityService:
         self._template_loader = template_loader or TemplateLoaderService()
         self._state_dir = Path(config.state_dir)
         self._queue: SendQueue | None = None
+        # 同時に走る撮影は1つ（画面のプロセスの中。spec/12 の 10.5）
+        self._exam_lock = threading.Lock()
 
     @property
     def queue(self) -> SendQueue:
@@ -190,6 +211,9 @@ class ModalityService:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
             return WorklistState.model_validate(data)
+        except PydanticValidationError as exc:
+            # 値（氏名など）を出さず、項目の名前と原因だけにする（spec/12 の 12 章）
+            raise FileReadError(str(path), describe_validation_error(exc)) from exc
         except (OSError, ValueError) as exc:
             raise FileReadError(str(path), str(exc)) from exc
 
@@ -284,6 +308,22 @@ class ModalityService:
         return DEFAULT_TEMPLATE_MODALITY
 
     def exam(self, request: ExamRequest) -> ExamResult:
+        """予約（または緊急の患者）で撮る。量の上限と、同時に1つだけを守る（10.5）."""
+        total = sum(request.images_per_series)
+        limit = self.config.max_images_per_exam
+        if total > limit:
+            raise ValidationError(
+                f"1回の撮影は合計 {limit} 枚までです（{total} 枚を求められました）",
+                {"max_images_per_exam": limit, "requested": total},
+            )
+        if not self._exam_lock.acquire(blocking=False):
+            raise ModalityError(EXAM_BUSY_MESSAGE)
+        try:
+            return self._exam(request)
+        finally:
+            self._exam_lock.release()
+
+    def _exam(self, request: ExamRequest) -> ExamResult:
         if (request.worklist_key is None) == (request.emergency_patient is None):
             raise ConfigurationError(
                 "Specify exactly one of worklist_key or emergency_patient",
@@ -384,6 +424,8 @@ class ModalityService:
         files = sorted(str(path) for path in folder_path.glob("*.dcm"))
         if not files:
             raise FileReadError(str(folder_path), "No .dcm files in the folder")
+        # 待ち行列に入れる前に、送ってよいファイルかを確かめる（8.2）
+        check_send_files(folder_path, files)
         job_id = self.queue.add_job(str(folder_path), node.name, files)
         return self._send_job(job_id, files)
 
@@ -435,6 +477,14 @@ class ModalityService:
         pending = [Path(path) for path in files]
         for _attempt in range(attempts):
             token = self.queue.mark_sending(job_id)
+            try:
+                # 再送でも確かめる。入れた後にファイルが替えられても送らない（8.2）
+                check_send_files(Path(job.folder), [str(path) for path in pending])
+            except FileReadError as exc:
+                error = str(exc)
+                self.queue.record_job_failure(job_id, error, token=token)
+                logger.warning("Send refused: job_id=%s unsafe file in the folder", job_id)
+                break
             try:
                 results = store_files(
                     self.config.ae_title,

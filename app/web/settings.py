@@ -8,6 +8,7 @@ import yaml
 from pydantic import BaseModel, Field, ValidationError
 
 from app.core.exceptions import ConfigurationError
+from app.core.validation_text import describe_validation_error
 from app.modality.config import ModalityConfig, load_modality_config
 
 DEFAULT_BIND_ADDRESS = "127.0.0.1"
@@ -46,5 +47,5 @@ def load_app_config(config_path: Path) -> tuple[ModalityConfig, WebConfig]:
     except ValidationError as exc:
         raise ConfigurationError(
             "Invalid web configuration",
-            {"config_path": str(config_path), "reason": str(exc)},
+            {"config_path": str(config_path), "reason": describe_validation_error(exc)},
         ) from exc

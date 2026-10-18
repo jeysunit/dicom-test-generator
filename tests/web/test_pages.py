@@ -274,6 +274,32 @@ def test_person_name_script_replaces_spaces_on_blur() -> None:
     assert "\\s*\\^\\s*" in script and "\\s+" in script
 
 
+def test_broken_state_is_reported_without_values(client, tmp_path) -> None:
+    """壊れた保存のデータの誤りを、値（氏名）を出さずに見せる（spec/12 の 12 章）."""
+    state = tmp_path / "state"
+    state.mkdir(exist_ok=True)
+    (state / "worklist_last.json").write_text(
+        '{"items": [{"patient_name": "SECRET^PATIENTNAME", "birth_date": 19800101}]}',
+        encoding="utf-8",
+    )
+    for path in ("/worklist", "/exam", "/pacs"):
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert "SECRET" not in response.text, path
+    assert 'role="alert"' in client.get("/worklist").text
+
+
+def test_exam_page_shows_the_total_images_limit(client) -> None:
+    assert "2000 枚まで" in client.get("/exam").text
+
+
+def test_exam_over_the_total_limit_is_refused(client, tmp_path) -> None:
+    html = _emergency(client, series="3", images="1000,1000,1")
+    assert 'role="alert"' in html
+    assert "2000" in html
+    assert not list((tmp_path / "output").rglob("*.dcm"))
+
+
 def test_settings_page_is_read_only(client) -> None:
     html = client.get("/settings").text
     assert "RIS_TEST" in html and "PACS_TEST" in html

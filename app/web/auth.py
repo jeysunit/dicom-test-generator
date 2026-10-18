@@ -14,7 +14,7 @@ import os
 import secrets
 from collections.abc import Mapping
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import SplitResult, urlsplit
 
 from fastapi import HTTPException, Request
 
@@ -51,8 +51,21 @@ def host_header_is_loopback(host_header: str) -> bool:
     """`Host` の見出し（`名前:ポート`・`[::1]:ポート`）が手元の名前か."""
     if not host_header or any(char in host_header for char in _HOST_FORBIDDEN_CHARS):
         return False
-    hostname = urlsplit(f"//{host_header}").hostname
+    parsed = _split_url(f"//{host_header}")
+    if parsed is None:
+        return False
+    hostname = parsed.hostname
     return hostname is not None and is_loopback(hostname)
+
+
+def _split_url(value: str) -> SplitResult | None:
+    """URL を分ける。`[` だけ・数でないポートなど読めない形なら None（例外にしない。10.9）."""
+    try:
+        parsed = urlsplit(value)
+        _ = parsed.port  # ポートが読めないと ValueError
+    except ValueError:
+        return None
+    return parsed
 
 
 def startup_password(bind_address: str, environ: Mapping[str, str] | None = None) -> str | None:
@@ -114,7 +127,9 @@ def same_origin(request: Request) -> bool:
     source = request.headers.get("origin") or request.headers.get("referer") or ""
     if not host or not source or source == "null":
         return False
-    parsed = urlsplit(source)
+    parsed = _split_url(source)
+    if parsed is None:
+        return False
     return parsed.scheme in ("http", "https") and parsed.netloc.lower() == host.lower()
 
 

@@ -101,6 +101,24 @@ def test_odd_host_headers_are_not_loopback(host) -> None:
     assert not host_header_is_loopback(host)
 
 
+@pytest.mark.parametrize("host", ["[", "[::1", "localhost:abc]", "[x]:1"])
+def test_unparsable_host_is_400_not_500(client, host) -> None:
+    assert not host_header_is_loopback(host)
+    assert client.get("/worklist", headers={"Host": host}).status_code == 400
+
+
+@pytest.mark.parametrize("header", ["Origin", "Referer"])
+@pytest.mark.parametrize("value", ["http://[", "http://[::1", "http://127.0.0.1:8080]"])
+def test_unparsable_origin_is_403_not_500(client, header, value) -> None:
+    token = csrf_token(client)
+    response = client.post(
+        "/worklist/query",
+        data={"day": "today"},
+        headers={header: value, "X-CSRF-Token": token},
+    )
+    assert response.status_code == 403
+
+
 def test_post_requires_same_origin_and_csrf_token(client) -> None:
     token = csrf_token(client)
     form = {"day": "today"}
