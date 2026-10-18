@@ -45,7 +45,7 @@ SCP (app/scp/) ─┘→ Core (app/core/)
 | Phase 2a | GUI MVP（PySide6 基本ウィジェット + 生成フロー） | ✅ 完了 |
 | Phase 2b | GUI フル機能（メニュー、ダイアログ、スタイル） | 進めない（PySide6 の画面は凍結。ADR-0011 の案 B） |
 | Phase 1.5 | Storage SCP（PyNetDICOM） | ✅ 完了 |
-| Phase 3a | モダリティのダミー：ワークリスト（C-FIND MWL）・予約からの生成・送信（C-STORE・C-ECHO）を CLI で（`spec/12_modality_emulator.md`） | 仕様は承認済み・未着手 |
+| Phase 3a | モダリティのダミー：ワークリスト（C-FIND MWL）・予約からの生成・送信（C-STORE・C-ECHO）を CLI で（`spec/12_modality_emulator.md`） | ✅ 完了（CLI） |
 | Phase 3b | モダリティのダミー：ウェブの画面（ワークリスト・撮影・PACS・設定） | 仕様は承認済み・未着手 |
 | Phase 3c | モダリティのダミー：保管の確認（Storage Commitment）・MPPS（選べる形） | 仕様は承認済み・未着手 |
 
@@ -90,6 +90,14 @@ python -m app.cli quick -p P000001 -m ct_generic -s 3 -i 1,20,20 -o output/
 python -m app.cli version
 python -m app.cli scp start
 python -m app.cli scp start --config config/app_config.yaml
+
+# モダリティのダミー（Phase 3a。試験用の PACS・RIS にだけつなぐ）
+python -m app.cli echo --to PACS_TEST
+python -m app.cli worklist query --json
+python -m app.cli exam --from-worklist <鍵> -s 2 -i 1,20 --send
+python -m app.cli exam --emergency --patient-id E0001 --patient-name "KINKYU^TARO"
+python -m app.cli queue list --status failed
+python -m app.cli queue retry --all
 
 # GUI 起動
 python -m app.gui
