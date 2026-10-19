@@ -2,9 +2,9 @@
 
 DICOMテストデータ生成ツール
 
-A tool to generate synthetic and abnormal DICOM datasets
-for testing medical imaging systems.
-Pixel data is synthetic and not intended for clinical use.
+A tool to create DICOM datasets of made-up patients, including deliberately
+abnormal ones, for testing medical imaging systems.
+Pixel data is made up for testing and not intended for clinical use.
 
 ---
 
@@ -13,11 +13,11 @@ Pixel data is synthetic and not intended for clinical use.
 **DICOM Test Data Generator** は、医療画像システム
 （PACS、RIS、ビューア、画像取り込みシステムなど）の
 検証・開発・デバッグ用途のために、
-人工的な DICOM データを作って送るツールです。
-モダリティの代わりに、ワークリストを取得し、予約の値で画像を作り、
-画像サーバー（PACS）へ送ることもできます。
+試験用に作った架空の患者の DICOM データを作って送るツールです。
+CT などの検査装置（モダリティ）のふりをして、ワークリスト（検査の予約の一覧）を取り、
+予約の値で画像を作り、画像サーバー（PACS）へ送ることもできます。
 
-生成されるピクセルデータは人工的に作成されたものであり、実際の医療画像を表すものではありません。
+画像の中身は試験用に作ったもので、実際の医療画像ではありません。
 そのため、個人情報を含まず、安全にテスト用途へ利用できます。
 
 本ツールは以下のような用途を想定しています：
@@ -34,10 +34,13 @@ Pixel data is synthetic and not intended for clinical use.
 
 ### 図1　全体
 
-ウェブの画面と CLI は、同じ Service を呼ぶ。ワークリストの相手から予約を取り、
-予約の値で合成の画像を作り、画像サーバー（PACS）へ送る。
-点線の部分は予定（「これからの予定」）。
-レイヤー構造の図は [spec/01_architecture.md](spec/01_architecture.md) にある。
+この図で分かること：このソフトの中の流れと、外の装置・仕組み（ワークリストの相手、
+画像サーバー）とのつながり。
+
+ウェブの画面と CLI（コマンドの画面）は、同じ処理の部分（Service）を呼ぶ。
+ワークリストの相手から予約を取り、予約の値で試験用の画像を作り、
+画像サーバー（PACS）へ送る。点線の部分は予定（「これからの予定」）。
+内部の層の図は [spec/01_architecture.md](spec/01_architecture.md) にある。
 
 ```mermaid
 flowchart LR
@@ -45,17 +48,17 @@ flowchart LR
   classDef plan fill:#ffffff,stroke:#8c959f,stroke-dasharray:5 4,color:#57606a
 
   UI["ウェブの画面・CLI"]:::box
-  SVC["Service"]:::box
-  subgraph FLOW["モダリティのダミー"]
+  SVC["処理の部分（Service）"]:::box
+  subgraph FLOW["検査装置のふりをする部分"]
     direction TB
-    MWL["(a) ワークリストの取得<br/>MWL の SCU（C-FIND）"]:::box
+    MWL["(a) ワークリスト（検査の予約の一覧）を取る"]:::box
     MAKE["(b) 予約から画像を作る<br/>テンプレート・装置のプロファイル"]:::box
-    QUEUE["(c) 送信の待ち行列<br/>C-STORE の SCU"]:::box
+    QUEUE["(c) 送信の待ち行列<br/>失敗したら再送できる"]:::box
     COMMIT["(d) 保管の確認・MPPS<br/>予定"]:::plan
   end
   RIS["ワークリストの相手<br/>RIS・画像サーバーのワークリスト"]:::box
   PACS[("画像サーバー（PACS）")]:::box
-  SCP["手元の受け取る側<br/>Storage SCP"]:::box
+  SCP["手元の受け取る側<br/>（画像を受け取って保存する）"]:::box
 
   UI --> SVC
   SVC --> MWL
@@ -63,28 +66,30 @@ flowchart LR
   SVC --> QUEUE
   MWL -->|"予約を取る"| RIS
   MAKE -->|"画像"| QUEUE
-  QUEUE -->|"C-STORE"| PACS
-  QUEUE -->|"C-STORE（手元の試験）"| SCP
+  QUEUE -->|"DICOM で画像を送る"| PACS
+  QUEUE -->|"DICOM で画像を送る（手元の試験）"| SCP
   QUEUE -.-> COMMIT
   COMMIT -.-> PACS
 ```
 
-### 試しに使う組み合わせ
+### 図2　開発・試験のときの構成（本物の患者のデータを使わずに試す）
 
-モダリティのダミー（この道具）で合成の検査を画像サーバーへ送り、
-[tsunagi-dicom](https://github.com/jeysunit/tsunagi-dicom) で見る。
-実の患者のデータは使わない。
+この図で分かること：試験のときに、画像を見るソフト（tsunagi-dicom）と組み合わせる構成。
+
+このソフトで、CT などの検査装置のふりをして、試験用に作った架空の患者の画像を
+画像サーバーへ送り、[tsunagi-dicom](https://github.com/jeysunit/tsunagi-dicom)
+で見る。本物の患者のデータは使わない。
 
 ```mermaid
 flowchart LR
   classDef box fill:#ffffff,stroke:#0969da,stroke-width:2px,color:#1f2328
 
-  DTG["dicom-test-generator<br/>モダリティのダミー<br/>合成の検査を作る"]:::box
+  DTG["dicom-test-generator<br/>検査装置のふりをする試験用のソフト<br/>架空の患者の画像を作る"]:::box
   PACS[("画像サーバー<br/>Orthanc など（試験用）")]:::box
-  TD["tsunagi-dicom<br/>画面と BFF"]:::box
+  TD["tsunagi-dicom<br/>画面と中継のサーバー"]:::box
 
-  DTG -->|"C-STORE で送る"| PACS
-  TD -->|"DICOMweb で検索・取得"| PACS
+  DTG -->|"DICOM で画像を送る"| PACS
+  TD -->|"検査を検索し、画像を取る"| PACS
 ```
 
 ---
@@ -106,18 +111,20 @@ flowchart LR
 
 ### モダリティの代わりをする
 
-ウェブの画面と CLI で、ワークリストの取得、予約を選ぶ、撮る（合成の画像）、PACS へ送る、確かめる、を流します
+ウェブの画面と CLI で、ワークリストを取る、予約を選ぶ、撮る（試験用の画像）、
+PACS へ送る、確かめる、を流します
 （[spec/12_modality_emulator.md](spec/12_modality_emulator.md)）。
-起動のしかたは下の「モダリティのダミーのウェブの画面」です。
+起動のしかたは下の「検査装置のふりをするウェブの画面」です。
 試験用の PACS・RIS にだけつないでください。
 
-* ワークリストの取得（MWL の SCU）
-* 画像の送信（C-STORE）と疎通の確認（C-ECHO）、失敗した送信の待ち行列と再送
+* ワークリスト（検査の予約の一覧）を取る（MWL）
+* 画像を送る（C-STORE）、つながるかを確かめる（C-ECHO）、失敗した送信の待ち行列と再送
 * 予約のない緊急の患者の入力
 
-### 受け取る側になる
+### 画像を受け取る側になる
 
-手元の受け取る側（Storage SCP）を起動して、送った画像を受けられます（`python -m app.cli scp start`）。
+手元で受け取る側（Storage SCP）を起動して、送った画像を受け取って保存できます
+（`python -m app.cli scp start`）。
 
 ---
 
@@ -236,7 +243,7 @@ character_set:
 
 ---
 
-## モダリティのダミーのウェブの画面
+## 検査装置のふりをするウェブの画面
 
 ワークリスト・撮影・PACS・設定の4つの画面で「取得→選ぶ→撮る→送る→確かめる」を
 流します（[spec/12_modality_emulator.md](spec/12_modality_emulator.md) の 10 章）。
@@ -291,7 +298,7 @@ CI は CSS を作り直し、commit した `app.css` と差が無いことを確
 ## 注意
 
 * **医療機器ではありません。** 研究・開発・テスト用途だけを目的として提供しています。次の用途には使いません：診断、医療行為、臨床評価、AI学習用の医療画像の生成
-* 生成される DICOM データは合成データであり、臨床利用できません
+* 作られる DICOM データは試験用に作った架空のデータであり、臨床利用できません
 * 本番の PACS には送らず、試験用の PACS・RIS にだけつないでください
 * 本ソフトウェアの使用によって発生したいかなる損害についても、作者は責任を負いません
 
@@ -309,7 +316,7 @@ dicom-test-generator/
 │   ├── core/           # Core Engine（データモデル、DICOM構築、UID生成等）
 │   ├── services/       # Service Layer（テンプレート読み込み、患者検索、生成）
 │   ├── cli/            # CLI（argparse、サブコマンド、進捗表示）
-│   ├── modality/       # モダリティのダミー（ワークリスト、送信、待ち行列）
+│   ├── modality/       # 検査装置のふり（ワークリスト、送信、待ち行列）
 │   ├── scp/            # Storage SCP（受け取る側）
 │   ├── web/            # ウェブの画面
 │   └── gui/            # PySide6 のデスクトップ画面（基本の生成だけ）

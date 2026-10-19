@@ -4,9 +4,12 @@
 
 ### システム構成（全体）
 
-ウェブの画面と CLI は同じ Service を呼ぶ。ワークリストの相手から予約を取り、
-予約の値で合成の画像を作り、画像サーバー（PACS）へ送る。点線の部分は作業中（Phase 3c）。
-モダリティのダミーの仕様は [12_modality_emulator.md](12_modality_emulator.md) にある。
+この図で分かること：このソフトの中の流れと、外の装置・仕組み（ワークリストの相手、
+画像サーバー）とのつながり。
+
+ウェブの画面と CLI は同じ処理の部分（Service）を呼ぶ。ワークリストの相手から予約を取り、
+予約の値で試験用の画像を作り、画像サーバー（PACS）へ送る。点線の部分は作業中（Phase 3c）。
+検査装置のふりをする部分の仕様は [12_modality_emulator.md](12_modality_emulator.md) にある。
 
 ```mermaid
 flowchart LR
@@ -14,17 +17,17 @@ flowchart LR
   classDef plan fill:#ffffff,stroke:#8c959f,stroke-dasharray:5 4,color:#57606a
 
   UI["ウェブの画面・CLI"]:::box
-  SVC["Service"]:::box
-  subgraph FLOW["モダリティのダミー"]
+  SVC["処理の部分（Service）"]:::box
+  subgraph FLOW["検査装置のふりをする部分"]
     direction TB
-    MWL["(a) ワークリストの取得<br/>MWL の SCU（C-FIND）"]:::box
+    MWL["(a) ワークリスト（検査の予約の一覧）を取る"]:::box
     MAKE["(b) 予約から画像を作る<br/>テンプレート・装置のプロファイル"]:::box
-    QUEUE["(c) 送信の待ち行列<br/>C-STORE の SCU"]:::box
+    QUEUE["(c) 送信の待ち行列<br/>失敗したら再送できる"]:::box
     COMMIT["(d) 保管の確認・MPPS<br/>作業中（Phase 3c）"]:::plan
   end
   RIS["ワークリストの相手<br/>RIS・画像サーバーのワークリスト"]:::box
   PACS[("画像サーバー（PACS）")]:::box
-  SCP["手元の受け取る側<br/>Storage SCP"]:::box
+  SCP["手元の受け取る側<br/>（画像を受け取って保存する）"]:::box
 
   UI --> SVC
   SVC --> MWL
@@ -32,24 +35,26 @@ flowchart LR
   SVC --> QUEUE
   MWL -->|"予約を取る"| RIS
   MAKE -->|"画像"| QUEUE
-  QUEUE -->|"C-STORE"| PACS
-  QUEUE -->|"C-STORE（手元の試験）"| SCP
+  QUEUE -->|"DICOM で画像を送る"| PACS
+  QUEUE -->|"DICOM で画像を送る（手元の試験）"| SCP
   QUEUE -.-> COMMIT
   COMMIT -.-> PACS
 ```
 
-### 試しに使う組み合わせ
+### 開発・試験のときの構成（本物の患者のデータを使わずに試す）
+
+この図で分かること：試験のときに、画像を見るソフト（tsunagi-dicom）と組み合わせる構成。
 
 ```mermaid
 flowchart LR
   classDef box fill:#ffffff,stroke:#0969da,stroke-width:2px,color:#1f2328
 
-  DTG["dicom-test-generator<br/>モダリティのダミー<br/>合成の検査を作る"]:::box
+  DTG["dicom-test-generator<br/>検査装置のふりをする試験用のソフト<br/>架空の患者の画像を作る"]:::box
   PACS[("画像サーバー<br/>Orthanc など（試験用）")]:::box
-  TD["tsunagi-dicom<br/>画面と BFF"]:::box
+  TD["tsunagi-dicom<br/>画面と中継のサーバー"]:::box
 
-  DTG -->|"C-STORE で送る"| PACS
-  TD -->|"DICOMweb で検索・取得"| PACS
+  DTG -->|"DICOM で画像を送る"| PACS
+  TD -->|"検査を検索し、画像を取る"| PACS
 ```
 
 ### レイヤー構造（重要）
