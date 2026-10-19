@@ -4,7 +4,9 @@
 
 ### システム構成（全体）
 
-ウェブの画面と CLI は同じ Service を呼ぶ。ワークリストの相手から予約を取り、予約の値で合成の画像を作り、画像サーバー（PACS）へ送る。点線は作業中（Phase 3c）。モダリティのダミーの仕様は [12_modality_emulator.md](12_modality_emulator.md)。
+ウェブの画面と CLI は同じ Service を呼ぶ。ワークリストの相手から予約を取り、
+予約の値で合成の画像を作り、画像サーバー（PACS）へ送る。点線は作業中（Phase 3c）。
+モダリティのダミーの仕様は [12_modality_emulator.md](12_modality_emulator.md)。
 
 ```mermaid
 flowchart LR

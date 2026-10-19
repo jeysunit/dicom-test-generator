@@ -32,7 +32,10 @@ Pixel data is synthetic and not intended for clinical use.
 
 ### 図1　全体
 
-ウェブの画面と CLI は、同じ Service を呼ぶ。ワークリストの相手から予約を取り、予約の値で合成の画像を作り、画像サーバー（PACS）へ送る。点線は作業中（Phase 3c）。レイヤーの図は [spec/01_architecture.md](spec/01_architecture.md)。
+ウェブの画面と CLI は、同じ Service を呼ぶ。ワークリストの相手から予約を取り、
+予約の値で合成の画像を作り、画像サーバー（PACS）へ送る。
+点線は作業中（Phase 3c）。
+レイヤーの図は [spec/01_architecture.md](spec/01_architecture.md)。
 
 ```mermaid
 flowchart LR
@@ -66,7 +69,9 @@ flowchart LR
 
 ### 試しに使う組み合わせ
 
-モダリティのダミー（この道具）で合成の検査を画像サーバーへ送り、[tsunagi-dicom](https://github.com/jeysunit/tsunagi-dicom) で見る。実の患者のデータは使わない。
+モダリティのダミー（この道具）で合成の検査を画像サーバーへ送り、
+[tsunagi-dicom](https://github.com/jeysunit/tsunagi-dicom) で見る。
+実の患者のデータは使わない。
 
 ```mermaid
 flowchart LR
