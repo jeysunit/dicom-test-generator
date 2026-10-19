@@ -41,10 +41,11 @@ Phase 2: GUI              ✅ 必須
 3. **受信ディレクトリ構造**: Patient ID / Study UID / Series UID / ファイル
 4. **ログ出力**: 受信ファイル情報
 5. **衝突処理**: 同一SOP Instance UIDが来た場合は上書き or 拒否
+6. **C-ECHO 受信**（Verification SOP Class `1.2.840.10008.1.1`）: 疎通の確かめに
+   Success（`0x0000`）を返す（2026-10-19 に足した。下の「実装前確定事項」の 9）
 
 ### オプション機能（Phase 2以降）
 
-- C-ECHO対応（疎通確認）
 - Association制御（複数同時接続）
 - Storage Commitment
 - Query/Retrieve
@@ -81,6 +82,12 @@ storage_scp:
 7. 最低限の自動テストは「起動停止」「受信成功」「重複処理3モード」「設定エラー」を必須とする
 8. 待ち受けの既定は `127.0.0.1`（手元だけ）。外のモダリティから受けるときは、
    設定で `bind_address` を明示して変える（2026-10-18、ADR-0010 の 7）
+9. C-ECHO に答える（2026-10-19）。Verification SOP Class の Presentation
+   Context を `supported_sop_classes` とは別に必ず受け、C-ECHO には
+   Success（`0x0000`）を返す。設定で切る項目は持たない。理由：モダリティの
+   ダミー（spec/12）の PACS の頁の [C-ECHO] と CLI の `echo` で、手元の
+   この SCP を送り先にしたとき「つながらない」にならないため。返す値は
+   pynetdicom の既定の C-ECHO の handler（常に `0x0000`）に任せる
 
 ### 受けた値は信用しない（2026-10-18）
 
@@ -480,6 +487,8 @@ def handle_association_requested(event):
 2. C-STORE受信成功で `0x0000` を返すこと
 3. 重複時の `overwrite/reject/rename` の各動作
 4. 設定エラー（無効port、storage_dir作成不可等）で適切な例外になること
+5. pynetdicom の SCU からの C-ECHO に `0x0000` を返すこと（手元の空いている
+   ポートに立てて確かめる）
 
 ### SCP起動テスト
 
