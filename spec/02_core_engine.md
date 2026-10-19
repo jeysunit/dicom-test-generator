@@ -16,14 +16,22 @@
 
 ### 主要クラス
 
-| クラス名 | 責務 | Phase |
-|---------|------|-------|
-| `UIDGenerator` | UID生成 | 0 |
-| `PixelGenerator` | ピクセルデータ生成 | 0 |
-| `FileMetaBuilder` | File Meta Information構築 | 0 |
-| `SpatialCalculator` | 空間座標計算 | 0 |
-| `DICOMBuilder` | DICOM Dataset構築 | 0 |
-| `AbnormalGenerator` | 異常データ生成 | 0 |
+| クラス名 | 責務 | モジュール |
+|---------|------|-----------|
+| `UIDGenerator` | UID生成 | `uid_generator.py` |
+| `PixelGenerator` | ピクセルデータ生成 | `pixel_generator.py` |
+| `FileMetaBuilder` | File Meta Information構築 | `dicom_writer.py` |
+| `SpatialCalculator` | 空間座標計算 | `dicom_writer.py` |
+| `DICOMBuilder` | DICOM Dataset構築 | `generator.py` |
+| `AbnormalGenerator` | 異常データ生成 | `abnormal_generator.py` |
+
+以降の節は、これらのクラスの仕様を書く。クラスの外にある Core のモジュールは
+「Core のそのほかのモジュール」にまとめる。
+
+**`AbnormalGenerator` の接続の現状**: `StudyGeneratorService` は
+`AbnormalGenerator` を呼ばない。生成で使う異常の設定は
+`abnormal.allow_invalid_sop_uid`（SOP Instance UID の 0 始まり）だけで、
+`abnormal.level` は設定として持つが、生成の経路には届いていない。
 
 ---
 
@@ -96,7 +104,8 @@ class UIDGenerator:
     def generate_instance_creator_uid(self) -> str:
         """Instance Creator UIDを生成
         
-        スコープ: アプリ固定（全生成データで共通）
+        スコープ: 1回の生成（`StudyGeneratorService.generate`）で共通。
+        Implementation Class UID にも同じ方法で別に1つ作る
         """
         pass
 ```
@@ -122,7 +131,9 @@ study_uid = uid_gen.generate_study_uid()
 
 - **UUID 2.25**: `uuid.uuid4().int` を10進数変換
 - **カスタムRoot**: `{root}.{counter}` で連番管理
-- **0始まり不正**: ランダムな位置にドット+0挿入
+- **0始まり不正**: ランダムな位置でドットの直後に0を置く
+- 方式が不正、`custom_root` が空または OID の形でないときは
+  `UIDGenerationError`
 
 ---
 
@@ -379,8 +390,12 @@ class DICOMBuilder:
         spatial: SpatialCoordinates,
         pixel_data: np.ndarray,
         file_meta: FileMetaDataset,
-        template: dict,
-        abnormal_config: Optional[AbnormalConfig] = None
+        sop_instance_uid: str,
+        series_instance_uid: str,
+        specific_character_set: str | None = None,
+        use_ideographic: bool = True,
+        use_phonetic: bool = True,
+        bits_stored: int = 16
     ) -> Dataset:
         """CT Image Storageを構築
         
@@ -393,14 +408,25 @@ class DICOMBuilder:
             spatial: 空間座標
             pixel_data: ピクセルデータ
             file_meta: File Meta Information
-            template: テンプレート（マージ済み）
-            abnormal_config: 異常生成設定（オプション）
+                （Media Storage SOP Instance UID が sop_instance_uid と
+                異なれば DICOMBuildError）
+            sop_instance_uid: SOP Instance UID
+            series_instance_uid: Series Instance UID
+            specific_character_set: Specific Character Set（None なら設定しない）
+            use_ideographic: PN に漢字表記を入れるか
+            use_phonetic: PN にカナ表記を入れるか
+            bits_stored: Bits Stored
         
         Returns:
             Dataset: 完成したDICOM Dataset
         """
         pass
 ```
+
+`DICOMBuilder` は患者・スタディ・シリーズ・画像・空間座標・ピクセルの各タグを
+置くだけで、テンプレートの属性・予約の値・装置のプロファイルは重ねない。
+重ねる順序は `StudyGeneratorService` が持つ（[01_architecture.md](01_architecture.md)
+の生成フロー）。異常値の注入も `DICOMBuilder` は行わない。
 
 ### 使用例
 
@@ -416,8 +442,8 @@ ds = builder.build_ct_image(
     spatial=spatial_coords,
     pixel_data=pixels,
     file_meta=file_meta,
-    template=merged_template,
-    abnormal_config=None  # 正常データ
+    sop_instance_uid=sop_uid,
+    series_instance_uid=series_uid,
 )
 
 # 保存
@@ -427,16 +453,15 @@ ds.save_as("output.dcm", write_like_original=False)
 ### 内部処理フロー
 
 1. File Meta を Dataset に設定
-2. Patient Module タグ設定
+2. Patient Module タグ設定（Patient's Age は生年月日と検査日から算出）
 3. General Study Module タグ設定
 4. General Series Module タグ設定
 5. General Image Module タグ設定
-6. CT Image Module タグ設定（SOP固有）
+6. SOP Common Module タグ設定
 7. 空間座標タグ設定
 8. Pixel Data設定
-9. 異常値注入（abnormal_config指定時）
-10. Transfer Syntax 設定
-11. Dataset返却
+9. Transfer Syntax に合わせた設定
+10. Dataset返却
 
 ---
 
@@ -513,19 +538,35 @@ patient_id = abnormal_gen.apply_abnormal_value(
 
 ---
 
+## Core のそのほかのモジュール
+
+モダリティのダミー（[12_modality_emulator.md](12_modality_emulator.md)）と装置の
+プロファイル（[13_device_profiles.md](13_device_profiles.md)）のために、Core に
+Pure な処理が加わった。どれも通信・ファイル・ログを使わない。ここでは役割だけを
+書き、決めごとは各仕様を正本とする。
+
+| モジュール | 役割 | 仕様 |
+|-----------|------|------|
+| `models.py` | データモデル（Pydantic）。予約の値の `WorklistItem`・`ScheduledPatient`・`ScheduledContext` を含む | [03](03_data_models.md) |
+| `exceptions.py` | 例外の階層。`ModalityError`・`ProfileError` の系統を含む | [08](08_error_handling.md) |
+| `device_profile.py` | 装置のプロファイルのモデルと、Dataset への重ね方（`DeviceProfile`、`apply_device_profile`） | [13](13_device_profiles.md) |
+| `worklist_mapping.py` | ワークリストの応答から `WorklistItem` を作り、予約（または予約なし）の値を画像へ写す。予約の鍵の計算、モダリティの一致の確認を含む | [12](12_modality_emulator.md) の 5〜6 章 |
+| `worklist_charset.py` | 画像の Specific Character Set の決め方と、その文字コードで表せない字の確認 | [12](12_modality_emulator.md) の 7 章 |
+| `path_safety.py` | 信用できない値から、ファイル・フォルダの名前を安全に作る。出力のフォルダの外に書かないことの確認 | [12](12_modality_emulator.md) の 6 章 |
+| `uid_format.py` | 相手から来る UID の形の確認（`is_valid_uid`） | [12](12_modality_emulator.md) の 6 章 |
+| `person_name.py` | 手で入れた氏名を PN の形にする | [12a](12a_web_screens_and_cli.md) |
+| `text_safety.py` | 相手から来る値の制御文字を、見える形にする | [12a](12a_web_screens_and_cli.md) |
+| `validation_text.py` | Pydantic の検証の誤りを、値を出さずに文にする | [12](12_modality_emulator.md) の 12 章 |
+
+---
+
 ## 実装ガイドライン
 
 ### Pythonクラス定義場所
 
-```text
-app/core/
-├── uid_generator.py         # UIDGenerator
-├── pixel_generator.py       # PixelGenerator
-├── file_meta_builder.py     # FileMetaBuilder
-├── spatial_calculator.py    # SpatialCalculator
-├── dicom_builder.py         # DICOMBuilder（メイン）
-└── abnormal_generator.py    # AbnormalGenerator
-```
+クラスとモジュールの対応は「API一覧」の表のとおり。`FileMetaBuilder` と
+`SpatialCalculator` は `dicom_writer.py` に、`DICOMBuilder` は `generator.py`
+にある。利用側は `from app.core import ...` で import する。
 
 ### データモデル
 
@@ -581,21 +622,12 @@ def test_generate_sop_uid_with_invalid():
     assert 5 <= invalid_count <= 15  # 約10%
 ```
 
-### Integration Test
+### Dataset 構築の試験
 
-```python
-# tests/integration/test_dicom_generation.py
-def test_generate_ct_image():
-    uid_gen = UIDGenerator()
-    pixel_gen = PixelGenerator()
-    builder = DICOMBuilder()
-    
-    ds = builder.build_ct_image(...)
-    
-    assert ds.PatientID == "P000001"
-    assert ds.Modality == "CT"
-    assert ds.PixelData is not None
-```
+`DICOMBuilder` は `tests/core/test_dicom_builder.py` で、構築した Dataset の
+タグを確かめる。Service を含めた生成は `tests/services/test_study_generator.py`、
+予約から送信までの流れは `tests/integration/test_modality_flow.py` で確かめる。
+試験の構成は [01_architecture.md](01_architecture.md) の「試験の構成」を参照。
 
 ---
 
@@ -611,9 +643,7 @@ def test_generate_ct_image():
 
 ---
 
-## 次のステップ
+## 関連する文書
 
-1. [03_data_models.md](03_data_models.md) でデータモデルを確認
-2. Core Engine実装開始
-3. 単体テスト作成
-4. Service Layer実装へ
+- [03_data_models.md](03_data_models.md)：データモデル
+- [01_architecture.md](01_architecture.md)：Core を使う Service Layer の手順
