@@ -23,10 +23,10 @@ git branch --show-current
 ## レイヤー構造
 
 ```text
-CLI (app/cli/) ─┬→ Modality (app/modality/) → Service (app/services/)
+Web (app/web/) ─┐
+CLI (app/cli/) ─┤→ Modality (app/modality/) → Service (app/services/)
                 │                                   ↓
-GUI (app/gui/) ─┼→ Service (app/services/) ──→ Core (app/core/)
-SCP (app/scp/) ─┘→ Core (app/core/)
+GUI (app/gui/) ─┴→ Service (app/services/) ──→ Core (app/core/)
 ```
 
 - `app/modality/`（モダリティのダミーの通信と手順）は Service Layer の
@@ -38,16 +38,19 @@ SCP (app/scp/) ─┘→ Core (app/core/)
 
 ## 実装順序
 
+**段（Phase）の状態は、この表が唯一の置き場。** README・spec には
+進捗の表を持たない。
+
 | Phase | 内容 | 状態 |
 |-------|------|------|
 | Phase 0 | Core Engine（モデル、UID、ピクセル、DICOM構築） | ✅ 完了 |
 | Phase 1 | CLI + Service Layer（テンプレート、患者、生成、CLI） | ✅ 完了 |
-| Phase 2a | GUI MVP（PySide6 基本ウィジェット + 生成フロー） | ✅ 完了 |
+| Phase 1.5 | Storage SCP（PyNetDICOM） | 外した（2026-10-20、ADR-0013。受信は PACS の役目で、モダリティの擬態の目的の外） |
+| Phase 2a | GUI MVP（PySide6 基本ウィジェット + 生成フロー） | ✅ 完了（`spec/05_gui.md`。凍結） |
 | Phase 2b | GUI フル機能（メニュー、ダイアログ、スタイル） | 進めない（PySide6 の画面は凍結。ADR-0011 の案 B） |
-| Phase 1.5 | Storage SCP（PyNetDICOM） | ✅ 完了 |
 | Phase 3a | モダリティのダミー：ワークリスト（C-FIND MWL）・予約からの生成・送信（C-STORE・C-ECHO）を CLI で（`spec/12_modality_emulator.md`） | ✅ 完了（CLI） |
-| Phase 3b | モダリティのダミー：ウェブの画面（ワークリスト・撮影・PACS・設定） | ✅ 完了（`python -m app.web`） |
-| Phase 3c | モダリティのダミー：保管の確認（Storage Commitment）・MPPS（選べる形） | ✅ 完了（CLI の `commit`・`mpps`、画面の状態の表示。決めたことは `spec/12_modality_emulator.md` 18.2。試験用の Orthanc での手の確かめは残る） |
+| Phase 3b | モダリティのダミー：ウェブの画面（ワークリスト・撮影・PACS・設定） | ✅ 完了（`python -m app.web`。`spec/12a_web_screens_and_cli.md`） |
+| Phase 3c | モダリティのダミー：保管の確認（Storage Commitment）・MPPS（選べる形） | ✅ 完了（CLI の `commit`・`mpps`、画面の状態の表示。決めたことは `spec/12b_decisions_and_limits.md` 18.2。**試験用の Orthanc での手の確かめは未了**） |
 
 ## テスト実行
 
@@ -58,8 +61,9 @@ pytest
 # レイヤー別
 pytest tests/core/ -v
 pytest tests/services/ -v
-pytest tests/scp/ -v
 pytest tests/cli/ -v
+pytest tests/modality/ -v
+pytest tests/integration/ -v
 pytest tests/gui/ -v
 pytest tests/web/ -v
 
@@ -94,8 +98,6 @@ python -m app.cli quick -p P000001 -m ct_generic -s 3 -i 1,20,20 -o output/
 python -m app.cli quick -p P000001 -m ct_generic --profile dtg_synthetic_ct -s 1 -i 3 -o output/
 python -m app.cli profiles list
 python -m app.cli version
-python -m app.cli scp start
-python -m app.cli scp start --config config/app_config.yaml
 
 # モダリティのダミー（Phase 3a。試験用の PACS・RIS にだけつなぐ）
 python -m app.cli echo --to PACS_TEST

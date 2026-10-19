@@ -39,13 +39,13 @@ CT などの検査装置（モダリティ）のふりをして、ワークリ�
 
 ウェブの画面と CLI（コマンドの画面）は、同じ処理の部分（Service）を呼ぶ。
 ワークリストの相手から予約を取り、予約の値で試験用の画像を作り、
-画像サーバー（PACS）へ送る。点線の部分は予定（「これからの予定」）。
+画像サーバー（PACS）へ送る。送った後に、保管の確認（Storage Commitment）と
+MPPS を、設定で選んだときだけ行う。
 内部の層の図は [spec/01_architecture.md](spec/01_architecture.md) にある。
 
 ```mermaid
 flowchart LR
   classDef box fill:#ffffff,stroke:#0969da,stroke-width:2px,color:#1f2328
-  classDef plan fill:#ffffff,stroke:#8c959f,stroke-dasharray:5 4,color:#57606a
 
   UI["ウェブの画面・CLI"]:::box
   SVC["処理の部分（Service）"]:::box
@@ -54,11 +54,10 @@ flowchart LR
     MWL["(a) ワークリスト（検査の予約の一覧）を取る"]:::box
     MAKE["(b) 予約から画像を作る<br/>テンプレート・装置のプロファイル"]:::box
     QUEUE["(c) 送信の待ち行列<br/>失敗したら再送できる"]:::box
-    COMMIT["(d) 保管の確認・MPPS<br/>予定"]:::plan
+    COMMIT["(d) 保管の確認・MPPS"]:::box
   end
   RIS["ワークリストの相手<br/>RIS・画像サーバーのワークリスト"]:::box
   PACS[("画像サーバー（PACS）")]:::box
-  SCP["手元の受け取る側<br/>（画像を受け取って保存する）"]:::box
 
   UI --> SVC
   SVC --> MWL
@@ -67,9 +66,9 @@ flowchart LR
   MWL -->|"予約を取る"| RIS
   MAKE -->|"画像"| QUEUE
   QUEUE -->|"DICOM で画像を送る"| PACS
-  QUEUE -->|"DICOM で画像を送る（手元の試験）"| SCP
-  QUEUE -.-> COMMIT
-  COMMIT -.-> PACS
+  QUEUE --> COMMIT
+  COMMIT -->|"保管の確認"| PACS
+  COMMIT -->|"MPPS（既定の送り先）"| RIS
 ```
 
 ### 図2　開発・試験のときの構成（本物の患者のデータを使わずに試す）
@@ -120,20 +119,17 @@ PACS へ送る、確かめる、を流します
 * ワークリスト（検査の予約の一覧）を取る（MWL）
 * 画像を送る（C-STORE）、つながるかを確かめる（C-ECHO）、失敗した送信の待ち行列と再送
 * 予約のない緊急の患者の入力
+* 保管の確認（Storage Commitment）：送った画像を相手が保管したかを問う。選んだときだけ
+  （下の「保管の確認と MPPS」）
+* MPPS：撮影の始まりと終わりを相手に知らせる。選んだときだけ
 
-### 画像を受け取る側になる
+画像を受け取って保存する機能（Storage SCP）はありません。受け取る側は、
+試験用の PACS（Orthanc など）を用意してください
+（[ADR-0013](adr/0013-remove-storage-scp.md)）。
 
-手元で受け取る側（Storage SCP）を起動して、送った画像を受け取って保存できます
-（`python -m app.cli scp start`）。
-
----
-
-## これからの予定
-
-* 保管の確認（Storage Commitment）：画像を送った後に、相手が保管したことを確かめる
-* MPPS：撮影の始まりと終わりを相手に知らせる
-
-PySide6 のデスクトップ画面（`python -m app.gui`）は基本の生成だけを備えています。機能は増やさず、ウェブの画面を使います。
+PySide6 のデスクトップ画面（`python -m app.gui`）は、基本の生成だけを備えた
+凍結の機能です。機能は増やさず、ウェブの画面を使います
+（[spec/05_gui.md](spec/05_gui.md)）。
 
 ---
 
@@ -199,6 +195,8 @@ python -m app.cli version
 ```
 
 Job YAML に生成条件を記述します。`examples/` に最小構成・全オプション構成のサンプルがあります。
+引数の詳細は各サブコマンドの `--help` を見てください
+（[spec/04_cli.md](spec/04_cli.md)）。
 
 ---
 
@@ -243,27 +241,11 @@ character_set:
 
 ---
 
-## Storage SCP（Phase 1.5）
-
-手元で画像を受ける側です（[spec/11_storage_scp.md](spec/11_storage_scp.md)）。
-設定は `config/app_config.yaml` の `storage_scp:` の節です。`enabled: true` にしてから
-起動します。既定は手元（127.0.0.1）だけで待ち受けます。
-
-```bash
-python -m app.cli scp start
-```
-
-C-STORE を受けて保存し、C-ECHO（疎通の確かめ）には Success を返します。モダリティの
-ダミーの送り先にすると、PACS の画面の [C-ECHO] と `python -m app.cli echo` で
-「つながった」になります。
-
----
-
 ## 検査装置のふりをするウェブの画面
 
 ワークリスト・撮影・PACS・設定の4つの画面で「取得→選ぶ→撮る→送る→確かめる」を
-流します（[spec/12_modality_emulator.md](spec/12_modality_emulator.md) の 10 章）。
-試験用の PACS・RIS にだけつないでください。
+流します（[spec/12a_web_screens_and_cli.md](spec/12a_web_screens_and_cli.md) の
+10 章）。試験用の PACS・RIS にだけつないでください。
 
 ### 起動
 
@@ -311,7 +293,7 @@ CI は CSS を作り直し、commit した `app.css` と差が無いことを確
 
 ---
 
-## 保管の確認と MPPS（Phase 3c）
+## 保管の確認と MPPS
 
 どちらも既定は使いません。`config/app_config.yaml` の `modality:` の節で選びます
 （[spec/12_modality_emulator.md](spec/12_modality_emulator.md) の 8.3・8.4・12 章）。
@@ -350,6 +332,8 @@ python -m app.cli commit --job 1 --wait 60
   返さない相手のときだけ、`commitment_wait_seconds` に秒を入れます
 
 ### 試験用の Orthanc で確かめる手順
+
+この手順の手の確かめは、まだ済んでいません（[WORKFLOW.md](WORKFLOW.md) の Phase 3c）。
 
 Orthanc（1.6.0 から）は保管の確認を受け、結果を別の Association で返します。結果を返す
 先として、この道具を Orthanc の設定の `DicomModalities` に登録します。
@@ -408,27 +392,21 @@ python -m app.cli mpps retry
 
 開発の段階（Phase）と完了の線は [WORKFLOW.md](WORKFLOW.md) にあります。仕様は `spec/`、設計判断は `adr/` です。
 
----
-
-## プロジェクト構成
+### プロジェクト構成
 
 ```text
 dicom-test-generator/
 ├── app/
 │   ├── core/           # Core Engine（データモデル、DICOM構築、UID生成等）
 │   ├── services/       # Service Layer（テンプレート読み込み、患者検索、生成）
+│   ├── modality/       # 検査装置のふり（ワークリスト、送信、待ち行列、保管の確認、MPPS）
 │   ├── cli/            # CLI（argparse、サブコマンド、進捗表示）
-│   ├── modality/       # 検査装置のふり（ワークリスト、送信、待ち行列）
-│   ├── scp/            # Storage SCP（受け取る側）
 │   ├── web/            # ウェブの画面
-│   └── gui/            # PySide6 のデスクトップ画面（基本の生成だけ）
-├── tests/
-│   ├── core/           # Core Engineテスト
-│   ├── services/       # Service Layerテスト
-│   └── cli/            # CLIテスト
+│   └── gui/            # PySide6 のデスクトップ画面（基本の生成だけ。凍結）
+├── tests/              # core・services・cli・modality・web・gui・integration
 ├── spec/               # 仕様書
 ├── adr/                # 設計判断記録
-├── docs/               # MkDocsドキュメント
+├── config/             # 設定（app_config.yaml）
 ├── templates/          # モダリティ・病院テンプレート（YAML）
 ├── profiles/examples/  # 架空の装置のプロファイルの例（実在の装置は外に置く）
 ├── data/               # 患者マスターデータ
@@ -436,9 +414,7 @@ dicom-test-generator/
 └── README.md           # 本ファイル
 ```
 
----
-
-## 開発方針
+### 開発方針
 
 本プロジェクトは仕様駆動開発を採用しています。
 
@@ -446,28 +422,15 @@ dicom-test-generator/
 * CLI、ウェブの画面、通信の順に段階を踏んだ開発
 * ADRによる設計判断の記録
 
-詳細は `spec/` ディレクトリを参照してください。
+### 読む順
 
----
-
-## ドキュメント
-
-仕様書は `spec/` ディレクトリにあります。
-
-### 主要ドキュメント
-
-* [00_overview.md](spec/00_overview.md) - プロジェクト概要
-* [01_architecture.md](spec/01_architecture.md) - アーキテクチャ設計
-* [02_core_engine.md](spec/02_core_engine.md) - Core Engine API
-* [07_job_schema.md](spec/07_job_schema.md) - Job YAML スキーマ
-
-### MkDocsでドキュメント表示
-
-```bash
-pip install mkdocs mkdocs-material
-mkdocs serve
-# http://127.0.0.1:8000
-```
+1. [00_overview.md](spec/00_overview.md) - プロジェクト概要
+2. [01_architecture.md](spec/01_architecture.md) - アーキテクチャ設計
+3. [02_core_engine.md](spec/02_core_engine.md) - Core Engine API
+4. [07_job_schema.md](spec/07_job_schema.md) - Job YAML スキーマ
+5. [12_modality_emulator.md](spec/12_modality_emulator.md) - モダリティのダミー
+   （画面と CLI は [12a](spec/12a_web_screens_and_cli.md)、決定の記録は
+   [12b](spec/12b_decisions_and_limits.md)）
 
 ---
 
