@@ -237,6 +237,6 @@ class MainWindow(QMainWindow):
 
 ## 参考資料
 
-- [10_async_processing.md](../spec/10_async_processing.md)
+- [05_gui.md](../spec/05_gui.md)（「非同期処理」の節）
 - Qt Threading: <https://doc.qt.io/qt-6/thread-basics.html>
 - Python GIL: <https://docs.python.org/3/glossary.html#term-global-interpreter-lock>
