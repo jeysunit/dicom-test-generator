@@ -1,4 +1,4 @@
-"""待ち受けと認証・CSRF・応答の見出し（spec/12 の 10.8・10.9）."""
+"""待ち受けと認証・CSRF・応答の見出し（spec/12a の 10.8・10.9）."""
 
 from __future__ import annotations
 

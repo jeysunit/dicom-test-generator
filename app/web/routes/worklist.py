@@ -1,4 +1,4 @@
-"""ワークリストの画面（spec/12_modality_emulator.md 10.4・5 章）."""
+"""ワークリストの画面（spec/12a_web_screens_and_cli.md 10.4、spec/12_modality_emulator.md 5 章）."""
 
 from __future__ import annotations
 

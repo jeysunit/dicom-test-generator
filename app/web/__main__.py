@@ -1,4 +1,4 @@
-"""`python -m app.web`：画面を起動する（spec/12_modality_emulator.md 10.9・12 章）.
+"""`python -m app.web`：画面を起動する（spec/12a_web_screens_and_cli.md 10.9、spec/12_modality_emulator.md 12 章）.
 
 終了コード：0=正常に止めた、2=設定の誤り（手元の外でパスワードが無いなどを含む）。
 """

@@ -12,12 +12,12 @@ from app.core.exceptions import TemplateNotFoundError, TemplateParseError
 
 from .profile_loader import PROFILE_DIRS_ENV
 
-# テンプレートの名前（spec/12 の 17：小文字・数字・`_` 区切り。既存の名前も読めるよう `-` と大文字も許す）
+# テンプレートの名前（spec/12b の 17：小文字・数字・`_` 区切り。既存の名前も読めるよう `-` と大文字も許す）
 TEMPLATE_NAME_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
 
 # 装置ごとだった古いモダリティテンプレート：古い名前の SHA-256 → 土台のテンプレート。
 # 古い名前は商用の製品の名前を含むため、名前そのものを書かない
-# （spec/12_modality_emulator.md の 17）。装置ごとの写しは装置のプロファイルに
+# （spec/12b_decisions_and_limits.md の 17）。装置ごとの写しは装置のプロファイルに
 # なった（spec/13_device_profiles.md の 7.3）。別名として黙って読まず、
 # プロファイルの置き場へ案内する TemplateNotFoundError にする。
 DEVICE_SPECIFIC_TEMPLATES: dict[str, str] = {

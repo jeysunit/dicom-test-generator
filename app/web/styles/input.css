@@ -1,6 +1,6 @@
 /*
  * Tailwind CSS v4 の入力（scripts/build_css.sh で app/web/static/app.css を作る）。
- * 色・文字の値は spec/12_modality_emulator.md の 10.2 の表と同じ。
+ * 色・文字の値は spec/12a_web_screens_and_cli.md の 10.2 の表と同じ。
  * 出典：tsunagi-dicom（GitHub）の docs/spec.md 2 と src/app/globals.css（2026-10-18）。
  * 値がずれたら tests/web/test_theme_tokens.py が落ちる。
  */

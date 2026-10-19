@@ -1,4 +1,4 @@
-"""MPPS（N-CREATE・N-SET）の試験（spec/12 の 6.4・8.4・14 章。Phase 3c）.
+"""MPPS（N-CREATE・N-SET）の試験（spec/12 の 6.4・8.4、spec/12b の 14 章。Phase 3c）.
 
 手元の偽の MPPS の相手（tests/modality_peers.py の MppsRecorder）を相手にする。
 """

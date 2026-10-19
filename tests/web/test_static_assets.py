@@ -1,4 +1,4 @@
-"""画面の静的な物：版を固定した htmx・Lucide のアイコン・作った CSS が揃っている（spec/12 の 10.1）."""
+"""画面の静的な物：版を固定した htmx・Lucide のアイコン・作った CSS が揃っている（spec/12a の 10.1）."""
 
 from __future__ import annotations
 
