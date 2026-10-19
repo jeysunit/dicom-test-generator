@@ -17,7 +17,8 @@ Tailwind CSS）で作る。明るい地を既定にし、暗い地にも切り�
 同じ操作を CLI でも行え、自動の試験から使える。
 
 **状態**: 承認済み（2026-10-18。決まったことは「18. 決まったこと」）。
-Phase 3a（CLI）・3b（ウェブの画面）を実装した。3c は未実装
+Phase 3a（CLI）・3b（ウェブの画面）・3c（保管の確認・MPPS）を実装した。
+3c で決めたこと（推奨）は「18.2」。試験用の Orthanc での手の確かめ（15 章）は残る
 
 **目的の線**: この道具は診療のためではなく、治験やシステムの試験の
 スタブ（モダリティの役の代わり）に使う。機能は少なくてよい。
@@ -133,8 +134,9 @@ RIS（ワークリスト）→ モダリティ → PACS
   `send_n_set` を使う（pynetdicom の公開の API。版は requirements.txt の範囲）
 - 保管の確認の結果（N-EVENT-REPORT）は、相手が**別の Association で**
   送ってくることが多い。受けるために、この道具は小さな待ち受け
-  （N-EVENT-REPORT だけを受ける）を持つ。待ち受けは保管の確認を
-  有効にしたときだけ立てる（「8.3 保管の確認」）
+  （N-EVENT-REPORT と、相手からの疎通の確かめの C-ECHO だけを受ける）を
+  持つ。待ち受けは保管の確認を有効にしたときだけ立てる（「8.3 保管の確認」・
+  8.3.1）
 
 ### 4.2 Orthanc の対応（2026-10-18 に公開の資料・ソースで確かめた）
 
@@ -480,6 +482,79 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID
 - 送り先ごとに「保管の確認を使う」を選ぶ（既定は使わない）
 - 待ち受けは保管の確認を使う送り先が1つでもあるときだけ立てる
 
+#### 8.3.1 結果を受ける道（2026-10-19 に決めた。推奨）
+
+**結果は、どちらの道で来ても受ける。既定は「別の Association（待ち受け）」で
+受け、N-ACTION の Association はすぐに離す。** 例外は1つ：送り先の設定
+`commitment_wait_seconds` に秒を入れたときだけ、N-ACTION の後にその秒まで
+同じ Association を開けたまま待ち、そこで来た N-EVENT-REPORT も受ける。
+
+- 理由：主な試験の相手（Orthanc）は結果を別の Association で返す（4.2）。
+  同じ Association で待つと、別の道で返す相手のときに毎回その秒だけ画面が
+  止まる。同じ Association でしか返さない相手のときだけ秒を入れればよい
+- どちらの道でも、受け取りの処理（下の 8.3.2）は同じ1つを通す
+- 待ち受けは `modality.listen`（既定 `127.0.0.1:11113`）で立てる。受ける
+  SOP Class は Storage Commitment Push Model と Verification（相手からの
+  疎通の確かめ）だけ。呼ばれる AE タイトルが自分の AE タイトルと違う
+  Association は断る。相手が SCP の役を求める役の交渉（SCP/SCU Role
+  Selection）は受ける
+- 別の道は、相手が Orthanc のときは `DicomModalities` にこの道具を登録して
+  おく必要がある（4.2・10.7）
+
+#### 8.3.2 受け取りの決まり（相手から来る値は信用しない）
+
+- 結果の Transaction UID が、この道具が出して**まだ待っている**か時間切れに
+  した要求の UID と合うときだけ受ける。合わない・UID の形でない・Event
+  Information が無い・読めないときは何も書かずに Failure を返す
+  （Event Type が 1・2 でなければ `0x0113`、ほかは `0x0110`）
+- 別の道で来たときは、呼んできた AE タイトルがその要求の送り先の AE
+  タイトルと同じときだけ受ける（違えば `0x0110`）
+- **読む順と大きさの上限**（2026-10-19、Codex の指摘で足した）：Event
+  Information の大きさが 1 MiB を超えれば、読まずに `0x0110` を返す。読むときは
+  先に Event Type・Transaction UID と呼んできた AE だけを確かめ、合ったときだけ
+  参照の並びを読む。参照の件数（Referenced SOP Sequence と Failed SOP
+  Sequence の合計）が、その要求で問うた画像の数を超えれば、何も書かずに
+  `0x0110` を返す。1 MiB は、1回の撮影の上限（2000 枚）の参照を十分に入れられる
+  大きさ。つながりの層（pynetdicom）が組み立てる前の大きさは、この道具では
+  抑えない（待ち受けは既定で手元だけ）
+- 要求に入れた画像の組（SOP Class UID と SOP Instance UID）だけを見る。
+  Referenced SOP Sequence にあれば「確認済」、Failed SOP Sequence にあれば
+  「確認の失敗」（Failure Reason の数を残す）。要求に無い組は捨てる（件数の
+  上限の内で）。要求した
+  のに結果のどちらにも無い組は「確認の失敗」（理由「結果に無い」）にする
+- Event Type が 1 でも、Failed SOP Sequence があればその画像は失敗にする
+  （書いてある方を信じる）
+- 時間切れにした後に結果が来たら、その結果で置き換える（相手の最後の答えの
+  方が確か）。記録に「遅れて来た」と残す
+- 相手から来た値は、記録に `%r` で出す。画面には件数と状態の言葉だけを出し、
+  相手の文は出さない（Failure Reason は `0x0112` のような数だけ）
+- 状態の確かめと書き込みは1つの取引で行い、待っている（か時間切れの）要求に
+  だけ書く。同じ要求に2つの結果が来たら、先に書いた方を残し、後の方には
+  `0x0110` を返す。N-ACTION の失敗も、待っている要求だけを「確認の失敗」に
+  する（先に届いた結果を上書きしない。2026-10-19、独立レビューの指摘で足した）
+
+#### 8.3.3 いつ求めるか・待ち行列の状態
+
+- ウェブの画面では、保管の確認を使う送り先へ1件が「送れた」になったら、
+  すぐに N-ACTION を送る（再送で送れたときも同じ）。画面のプロセスが
+  待ち受けを立てて結果を受ける
+- CLI では自動で求めない。`commit --job ID` で求め、待ち受けを立てて
+  結果か時間切れまで待つ（11.8）。画面が同じ待ち受けのポートで動いて
+  いれば、CLI は待ち受けを立てられないので、その旨を出して止まる
+- 求めるのは状態が「送れた」の件だけ。送れた画像（Success・Warning）の
+  組を、送ったときに残した SOP Class UID・SOP Instance UID から集める
+  （ファイルは読み直さない）
+- 待ち行列の各件に、最後の要求の状態を持たせる：「確認待ち・確認済・
+  確認の失敗・確認の時間切れ」。保管の確認を使わない送り先の件は「—」
+- N-ACTION を送れない（Association を張れない・相手が Failure を返した）
+  ときは「確認の失敗」にし、理由を残す。自動では求め直さない
+  （`commit --job ID` で求め直す。新しい Transaction UID を作る）
+- 時間切れ（送り先の `commitment_timeout_seconds`、既定 600 秒）は、
+  待ち行列を読むたびに確かめて「確認の時間切れ」にする
+- 撮影に使った装置のプロファイルが `services.storage_commitment: false`
+  なら、その撮影の件には求めない（spec/13 の 8）。撮影の出力のフォルダと
+  プロファイルの名前の組を状態の置き場に残して見分ける
+
 ### 8.4 MPPS（Phase 3c）
 
 - ワークリストの相手（または別の MPPS の相手）ごとに「MPPS を使う」を
@@ -487,6 +562,75 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID
 - 撮影の開始で N-CREATE（IN PROGRESS）、作り終わりで N-SET
   （COMPLETED）。撮影を取り消したら N-SET（DISCONTINUED）
 - MPPS が失敗しても撮影と送信は止めない。失敗は画面と記録に出す
+
+#### 8.4.1 送り先・送るとき・再送（2026-10-19 に決めた。推奨）
+
+**MPPS は、ワークリストの相手の `use_mpps: true` のときだけ送り、送り先は
+`modality.mpps:` の相手（書いていなければワークリストの相手）にする。**
+例外は2つ：CLI の `exam --mpps`・`--no-mpps` はその撮影だけ設定を
+上書きする。装置のプロファイルが `services.mpps: false` なら、設定で選んで
+いても送らない（spec/13 の 8）。
+
+- 「撮影の開始」は、撮影の値を確かめ終わり、画像を作り始める直前
+  （N-CREATE）。「作り終わり」は画像を書き終えた直後（N-SET COMPLETED）
+- 「取り消し」は、N-CREATE を送った後に撮影が止まったとき（画像を作る途中の
+  誤り・表せない字など）。N-SET（DISCONTINUED）を送る。画面と CLI には
+  撮影を取り消す操作を持たない（Phase 3b で削った）
+- 予約に Study Instance UID が無いときは、N-CREATE より前にこの道具が
+  UID を作り、その UID で画像も作る（MPPS と画像の Study をそろえる）
+- 送る値は 6.4 のとおり。Performed Series Sequence は作った画像の
+  ヘッダーから組む（シリーズごとに Series Instance UID・Series
+  Description・Protocol Name と、画像の Referenced SOP Class・Instance UID）
+- 送れない（Association を張れない・相手が Failure を返した・時間切れ）
+  ときは、その知らせを状態の置き場の MPPS の待ち行列に「失敗」で残す。
+  相手の Warning は送れた扱いにする
+- 再送は `retry.max_attempts`（送信と同じ）の回数だけすぐに試し、それでも
+  だめなら残す。残った分は CLI の `mpps retry` で送り直す（11.9）。順は
+  必ず N-CREATE が先で、N-CREATE が送れていない件の N-SET は送らずに待つ
+- **送れたとみなすのは、相手が Success か Warning を返したときだけ。例外は
+  2つで、どちらも「前に同じ知らせを送り、応答が来なかった」と記録から言える
+  ときに限る**（2026-10-19、独立レビュー（Codex）の指摘で直した）：
+  1. N-CREATE に `0x0111`（同じ SOP Instance が既にある）が返り、前の
+     N-CREATE が「応答なし」で終わっていた
+  2. 終わりの N-SET に `0x0110`（終わった MPPS は更新できない。PS3.4
+     F.7.2.2）が返り、前の同じ N-SET が「応答なし」で終わっていた
+  - 理由：`0x0110` は「処理の失敗」の一般の値でもある。前に相手が Failure を
+    返していた・前に送っていない（N-CREATE を待って保留していた N-SET の
+    初回）なら、届いていたとは言えないので失敗のまま残す
+  - 「応答なし」は、Association を張って要求を送った後に、応答が来ないまま
+    時間切れ・切断になったこと。Association を張れなかった・相手が Failure を
+    返した・Presentation Context を断られたは「応答なし」に数えない
+  - 待ち行列の行に、操作ごと（N-CREATE・N-SET）に「応答なしで終わった」印を
+    残す（送り直しのすぐの2回目以降も、この印で決める）
+- 送り直しは、設定の `use_mpps` が false でも、待ち行列に送れていない知らせが
+  あれば行う（`exam --mpps` で作った分。同じ日に足した）
+- **送り先は行に固定する**（同じ日、Codex の指摘で足した）：N-CREATE を作る
+  ときの MPPS の相手の AE タイトル・住所・ポートを行に残し、送り直しも必ず
+  その相手へ送る。設定を後で変えても、新しい相手には送らない（元の相手に
+  IN PROGRESS が残る・別の相手に患者の値を送ることを避ける）。時間切れの秒は
+  いまの設定の値を使う
+- **同じ行を2つの手順が同時に送らない**（同じ日、Codex の指摘で足した）：
+  送る前に、行の「送る権利の札」を条件つきの更新で取る（札が空か、札を取って
+  から 10 分より長く経った行だけ）。取れた手順だけが送り、終わったら札を
+  外す。取れなかった行は、その回は送らずに残す（`mpps retry` の結果では
+  送れていない件に数える）。画面の撮影・複数の CLI の間で効く
+- 画像を書けなかった（OSError）・作った画像のヘッダーを読めないときも、
+  N-CREATE を送っていれば DISCONTINUED を残す（開いたままにしない）
+- MPPS の SOP Instance UID はこの道具が作る（2.25 の UUID の形）
+
+#### 8.4.2 手元で試す受け手（2026-10-19 に決めた。推奨）
+
+**保管の確認の SCP と MPPS の SCP は、試験の中の偽の相手
+（`tests/modality_peers.py`）だけで作り、手元の受け取る側（`app/scp`）には
+足さない。** 例外は無い。
+
+- 理由：ワークリストの SCP（RIS の役）を試験の中だけで立てるのと同じ
+  決まりにそろえる（1 章の「範囲に入れないもの」）。`app/scp` に足すと、
+  受けた画像の台帳・結果を返す先の設定（相手の AE・住所・ポート）・
+  MPPS の保存が要り、試験のスタブとしての機能が増える（10 章の冒頭の
+  「機能を足すより削る」）
+- 手で試すとき：保管の確認は試験用の Orthanc を相手にする（15 章）。MPPS は
+  受ける試験の相手（RIS など）が要る。Orthanc は受けない（4.2）
 
 ---
 
@@ -539,9 +683,10 @@ app/
 │   ├── config.py             # 自分の AE・相手・送り先（Pydantic）
 │   ├── worklist_scu.py       # C-FIND MWL
 │   ├── store_scu.py          # C-STORE・C-ECHO
-│   ├── commitment_scu.py     # Storage Commitment（N-ACTION・待ち受け）
-│   ├── mpps_scu.py           # N-CREATE・N-SET
-│   ├── queue.py              # 待ち行列と履歴（sqlite3）
+│   ├── commitment_scu.py     # Storage Commitment（N-ACTION・待ち受け・結果の読み取り）
+│   ├── mpps_scu.py           # N-CREATE・N-SET（送る値の組み立てを含む）
+│   ├── mpps_queue.py         # MPPS の知らせの待ち行列（sqlite3。Phase 3c）
+│   ├── queue.py              # 待ち行列と履歴・保管の確認の要求（sqlite3）
 │   └── service.py            # ModalityService（手順をまとめる）
 ├── web/
 │   ├── __init__.py
@@ -813,8 +958,15 @@ tsunagi-dicom と同じ値を書き、出典（リポジトリ・ファイル・
   撮った後の結果に [送る] を出す
 - 図の「病院」「ピクセル」「MPPS」の欄と、進みのバー・取り消しは作らない
   （Phase 3b で削った）。病院とピクセルは設定の既定を使い、CLI の
-  `--hospital`・`--pixel-mode` で選べる。MPPS は 3c。作る枚数は試験の
+  `--hospital`・`--pixel-mode` で選べる。作る枚数は試験の
   分だけで、待たずに終わるため、進みは出さない
+- **MPPS**（Phase 3c）：撮影の画面には状態を出すだけにする（選ぶ欄と再送の
+  ボタンは作らない。使うかは設定で決め、再送は CLI の `mpps retry`）。
+  撮影の設定の下に「MPPS：使う（相手の AE タイトル）」か「MPPS：使わない」を
+  1行で出す。撮った後の結果に、その撮影の MPPS の状態を1行で出す：
+  「MPPS：COMPLETED を送りました」「MPPS：DISCONTINUED を送りました」
+  「MPPS：送れませんでした（理由）。`python -m app.cli mpps retry` で再送
+  します」
 - 「文字コード」は撮影の設定の欄に置き、設定の既定を初めの値にする
 - **1回の撮影の量の上限**（2026-10-19 に決めた。1つの要求でディスクを埋めない）：
   - 1回の撮影の合計の枚数は、設定 `modality.max_images_per_exam`（既定
@@ -839,7 +991,10 @@ tsunagi-dicom と同じ値を書き、出典（リポジトリ・ファイル・
   失敗」。失敗の行は理由と [再送]。表の上に [失敗をすべて再送]。2 秒ごとに
   取り直す。出力のフォルダはコピーのボタンで写せる
 - **保管の確認の結果**（Phase 3c）：「確認待ち・確認済・確認の失敗・
-  確認の時間切れ」
+  確認の時間切れ」。待ち行列の表に「保管の確認」の列を1つ足して出す
+  （保管の確認を使わない送り先の件は「—」）。失敗の行には、失敗した枚数か
+  理由（Association を張れない、など）を小さく出す。求め直すボタンは
+  作らない（CLI の `commit --job ID`。8.3.3）
 - Phase 3b で削ったもの：待ちの件の [送る]・[取り消す]（画面から作る件は
   すぐ送るので待ちに残らない）、履歴の日付の絞り込み、行の患者の氏名
   （待ち行列は氏名を持たない）、送り先ごとの最後の C-ECHO の時刻（押した
@@ -862,6 +1017,8 @@ tsunagi-dicom と同じ値を書き、出典（リポジトリ・ファイル・
 - 設定の画面の下に「Orthanc で保管の確認を使うときは、この道具を
   Orthanc の `DicomModalities` に登録してください（AE タイトル・
   住所・待ち受けのポート）」と出す（保管の確認と同じ 3c で出す）
+- 3c で出す値：送り先ごとの保管の確認の時間切れの秒・同じ Association で
+  待つ秒、MPPS の送り先（`modality.mpps:` か、ワークリストの相手）
 
 ### 10.8 画面の文字の案
 
@@ -942,6 +1099,8 @@ tsunagi-dicom と同じ値を書き、出典（リポジトリ・ファイル・
 | `queue list` | 待ち行列と履歴を出す | 3a |
 | `queue retry` | 失敗を再送する | 3a |
 | `commit` | 送った検査の保管の確認を求める | 3c |
+| `mpps list` | MPPS の知らせの待ち行列を出す | 3c |
+| `mpps retry` | 送れなかった MPPS の知らせを送り直す | 3c |
 
 ### 11.2 echo
 
@@ -1018,7 +1177,7 @@ python -m app.cli exam --emergency --patient-id E0001 \
 | `--patient-id`・`--patient-name` | 緊急の患者の ID・氏名（PN。`--emergency` のとき必須。英字の群は空にできない。10.5） | — |
 | `--birth-date`・`--sex` | 緊急の患者の生年月日（YYYYMMDD）・性別（M/F/O）。省くと空 | 空 |
 | `--json` | 結果を JSON で出す | false |
-| `--mpps` | MPPS を送る（Phase 3c。3a では作らない） | 設定 |
+| `--mpps`・`--no-mpps` | この撮影だけ MPPS を送る・送らない（Phase 3c。8.4.1） | 設定（`worklist.use_mpps`） |
 
 `--from-worklist` と `--emergency` はどちらか1つを必須にする。
 
@@ -1033,6 +1192,9 @@ python -m app.cli exam --emergency --patient-id E0001 \
   - 予約の予定の AE タイトルが自分と違う・Study Instance UID を作った・
     生年月日や性別が空：知らせ（`[NOTICE]`。`--json` では `notices`）を
     出して撮る
+- MPPS を送れなかったときも撮影は成功とし（終了コード 0）、標準エラーに
+  `[WARN] MPPS ...` を出す。`--json` では `mpps`（`state`・`sent`・`error`）に
+  入れる。MPPS を使わない撮影では `mpps` は `null`
 
 ### 11.5 send・queue
 
@@ -1053,6 +1215,9 @@ python -m app.cli queue retry --stale
 - `queue retry`：`--all`（失敗の全部）・`--job ID`・`--stale`（止まった
   送信中の全部。失敗に戻してから送る）のどれか1つを必須にする。
   失敗のファイルだけを送り直す
+- `queue list`：保管の確認の状態を `COMMIT` の列に出す（`waiting`・
+  `confirmed`・`failed`・`timed_out`。使わない件は `-`）。`--json` では
+  `commitment`（使わない件は空の文字）と `commitment_error`
 
 ### 11.6 終了コード
 
@@ -1068,7 +1233,7 @@ python -m app.cli queue retry --stale
 | 2 | 設定のエラー | `modality:` の節の誤り（`ModalityConfigError`） |
 | 3 | I/O のエラー | 出力のフォルダに書けない |
 | 4 | バリデーションのエラー | 予約の値が写せない（`WorklistMappingError`）・表せない字 |
-| 5 | 通信のエラー | `AssociationError`・`WorklistQueryError`・`StoreError` |
+| 5 | 通信のエラー | `AssociationError`・`WorklistQueryError`・`StoreError`・`StorageCommitmentError`（`commit` が確認済にならない）・`MPPSError`（`mpps retry` で送れない分が残る） |
 
 - 結果は標準出力、エラーは標準エラー（`AI_DEVELOPMENT_RULES.md` 8）
 - `--json` のときは標準出力に JSON だけを出す
@@ -1092,6 +1257,45 @@ python -m app.cli queue retry --stale
 - 端末（標準エラー）に出すログは、整えた後の文を行ごとに
   `sanitize_for_terminal` に通す（改行は残す。例外の Traceback も同じ）。
   ファイルのログはそのまま
+
+### 11.8 commit（Phase 3c）
+
+```bash
+python -m app.cli commit --job 3
+python -m app.cli commit --job 3 --wait 60 --json
+```
+
+| オプション | 説明 | デフォルト |
+|-----------|------|-----------|
+| `--job ID` | 待ち行列の ID（必須。状態が「送れた」の件だけ） | — |
+| `--wait SECONDS` | 結果を待つ秒（1 以上） | 送り先の `commitment_timeout_seconds` |
+
+- 送り先が保管の確認を使わない（`storage_commitment: false`）なら、送らずに
+  終了コード 2 で止める
+- 待ち受け（`modality.listen`）を立ててから N-ACTION を送り、結果か
+  `--wait` の秒まで待つ。待ち受けを立てられない（ポートが使われている）
+  ときは、送らずに終了コード 2 で止め、画面が動いていないかを確かめるよう
+  に出す
+- 結果が「確認済」なら終了コード 0。「確認の失敗」・`--wait` の間に来ない
+  （状態は「確認待ち」のまま。時間切れは待ち行列が決める）は終了コード 5
+- 出力は件の ID・状態・確かめた枚数／求めた枚数。`--json` では
+  `job_id`・`transaction_uid`・`status`・`num_requested`・`num_confirmed`・
+  `num_failed`・`error`
+
+### 11.9 mpps（Phase 3c）
+
+```bash
+python -m app.cli mpps list
+python -m app.cli mpps list --json
+python -m app.cli mpps retry
+```
+
+- `mpps list`：MPPS の知らせの待ち行列を出す（ID・MPPS の状態
+  `IN PROGRESS`・`COMPLETED`・`DISCONTINUED`・送れたか・受付番号・時刻・
+  失敗の理由）。`--json` で JSON
+- `mpps retry`：送れていない知らせを、古い順に送り直す（8.4.1）。MPPS を
+  使わない設定で、送れていない知らせも無いなら終了コード 2。送れない分が
+  残れば終了コード 5
 
 ---
 
@@ -1125,14 +1329,21 @@ modality:
     max_results: 1000             # 応答の上限（5.5）
     max_item_bytes: 262144
     max_total_bytes: 16777216
-    use_mpps: false
+    use_mpps: false               # MPPS を送るか（Phase 3c。8.4.1）
+  mpps: null                      # MPPS の送り先（Phase 3c）。null はワークリストの相手
+  #  ae_title: "MPPS_TEST"        # 書くときは ae_title・host・port・timeout_seconds
+  #  host: "127.0.0.1"
+  #  port: 4243
+  #  timeout_seconds: 30
   destinations:
     - name: "PACS_TEST"
       ae_title: "PACS_TEST"
       host: "127.0.0.1"
       port: 4242
       storage_commitment: false
-      timeout_seconds: 30         # C-ECHO・C-STORE の時間切れ
+      commitment_timeout_seconds: 600  # 保管の確認の結果を待つ秒（8.3）
+      commitment_wait_seconds: 0  # 同じ Association で結果を待つ秒。0 は待たない（8.3.1）
+      timeout_seconds: 30         # C-ECHO・C-STORE・N-ACTION の時間切れ
   default_destination: "PACS_TEST"
   retry:
     max_attempts: 0             # 0 = 自動で再送しない
@@ -1154,6 +1365,11 @@ web:
   誤りの文は「項目の名前: 原因」だけにし、入っていた値を出さない（壊れた
   保存のデータに患者の氏名が入りうるため。画面・CLI・ログとも同じ。
   2026-10-19 に決めた）
+- 3c の項目の範囲：`commitment_timeout_seconds` は 1〜86400、
+  `commitment_wait_seconds` は 0〜60（同じ Association で長く待たせない）。
+  `mpps:` の AE タイトル・ポートは送り先と同じ決まり
+- 待ち受け（`listen.bind_address`）の既定は `127.0.0.1`。手元の外で受ける
+  ときだけ設定で変える（Storage SCP の決まりと同じ。spec/11 の確定事項 8）
 
 ---
 
@@ -1180,8 +1396,8 @@ web:
 | 文字コード | `tests/core/test_worklist_charset.py` | 4つの選択それぞれで、漢字・かな・半角カナの氏名を書き出して読み戻す。表せない字で止まること |
 | Modality | `tests/modality/test_worklist_scu.py` | 手元の MWL の SCP（試験の fixture）に C-FIND。条件の組、Pending の打ち切り、時間切れ、文字コードの読み取り |
 | Modality | `tests/modality/test_store_scu.py` | 手元の Storage の SCP に C-STORE・C-ECHO。成功・Warning・Failure・つながらない |
-| Modality | `tests/modality/test_commitment_scu.py` | 手元の SCP が別の Association で N-EVENT-REPORT を返す形と、同じ Association で返す形（Phase 3c） |
-| Modality | `tests/modality/test_mpps_scu.py` | N-CREATE・N-SET の値。相手が断る形（Phase 3c） |
+| Modality | `tests/modality/test_commitment_scu.py` | 手元の偽の SCP が別の Association で N-EVENT-REPORT を返す形と、同じ Association で返す形。要求→結果→待ち行列の状態の一巡り、一部失敗、時間切れ、遅れて来た結果、相手が落ちている、悪い値（知らない Transaction UID・UID の形でない・知らない Event Type・要求に無い組・別の AE からの結果）（Phase 3c） |
+| Modality | `tests/modality/test_mpps_scu.py` | N-CREATE・N-SET の値（予約あり・予約なし）。IN PROGRESS→COMPLETED、撮影が止まったときの DISCONTINUED、相手が落ちていたときに残して `mpps retry` で送る、相手が断る（Failure・Association の拒否）、応答なしの後の `0x0111`・`0x0110` だけを送れた扱いにする（`0x0110` を返し続ける相手・保留の後の N-SET の初回は失敗のまま）、送り先を行に固定する、2つの手順が同時に送り直しても重ねない、プロファイルの `services.mpps: false`（Phase 3c） |
 | 統合 | `tests/integration/test_modality_flow.py` | MWL の SCP → `exam --from-worklist` → 既存の `app/scp`（Storage SCP）が受ける。受けた画像の値が予約と合うこと |
 | CLI | `tests/cli/test_modality_commands.py` | 各サブコマンドの終了コード・`--json` の形 |
 | Web | `tests/web/` | FastAPI の TestClient。頁が開く・HTMX の部分の応答・手元の外で待ち受けて認証が無ければ起動しないこと・`Origin` と CSRF の token の確かめ・相手から来る値（`<script>`・制御文字）がエスケープされること・手元の MWL と Storage の SCP を相手に画面から「取得→選ぶ→撮る→送る」の一巡り |
@@ -1189,6 +1405,9 @@ web:
 - MWL の SCP の fixture は、予約を YAML（合成の患者だけ）から作り、
   `EVT_C_FIND` の handler で返す。文字コードを変えた応答も作れる
 - ポートは試験ごとに空いているものを取る（固定のポートを使わない）
+- 保管の確認の SCP と MPPS の SCP の偽の相手（8.4.2）も
+  `tests/modality_peers.py` に置き、結果を返す道（同じ・別の Association）・
+  返す Status・返す値を試験ごとに変えられるようにする
 - 見た目の値の試験：入力の CSS の `@theme` の値が「10.2」の表と
   同じことを確かめる
 
@@ -1200,7 +1419,7 @@ web:
 |----|------|----------|
 | **3a** | ワークリスト（C-FIND）・予約からの生成（6 章・7 章）・送信（C-STORE・C-ECHO・待ち行列）を CLI で。Core の写し方、Service の引数の追加、`app/modality/`、例外、設定 | 14 章の Core・文字コード・Modality（worklist・store）・統合・CLI の試験が通る。既存の試験がすべて通る。08・04・WORKFLOW の層の図を更新 |
 | **3b** | ウェブの画面（10 章）：ワークリスト・撮影・PACS・設定、見た目の基準、待ち受けと認証 | Web の試験が通る。手元で起動し、手元の MWL の SCP と Storage の SCP を相手に「ワークリストを取得→選ぶ→撮る→送る→確かめる」が画面で通る。CSS を作り直して差が無い |
-| **3c** | 保管の確認（N-ACTION・N-EVENT-REPORT・待ち受け）、MPPS（N-CREATE・N-SET）、画面と CLI の `commit`・`--mpps` | Modality（commitment・mpps）の試験が通る。試験用の Orthanc で保管の確認が「確認済」になることを手で確かめ、手順を README に書く |
+| **3c** | 保管の確認（N-ACTION・N-EVENT-REPORT・待ち受け）、MPPS（N-CREATE・N-SET）、画面と CLI の `commit`・`--mpps`・`mpps` | Modality（commitment・mpps）の試験が通る。試験用の Orthanc で保管の確認が「確認済」になることを手で確かめ、手順を README に書く（手順は 3c の PR で書いた。手の確かめは残る） |
 
 - 3a の前に、この仕様と ADR-0011 の承認を得る（2026-10-18 に得た）
 - 各段は別の PR（1PR 1目的）。各段で `spec/` の関係する文書を先に直す
@@ -1244,6 +1463,12 @@ web:
 
 - MPPS は Orthanc を相手に使えない（4.2）
 - ワークリストの SCP（RIS の役）は持たない。試験の中だけで立てる
+- 保管の確認の SCP・MPPS の SCP も持たない。試験の中だけで立てる（8.4.2）
+- CLI の `commit` と画面は、同じ待ち受けのポートを同時に使えない（8.3.3）
+- 保管の確認の時間切れは、待ち行列を読んだときに決める。画面も CLI も
+  動いていない間は「確認待ち」のまま残る
+- 異常のデータで UID を壊した画像は、壊れた UID のまま N-ACTION・
+  Performed Series Sequence に入れる（相手の断り方を試すのに使える）
 
 ---
 
@@ -1317,6 +1542,21 @@ web:
 
 - 暗い地で、主の色を文字（リンクなど）に使うときの色。`#1f6feb` は暗い地の上で
   文字には使えない（10.2）。使うときに明るい色を別に決める
+
+### 18.2 Phase 3c で決めたこと（2026-10-19。推奨。承認者の確かめ待ち）
+
+承認者は 2026-10-19 に Phase 3c に進むことを承認し、次の3つを仕様で
+決めて推奨を書くように求めた。この PR はどれも推奨のとおりに作った。
+違う向きにするときは、この表と本文を直してから実装を直す。
+
+| # | 論点 | 推奨（この PR の形） | ほかの案 | 本文 |
+|---|------|----------------------|----------|------|
+| 1 | 保管の確認の結果を受ける道 | 両方で受ける。既定は別の Association（待ち受け）で、N-ACTION の Association はすぐ離す。同じ Association は送り先の `commitment_wait_seconds` に秒を入れたときだけ待つ | 毎回同じ Association で決まった秒だけ待つ（別の道で返す相手のときに毎回待たされる） | 8.3.1 |
+| 2 | いつ求めるか | 画面は「送れた」になったらすぐ自動で求める。CLI は `commit --job ID` で求めて待つ（自動にしない） | CLI の `send` でも自動で求めて待つ（`send` が最長 10 分止まる） | 8.3.3・11.8 |
+| 3 | 手元で試す受け手 | 試験の中の偽の相手だけ（`tests/modality_peers.py`）。`app/scp` には足さない | `app/scp` に保管の確認の SCP と MPPS の SCP の最小の形を足す（受けた画像の台帳・返す先の設定が要る） | 8.4.2 |
+| 4 | MPPS の送り先と再送 | `worklist.use_mpps` で使うかを決め、送り先は `modality.mpps:`（無ければワークリストの相手）。送れない知らせは待ち行列に残し、`retry.max_attempts` の分だけすぐ試し、残りは `mpps retry` | 撮影のたびに残りを自動で送り直す（相手が落ちているとき、撮影のたびに時間切れを待つ） | 8.4.1・11.9 |
+| 5 | 画面に足す物 | 状態を出すだけ（撮影の頁に MPPS の1行、PACS の頁の待ち行列に「保管の確認」の列）。ボタンは足さない | 求め直す・再送のボタンを画面に足す | 10.5・10.6 |
+| 6 | 「取り消し」の意味 | N-CREATE の後に撮影が止まったとき DISCONTINUED を送る（取り消す操作は持たない） | 画面に取り消しのボタンを戻す（Phase 3b で削った） | 8.4.1 |
 
 ---
 

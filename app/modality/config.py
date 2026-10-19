@@ -22,6 +22,9 @@ MAX_RESULTS_LIMIT = 100_000
 DEFAULT_MAX_ITEM_BYTES = 256 * 1024
 DEFAULT_MAX_TOTAL_BYTES = 16 * 1024 * 1024
 DEFAULT_MAX_IMAGES_PER_EXAM = 2000  # 1回の撮影の合計の枚数（spec/12 の 10.5）
+DEFAULT_COMMITMENT_TIMEOUT_SECONDS = 600.0  # 保管の確認の結果を待つ（spec/12 の 8.3）
+MAX_COMMITMENT_TIMEOUT_SECONDS = 86400.0
+MAX_COMMITMENT_WAIT_SECONDS = 60.0  # 同じ Association で待つ上限（spec/12 の 12 章）
 _PRINTABLE_ASCII_MIN = 0x20
 _PRINTABLE_ASCII_MAX = 0x7E
 
@@ -72,6 +75,17 @@ class WorklistPeerConfig(NodeConfig):
 class DestinationConfig(NodeConfig):
     name: str = Field(..., min_length=1)
     storage_commitment: bool = False  # Phase 3c
+    # 保管の確認の結果を待つ秒（8.3）と、同じ Association で待つ秒（8.3.1。0 は待たない）
+    commitment_timeout_seconds: float = Field(
+        DEFAULT_COMMITMENT_TIMEOUT_SECONDS, ge=1, le=MAX_COMMITMENT_TIMEOUT_SECONDS
+    )
+    commitment_wait_seconds: float = Field(0, ge=0, le=MAX_COMMITMENT_WAIT_SECONDS)
+    timeout_seconds: float = Field(DEFAULT_TIMEOUT_SECONDS, gt=0)
+
+
+class MppsPeerConfig(NodeConfig):
+    """MPPS の送り先（Phase 3c。8.4.1）。書かなければワークリストの相手へ送る."""
+
     timeout_seconds: float = Field(DEFAULT_TIMEOUT_SECONDS, gt=0)
 
 
@@ -103,6 +117,7 @@ class ModalityConfig(BaseModel):
     default_hospital: str | None = None
     default_pixel_mode: PixelMode = "ct_realistic"
     worklist: WorklistPeerConfig
+    mpps: MppsPeerConfig | None = None  # Phase 3c。None はワークリストの相手
     destinations: list[DestinationConfig] = Field(..., min_length=1)
     default_destination: str
     retry: RetryConfig = Field(default_factory=RetryConfig)
@@ -123,6 +138,10 @@ class ModalityConfig(BaseModel):
                 f"default_destination '{self.default_destination}' is not in destinations"
             )
         return self
+
+    def mpps_peer(self) -> MppsPeerConfig | WorklistPeerConfig:
+        """MPPS の送り先：`mpps:` の相手、無ければワークリストの相手（8.4.1）."""
+        return self.mpps if self.mpps is not None else self.worklist
 
     def destination(self, name: str | None = None) -> DestinationConfig:
         """名前の送り先を返す。名前が無ければ既定の送り先."""
