@@ -442,7 +442,7 @@ Device profile not found: abc (searched=/a, /b, /repo/profiles/examples)
 | **P1** | この文書・ADR-0012・モデル・読み込み・検証・重ね方（装置の値・転送の形・文字コード・属性・プライベートタグ）・CLI | 10 章の試験が通る。既存の試験が通る（前から落ちている1件を除く） |
 | **P2** | `uid`・`pixel`・`series` の欄。CT 以外の SOP Class | それぞれの試験。別の PR |
 | **3a** | `worklist` の欄・`exam --profile`・`modality.default_profile` | spec/12 の 3a と同じ PR か、その後。`exam --profile`・`modality.default_profile`・撮影の画面の「装置」は spec/12 の 3b の PR で足した。`worklist` の欄はまだ |
-| **3c** | `services` を MPPS・保管の確認に効かせる | spec/12 の 3c と同じ PR |
+| **3c** | `services` を MPPS・保管の確認に効かせる | spec/12 の 3c と同じ PR（spec/12 の 8.3.3・8.4.1。`services.modality_worklist` はまだ効かせない） |
 
 ---
 

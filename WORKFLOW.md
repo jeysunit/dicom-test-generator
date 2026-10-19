@@ -47,7 +47,7 @@ SCP (app/scp/) ─┘→ Core (app/core/)
 | Phase 1.5 | Storage SCP（PyNetDICOM） | ✅ 完了 |
 | Phase 3a | モダリティのダミー：ワークリスト（C-FIND MWL）・予約からの生成・送信（C-STORE・C-ECHO）を CLI で（`spec/12_modality_emulator.md`） | ✅ 完了（CLI） |
 | Phase 3b | モダリティのダミー：ウェブの画面（ワークリスト・撮影・PACS・設定） | ✅ 完了（`python -m app.web`） |
-| Phase 3c | モダリティのダミー：保管の確認（Storage Commitment）・MPPS（選べる形） | 仕様は承認済み・未着手 |
+| Phase 3c | モダリティのダミー：保管の確認（Storage Commitment）・MPPS（選べる形） | ✅ 完了（CLI の `commit`・`mpps`、画面の状態の表示。決めたことは `spec/12_modality_emulator.md` 18.2。試験用の Orthanc での手の確かめは残る） |
 
 ## テスト実行
 
@@ -104,6 +104,11 @@ python -m app.cli exam --from-worklist <鍵> -s 2 -i 1,20 --send
 python -m app.cli exam --emergency --patient-id E0001 --patient-name "KINKYU^TARO"
 python -m app.cli queue list --status failed
 python -m app.cli queue retry --all
+
+# 保管の確認と MPPS（Phase 3c。設定で選んだときだけ）
+python -m app.cli commit --job 3 --wait 60
+python -m app.cli mpps list
+python -m app.cli mpps retry
 
 # モダリティのダミーのウェブの画面（Phase 3b。既定は http://127.0.0.1:8080/）
 python -m app.web

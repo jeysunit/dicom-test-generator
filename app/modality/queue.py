@@ -64,7 +64,43 @@ _SCHEMA = (
         study_instance_uid TEXT NOT NULL
     )
     """,
+    # 保管の確認の要求と画像ごとの結果（Phase 3c。8.3.3）
+    """
+    CREATE TABLE IF NOT EXISTS commitments (
+        transaction_uid TEXT PRIMARY KEY,
+        job_id INTEGER NOT NULL REFERENCES jobs(id),
+        destination TEXT NOT NULL,
+        peer_ae_title TEXT NOT NULL,
+        status TEXT NOT NULL,
+        requested_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        deadline TEXT NOT NULL,
+        error TEXT NOT NULL DEFAULT ''
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS commitment_items (
+        transaction_uid TEXT NOT NULL REFERENCES commitments(transaction_uid),
+        sop_class_uid TEXT NOT NULL,
+        sop_instance_uid TEXT NOT NULL,
+        status TEXT NOT NULL,
+        failure_reason INTEGER,
+        note TEXT NOT NULL DEFAULT '',
+        PRIMARY KEY (transaction_uid, sop_class_uid, sop_instance_uid)
+    )
+    """,
+    # 撮影の出力のフォルダと、撮影に使った装置のプロファイル（spec/13 の 8 を効かせる）
+    """
+    CREATE TABLE IF NOT EXISTS exam_profiles (
+        output_dir TEXT PRIMARY KEY,
+        profile TEXT NOT NULL
+    )
+    """,
 )
+
+CommitmentStatus = Literal["waiting", "confirmed", "failed", "timed_out"]
+COMMITMENT_NOT_REPORTED = "not in the result"
+SopReference = tuple[str, str]  # (SOP Class UID, SOP Instance UID)
 
 
 class QueueJob(BaseModel):
@@ -82,6 +118,24 @@ class QueueJob(BaseModel):
     num_files: int
     num_sent: int
     stale: bool = False  # 送信中のまま止まった件（8.2）
+    commitment: str = ""  # 最後の保管の確認の状態。使わない件は空（8.3.3）
+    commitment_error: str = ""
+
+
+class CommitmentState(BaseModel):
+    """保管の確認の1つの要求の状態（8.3.3）."""
+
+    model_config = {"frozen": True}
+
+    job_id: int
+    transaction_uid: str
+    destination: str
+    peer_ae_title: str
+    status: CommitmentStatus
+    num_requested: int
+    num_confirmed: int
+    num_failed: int
+    error: str = ""
 
 
 class SendQueue:
@@ -99,6 +153,12 @@ class SendQueue:
                     # 札の列が無い前の版の待ち行列に足す
                     conn.execute(
                         "ALTER TABLE jobs ADD COLUMN send_token TEXT NOT NULL DEFAULT ''"
+                    )
+                file_columns = {row[1] for row in conn.execute("PRAGMA table_info(job_files)")}
+                if "sop_class_uid" not in file_columns:
+                    # 保管の確認の前の版の待ち行列に足す（Phase 3c）
+                    conn.execute(
+                        "ALTER TABLE job_files ADD COLUMN sop_class_uid TEXT NOT NULL DEFAULT ''"
                     )
         except (OSError, sqlite3.Error) as exc:
             raise ModalityError(
@@ -186,10 +246,11 @@ class SendQueue:
                 self._claim(conn, job_id, token)
             for result in results:
                 conn.execute(
-                    "UPDATE job_files SET sop_instance_uid = ?, status = ?, status_code = ?,"
-                    " error = ? WHERE job_id = ? AND path = ?",
+                    "UPDATE job_files SET sop_instance_uid = ?, sop_class_uid = ?, status = ?,"
+                    " status_code = ?, error = ? WHERE job_id = ? AND path = ?",
                     (
                         result.sop_instance_uid,
+                        result.sop_class_uid,
                         "sent" if result.sent else "failed",
                         result.status,
                         result.reason,
@@ -292,11 +353,191 @@ class SendQueue:
                 (worklist_key, study_instance_uid),
             )
 
+    # --- 撮影に使った装置のプロファイル（spec/13 の 8） ----------------------
+
+    def remember_exam_profile(self, output_dir: str, profile: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO exam_profiles (output_dir, profile) VALUES (?, ?)",
+                (_folder_key(output_dir), profile),
+            )
+
+    def exam_profile(self, folder: str) -> str | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT profile FROM exam_profiles WHERE output_dir = ?", (_folder_key(folder),)
+            ).fetchone()
+        return str(row[0]) if row else None
+
+    # --- 保管の確認（Phase 3c。8.3.3） --------------------------------------
+
+    def sent_references(self, job_id: int) -> list[SopReference]:
+        """送れた画像の（SOP Class UID, SOP Instance UID）。送ったときに残した値を使う."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT sop_class_uid, sop_instance_uid FROM job_files WHERE job_id = ?"
+                " AND status = 'sent' AND sop_class_uid != '' AND sop_instance_uid != ''"
+                " ORDER BY path",
+                (job_id,),
+            ).fetchall()
+        return [(str(row[0]), str(row[1])) for row in rows]
+
+    def add_commitment(
+        self,
+        job_id: int,
+        destination: str,
+        peer_ae_title: str,
+        transaction_uid: str,
+        references: Sequence[SopReference],
+        timeout_seconds: float,
+    ) -> None:
+        now = datetime.now()
+        deadline = (now + timedelta(seconds=timeout_seconds)).isoformat(timespec="seconds")
+        stamp = now.isoformat(timespec="seconds")
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO commitments (transaction_uid, job_id, destination, peer_ae_title,"
+                " status, requested_at, updated_at, deadline) VALUES (?, ?, ?, ?, 'waiting', ?, ?, ?)",
+                (transaction_uid, job_id, destination, peer_ae_title, stamp, stamp, deadline),
+            )
+            conn.executemany(
+                "INSERT OR IGNORE INTO commitment_items (transaction_uid, sop_class_uid,"
+                " sop_instance_uid, status) VALUES (?, ?, ?, 'waiting')",
+                [(transaction_uid, cls, inst) for cls, inst in references],
+            )
+
+    def fail_commitment(self, transaction_uid: str, reason: str) -> None:
+        """N-ACTION を送れなかった要求を「確認の失敗」にする.
+
+        先に結果が届いて状態が変わっていれば、上書きしない（待っている要求だけ）。
+        """
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE commitments SET status = 'failed', error = ?, updated_at = ?"
+                " WHERE transaction_uid = ? AND status = 'waiting'",
+                (reason, _now(), transaction_uid),
+            )
+
+    def commitment_requested(self, transaction_uid: str) -> set[SopReference]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT sop_class_uid, sop_instance_uid FROM commitment_items"
+                " WHERE transaction_uid = ?",
+                (transaction_uid,),
+            ).fetchall()
+        return {(str(row[0]), str(row[1])) for row in rows}
+
+    def record_commitment_report(
+        self,
+        transaction_uid: str,
+        confirmed: set[SopReference],
+        failed: dict[SopReference, int | None],
+    ) -> bool:
+        """結果を画像ごとに残し、要求の状態を決める（8.3.2）。受けたら True.
+
+        要求に無い組は捨てる。要求したのに結果のどちらにも無い組は失敗にする（理由「結果に無い」）。
+        失敗の側に書いてある組は、成功の側にもあっても失敗にする（書いてある方を信じる）。
+        状態の確かめと書き込みは1つの取引で行い、待っている（か時間切れの）要求だけに書く
+        （同じ Association と待ち受けから同時に来ても、受けるのは1つ）。
+        """
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute(
+                "SELECT status FROM commitments WHERE transaction_uid = ?", (transaction_uid,)
+            ).fetchone()
+            if row is None or row[0] not in ("waiting", "timed_out"):
+                return False
+            requested = conn.execute(
+                "SELECT sop_class_uid, sop_instance_uid FROM commitment_items"
+                " WHERE transaction_uid = ?",
+                (transaction_uid,),
+            ).fetchall()
+            num_failed = 0
+            for sop_class_uid, sop_instance_uid in requested:
+                reference = (str(sop_class_uid), str(sop_instance_uid))
+                code: int | None = None
+                note = ""
+                if reference in failed:
+                    status, code = "failed", failed[reference]
+                elif reference in confirmed:
+                    status = "confirmed"
+                else:
+                    status, note = "failed", COMMITMENT_NOT_REPORTED
+                num_failed += status == "failed"
+                conn.execute(
+                    "UPDATE commitment_items SET status = ?, failure_reason = ?, note = ?"
+                    " WHERE transaction_uid = ? AND sop_class_uid = ? AND sop_instance_uid = ?",
+                    (status, code, note, transaction_uid, *reference),
+                )
+            overall = "failed" if num_failed else "confirmed"
+            error = f"{num_failed} image(s) not committed" if num_failed else ""
+            conn.execute(
+                "UPDATE commitments SET status = ?, error = ?, updated_at = ?"
+                " WHERE transaction_uid = ?",
+                (overall, error, _now(), transaction_uid),
+            )
+        return True
+
+    def commitment_peer(self, transaction_uid: str) -> tuple[str, str] | None:
+        """要求の（状態, 送り先の AE タイトル）。知らない Transaction UID なら None."""
+        self.expire_commitments()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT status, peer_ae_title FROM commitments WHERE transaction_uid = ?",
+                (transaction_uid,),
+            ).fetchone()
+        return (str(row[0]), str(row[1])) if row else None
+
+    def get_commitment(self, transaction_uid: str) -> CommitmentState:
+        self.expire_commitments()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT c.job_id, c.transaction_uid, c.destination, c.peer_ae_title, c.status,"
+                " c.error, COUNT(i.sop_instance_uid),"
+                " SUM(CASE WHEN i.status = 'confirmed' THEN 1 ELSE 0 END),"
+                " SUM(CASE WHEN i.status = 'failed' THEN 1 ELSE 0 END)"
+                " FROM commitments c LEFT JOIN commitment_items i"
+                " ON i.transaction_uid = c.transaction_uid WHERE c.transaction_uid = ?"
+                " GROUP BY c.transaction_uid",
+                (transaction_uid,),
+            ).fetchone()
+        if row is None:
+            raise ModalityError(
+                f"Storage commitment request not found: {transaction_uid}",
+                {"transaction_uid": transaction_uid},
+            )
+        return CommitmentState(
+            job_id=row[0],
+            transaction_uid=row[1],
+            destination=row[2],
+            peer_ae_title=row[3],
+            status=row[4],
+            error=row[5],
+            num_requested=row[6] or 0,
+            num_confirmed=row[7] or 0,
+            num_failed=row[8] or 0,
+        )
+
+    def expire_commitments(self) -> None:
+        """決めた時間に結果が来なかった要求を「確認の時間切れ」にする（8.3）."""
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE commitments SET status = 'timed_out', updated_at = ?"
+                " WHERE status = 'waiting' AND deadline < ?",
+                (_now(), _now()),
+            )
+
     def _select_jobs(self, where: str, params: tuple[object, ...]) -> list[QueueJob]:
+        self.expire_commitments()
+        latest = (
+            "(SELECT c.{column} FROM commitments c WHERE c.job_id = j.id"
+            " ORDER BY c.requested_at DESC, c.rowid DESC LIMIT 1)"
+        )
         query = (
             "SELECT j.id, j.created_at, j.updated_at, j.folder, j.destination, j.accession_number,"
             " j.status, j.attempts, j.last_error, COUNT(f.path),"
-            " SUM(CASE WHEN f.status = 'sent' THEN 1 ELSE 0 END)"
+            " SUM(CASE WHEN f.status = 'sent' THEN 1 ELSE 0 END),"
+            f" {latest.format(column='status')}, {latest.format(column='error')}"
             f" FROM jobs j LEFT JOIN job_files f ON f.job_id = j.id {where}"
             " GROUP BY j.id ORDER BY j.id"
         )
@@ -317,6 +558,8 @@ class SendQueue:
                 num_files=row[9] or 0,
                 num_sent=row[10] or 0,
                 stale=row[6] == "sending" and row[2] < cutoff,
+                commitment=row[11] or "",
+                commitment_error=row[12] or "",
             )
             for row in rows
         ]
@@ -329,6 +572,11 @@ class SendQueue:
 
 def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
+
+
+def _folder_key(folder: str) -> str:
+    """フォルダの名前をそろえる（同じフォルダを別の書き方で指しても同じ鍵）."""
+    return str(Path(folder).resolve())
 
 
 def _stale_cutoff() -> str:

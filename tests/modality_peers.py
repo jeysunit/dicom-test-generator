@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import socket
 import sqlite3
+import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import closing
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -18,8 +19,13 @@ from typing import Any
 import pytest
 import yaml
 from pydicom.dataset import Dataset
-from pynetdicom import AE, AllStoragePresentationContexts, evt
-from pynetdicom.sop_class import ModalityWorklistInformationFind, Verification
+from pynetdicom import AE, AllStoragePresentationContexts, build_role, evt
+from pynetdicom.sop_class import (
+    ModalityPerformedProcedureStep,
+    ModalityWorklistInformationFind,
+    StorageCommitmentPushModel,
+    Verification,
+)
 
 LOCALHOST = "127.0.0.1"
 WORKLIST_YAML = Path(__file__).parent / "modality" / "data" / "worklist.yaml"
@@ -28,6 +34,33 @@ STATUS_CANCEL = 0xFE00
 STATUS_SUCCESS = 0x0000
 # 試験の SCP の handler が返し続ける時間の上限（試験が止まらないことを防ぐ）
 MAX_HANDLER_SECONDS = 10
+# 保管の確認の SCP の、よく知られた SOP Instance UID（PS3.4 J.3.5）
+COMMITMENT_INSTANCE_UID = "1.2.840.10008.1.20.1.1"
+FAILURE_REASON_NO_SUCH_INSTANCE = 0x0112
+MPPS_PROCESSING_FAILURE = 0x0110
+MPPS_DUPLICATE_INSTANCE = 0x0111
+MPPS_NO_SUCH_INSTANCE = 0x0112
+REPORT_WAIT_SECONDS = 10
+
+
+EXAMPLE_PROFILE = Path(__file__).resolve().parent.parent / "profiles" / "examples" / "dtg_synthetic_ct.yaml"
+
+
+def write_service_profile(
+    directory: Path, name: str, *, mpps: bool, storage_commitment: bool
+) -> None:
+    """例のプロファイルを写し、`services` の MPPS・保管の確認だけを替えて置く（spec/13 の 8）."""
+    data = yaml.safe_load(EXAMPLE_PROFILE.read_text(encoding="utf-8"))
+    data["name"] = name
+    data["services"] = {
+        "modality_worklist": True,
+        "mpps": mpps,
+        "storage_commitment": storage_commitment,
+    }
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / f"{name}.yaml").write_text(
+        yaml.safe_dump(data, allow_unicode=True), encoding="utf-8"
+    )
 
 
 def free_port() -> int:
@@ -190,7 +223,149 @@ class StorageRecorder:
         return self.status
 
 
-def _start(ae: AE, handlers: list[tuple[Any, Any]]) -> tuple[Any, int]:
+@dataclass
+class CommitmentPACS(StorageRecorder):
+    """試験の PACS：C-STORE を受け、保管の確認（N-ACTION）に答える偽の相手（spec/12 の 8.4.2）.
+
+    `report_path` で結果の道を選ぶ：`separate`（この相手が新しい Association を
+    張って、この道具の待ち受けへ送る）・`same`（N-ACTION の Association で送る）・
+    `none`（結果を送らない）。`mutate_report` で送る値を壊せる（悪い値の試験）。
+    """
+
+    report_path: str = "separate"
+    action_status: int = STATUS_SUCCESS
+    fail_instance_uids: set[str] = field(default_factory=set)
+    event_type: int | None = None  # None なら失敗の有無で 1・2 を決める
+    report_delay: float = 0.0
+    listener_port: int = 0
+    listener_ae_title: str = "DTG_CT01"
+    calling_ae_title: str | None = None  # 別の道で名乗る AE（None なら自分の AE）
+    mutate_report: Callable[[Dataset], None] | None = None
+    actions: list[Dataset] = field(default_factory=list)
+    report_statuses: list[int] = field(default_factory=list)
+    reported: threading.Event = field(default_factory=threading.Event)
+    report_started: bool = False
+
+    def handle_action(self, event: Any) -> tuple[int, Dataset | None]:
+        request = event.action_information
+        self.actions.append(request)
+        if self.action_status != STATUS_SUCCESS:
+            return self.action_status, None
+        if self.report_path != "none":
+            self.report_started = True
+            threading.Thread(
+                target=self._report, args=(event.assoc, request), daemon=True
+            ).start()
+        return STATUS_SUCCESS, None
+
+    def build_report(self, request: Dataset) -> tuple[int, Dataset]:
+        report = Dataset()
+        report.TransactionUID = request.TransactionUID
+        succeeded, failed = [], []
+        for ref in request.ReferencedSOPSequence:
+            item = Dataset()
+            item.ReferencedSOPClassUID = ref.ReferencedSOPClassUID
+            item.ReferencedSOPInstanceUID = ref.ReferencedSOPInstanceUID
+            if ref.ReferencedSOPInstanceUID in self.fail_instance_uids:
+                item.FailureReason = FAILURE_REASON_NO_SUCH_INSTANCE
+                failed.append(item)
+            else:
+                succeeded.append(item)
+        report.ReferencedSOPSequence = succeeded
+        if failed:
+            report.FailedSOPSequence = failed
+        event_type = self.event_type if self.event_type is not None else (2 if failed else 1)
+        if self.mutate_report is not None:
+            self.mutate_report(report)
+        return event_type, report
+
+    def _report(self, assoc: Any, request: Dataset) -> None:
+        try:
+            time.sleep(self.report_delay)
+            event_type, report = self.build_report(request)
+            if self.report_path == "same":
+                self._send_report(assoc, event_type, report)
+                return
+            ae = AE(ae_title=self.calling_ae_title or self.ae_title)
+            ae.add_requested_context(StorageCommitmentPushModel)
+            # 別の道では、この相手が SCP の役を求める（PS3.4 J.3.3 の役の交渉）
+            role = build_role(StorageCommitmentPushModel, scp_role=True)
+            new_assoc = ae.associate(
+                LOCALHOST, self.listener_port, ae_title=self.listener_ae_title, ext_neg=[role]
+            )
+            if not new_assoc.is_established:
+                self.report_statuses.append(-1)
+                return
+            try:
+                self._send_report(new_assoc, event_type, report)
+            finally:
+                new_assoc.release()
+        finally:
+            self.reported.set()
+
+    def _send_report(self, assoc: Any, event_type: int, report: Dataset) -> None:
+        status, _reply = assoc.send_n_event_report(
+            report, event_type, StorageCommitmentPushModel, COMMITMENT_INSTANCE_UID
+        )
+        self.report_statuses.append(int(status.Status) if status else -1)
+
+
+@dataclass
+class MppsRecorder:
+    """試験の MPPS の SCP：N-CREATE・N-SET を覚え、決めた Status を返す偽の相手.
+
+    状態を持つ（PS3.4 F.7.2）：作った Instance の N-CREATE は 0x0111、知らない Instance の
+    N-SET は 0x0112、COMPLETED・DISCONTINUED の後の N-SET は 0x0110。届いた順を `events`
+    に残す。`*_delay_first` は、最初の1回だけ記録してから応答を遅らせる（応答が失われる形）。
+    """
+
+    ae_title: str = "RIS_TEST"
+    create_statuses: list[int] = field(default_factory=list)  # 空になったら状態で決める
+    set_status: int = STATUS_SUCCESS
+    create_delay_first: float = 0.0
+    set_delay_first: float = 0.0
+    created: dict[str, Dataset] = field(default_factory=dict)
+    sets: list[tuple[str, Dataset]] = field(default_factory=list)
+    events: list[tuple[str, str, int]] = field(default_factory=list)  # (操作, UID, 返した Status)
+    finished: set[str] = field(default_factory=set)
+    port: int = 0
+
+    def handle_create(self, event: Any) -> tuple[int, Dataset | None]:
+        uid = str(event.request.AffectedSOPInstanceUID)
+        if self.create_statuses:
+            status = self.create_statuses.pop(0)
+        else:
+            status = MPPS_DUPLICATE_INSTANCE if uid in self.created else STATUS_SUCCESS
+        if status == STATUS_SUCCESS:
+            self.created[uid] = event.attribute_list
+        self.events.append(("N-CREATE", uid, status))
+        if self.create_delay_first and status == STATUS_SUCCESS:
+            delay, self.create_delay_first = self.create_delay_first, 0.0
+            time.sleep(delay)
+        return status, event.attribute_list if status == STATUS_SUCCESS else None
+
+    def handle_set(self, event: Any) -> tuple[int, Dataset | None]:
+        uid = str(event.request.RequestedSOPInstanceUID)
+        modification = event.modification_list
+        if uid not in self.created:
+            status = MPPS_NO_SUCH_INSTANCE
+        elif uid in self.finished:
+            status = MPPS_PROCESSING_FAILURE  # 終わった MPPS は更新できない
+        else:
+            status = self.set_status
+        if status == STATUS_SUCCESS:
+            self.sets.append((uid, modification))
+            if str(modification.get("PerformedProcedureStepStatus", "")) != "IN PROGRESS":
+                self.finished.add(uid)
+        self.events.append(("N-SET", uid, status))
+        if self.set_delay_first and status == STATUS_SUCCESS:
+            delay, self.set_delay_first = self.set_delay_first, 0.0
+            time.sleep(delay)
+        return status, modification if status == STATUS_SUCCESS else None
+
+
+def start_server(ae: AE, handlers: list[tuple[Any, Any]]) -> tuple[Any, int]:
+    """手元の空いているポートで、止めずに待ち受ける SCP を立てる."""
     server = ae.start_server((LOCALHOST, 0), block=False, evt_handlers=handlers)
     return server, int(server.server_address[1])
 
@@ -207,7 +382,7 @@ def worklist_scp(worklist_items: list[dict[str, Any]]) -> Iterator[WorklistSCP]:
     ae = AE(ae_title=scp.ae_title)
     ae.add_supported_context(ModalityWorklistInformationFind)
     ae.add_supported_context(Verification)
-    server, scp.port = _start(ae, [(evt.EVT_C_FIND, scp.handle_find)])
+    server, scp.port = start_server(ae, [(evt.EVT_C_FIND, scp.handle_find)])
     yield scp
     server.shutdown()
 
@@ -218,6 +393,51 @@ def storage_scp() -> Iterator[StorageRecorder]:
     ae = AE(ae_title=recorder.ae_title)
     ae.supported_contexts = AllStoragePresentationContexts
     ae.add_supported_context(Verification)
-    server, recorder.port = _start(ae, [(evt.EVT_C_STORE, recorder.handle_store)])
+    server, recorder.port = start_server(ae, [(evt.EVT_C_STORE, recorder.handle_store)])
     yield recorder
     server.shutdown()
+
+
+@pytest.fixture
+def commitment_pacs() -> Iterator[CommitmentPACS]:
+    """C-STORE と保管の確認を受ける偽の PACS（`listener_port` は試験が入れる）."""
+    pacs = CommitmentPACS()
+    ae = AE(ae_title=pacs.ae_title)
+    ae.supported_contexts = AllStoragePresentationContexts
+    ae.add_supported_context(Verification)
+    ae.add_supported_context(StorageCommitmentPushModel)
+    server, pacs.port = start_server(
+        ae,
+        [(evt.EVT_C_STORE, pacs.handle_store), (evt.EVT_N_ACTION, pacs.handle_action)],
+    )
+    yield pacs
+    if pacs.report_started:
+        # 結果を送る手順が終わってから止める（止めた後に送らせない）
+        pacs.reported.wait(REPORT_WAIT_SECONDS)
+    server.shutdown()
+
+
+@pytest.fixture
+def mpps_scp() -> Iterator[MppsRecorder]:
+    """N-CREATE・N-SET を受ける偽の MPPS の相手."""
+    recorder, server = start_mpps_recorder()
+    yield recorder
+    server.shutdown()
+
+
+def start_mpps_recorder(port: int = 0) -> tuple[MppsRecorder, Any]:
+    """偽の MPPS の相手を立てる。`port` を決めれば、そのポートで（落ちていた相手が戻る形）."""
+    recorder = MppsRecorder()
+    ae = AE(ae_title=recorder.ae_title)
+    ae.add_supported_context(ModalityPerformedProcedureStep)
+    ae.add_supported_context(Verification)
+    server = ae.start_server(
+        (LOCALHOST, port),
+        block=False,
+        evt_handlers=[
+            (evt.EVT_N_CREATE, recorder.handle_create),
+            (evt.EVT_N_SET, recorder.handle_set),
+        ],
+    )
+    recorder.port = int(server.server_address[1])
+    return recorder, server

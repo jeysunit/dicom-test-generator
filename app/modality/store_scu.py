@@ -44,6 +44,7 @@ class StoreFileResult(BaseModel):
 
     path: str
     sop_instance_uid: str = ""
+    sop_class_uid: str = ""  # 保管の確認で使う（Phase 3c。8.3.3）
     status: int | None = None
     outcome: StoreOutcome
     reason: str = ""
@@ -119,8 +120,10 @@ def store_files(
     if not assoc.is_established:
         raise association_error(assoc, node.ae_title, node.host, node.port)
     try:
-        for path, sop_uid, _sop_class, _ts in readable:
-            results.append(_store_one(assoc, path, sop_uid))
+        for path, sop_uid, sop_class, _ts in readable:
+            result = _store_one(assoc, path, sop_uid)
+            # 保管の確認で問う組のため、SOP Class UID も残す（8.3.3）
+            results.append(result.model_copy(update={"sop_class_uid": sop_class}))
             if on_progress is not None:
                 on_progress()
     finally:

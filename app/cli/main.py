@@ -122,6 +122,8 @@ _EPILOG = """\
   python -m app.cli exam --from-worklist 3f9a1c0b2e -s 2 -i 1,20 --send
   python -m app.cli exam --emergency --patient-id E0001 --patient-name "KINKYU^TARO"
   python -m app.cli queue list --status failed
+  python -m app.cli commit --job 3 --wait 60
+  python -m app.cli mpps retry
 
 終了コード:
   0  成功

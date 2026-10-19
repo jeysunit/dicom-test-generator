@@ -67,11 +67,13 @@ Pixel data is synthetic and not intended for clinical use.
 
 ※いずれも実画像ではありません。
 
-### ✅ モダリティのダミー（Phase 3a・3b。3c は未実装）
+### ✅ モダリティのダミー（Phase 3a・3b・3c）
 
 * ワークリストを取得し、予約の値で画像を作り、PACS へ送る（ウェブの画面と
   CLI。[spec/12_modality_emulator.md](spec/12_modality_emulator.md)）。
   起動のしかたは下の「モダリティのダミーのウェブの画面」
+* 保管の確認（Storage Commitment）と MPPS は、設定で選んだときだけ使う
+  （下の「保管の確認と MPPS（Phase 3c）」）
 
 ### ✅ テンプレートベース設計
 
@@ -274,6 +276,90 @@ bash scripts/build_css.sh          # app/web/styles/input.css から app/web/sta
 ```
 
 CI は CSS を作り直し、commit した `app.css` と差が無いことを確かめます。
+
+---
+
+## 保管の確認と MPPS（Phase 3c）
+
+どちらも既定は使いません。`config/app_config.yaml` の `modality:` の節で選びます
+（[spec/12_modality_emulator.md](spec/12_modality_emulator.md) の 8.3・8.4・12 章）。
+
+### 保管の確認（Storage Commitment）
+
+```yaml
+modality:
+  listen:                       # 結果（N-EVENT-REPORT）を受ける待ち受け
+    bind_address: "127.0.0.1"
+    port: 11113
+  destinations:
+    - name: "PACS_TEST"
+      ae_title: "PACS_TEST"
+      host: "127.0.0.1"
+      port: 4242
+      storage_commitment: true
+      commitment_timeout_seconds: 600   # 結果を待つ秒
+      commitment_wait_seconds: 0        # 同じ Association で待つ秒（0 は待たない）
+```
+
+* 画面（`python -m app.web`）は待ち受けを立て、送り先へ「送れた」になった件の保管の
+  確認をすぐに求めます。PACS の画面の待ち行列の「保管の確認」の列に、確認待ち・確認済・
+  確認の失敗・確認の時間切れが出ます
+* CLI では自動で求めません。送った後に `commit` で求め、結果を待ちます。確認済なら
+  終了コード 0、そうでなければ 5 です。画面が同じ待ち受けのポートで動いているときは
+  待ち受けを立てられないので、終了コード 2 で止まります
+
+```bash
+python -m app.cli exam --emergency --patient-id E0001 --patient-name "KINKYU^TARO" --send
+python -m app.cli queue list               # 件の ID と COMMIT の列
+python -m app.cli commit --job 1 --wait 60
+```
+
+* 結果は、相手が別の Association で返すのを既定にしています。同じ Association でしか
+  返さない相手のときだけ、`commitment_wait_seconds` に秒を入れます
+
+### 試験用の Orthanc で確かめる手順
+
+Orthanc（1.6.0 から）は保管の確認を受け、結果を別の Association で返します。結果を返す
+先として、この道具を Orthanc の設定の `DicomModalities` に登録します。
+
+1. Orthanc の設定に、この道具の AE タイトル・住所・待ち受けのポートを足します
+   （例：`"DicomModalities": { "dtg": [ "DTG_CT01", "127.0.0.1", 11113 ] }`）。
+   Orthanc をコンテナで動かすときは、コンテナから届く住所を書き、この道具の
+   `listen.bind_address` もその住所で受けるようにします（既定の 127.0.0.1 では
+   コンテナから届きません）
+2. この道具の送り先を Orthanc の AE タイトル・住所・DICOM のポートにし、
+   `storage_commitment: true` にします
+3. `python -m app.web` を起動し、撮影の画面で [撮影して送る] を押します
+4. PACS の画面の待ち行列で、その件の「保管の確認」が「確認済」になることを確かめます。
+   CLI なら、画面を止めてから `python -m app.cli commit --job <ID>` で「confirmed」と
+   終了コード 0 を確かめます
+
+### MPPS
+
+```yaml
+modality:
+  worklist:
+    use_mpps: true              # MPPS を送る
+  mpps:                         # 書かなければワークリストの相手へ送る
+    ae_title: "MPPS_TEST"
+    host: "127.0.0.1"
+    port: 4243
+    timeout_seconds: 30
+```
+
+* 撮影を始めるときに N-CREATE（IN PROGRESS）、作り終わりに N-SET（COMPLETED）を送ります。
+  作る途中で止まったら N-SET（DISCONTINUED）を送ります
+* 送れなくても撮影と送信は止めません。撮影の画面と CLI（`[WARN] MPPS ...`）に出し、
+  知らせを待ち行列に残します。`retry.max_attempts` の回数だけすぐに送り直し、残りは
+  `mpps retry` で送ります
+* `exam --mpps`・`--no-mpps` で、その撮影だけ設定を上書きできます。装置のプロファイルが
+  `services.mpps: false` なら送りません
+* Orthanc は MPPS を受けません。MPPS を受ける試験の相手（RIS など）を使ってください
+
+```bash
+python -m app.cli mpps list
+python -m app.cli mpps retry
+```
 
 ---
 

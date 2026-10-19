@@ -10,7 +10,7 @@
   <dl class="values">
     <dt>AE タイトル</dt><dd class="font-mono">{{ config.ae_title }}</dd>
     <dt>Station Name</dt><dd>{{ config.station_name or "—" }}</dd>
-    <dt>保管の確認の待ち受け</dt><dd class="font-mono">{{ config.listen.bind_address }}:{{ config.listen.port }}（3c）</dd>
+    <dt>保管の確認の待ち受け</dt><dd class="font-mono">{{ config.listen.bind_address }}:{{ config.listen.port }}</dd>
     <dt>画面の待ち受け</dt><dd class="font-mono">{{ web.bind_address }}:{{ web.port }}</dd>
   </dl>
 </section>
@@ -20,7 +20,7 @@
     <dt>AE タイトル</dt><dd class="font-mono">{{ config.worklist.ae_title }}</dd>
     <dt>住所</dt><dd class="font-mono">{{ config.worklist.host }}:{{ config.worklist.port }}</dd>
     <dt>時間切れ</dt><dd>{{ config.worklist.timeout_seconds }} 秒</dd>
-    <dt>MPPS</dt><dd>{{ "使う" if config.worklist.use_mpps else "使わない" }}（3c）</dd>
+    <dt>MPPS</dt><dd>{% if config.worklist.use_mpps %}使う（送り先 <span class="font-mono">{{ config.mpps_peer().ae_title }} {{ config.mpps_peer().host }}:{{ config.mpps_peer().port }}</span>）{% else %}使わない{% endif %}</dd>
   </dl>
 </section>
 <section class="panel">
@@ -28,9 +28,10 @@
   <dl class="values">
     {% for destination in config.destinations %}
     <dt>{{ destination.name }}{% if destination.name == config.default_destination %}（既定）{% endif %}</dt>
-    <dd class="font-mono">{{ destination.ae_title }} {{ destination.host }}:{{ destination.port }}・保管の確認 {{ "使う" if destination.storage_commitment else "使わない" }}</dd>
+    <dd class="font-mono">{{ destination.ae_title }} {{ destination.host }}:{{ destination.port }}・保管の確認 {% if destination.storage_commitment %}使う（結果を待つ {{ "%g"|format(destination.commitment_timeout_seconds) }} 秒・同じ Association で待つ {{ "%g"|format(destination.commitment_wait_seconds) }} 秒）{% else %}使わない{% endif %}</dd>
     {% endfor %}
   </dl>
+  <p class="mt-4 text-xs text-label">Orthanc で保管の確認を使うときは、この道具を Orthanc の <code>DicomModalities</code> に登録してください（AE タイトル {{ config.ae_title }}・住所・待ち受けのポート {{ config.listen.port }}）。</p>
 </section>
 <section class="panel">
   <h2 class="panel-title">文字コードと撮影</h2>

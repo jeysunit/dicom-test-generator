@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from app.cli.terminal import json_for_terminal, sanitize_for_terminal
-from app.core.exceptions import ConfigurationError, StoreError
+from app.core.exceptions import ConfigurationError, StorageCommitmentError, StoreError
 from app.core.models import ScheduledPatient, WorklistItem
 from app.modality.config import load_modality_config
 from app.modality.service import ExamRequest, ModalityService, SendResult
@@ -35,7 +35,7 @@ STALE_MARK = "  [STALE]"
 def register_modality_commands(
     subparsers: argparse._SubParsersAction, default_log_file: str
 ) -> None:
-    """echo・worklist・exam・send・queue のサブコマンドを足す（11.1）."""
+    """echo・worklist・exam・send・queue・commit・mpps のサブコマンドを足す（11.1）."""
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument(
         "--config", default=DEFAULT_CONFIG, help=f"設定ファイル（default: {DEFAULT_CONFIG}）"
@@ -97,6 +97,12 @@ def register_modality_commands(
     exam_parser.add_argument("-o", "--output", help="出力のフォルダ")
     exam_parser.add_argument("--send", action="store_true", help="作った後に送る")
     exam_parser.add_argument("--to", help="--send の送り先（default: 既定の送り先）")
+    exam_parser.add_argument(
+        "--mpps",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="この撮影だけ MPPS を送る・送らない（default: 設定の worklist.use_mpps）",
+    )
     exam_parser.set_defaults(func=exam_command)
 
     send_parser = subparsers.add_parser(
@@ -119,6 +125,28 @@ def register_modality_commands(
         "--stale", action="store_true", help="送信中のまま止まった件の全部（失敗に戻して送る）"
     )
     retry_parser.set_defaults(func=queue_retry_command)
+
+    commit_parser = subparsers.add_parser(
+        "commit", parents=[common], help="送った検査の保管の確認を求めて待つ（Phase 3c）"
+    )
+    commit_parser.add_argument("--job", type=int, required=True, help="待ち行列の ID（送れた件）")
+    commit_parser.add_argument(
+        "--wait",
+        type=_positive_seconds,
+        help="結果を待つ秒（default: 送り先の commitment_timeout_seconds）",
+    )
+    commit_parser.set_defaults(func=commit_command)
+
+    mpps_parser = subparsers.add_parser("mpps", help="MPPS の知らせの待ち行列（Phase 3c）")
+    mpps_sub = mpps_parser.add_subparsers(dest="mpps_command")
+    mpps_list_parser = mpps_sub.add_parser("list", parents=[common], help="MPPS の知らせを出す")
+    mpps_list_parser.set_defaults(func=mpps_list_command)
+    mpps_retry_parser = mpps_sub.add_parser(
+        "retry", parents=[common], help="送れなかった MPPS の知らせを送り直す"
+    )
+    mpps_retry_parser.set_defaults(func=mpps_retry_command)
+
+
 ZERO_ITEMS_MESSAGE = "予約はありません。条件を広げるか、緊急の患者で撮ってください"
 NON_ASCII_HINT = (
     "日本語の条件は相手の文字コードの扱いに左右されます。患者 ID か受付番号でも取得してください"
@@ -200,8 +228,16 @@ def exam_command(args: argparse.Namespace) -> int:
             abnormal_level=args.abnormal_level,
             charset=args.charset,
             output_dir=args.output,
+            mpps=args.mpps,
         )
     )
+    if result.mpps is not None and not result.mpps.sent:
+        # MPPS を送れなくても撮影は止めない（8.4。終了コードは変えない）
+        _emit(
+            f"[WARN] MPPS {result.mpps.state} not sent: {result.mpps.error} "
+            "(python -m app.cli mpps retry)",
+            file=sys.stderr,
+        )
     send_result = service.send(result.output_dir, args.to) if args.send else None
 
     if args.json:
@@ -237,14 +273,62 @@ def queue_list_command(args: argparse.Namespace) -> int:
     if args.json:
         _print_json([job.model_dump() for job in jobs])
         return 0
-    _emit(f"{'ID':>4}  {'STATUS':8s} {'DEST':12s} {'SENT':>9}  {'UPDATED':19s}  FOLDER")
+    _emit(
+        f"{'ID':>4}  {'STATUS':8s} {'DEST':12s} {'SENT':>9}  {'COMMIT':9s}  {'UPDATED':19s}  FOLDER"
+    )
     for job in jobs:
         sent = f"{job.num_sent}/{job.num_files}"
+        commitment = job.commitment or "-"
         _emit(
-            f"{job.id:>4}  {job.status:8s} {job.destination:12s} {sent:>9}  "
+            f"{job.id:>4}  {job.status:8s} {job.destination:12s} {sent:>9}  {commitment:9s}  "
             f"{job.updated_at:19s}  {job.folder}{STALE_MARK if job.stale else ''}"
         )
     _emit(f"[INFO] {len(jobs)} job(s).")
+    return 0
+
+
+def commit_command(args: argparse.Namespace) -> int:
+    """保管の確認を求め、待ち受けで結果を待つ（11.8）。確認済でなければ終了コード 5."""
+    state = _service(args).commit_and_wait(args.job, args.wait)
+    if args.json:
+        _print_json(state.model_dump())
+    else:
+        _emit(
+            f"Storage commitment job {state.job_id} to {state.destination}: {state.status} "
+            f"({state.num_confirmed}/{state.num_requested} confirmed)"
+        )
+    if state.status != "confirmed":
+        raise StorageCommitmentError(
+            f"Storage commitment is {state.status}",
+            {"job_id": state.job_id, "reason": state.error or "no result yet"},
+        )
+    return 0
+
+
+def mpps_list_command(args: argparse.Namespace) -> int:
+    records = _service(args).list_mpps()
+    if args.json:
+        _print_json([{**record.model_dump(), "sent": record.sent} for record in records])
+        return 0
+    _emit(f"{'ID':>4}  {'STATE':12s} {'SENT':6s} {'ACCESSION':16s} {'UPDATED':19s}  ERROR")
+    for record in records:
+        _emit(
+            f"{record.id:>4}  {record.state:12s} {_sent_label(record.sent):6s} "
+            f"{record.accession_number or '-':16s} {record.updated_at:19s}  "
+            f"{'' if record.sent else record.last_error}"
+        )
+    _emit(f"[INFO] {len(records)} MPPS record(s).")
+    return 0
+
+
+def mpps_retry_command(args: argparse.Namespace) -> int:
+    records = _service(args).retry_mpps()
+    if args.json:
+        _print_json([{**record.model_dump(), "sent": record.sent} for record in records])
+    else:
+        for record in records:
+            _emit(f"MPPS {record.id} {record.state}: {_sent_label(record.sent)}")
+        _emit(f"[INFO] {len(records)} MPPS record(s) retried.")
     return 0
 
 
@@ -353,6 +437,21 @@ def _parse_images(images: str, series: int) -> list[int]:
             {"series": series, "images_count": len(values)},
         )
     return values
+
+
+def _sent_label(sent: bool) -> str:
+    return "sent" if sent else "unsent"
+
+
+def _positive_seconds(value: str) -> float:
+    """`commit --wait` の秒（1 以上）."""
+    try:
+        seconds = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"not a number: {value!r}") from exc
+    if seconds < 1:
+        raise argparse.ArgumentTypeError("must be 1 or more")
+    return seconds
 
 
 def _charset_label(character_set: list[str]) -> str:

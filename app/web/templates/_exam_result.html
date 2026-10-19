@@ -12,6 +12,13 @@
     {% for notice in result.notices %}<li>{{ notice }}</li>{% endfor %}
   </ul>
   {% endif %}
+  {% if result.mpps %}
+  {% if result.mpps.sent %}
+  <p class="text-xs">MPPS：{{ result.mpps.state }} を送りました</p>
+  {% else %}
+  <p role="alert" class="text-xs text-danger">MPPS：送れませんでした（{{ result.mpps.error }}）。<code>python -m app.cli mpps retry</code> で再送します</p>
+  {% endif %}
+  {% endif %}
   <div id="send-result">
     {% if send %}
     {% include "_send_result.html" %}

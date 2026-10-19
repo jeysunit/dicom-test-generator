@@ -40,4 +40,6 @@ def create_environment() -> Environment:
     env.filters["date_label"] = display.date_label
     env.filters["charset_label"] = display.charset_label
     env.globals["STATUS_LABELS"] = display.STATUS_LABELS
+    env.globals["COMMITMENT_LABELS"] = display.COMMITMENT_LABELS
+    env.globals["COMMITMENT_STATUS_CLASSES"] = display.COMMITMENT_STATUS_CLASSES
     return env
