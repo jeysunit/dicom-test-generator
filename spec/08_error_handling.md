@@ -54,6 +54,8 @@ DICOMGeneratorError (Base)
 `app/core/exceptions.py` に置き、`app/modality/` と `app/core/` の
 写し方（`worklist_mapping.py`）が使う。
 
+階層図は `app/core/exceptions.py` と一致している。食い違えば exceptions.py が正本。
+
 ---
 
 ## 例外クラス定義
@@ -291,66 +293,17 @@ class StudyGeneratorService:
 
 #### CLI
 
-```python
-# app/cli/main.py
-import sys
-from app.core.exceptions import (
-    ConfigurationError,
-    GenerationError,
-    IOError,
-    ValidationError
-)
+`app/cli/main.py` の `main()` が、コマンドの例外を1か所で受ける。
+`_map_exception_to_exit_code` が、例外の型から終了コードを決め、
+`[ERROR] <メッセージ>` を標準エラー出力に出す（対応は次章の表）。
+メッセージは端末に出す前に制御文字を見える形に直す。
 
-def main():
-    try:
-        result = service.generate_from_job(job_file)
-        print(f"[INFO] Generation completed: {result.output_dir}")
-        sys.exit(0)
-    
-    except ConfigurationError as e:
-        print(f"[ERROR] Configuration error: {e}", file=sys.stderr)
-        sys.exit(2)
-    
-    except ValidationError as e:
-        print(f"[ERROR] Validation error: {e}", file=sys.stderr)
-        sys.exit(4)
-    
-    except IOError as e:
-        print(f"[ERROR] I/O error: {e}", file=sys.stderr)
-        sys.exit(3)
-    
-    except GenerationError as e:
-        print(f"[ERROR] Generation failed: {e}", file=sys.stderr)
-        sys.exit(1)
-    
-    except Exception as e:
-        print(f"[ERROR] Unexpected error: {e}", file=sys.stderr)
-        sys.exit(1)
-```
+#### GUI（PySide6。凍結。spec/05）
 
-#### GUI
-
-```python
-# app/gui/main_window.py
-from PySide6.QtWidgets import QMessageBox
-from app.core.exceptions import DICOMGeneratorError
-
-class MainWindow(QMainWindow):
-    def on_generate_clicked(self):
-        try:
-            config = self.collect_config()
-            result = service.generate(config)
-            QMessageBox.information(self, "完了", "生成が完了しました")
-        
-        except ConfigurationError as e:
-            QMessageBox.warning(self, "設定エラー", str(e))
-        
-        except GenerationError as e:
-            QMessageBox.critical(self, "生成エラー", str(e))
-        
-        except DICOMGeneratorError as e:
-            QMessageBox.critical(self, "エラー", str(e))
-```
+`MainWindow` は設定を集める段階の例外を警告のダイアログで出す。
+生成中の例外は `GeneratorWorker` が受け、`DICOMGeneratorError` は
+「生成エラー」、それ以外は「予期しないエラー」のメッセージにして
+`generation_finished(False, ...)` で UI スレッドへ渡す。
 
 ---
 
@@ -362,11 +315,15 @@ class MainWindow(QMainWindow):
 | 1 | 一般エラー | GenerationError |
 | 2 | 設定エラー | ConfigurationError |
 | 3 | ファイルI/Oエラー | IOError |
-| 4 | バリデーションエラー | ValidationError・WorklistMappingError |
+| 4 | バリデーションエラー | ValidationError・WorklistMappingError・Pydantic の ValidationError |
 | 5 | 通信エラー | AssociationError・WorklistQueryError・StoreError・StorageCommitmentError・MPPSError |
 
 - `ModalityConfigError` は 2（設定エラー）にする
 - ほかの `ModalityError`（例：最後に引いた結果に無い予約の鍵）は 1
+- 上のどれでもない例外も 1
+
+判定は上から順に行う（`app/cli/main.py` の `_map_exception_to_exit_code`）。
+`ModalityError` 系は `ConfigurationError` などの子でないので、重ならない。
 
 ---
 
@@ -447,22 +404,8 @@ def generate_series(series_config):
 
 ### キャンセル時の扱い
 
-```python
-class GeneratorWorker(QThread):
-    def run(self):
-        try:
-            for i in range(total):
-                if self.cancel_requested:
-                    logger.info(f"Cancelled by user. Generated {i}/{total} images")
-                    self.generation_finished.emit(False, "Cancelled by user")
-                    return
-                
-                generate_image(i)
-        
-        except DICOMGeneratorError as e:
-            logger.error(f"Generation failed: {e}")
-            self.generation_finished.emit(False, str(e))
-```
+キャンセルがあるのは PySide6 の画面だけで、扱いは [05_gui.md](05_gui.md) の
+「非同期処理」の節が決める。
 
 ---
 
@@ -487,19 +430,15 @@ def test_invalid_method_raises_error():
 ### エラーハンドリングのテスト
 
 ```python
-# tests/services/test_error_handling.py
-def test_service_handles_core_error(mocker):
-    # Core Engineをモック
-    mocker.patch(
-        'app.core.dicom_builder.DICOMBuilder.build',
-        side_effect=DICOMBuildError("Test error")
-    )
-    
-    service = StudyGeneratorService()
-    
+# tests/services/ の形
+def test_service_wraps_unexpected_error(monkeypatch):
+    # Core の DICOMBuilder が想定外の例外を投げる状況を作る
+    ...
     with pytest.raises(GenerationError):
-        service.generate_study(config)
+        StudyGeneratorService().generate(config)
 ```
+
+例外クラスそのものの試験は `tests/core/test_exceptions.py` にある。
 
 ---
 
@@ -535,8 +474,7 @@ except DICOMGeneratorError as e:
 
 ---
 
-## 次のステップ
+## 関連文書
 
-1. [09_logging.md](09_logging.md) でログ仕様を確認
-2. 例外クラス実装（`app/core/exceptions.py`）
-3. エラーハンドリング実装
+- [09_logging.md](09_logging.md): ログの仕組み
+- [04_cli.md](04_cli.md): 終了コード

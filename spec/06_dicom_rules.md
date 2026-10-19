@@ -431,11 +431,14 @@ def _age_reached_date(birth: date, n: int) -> date:
 
 ### サポートするTransfer Syntax
 
-| Transfer Syntax | UID | VR | Endian | Phase |
-|----------------|-----|-----|--------|-------|
-| **Implicit VR Little Endian** | 1.2.840.10008.1.2 | Implicit | Little | Phase 1 |
-| **Explicit VR Little Endian** | 1.2.840.10008.1.2.1 | Explicit | Little | Phase 1 |
-| Explicit VR Big Endian | 1.2.840.10008.1.2.2 | Explicit | Big | Phase 2 |
+| Transfer Syntax | UID | VR | Endian |
+|----------------|-----|-----|--------|
+| **Implicit VR Little Endian** | 1.2.840.10008.1.2 | Implicit | Little |
+| **Explicit VR Little Endian** | 1.2.840.10008.1.2.1 | Explicit | Little |
+| Explicit VR Big Endian | 1.2.840.10008.1.2.2 | Explicit | Big |
+
+この3つが `app/core/generator.py` の `DICOMBuilder` が受ける転送構文で、
+ほかの UID は `DICOMBuildError` になる。
 
 ### PyDicom実装
 
