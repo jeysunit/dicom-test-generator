@@ -1397,7 +1397,7 @@ web:
 | Modality | `tests/modality/test_worklist_scu.py` | 手元の MWL の SCP（試験の fixture）に C-FIND。条件の組、Pending の打ち切り、時間切れ、文字コードの読み取り |
 | Modality | `tests/modality/test_store_scu.py` | 手元の Storage の SCP に C-STORE・C-ECHO。成功・Warning・Failure・つながらない |
 | Modality | `tests/modality/test_commitment_scu.py` | 手元の偽の SCP が別の Association で N-EVENT-REPORT を返す形と、同じ Association で返す形。要求→結果→待ち行列の状態の一巡り、一部失敗、時間切れ、遅れて来た結果、相手が落ちている、悪い値（知らない Transaction UID・UID の形でない・知らない Event Type・要求に無い組・別の AE からの結果）（Phase 3c） |
-| Modality | `tests/modality/test_mpps_scu.py` | N-CREATE・N-SET の値（予約あり・予約なし）。IN PROGRESS→COMPLETED、撮影が止まったときの DISCONTINUED、相手が落ちていたときに残して `mpps retry` で送る、相手が断る（Failure・Association の拒否）、再送の `0x0111`、プロファイルの `services.mpps: false`（Phase 3c） |
+| Modality | `tests/modality/test_mpps_scu.py` | N-CREATE・N-SET の値（予約あり・予約なし）。IN PROGRESS→COMPLETED、撮影が止まったときの DISCONTINUED、相手が落ちていたときに残して `mpps retry` で送る、相手が断る（Failure・Association の拒否）、応答なしの後の `0x0111`・`0x0110` だけを送れた扱いにする（`0x0110` を返し続ける相手・保留の後の N-SET の初回は失敗のまま）、送り先を行に固定する、2つの手順が同時に送り直しても重ねない、プロファイルの `services.mpps: false`（Phase 3c） |
 | 統合 | `tests/integration/test_modality_flow.py` | MWL の SCP → `exam --from-worklist` → 既存の `app/scp`（Storage SCP）が受ける。受けた画像の値が予約と合うこと |
 | CLI | `tests/cli/test_modality_commands.py` | 各サブコマンドの終了コード・`--json` の形 |
 | Web | `tests/web/` | FastAPI の TestClient。頁が開く・HTMX の部分の応答・手元の外で待ち受けて認証が無ければ起動しないこと・`Origin` と CSRF の token の確かめ・相手から来る値（`<script>`・制御文字）がエスケープされること・手元の MWL と Storage の SCP を相手に画面から「取得→選ぶ→撮る→送る」の一巡り |
