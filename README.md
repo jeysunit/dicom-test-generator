@@ -34,8 +34,8 @@ Pixel data is synthetic and not intended for clinical use.
 
 ウェブの画面と CLI は、同じ Service を呼ぶ。ワークリストの相手から予約を取り、
 予約の値で合成の画像を作り、画像サーバー（PACS）へ送る。
-点線は作業中（Phase 3c）。
-レイヤーの図は [spec/01_architecture.md](spec/01_architecture.md)。
+点線の部分は作業中（Phase 3c）。
+レイヤー構造の図は [spec/01_architecture.md](spec/01_architecture.md) にある。
 
 ```mermaid
 flowchart LR
