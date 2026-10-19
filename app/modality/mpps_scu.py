@@ -24,7 +24,7 @@ from app.core.uid_generator import UIDGenerator
 
 from .association import association_error, make_ae
 from .config import MppsPeerConfig, NodeConfig, WorklistPeerConfig
-from .mpps_queue import MppsQueue, MppsRecord, MppsState
+from .mpps_queue import MppsOperation, MppsQueue, MppsRecord, MppsState
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +101,10 @@ def build_n_set(
     return ds
 
 
+class MPPSNoResponseError(AssociationError):
+    """要求を送った後に、応答が来ないまま時間切れ・切断になった（届いていたかもしれない）."""
+
+
 def send_n_create(
     own_ae_title: str,
     peer: NodeConfig,
@@ -109,7 +113,10 @@ def send_n_create(
     dataset: Dataset,
     duplicate_ok: bool = False,
 ) -> None:
-    """N-CREATE を送る。`duplicate_ok` なら 0x0111 を送れた扱いにする（再送。8.4.1）."""
+    """N-CREATE を送る。`duplicate_ok` なら 0x0111 を送れた扱いにする.
+
+    `duplicate_ok` は、前の N-CREATE が「応答なし」で終わっていたときだけ渡す（8.4.1）。
+    """
     allowed = {STATUS_DUPLICATE_INSTANCE} if duplicate_ok else set()
     _send(own_ae_title, peer, timeout_seconds, "N-CREATE", sop_instance_uid, dataset, allowed)
 
@@ -122,9 +129,11 @@ def send_n_set(
     dataset: Dataset,
     already_final_ok: bool = False,
 ) -> None:
-    """終わりの N-SET を送る。`already_final_ok` なら 0x0110 を送れた扱いにする（送り直し。8.4.1）.
+    """終わりの N-SET を送る。`already_final_ok` なら 0x0110 を送れた扱いにする.
 
-    前の N-SET が届いていれば、相手は終わった MPPS を更新できないので 0x0110 を返す（PS3.4 F.7.2.2）。
+    前の N-SET が届いていれば、相手は終わった MPPS を更新できないので 0x0110 を返す
+    （PS3.4 F.7.2.2）。`already_final_ok` は、前の同じ N-SET が「応答なし」で終わって
+    いたときだけ渡す（8.4.1。0x0110 は一般の処理の失敗でもあるため）。
     """
     allowed = {STATUS_PROCESSING_FAILURE} if already_final_ok else set()
     _send(own_ae_title, peer, timeout_seconds, "N-SET", sop_instance_uid, dataset, allowed)
@@ -163,7 +172,8 @@ def _send(
         if assoc.is_established:
             assoc.release()
     if not status:
-        raise AssociationError(
+        # 要求は送った後なので、相手に届いていたかもしれない（8.4.1 の「応答なし」）
+        raise MPPSNoResponseError(
             f"{operation} timed out or the association was aborted",
             {"peer": peer.ae_title, "sop_instance_uid": sop_instance_uid},
         )
@@ -240,8 +250,10 @@ class MppsManager:
     def start(self, create: Dataset, accession_number: str) -> int:
         """N-CREATE（IN PROGRESS）を残して送る。送れなくても撮影は止めない."""
         uid = UIDGenerator().generate_sop_uid()
-        record_id = self._queue.add(uid, accession_number, create)
-        self._send_create(record_id)
+        # 送り先は行に固定する（設定を後で変えても、送り直しは同じ相手へ。8.4.1）
+        peer = (self._peer.ae_title, self._peer.host, self._peer.port)
+        record_id = self._queue.add(uid, accession_number, create, peer)
+        self._with_claim(record_id, lambda: self._send_create(record_id))
         return record_id
 
     def finish(
@@ -251,7 +263,7 @@ class MppsManager:
         self._queue.set_final(record_id, state, modification, output_dir)
         record = self._queue.get(record_id)
         if record.create_sent:
-            self._send_set(record_id)
+            self._with_claim(record_id, lambda: self._send_set(record_id))
         elif not record.last_error:
             self._queue.record_error(record_id, "N-CREATE has not been sent yet")
         return self.outcome(record_id)
@@ -260,13 +272,28 @@ class MppsManager:
         """送れていない知らせを古い順に送り直す。N-CREATE を先に（8.4.1）."""
         retried = []
         for record in self._queue.unsent():
-            if not record.create_sent:
-                self._send_create(record.id, resend=True)
-            current = self._queue.get(record.id)
-            if current.create_sent and current.has_set and not current.set_sent:
-                self._send_set(record.id, resend=True)
+            self._with_claim(record.id, lambda record_id=record.id: self._resend(record_id))
             retried.append(self._queue.get(record.id))
         return retried
+
+    def _resend(self, record_id: int) -> None:
+        if not self._queue.get(record_id).create_sent:
+            self._send_create(record_id)
+        current = self._queue.get(record_id)
+        if current.create_sent and current.has_set and not current.set_sent:
+            self._send_set(record_id)
+
+    def _with_claim(self, record_id: int, send: Callable[[], None]) -> None:
+        """送る権利の札を取れたときだけ送る。取れなければ送らずに残す（8.4.1）."""
+        token = self._queue.claim(record_id)
+        if token is None:
+            self._queue.record_error(record_id, "being sent by another process")
+            logger.info("MPPS message is being sent elsewhere: mpps_id=%s", record_id)
+            return
+        try:
+            send()
+        finally:
+            self._queue.release(record_id, token)
 
     def outcome(self, record_id: int) -> MppsOutcome:
         record = self._queue.get(record_id)
@@ -278,50 +305,60 @@ class MppsManager:
             error="" if record.sent else record.last_error,
         )
 
-    def _send_create(self, record_id: int, resend: bool = False) -> None:
-        record = self._queue.get(record_id)
+    def _send_create(self, record_id: int) -> None:
         dataset = self._queue.create_dataset(record_id)
         if self._try(
             record_id,
-            resend,
-            lambda again: send_n_create(
+            "create",
+            lambda record, maybe_delivered: send_n_create(
                 self._own_ae_title,
-                self._peer,
+                _peer_of(record),
                 self._peer.timeout_seconds,
                 record.sop_instance_uid,
                 dataset,
-                duplicate_ok=again,
+                duplicate_ok=maybe_delivered,
             ),
         ):
             self._queue.mark_create_sent(record_id)
 
-    def _send_set(self, record_id: int, resend: bool = False) -> None:
-        record = self._queue.get(record_id)
+    def _send_set(self, record_id: int) -> None:
         dataset = self._queue.set_dataset(record_id)
         if self._try(
             record_id,
-            resend,
-            lambda again: send_n_set(
+            "set",
+            lambda record, maybe_delivered: send_n_set(
                 self._own_ae_title,
-                self._peer,
+                _peer_of(record),
                 self._peer.timeout_seconds,
                 record.sop_instance_uid,
                 dataset,
-                already_final_ok=again,
+                already_final_ok=maybe_delivered,
             ),
         ):
             self._queue.mark_set_sent(record_id)
 
-    def _try(self, record_id: int, resend: bool, send: Callable[[bool], None]) -> bool:
+    def _try(
+        self,
+        record_id: int,
+        operation: MppsOperation,
+        send: Callable[[MppsRecord, bool], None],
+    ) -> bool:
         """`retry.max_attempts` の分だけすぐ試す。だめなら理由を残して False.
 
-        2回目以降と `mpps retry` は「送り直し」として送る（前の分が届いていたかもしれない。8.4.1）。
+        `0x0111`・`0x0110` を送れた扱いにしてよいのは、前の同じ知らせが「応答なし」で
+        終わっていたと行の記録から言えるときだけ（8.4.1）。
         """
         for attempt in range(1 + self._attempts):
+            record = self._queue.get(record_id)
+            maybe_delivered = (
+                record.create_no_response if operation == "create" else record.set_no_response
+            )
             try:
-                send(resend or attempt > 0)
+                send(record, maybe_delivered)
                 return True
             except (AssociationError, MPPSError) as exc:
+                if isinstance(exc, MPPSNoResponseError):
+                    self._queue.mark_no_response(record_id, operation)
                 self._queue.record_error(record_id, str(exc))
                 logger.warning(
                     "MPPS message not sent: mpps_id=%s attempt=%s reason=%s",
@@ -330,6 +367,11 @@ class MppsManager:
                     type(exc).__name__,
                 )
         return False
+
+
+def _peer_of(record: MppsRecord) -> NodeConfig:
+    """行に固定した送り先（8.4.1）."""
+    return NodeConfig(ae_title=record.peer_ae_title, host=record.peer_host, port=record.peer_port)
 
 
 def _scheduled_step(ctx: ScheduledContext, study_instance_uid: str) -> Dataset:

@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import threading
 from pathlib import Path
 
 import pydicom
@@ -14,6 +15,7 @@ from modality_peers import (
     MppsRecorder,
     WorklistSCP,
     free_port,
+    start_mpps_recorder,
     start_server,
     write_service_profile,
 )
@@ -200,15 +202,36 @@ def test_peer_down_keeps_messages_and_retry_sends_in_order(tmp_path, worklist_sc
     assert "Association" in result.mpps.error
     assert [(r.state, r.sent) for r in service.list_mpps()] == [("COMPLETED", False)]
 
-    up = _service(tmp_path, worklist_scp.port, mpps_scp.port)
-    retried = up.retry_mpps()
+    # 落ちていた相手が同じポートで戻る（送り先は行に固定。8.4.1）
+    back, server = start_mpps_recorder(down_port)
+    try:
+        retried = service.retry_mpps()
+    finally:
+        server.shutdown()
 
     assert [(r.state, r.sent) for r in retried] == [("COMPLETED", True)]
     uid = result.mpps.sop_instance_uid
-    assert mpps_scp.created[uid].PerformedProcedureStepStatus == "IN PROGRESS"
+    assert back.created[uid].PerformedProcedureStepStatus == "IN PROGRESS"
     # 届いた順（偽の相手は、知らない Instance への N-SET を 0x0112 で断る）
-    assert mpps_scp.events == [("N-CREATE", uid, 0x0000), ("N-SET", uid, 0x0000)]
-    assert up.retry_mpps() == []
+    assert back.events == [("N-CREATE", uid, 0x0000), ("N-SET", uid, 0x0000)]
+    assert mpps_scp.events == []
+    assert service.retry_mpps() == []
+
+
+def test_retry_goes_to_the_original_peer_after_config_change(
+    tmp_path, worklist_scp, mpps_scp
+) -> None:
+    """設定の送り先を替えても、送り直しは行に固定した元の相手へ送る（新しい相手には送らない）."""
+    down_port = free_port()
+    _scheduled_exam(_service(tmp_path, worklist_scp.port, down_port))
+    changed = _service(tmp_path, worklist_scp.port, mpps_scp.port)
+
+    with pytest.raises(MPPSError):
+        changed.retry_mpps()
+
+    assert mpps_scp.events == []
+    record = changed.list_mpps()[0]
+    assert (record.peer_host, record.peer_port) == (LOCALHOST, down_port)
 
 
 def test_peer_refuses_create(tmp_path, worklist_scp, mpps_scp) -> None:
@@ -297,11 +320,100 @@ def test_first_set_refusal_is_not_treated_as_sent(tmp_path, worklist_scp, mpps_s
 
 def test_retry_of_forced_mpps_works_when_config_does_not_use_mpps(tmp_path, worklist_scp, mpps_scp) -> None:
     """`exam --mpps` で作って送れなかった知らせは、設定が使わない形でも送り直せる."""
-    down = _service(tmp_path, worklist_scp.port, free_port(), use_mpps=False)
+    down_port = free_port()
+    down = _service(tmp_path, worklist_scp.port, down_port, use_mpps=False)
     assert _scheduled_exam(down, mpps=True).mpps.sent is False
 
-    up = _service(tmp_path, worklist_scp.port, mpps_scp.port, use_mpps=False)
-    assert [(r.state, r.sent) for r in up.retry_mpps()] == [("COMPLETED", True)]
+    back, server = start_mpps_recorder(down_port)
+    try:
+        retried = down.retry_mpps()
+    finally:
+        server.shutdown()
+    assert [(r.state, r.sent) for r in retried] == [("COMPLETED", True)]
+    assert len(back.sets) == 1
+
+
+def test_retry_does_not_accept_processing_failure_from_a_failing_peer(
+    tmp_path, worklist_scp, mpps_scp
+) -> None:
+    """相手が N-SET に 0x0110 を返し続けるなら、送り直しでも送れた扱いにしない（8.4.1）."""
+    mpps_scp.set_status = STATUS_PROCESSING_FAILURE
+    service = _service(tmp_path, worklist_scp.port, mpps_scp.port, max_attempts=1)
+
+    result = _scheduled_exam(service)
+    assert result.mpps.sent is False
+
+    with pytest.raises(MPPSError):
+        service.retry_mpps()
+    assert [(r.state, r.sent) for r in service.list_mpps()] == [("COMPLETED", False)]
+    # 撮影のときの2回（1回目とすぐの2回目）と、`mpps retry` の2回
+    assert [event[2] for event in mpps_scp.events if event[0] == "N-SET"] == [
+        STATUS_PROCESSING_FAILURE
+    ] * 4
+
+
+def test_held_set_is_sent_as_a_first_send(tmp_path, worklist_scp, mpps_scp) -> None:
+    """N-CREATE を待って保留した N-SET の初回の 0x0110 は失敗のまま（前に送っていない）."""
+    mpps_scp.create_statuses = [STATUS_PROCESSING_FAILURE]
+    mpps_scp.set_status = STATUS_PROCESSING_FAILURE
+    service = _service(tmp_path, worklist_scp.port, mpps_scp.port)
+    result = _scheduled_exam(service)
+    assert result.mpps.sent is False
+    assert [event[0] for event in mpps_scp.events] == ["N-CREATE"]
+
+    with pytest.raises(MPPSError):
+        service.retry_mpps()
+
+    record = service.list_mpps()[0]
+    assert record.create_sent is True
+    assert record.set_sent is False
+    assert [event[:1] + event[2:] for event in mpps_scp.events] == [
+        ("N-CREATE", STATUS_PROCESSING_FAILURE),
+        ("N-CREATE", 0x0000),
+        ("N-SET", STATUS_PROCESSING_FAILURE),
+    ]
+
+
+def test_create_failure_then_duplicate_is_not_accepted(tmp_path, worklist_scp, mpps_scp) -> None:
+    """前の N-CREATE が Failure で終わっていれば、0x0111 を送れた扱いにしない."""
+    mpps_scp.create_statuses = [STATUS_PROCESSING_FAILURE, STATUS_DUPLICATE_INSTANCE]
+    service = _service(tmp_path, worklist_scp.port, mpps_scp.port)
+    _scheduled_exam(service)
+
+    with pytest.raises(MPPSError):
+        service.retry_mpps()
+    assert service.list_mpps()[0].create_sent is False
+
+
+def test_concurrent_retries_send_each_message_once(tmp_path, worklist_scp, mpps_scp) -> None:
+    """2つの手順が同時に `mpps retry` しても、同じ知らせを重ねて送らない（送る権利の札）."""
+    down_port = free_port()
+    _scheduled_exam(_service(tmp_path, worklist_scp.port, down_port))
+    back, server = start_mpps_recorder(down_port)
+    back.create_delay_first = 0.5  # 1つ目が送っている間に、2つ目が同じ行を取りに来る
+    barrier = threading.Barrier(2)
+    outcomes: list[str] = []
+
+    def run() -> None:
+        service = _service(tmp_path, worklist_scp.port, down_port)
+        barrier.wait()
+        try:
+            service.retry_mpps()
+            outcomes.append("sent")
+        except MPPSError:
+            outcomes.append("skipped")
+
+    threads = [threading.Thread(target=run) for _ in range(2)]
+    try:
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=30)
+    finally:
+        server.shutdown()
+
+    assert sorted(outcomes) == ["sent", "skipped"]
+    assert [event[0] for event in back.events] == ["N-CREATE", "N-SET"]
 
 
 def test_immediate_retries_follow_retry_max_attempts(tmp_path, worklist_scp, mpps_scp) -> None:

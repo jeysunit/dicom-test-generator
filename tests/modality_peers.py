@@ -420,13 +420,24 @@ def commitment_pacs() -> Iterator[CommitmentPACS]:
 @pytest.fixture
 def mpps_scp() -> Iterator[MppsRecorder]:
     """N-CREATE・N-SET を受ける偽の MPPS の相手."""
+    recorder, server = start_mpps_recorder()
+    yield recorder
+    server.shutdown()
+
+
+def start_mpps_recorder(port: int = 0) -> tuple[MppsRecorder, Any]:
+    """偽の MPPS の相手を立てる。`port` を決めれば、そのポートで（落ちていた相手が戻る形）."""
     recorder = MppsRecorder()
     ae = AE(ae_title=recorder.ae_title)
     ae.add_supported_context(ModalityPerformedProcedureStep)
     ae.add_supported_context(Verification)
-    server, recorder.port = start_server(
-        ae,
-        [(evt.EVT_N_CREATE, recorder.handle_create), (evt.EVT_N_SET, recorder.handle_set)],
+    server = ae.start_server(
+        (LOCALHOST, port),
+        block=False,
+        evt_handlers=[
+            (evt.EVT_N_CREATE, recorder.handle_create),
+            (evt.EVT_N_SET, recorder.handle_set),
+        ],
     )
-    yield recorder
-    server.shutdown()
+    recorder.port = int(server.server_address[1])
+    return recorder, server

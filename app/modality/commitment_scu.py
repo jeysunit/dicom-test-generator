@@ -39,7 +39,10 @@ STATUS_SUCCESS = 0x0000
 STATUS_PROCESSING_FAILURE = 0x0110
 STATUS_NO_SUCH_EVENT_TYPE = 0x0113
 LISTENER_MAX_ASSOCIATIONS = 4
+# 結果の Event Information の大きさの上限（2000 枚の参照を十分に入れられる。8.3.2）
+MAX_REPORT_BYTES = 1024 * 1024
 WAIT_POLL_SECONDS = 0.05
+RESPONSE_GRACE_SECONDS = 0.2
 # 結果を受ける要求の状態（時間切れの後に来た結果も受ける。8.3.2）
 RECEIVABLE_STATUSES = ("waiting", "timed_out")
 # 結果の Dataset を読むときに pydicom が上げうる誤り（遅れて読む値の形の誤り）
@@ -50,13 +53,11 @@ SopReference = tuple[str, str]  # (SOP Class UID, SOP Instance UID)
 ReportHandler = Callable[[str, int | None, Dataset], int]
 
 
-class CommitmentReport(BaseModel):
-    """形を確かめて読んだ結果（どの要求の結果かは、まだ確かめていない）."""
+class CommitmentReferences(BaseModel):
+    """結果の参照の並びを読んだもの（要求と照らした後に読む。8.3.2）."""
 
     model_config = {"frozen": True}
 
-    transaction_uid: str
-    event_type: int
     confirmed: frozenset[SopReference]
     failed: dict[SopReference, int | None]
 
@@ -83,22 +84,12 @@ def build_action_information(transaction_uid: str, references: Sequence[SopRefer
     return ds
 
 
-def parse_report(event_type: int | None, info: Dataset) -> CommitmentReport:
-    """N-EVENT-REPORT の Event Information を読む。形が外れたら CommitmentReportRefused."""
+def read_transaction_uid(event_type: int | None, info: Dataset) -> str:
+    """Event Type と Transaction UID だけを読む（参照の並びはまだ読まない。8.3.2）."""
     if event_type not in (EVENT_TYPE_ALL_SUCCESS, EVENT_TYPE_SOME_FAILED):
         raise CommitmentReportRefused(STATUS_NO_SUCH_EVENT_TYPE, "unknown event type")
     try:
         transaction_uid = str(info.get("TransactionUID", "") or "")
-        confirmed = frozenset(
-            reference
-            for item in info.get("ReferencedSOPSequence", None) or []
-            if (reference := _reference(item)) is not None
-        )
-        failed: dict[SopReference, int | None] = {}
-        for item in info.get("FailedSOPSequence", None) or []:
-            reference = _reference(item)
-            if reference is not None:
-                failed[reference] = _failure_reason(item)
     except _DECODE_ERRORS as exc:
         raise CommitmentReportRefused(
             STATUS_PROCESSING_FAILURE, f"unreadable event information ({type(exc).__name__})"
@@ -107,12 +98,31 @@ def parse_report(event_type: int | None, info: Dataset) -> CommitmentReport:
         raise CommitmentReportRefused(
             STATUS_PROCESSING_FAILURE, "transaction UID is missing or not a UID"
         )
-    return CommitmentReport(
-        transaction_uid=transaction_uid,
-        event_type=int(event_type),
-        confirmed=confirmed,
-        failed=failed,
-    )
+    return transaction_uid
+
+
+def read_references(info: Dataset, max_items: int) -> CommitmentReferences:
+    """参照の並びを読む。合計の件数が `max_items`（要求で問うた数）を超えれば断る（8.3.2）."""
+    try:
+        referenced = info.get("ReferencedSOPSequence", None) or []
+        failed_items = info.get("FailedSOPSequence", None) or []
+        if len(referenced) + len(failed_items) > max_items:
+            raise CommitmentReportRefused(
+                STATUS_PROCESSING_FAILURE, "more references than requested"
+            )
+        confirmed = frozenset(
+            reference for item in referenced if (reference := _reference(item)) is not None
+        )
+        failed: dict[SopReference, int | None] = {}
+        for item in failed_items:
+            reference = _reference(item)
+            if reference is not None:
+                failed[reference] = _failure_reason(item)
+    except _DECODE_ERRORS as exc:
+        raise CommitmentReportRefused(
+            STATUS_PROCESSING_FAILURE, f"unreadable event information ({type(exc).__name__})"
+        ) from exc
+    return CommitmentReferences(confirmed=confirmed, failed=failed)
 
 
 def request_commitment(
@@ -169,8 +179,9 @@ def request_commitment(
             transaction_uid,
             len(references),
         )
-        if node.commitment_wait_seconds > 0:
-            received.wait(node.commitment_wait_seconds)
+        if node.commitment_wait_seconds > 0 and received.wait(node.commitment_wait_seconds):
+            # 結果への応答を相手に返し終えてから離す（handler の後で応答が送られる）
+            time.sleep(RESPONSE_GRACE_SECONDS)
     finally:
         if assoc.is_established:
             assoc.release()
@@ -264,17 +275,18 @@ class CommitmentManager:
 
     def receive(self, peer_ae_title: str, event_type: int | None, info: Dataset) -> int:
         """結果を確かめて書く。返す値は相手に返す Status（8.3.2）."""
+        # 先に Event Type・Transaction UID・相手の AE だけを確かめ、合ったときだけ参照を読む
         try:
-            report = parse_report(event_type, info)
+            transaction_uid = read_transaction_uid(event_type, info)
         except CommitmentReportRefused as exc:
             logger.warning("Storage commitment report refused from %r: %s", peer_ae_title, exc)
             return exc.status
-        known = self._queue.commitment_peer(report.transaction_uid)
+        known = self._queue.commitment_peer(transaction_uid)
         if known is None or known[0] not in RECEIVABLE_STATUSES:
             logger.warning(
                 "Storage commitment report for an unknown or finished request from %r: %r",
                 peer_ae_title,
-                report.transaction_uid,
+                transaction_uid,
             )
             return STATUS_PROCESSING_FAILURE
         status, expected_ae_title = known
@@ -285,21 +297,26 @@ class CommitmentManager:
                 expected_ae_title,
             )
             return STATUS_PROCESSING_FAILURE
+        try:
+            references = read_references(
+                info, len(self._queue.commitment_requested(transaction_uid))
+            )
+        except CommitmentReportRefused as exc:
+            logger.warning("Storage commitment report refused from %r: %s", peer_ae_title, exc)
+            return exc.status
         if not self._queue.record_commitment_report(
-            report.transaction_uid, set(report.confirmed), report.failed
+            transaction_uid, set(references.confirmed), references.failed
         ):
             # 確かめた後に、別の道の結果か N-ACTION の失敗が先に書いた
-            logger.warning(
-                "Storage commitment report came after another: %r", report.transaction_uid
-            )
+            logger.warning("Storage commitment report came after another: %r", transaction_uid)
             return STATUS_PROCESSING_FAILURE
         if status == "timed_out":
-            logger.info("Late storage commitment report: %r", report.transaction_uid)
+            logger.info("Late storage commitment report: %r", transaction_uid)
         logger.info(
             "Storage commitment report: transaction_uid=%r event_type=%s failed=%s",
-            report.transaction_uid,
-            report.event_type,
-            len(report.failed),
+            transaction_uid,
+            event_type,
+            len(references.failed),
         )
         return STATUS_SUCCESS
 
@@ -320,6 +337,14 @@ def _dispatch(event: Any, on_report: ReportHandler) -> int:
     peer_ae_title = str(peer.ae_title).strip()
     if str(event.request.AffectedSOPInstanceUID) != COMMITMENT_INSTANCE_UID:
         logger.warning("Storage commitment report with an unknown instance from %r", peer_ae_title)
+        return STATUS_PROCESSING_FAILURE
+    raw = getattr(event.request, "EventInformation", None)
+    size = len(raw.getvalue()) if raw is not None else 0
+    if size > MAX_REPORT_BYTES:
+        # 読む前に大きさで断る（大きな偽の知らせで読ませない。8.3.2）
+        logger.warning(
+            "Storage commitment report too large from %r: %s bytes", peer_ae_title, size
+        )
         return STATUS_PROCESSING_FAILURE
     try:
         info = event.event_information

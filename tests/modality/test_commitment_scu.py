@@ -37,6 +37,8 @@ OWN_AE = "DTG_CT01"
 WAIT = 5.0
 STATUS_PROCESSING_FAILURE = 0x0110
 STATUS_NO_SUCH_EVENT_TYPE = 0x0113
+# 1 MiB（MAX_REPORT_BYTES）を超える大きさになる参照の数（1件はおよそ 58 バイト。約 1.4 MB）
+LARGE_REPORT_ITEMS = 24000
 
 
 def _config(
@@ -112,6 +114,8 @@ def test_separate_association_round_trip(service, commitment_pacs) -> None:
 
     assert final.status == "confirmed"
     assert final.num_confirmed == 3
+    # 相手が応答を受け取って記録するまで待つ（こちらが書いた後に相手が記録する）
+    assert commitment_pacs.reported.wait(REPORT_WAIT_SECONDS)
     assert commitment_pacs.report_statuses == [0x0000]
     request = commitment_pacs.actions[0]
     assert request.TransactionUID == state.transaction_uid
@@ -139,6 +143,7 @@ def test_same_association_round_trip(tmp_path, commitment_pacs, listen_port) -> 
 
     # 同じ Association で待つので、戻ったときには結果が入っている（待ち受けは立てていない）
     assert state.status == "confirmed"
+    assert commitment_pacs.reported.wait(REPORT_WAIT_SECONDS)
     assert commitment_pacs.report_statuses == [0x0000]
     assert service.queue.get_job(job_id).commitment == "confirmed"
 
@@ -187,22 +192,79 @@ def test_missing_items_in_report_are_failed(service, commitment_pacs) -> None:
     assert final.num_failed == 1
 
 
+def _foreign_item() -> Dataset:
+    foreign = Dataset()
+    foreign.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    foreign.ReferencedSOPInstanceUID = "2.25.999"
+    return foreign
+
+
 def test_items_not_requested_are_ignored(service, commitment_pacs) -> None:
-    job_id = _exam_and_send(service, [1])
+    """件数の上限の内なら、要求に無い組は捨てる（要求したのに無い組は失敗）."""
+    job_id = _exam_and_send(service, [2])
 
-    def add_foreign(report: Dataset) -> None:
-        foreign = Dataset()
-        foreign.ReferencedSOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
-        foreign.ReferencedSOPInstanceUID = "2.25.999"
-        report.ReferencedSOPSequence = [*report.ReferencedSOPSequence, foreign]
+    def replace_one(report: Dataset) -> None:
+        report.ReferencedSOPSequence = [report.ReferencedSOPSequence[0], _foreign_item()]
 
-    commitment_pacs.mutate_report = add_foreign
+    commitment_pacs.mutate_report = replace_one
 
     final = service.wait_commitment(service.request_commitment(job_id).transaction_uid, WAIT)
 
-    assert final.status == "confirmed"
-    assert final.num_requested == 1
-    assert final.num_confirmed == 1
+    assert commitment_pacs.reported.wait(REPORT_WAIT_SECONDS)
+    assert commitment_pacs.report_statuses == [0x0000]
+    assert final.status == "failed"
+    assert final.num_requested == 2
+    assert (final.num_confirmed, final.num_failed) == (1, 1)
+
+
+def test_more_references_than_requested_is_refused(service, commitment_pacs) -> None:
+    """参照の件数が問うた数を超えれば、何も書かずに断る（8.3.2）."""
+    job_id = _exam_and_send(service, [1])
+
+    def add_foreign(report: Dataset) -> None:
+        report.ReferencedSOPSequence = [*report.ReferencedSOPSequence, _foreign_item()]
+
+    commitment_pacs.mutate_report = add_foreign
+
+    service.request_commitment(job_id)
+    assert commitment_pacs.reported.wait(REPORT_WAIT_SECONDS)
+
+    assert commitment_pacs.report_statuses == [STATUS_PROCESSING_FAILURE]
+    assert service.queue.get_job(job_id).commitment == "waiting"
+
+
+@pytest.mark.parametrize("transaction", ["unknown", "known"])
+def test_large_report_is_refused_before_reading(
+    service, commitment_pacs, listen_port, transaction, caplog
+) -> None:
+    """1 MiB を超える知らせは、Transaction UID を読む前に大きさで断る（8.3.2）."""
+    job_id = _exam_and_send(service, [1])
+    commitment_pacs.report_path = "none"
+    state = service.request_commitment(job_id)
+    big = Dataset()
+    big.TransactionUID = state.transaction_uid if transaction == "known" else "2.25.4242"
+    big.ReferencedSOPSequence = [_foreign_item() for _ in range(LARGE_REPORT_ITEMS)]
+    ae = AE(ae_title="PACS_TEST")
+    ae.add_requested_context(StorageCommitmentPushModel)
+    assoc = ae.associate(
+        LOCALHOST,
+        listen_port,
+        ae_title=OWN_AE,
+        ext_neg=[build_role(StorageCommitmentPushModel, scp_role=True)],
+    )
+    assert assoc.is_established
+    try:
+        status, _ = assoc.send_n_event_report(
+            big, 1, StorageCommitmentPushModel, COMMITMENT_INSTANCE_UID
+        )
+    finally:
+        assoc.release()
+
+    assert int(status.Status) == STATUS_PROCESSING_FAILURE
+    assert service.queue.get_job(job_id).commitment == "waiting"
+    # 件数の確かめより前に、大きさで断った
+    assert "too large" in caplog.text
+    assert "more references than requested" not in caplog.text
 
 
 @pytest.mark.parametrize(

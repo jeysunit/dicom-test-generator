@@ -8,10 +8,11 @@
 from __future__ import annotations
 
 import json
+import secrets
 import sqlite3
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
 
@@ -36,13 +37,25 @@ _SCHEMA = """
         set_json TEXT NOT NULL DEFAULT '',
         set_sent INTEGER NOT NULL DEFAULT 0,
         attempts INTEGER NOT NULL DEFAULT 0,
-        last_error TEXT NOT NULL DEFAULT ''
+        last_error TEXT NOT NULL DEFAULT '',
+        peer_ae_title TEXT NOT NULL,
+        peer_host TEXT NOT NULL,
+        peer_port INTEGER NOT NULL,
+        create_no_response INTEGER NOT NULL DEFAULT 0,
+        set_no_response INTEGER NOT NULL DEFAULT 0,
+        send_token TEXT NOT NULL DEFAULT '',
+        send_token_at TEXT NOT NULL DEFAULT ''
     )
 """
 _COLUMNS = (
     "id, created_at, updated_at, sop_instance_uid, accession_number, output_dir, state,"
-    " create_sent, set_json != '', set_sent, attempts, last_error"
+    " create_sent, set_json != '', set_sent, attempts, last_error,"
+    " peer_ae_title, peer_host, peer_port, create_no_response, set_no_response"
 )
+# 札を取ってからこの秒より長く経った行は、送る手順が落ちたとみなして札を取り直せる（8.4.1）
+STALE_SEND_TOKEN_SECONDS = 10 * 60
+SEND_TOKEN_BYTES = 16
+MppsOperation = Literal["create", "set"]
 
 
 class MppsRecord(BaseModel):
@@ -60,6 +73,13 @@ class MppsRecord(BaseModel):
     set_sent: bool
     attempts: int
     last_error: str
+    # 送り先は行に固定する（8.4.1）
+    peer_ae_title: str
+    peer_host: str
+    peer_port: int
+    # 前に送って「応答なし」で終わったか（届いていたかもしれない。8.4.1）
+    create_no_response: bool
+    set_no_response: bool
 
     @property
     def sent(self) -> bool:
@@ -80,15 +100,49 @@ class MppsQueue:
                 {"db_path": str(db_path), "reason": str(exc)},
             ) from exc
 
-    def add(self, sop_instance_uid: str, accession_number: str, create: Dataset) -> int:
+    def add(
+        self,
+        sop_instance_uid: str,
+        accession_number: str,
+        create: Dataset,
+        peer: tuple[str, str, int],
+    ) -> int:
+        """N-CREATE の知らせを入れる。`peer` は（AE タイトル, 住所, ポート）で、行に固定する."""
         now = _now()
+        ae_title, host, port = peer
         with self._connect() as conn:
             cursor = conn.execute(
                 "INSERT INTO mpps (created_at, updated_at, sop_instance_uid, accession_number,"
-                " state, create_json) VALUES (?, ?, ?, ?, 'IN PROGRESS', ?)",
-                (now, now, sop_instance_uid, accession_number, _to_json(create)),
+                " state, create_json, peer_ae_title, peer_host, peer_port)"
+                " VALUES (?, ?, ?, ?, 'IN PROGRESS', ?, ?, ?, ?)",
+                (now, now, sop_instance_uid, accession_number, _to_json(create), ae_title, host, port),
             )
             return int(cursor.lastrowid or 0)
+
+    def claim(self, record_id: int) -> str | None:
+        """送る権利の札を取る。札が空か古い行だけ。取れなければ None（8.4.1）."""
+        token = secrets.token_hex(SEND_TOKEN_BYTES)
+        cutoff = (datetime.now() - timedelta(seconds=STALE_SEND_TOKEN_SECONDS)).isoformat(
+            timespec="seconds"
+        )
+        with self._connect() as conn:
+            cursor = conn.execute(
+                "UPDATE mpps SET send_token = ?, send_token_at = ? WHERE id = ?"
+                " AND (send_token = '' OR send_token_at < ?)",
+                (token, _now(), record_id, cutoff),
+            )
+        return token if cursor.rowcount == 1 else None
+
+    def release(self, record_id: int, token: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE mpps SET send_token = '', send_token_at = '' WHERE id = ? AND send_token = ?",
+                (record_id, token),
+            )
+
+    def mark_no_response(self, record_id: int, operation: MppsOperation) -> None:
+        column = "create_no_response" if operation == "create" else "set_no_response"
+        self._update(record_id, f"{column} = 1")
 
     def set_final(self, record_id: int, state: MppsState, modification: Dataset, output_dir: str) -> None:
         with self._connect() as conn:
@@ -163,6 +217,11 @@ class MppsQueue:
                 set_sent=bool(row[9]),
                 attempts=row[10],
                 last_error=row[11],
+                peer_ae_title=row[12],
+                peer_host=row[13],
+                peer_port=row[14],
+                create_no_response=bool(row[15]),
+                set_no_response=bool(row[16]),
             )
             for row in rows
         ]

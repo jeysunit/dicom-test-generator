@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 import yaml
-from modality_peers import LOCALHOST, free_port
+from modality_peers import LOCALHOST, free_port, start_mpps_recorder
 
 from app.cli.main import main
 
@@ -191,11 +191,15 @@ def test_exam_mpps_json_and_mpps_list(monkeypatch, capsys, tmp_path, worklist_sc
     assert result["mpps"] is None
 
 
-def test_exam_mpps_failure_warns_and_retry(monkeypatch, capsys, tmp_path, worklist_scp, storage_scp, mpps_scp) -> None:
-    """MPPS を送れなくても撮影は 0。`[WARN]` を出し、`mpps retry` で送る（11.4・11.9）."""
+def test_exam_mpps_failure_warns_and_retry(monkeypatch, capsys, tmp_path, worklist_scp, storage_scp) -> None:
+    """MPPS を送れなくても撮影は 0。`[WARN]` を出し、`mpps retry` で送る（11.4・11.9）.
+
+    送り先は行に固定するので、落ちていた相手が同じポートで戻ってから送り直す（8.4.1）。
+    """
+    mpps_port = free_port()
     down = write_config(
         tmp_path, worklist_port=worklist_scp.port, pacs_port=storage_scp.port,
-        listen_port=free_port(), mpps_port=free_port(), storage_commitment=False,
+        listen_port=free_port(), mpps_port=mpps_port, storage_commitment=False,
     )
     code, out, err = run_cli(
         monkeypatch, capsys, tmp_path, down, "exam", "--emergency", "--patient-id", "E0001",
@@ -207,14 +211,15 @@ def test_exam_mpps_failure_warns_and_retry(monkeypatch, capsys, tmp_path, workli
     code, _, err = run_cli(monkeypatch, capsys, tmp_path, down, "mpps", "retry")
     assert code == 5
 
-    up = write_config(
-        tmp_path, worklist_port=worklist_scp.port, pacs_port=storage_scp.port,
-        listen_port=free_port(), mpps_port=mpps_scp.port, storage_commitment=False,
-    )
-    code, out, _ = run_cli(monkeypatch, capsys, tmp_path, up, "mpps", "retry")
+    back, server = start_mpps_recorder(mpps_port)
+    try:
+        code, out, _ = run_cli(monkeypatch, capsys, tmp_path, down, "mpps", "retry")
+    finally:
+        server.shutdown()
     assert code == 0
     assert "COMPLETED" in out
-    code, out, _ = run_cli(monkeypatch, capsys, tmp_path, up, "mpps", "list")
+    assert len(back.sets) == 1
+    code, out, _ = run_cli(monkeypatch, capsys, tmp_path, down, "mpps", "list")
     assert "COMPLETED" in out and "sent" in out
 
 
