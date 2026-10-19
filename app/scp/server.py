@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from pynetdicom import AE, evt
+from pynetdicom.sop_class import Verification
 
 from app.core.exceptions import SCPConfigError
 from app.scp.handler import StorageHandler
@@ -30,6 +31,10 @@ class StorageSCP:
 
         for sop_class_uid in config.supported_sop_classes:
             self.ae.add_supported_context(sop_class_uid)
+        # C-ECHO（疎通の確かめ）には常に答える。返す値は pynetdicom の既定の
+        # handler（0x0000）に任せる（spec/11 の確定事項 9）
+        if Verification not in config.supported_sop_classes:
+            self.ae.add_supported_context(Verification)
 
         self._evt_handlers: list[tuple[Any, Any]] = [
             (evt.EVT_C_STORE, self.handler.handle_store),

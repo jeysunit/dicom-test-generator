@@ -10,7 +10,7 @@ from pathlib import Path
 import pydicom
 import pytest
 import yaml
-from modality_peers import LOCALHOST
+from modality_peers import LOCALHOST, free_port
 
 from app.cli.main import main
 from app.scp.models import SCPConfig
@@ -155,3 +155,32 @@ def test_same_order_twice_adds_series_to_same_study(
     assert len({ds.SeriesInstanceUID for ds in datasets}) == 2
     assert len({ds.StudyInstanceUID for ds in datasets}) == 1
     assert all(ds.PatientBirthDate == "" and "PatientAge" not in ds for ds in datasets)
+
+
+def test_echo_to_local_storage_scp_succeeds(monkeypatch, capsys, tmp_path, receiving_scp) -> None:
+    """手元の app/scp を送り先にした `echo` が「つながった」になる（spec/11 の確定事項 9）."""
+    scp_port, _ = receiving_scp
+    config = tmp_path / "app_config.yaml"
+    config.write_text(
+        yaml.safe_dump(
+            {
+                "modality": {
+                    "ae_title": OWN_AE,
+                    "state_dir": str(tmp_path / "state"),
+                    "output_dir": str(tmp_path / "output"),
+                    "worklist": {"ae_title": "RIS_TEST", "host": LOCALHOST, "port": free_port()},
+                    "destinations": [{"name": "LOCAL_SCP", "ae_title": SCP_AE, "host": LOCALHOST,
+                                      "port": scp_port, "timeout_seconds": 5}],
+                    "default_destination": "LOCAL_SCP",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    code, out = _run(monkeypatch, capsys, tmp_path, config, "echo", "--to", "LOCAL_SCP", "--json")
+
+    assert code == 0
+    result = json.loads(out)
+    assert result["ae_title"] == SCP_AE
+    assert result["status"] == 0x0000

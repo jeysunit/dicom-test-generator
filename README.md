@@ -211,7 +211,17 @@ character_set:
 
 ## Storage SCP（Phase 1.5）
 
-DICOM通信による受信機能を追加予定。
+手元で画像を受ける側です（[spec/11_storage_scp.md](spec/11_storage_scp.md)）。
+設定は `config/app_config.yaml` の `storage_scp:` の節です。`enabled: true` にしてから
+起動します。既定は手元（127.0.0.1）だけで待ち受けます。
+
+```bash
+python -m app.cli scp start
+```
+
+C-STORE を受けて保存し、C-ECHO（疎通の確かめ）には Success を返します。モダリティの
+ダミーの送り先にすると、PACS の画面の [C-ECHO] と `python -m app.cli echo` で
+「つながった」になります。
 
 ---
 
