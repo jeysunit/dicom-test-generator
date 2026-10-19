@@ -47,7 +47,7 @@ SCP (app/scp/) ─┘→ Core (app/core/)
 | Phase 1.5 | Storage SCP（PyNetDICOM） | ✅ 完了 |
 | Phase 3a | モダリティのダミー：ワークリスト（C-FIND MWL）・予約からの生成・送信（C-STORE・C-ECHO）を CLI で（`spec/12_modality_emulator.md`） | ✅ 完了（CLI） |
 | Phase 3b | モダリティのダミー：ウェブの画面（ワークリスト・撮影・PACS・設定） | ✅ 完了（`python -m app.web`） |
-| Phase 3c | モダリティのダミー：保管の確認（Storage Commitment）・MPPS（選べる形） | 仕様は承認済み・未着手 |
+| Phase 3c | モダリティのダミー：保管の確認（Storage Commitment）・MPPS（選べる形） | 進行中（決めたことは `spec/12_modality_emulator.md` 18.2） |
 
 ## テスト実行
 
