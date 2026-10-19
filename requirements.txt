@@ -3,7 +3,7 @@
 # DICOM library
 pydicom>=2.4.4
 
-# DICOM network communication (Phase 1.5: Storage SCP)
+# DICOM network communication (modality emulator: MWL, C-STORE, C-ECHO, N-ACTION, MPPS)
 pynetdicom>=2.0.0
 
 # Configuration file parsing

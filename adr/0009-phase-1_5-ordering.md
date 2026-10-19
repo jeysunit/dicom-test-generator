@@ -2,7 +2,9 @@
 
 ## ステータス
 
-**Accepted** - 2026-02-23
+**Superseded** by [ADR-0013](0013-remove-storage-scp.md) - 2026-10-20
+（元は Accepted - 2026-02-23。Phase 1.5 の Storage SCP を外したため、この
+実装順序の決定は歴史的な記録になった。以下は当時の記録）
 
 ## 背景
 
