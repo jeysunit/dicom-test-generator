@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sqlite3
 import threading
 from datetime import date, datetime
 from pathlib import Path
@@ -14,6 +15,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from pydantic import ValidationError as PydanticValidationError
 from pydicom import dcmread
+from pydicom.errors import InvalidDicomError
 
 from app.core.exceptions import (
     AssociationError,
@@ -266,7 +268,8 @@ class ModalityService:
         try:
             if node.storage_commitment and self._profile_allows(job.folder, "storage_commitment"):
                 self._commitments().request(job_id, node)
-        except (ModalityError, ConfigurationError) as exc:
+        except (ModalityError, ConfigurationError, sqlite3.Error) as exc:
+            # sqlite3.Error：待ち受けのスレッドが同じ DB に書いている間の「locked」など
             logger.warning(
                 "Storage commitment was not requested: job_id=%s reason=%s",
                 job_id,
@@ -291,9 +294,11 @@ class ModalityService:
 
     def retry_mpps(self) -> list[MppsRecord]:
         """送れていない MPPS の知らせを送り直す。残れば MPPSError（11.9）."""
-        if not self.config.worklist.use_mpps:
+        # `exam --mpps` で作った知らせは、設定で使わなくても送り直せる（8.4.1）
+        if not self.config.worklist.use_mpps and not self.mpps_queue.unsent():
             raise ModalityConfigError(
-                "MPPS is not used (worklist.use_mpps is false)", {"use_mpps": False}
+                "MPPS is not used (worklist.use_mpps is false) and nothing is left to send",
+                {"use_mpps": False},
             )
         records = self._mpps().retry()
         unsent = [record for record in records if not record.sent]
@@ -537,18 +542,23 @@ class ModalityService:
         mpps_id = self._mpps().start_exam(ctx, modality, now) if use_mpps else None
         try:
             self._generator.generate(config=config, scheduled=ctx)
-        except DICOMGeneratorError:
+        except (DICOMGeneratorError, OSError):
             self._remove_if_empty(output_dir)
             if mpps_id is not None:
                 # N-CREATE の後に撮影が止まった＝取り消し（DISCONTINUED。8.4.1）
                 self._mpps().finish_exam(mpps_id, STATE_DISCONTINUED, [], ctx, str(output_dir))
             raise
         files = sorted(str(path) for path in output_dir.glob("*.dcm"))
-        mpps = (
-            self._mpps().finish_exam(mpps_id, STATE_COMPLETED, files, ctx, str(output_dir))
-            if mpps_id is not None
-            else None
-        )
+        mpps = None
+        if mpps_id is not None:
+            try:
+                mpps = self._mpps().finish_exam(
+                    mpps_id, STATE_COMPLETED, files, ctx, str(output_dir)
+                )
+            except (OSError, InvalidDicomError, AttributeError):
+                # 作った画像のヘッダーを読めなければ、開いたままにせず DISCONTINUED を残す
+                self._mpps().finish_exam(mpps_id, STATE_DISCONTINUED, [], ctx, str(output_dir))
+                raise
         if profile_name:
             self.queue.remember_exam_profile(str(output_dir), profile_name)
         study_uid = self._read_study_uid(files)

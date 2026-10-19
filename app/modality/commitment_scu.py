@@ -285,9 +285,14 @@ class CommitmentManager:
                 expected_ae_title,
             )
             return STATUS_PROCESSING_FAILURE
-        self._queue.record_commitment_report(
+        if not self._queue.record_commitment_report(
             report.transaction_uid, set(report.confirmed), report.failed
-        )
+        ):
+            # 確かめた後に、別の道の結果か N-ACTION の失敗が先に書いた
+            logger.warning(
+                "Storage commitment report came after another: %r", report.transaction_uid
+            )
+            return STATUS_PROCESSING_FAILURE
         if status == "timed_out":
             logger.info("Late storage commitment report: %r", report.transaction_uid)
         logger.info(

@@ -37,6 +37,9 @@ MAX_HANDLER_SECONDS = 10
 # 保管の確認の SCP の、よく知られた SOP Instance UID（PS3.4 J.3.5）
 COMMITMENT_INSTANCE_UID = "1.2.840.10008.1.20.1.1"
 FAILURE_REASON_NO_SUCH_INSTANCE = 0x0112
+MPPS_PROCESSING_FAILURE = 0x0110
+MPPS_DUPLICATE_INSTANCE = 0x0111
+MPPS_NO_SUCH_INSTANCE = 0x0112
 REPORT_WAIT_SECONDS = 10
 
 
@@ -309,27 +312,56 @@ class CommitmentPACS(StorageRecorder):
 
 @dataclass
 class MppsRecorder:
-    """試験の MPPS の SCP：N-CREATE・N-SET を覚え、決めた Status を返す偽の相手."""
+    """試験の MPPS の SCP：N-CREATE・N-SET を覚え、決めた Status を返す偽の相手.
+
+    状態を持つ（PS3.4 F.7.2）：作った Instance の N-CREATE は 0x0111、知らない Instance の
+    N-SET は 0x0112、COMPLETED・DISCONTINUED の後の N-SET は 0x0110。届いた順を `events`
+    に残す。`*_delay_first` は、最初の1回だけ記録してから応答を遅らせる（応答が失われる形）。
+    """
 
     ae_title: str = "RIS_TEST"
-    create_statuses: list[int] = field(default_factory=list)  # 空になったら Success
+    create_statuses: list[int] = field(default_factory=list)  # 空になったら状態で決める
     set_status: int = STATUS_SUCCESS
+    create_delay_first: float = 0.0
+    set_delay_first: float = 0.0
     created: dict[str, Dataset] = field(default_factory=dict)
     sets: list[tuple[str, Dataset]] = field(default_factory=list)
+    events: list[tuple[str, str, int]] = field(default_factory=list)  # (操作, UID, 返した Status)
+    finished: set[str] = field(default_factory=set)
     port: int = 0
 
     def handle_create(self, event: Any) -> tuple[int, Dataset | None]:
         uid = str(event.request.AffectedSOPInstanceUID)
-        status = self.create_statuses.pop(0) if self.create_statuses else STATUS_SUCCESS
+        if self.create_statuses:
+            status = self.create_statuses.pop(0)
+        else:
+            status = MPPS_DUPLICATE_INSTANCE if uid in self.created else STATUS_SUCCESS
         if status == STATUS_SUCCESS:
             self.created[uid] = event.attribute_list
+        self.events.append(("N-CREATE", uid, status))
+        if self.create_delay_first and status == STATUS_SUCCESS:
+            delay, self.create_delay_first = self.create_delay_first, 0.0
+            time.sleep(delay)
         return status, event.attribute_list if status == STATUS_SUCCESS else None
 
     def handle_set(self, event: Any) -> tuple[int, Dataset | None]:
         uid = str(event.request.RequestedSOPInstanceUID)
-        if self.set_status == STATUS_SUCCESS:
-            self.sets.append((uid, event.modification_list))
-        return self.set_status, event.modification_list if self.set_status == 0 else None
+        modification = event.modification_list
+        if uid not in self.created:
+            status = MPPS_NO_SUCH_INSTANCE
+        elif uid in self.finished:
+            status = MPPS_PROCESSING_FAILURE  # 終わった MPPS は更新できない
+        else:
+            status = self.set_status
+        if status == STATUS_SUCCESS:
+            self.sets.append((uid, modification))
+            if str(modification.get("PerformedProcedureStepStatus", "")) != "IN PROGRESS":
+                self.finished.add(uid)
+        self.events.append(("N-SET", uid, status))
+        if self.set_delay_first and status == STATUS_SUCCESS:
+            delay, self.set_delay_first = self.set_delay_first, 0.0
+            time.sleep(delay)
+        return status, modification if status == STATUS_SUCCESS else None
 
 
 def start_server(ae: AE, handlers: list[tuple[Any, Any]]) -> tuple[Any, int]:

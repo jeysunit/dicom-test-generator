@@ -35,6 +35,7 @@ STATE_COMPLETED: Final = "COMPLETED"
 STATE_DISCONTINUED: Final = "DISCONTINUED"
 STATUS_SUCCESS = 0x0000
 STATUS_DUPLICATE_INSTANCE = 0x0111
+STATUS_PROCESSING_FAILURE = 0x0110
 # N-CREATE・N-SET の Warning（PS3.4 F.7.2・PS3.7 C）。送れた扱いにする
 WARNING_STATUSES = frozenset({0x0001, 0x0107, 0x0116})
 DEFAULT_PROTOCOL_NAME = "DTG"
@@ -114,9 +115,19 @@ def send_n_create(
 
 
 def send_n_set(
-    own_ae_title: str, peer: NodeConfig, timeout_seconds: float, sop_instance_uid: str, dataset: Dataset
+    own_ae_title: str,
+    peer: NodeConfig,
+    timeout_seconds: float,
+    sop_instance_uid: str,
+    dataset: Dataset,
+    already_final_ok: bool = False,
 ) -> None:
-    _send(own_ae_title, peer, timeout_seconds, "N-SET", sop_instance_uid, dataset, set())
+    """終わりの N-SET を送る。`already_final_ok` なら 0x0110 を送れた扱いにする（送り直し。8.4.1）.
+
+    前の N-SET が届いていれば、相手は終わった MPPS を更新できないので 0x0110 を返す（PS3.4 F.7.2.2）。
+    """
+    allowed = {STATUS_PROCESSING_FAILURE} if already_final_ok else set()
+    _send(own_ae_title, peer, timeout_seconds, "N-SET", sop_instance_uid, dataset, allowed)
 
 
 def _send(
@@ -230,7 +241,7 @@ class MppsManager:
         """N-CREATE（IN PROGRESS）を残して送る。送れなくても撮影は止めない."""
         uid = UIDGenerator().generate_sop_uid()
         record_id = self._queue.add(uid, accession_number, create)
-        self._send_create(record_id, duplicate_ok=False)
+        self._send_create(record_id)
         return record_id
 
     def finish(
@@ -250,10 +261,10 @@ class MppsManager:
         retried = []
         for record in self._queue.unsent():
             if not record.create_sent:
-                self._send_create(record.id, duplicate_ok=True)
+                self._send_create(record.id, resend=True)
             current = self._queue.get(record.id)
             if current.create_sent and current.has_set and not current.set_sent:
-                self._send_set(record.id)
+                self._send_set(record.id, resend=True)
             retried.append(self._queue.get(record.id))
         return retried
 
@@ -267,42 +278,48 @@ class MppsManager:
             error="" if record.sent else record.last_error,
         )
 
-    def _send_create(self, record_id: int, duplicate_ok: bool) -> None:
+    def _send_create(self, record_id: int, resend: bool = False) -> None:
         record = self._queue.get(record_id)
         dataset = self._queue.create_dataset(record_id)
         if self._try(
             record_id,
-            lambda: send_n_create(
+            resend,
+            lambda again: send_n_create(
                 self._own_ae_title,
                 self._peer,
                 self._peer.timeout_seconds,
                 record.sop_instance_uid,
                 dataset,
-                duplicate_ok=duplicate_ok,
+                duplicate_ok=again,
             ),
         ):
             self._queue.mark_create_sent(record_id)
 
-    def _send_set(self, record_id: int) -> None:
+    def _send_set(self, record_id: int, resend: bool = False) -> None:
         record = self._queue.get(record_id)
         dataset = self._queue.set_dataset(record_id)
         if self._try(
             record_id,
-            lambda: send_n_set(
+            resend,
+            lambda again: send_n_set(
                 self._own_ae_title,
                 self._peer,
                 self._peer.timeout_seconds,
                 record.sop_instance_uid,
                 dataset,
+                already_final_ok=again,
             ),
         ):
             self._queue.mark_set_sent(record_id)
 
-    def _try(self, record_id: int, send: Callable[[], None]) -> bool:
-        """`retry.max_attempts` の分だけすぐ試す。だめなら理由を残して False."""
+    def _try(self, record_id: int, resend: bool, send: Callable[[bool], None]) -> bool:
+        """`retry.max_attempts` の分だけすぐ試す。だめなら理由を残して False.
+
+        2回目以降と `mpps retry` は「送り直し」として送る（前の分が届いていたかもしれない。8.4.1）。
+        """
         for attempt in range(1 + self._attempts):
             try:
-                send()
+                send(resend or attempt > 0)
                 return True
             except (AssociationError, MPPSError) as exc:
                 self._queue.record_error(record_id, str(exc))

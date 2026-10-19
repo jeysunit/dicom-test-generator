@@ -85,6 +85,7 @@ _SCHEMA = (
         sop_instance_uid TEXT NOT NULL,
         status TEXT NOT NULL,
         failure_reason INTEGER,
+        note TEXT NOT NULL DEFAULT '',
         PRIMARY KEY (transaction_uid, sop_class_uid, sop_instance_uid)
     )
     """,
@@ -406,11 +407,14 @@ class SendQueue:
             )
 
     def fail_commitment(self, transaction_uid: str, reason: str) -> None:
-        """N-ACTION を送れなかった要求を「確認の失敗」にする."""
+        """N-ACTION を送れなかった要求を「確認の失敗」にする.
+
+        先に結果が届いて状態が変わっていれば、上書きしない（待っている要求だけ）。
+        """
         with self._connect() as conn:
             conn.execute(
                 "UPDATE commitments SET status = 'failed', error = ?, updated_at = ?"
-                " WHERE transaction_uid = ?",
+                " WHERE transaction_uid = ? AND status = 'waiting'",
                 (reason, _now(), transaction_uid),
             )
 
@@ -428,27 +432,42 @@ class SendQueue:
         transaction_uid: str,
         confirmed: set[SopReference],
         failed: dict[SopReference, int | None],
-    ) -> None:
-        """結果を画像ごとに残し、要求の状態を決める（8.3.2）.
+    ) -> bool:
+        """結果を画像ごとに残し、要求の状態を決める（8.3.2）。受けたら True.
 
-        要求に無い組は捨てる。要求したのに結果のどちらにも無い組は失敗にする。
+        要求に無い組は捨てる。要求したのに結果のどちらにも無い組は失敗にする（理由「結果に無い」）。
         失敗の側に書いてある組は、成功の側にもあっても失敗にする（書いてある方を信じる）。
+        状態の確かめと書き込みは1つの取引で行い、待っている（か時間切れの）要求だけに書く
+        （同じ Association と待ち受けから同時に来ても、受けるのは1つ）。
         """
-        requested = self.commitment_requested(transaction_uid)
         with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            row = conn.execute(
+                "SELECT status FROM commitments WHERE transaction_uid = ?", (transaction_uid,)
+            ).fetchone()
+            if row is None or row[0] not in ("waiting", "timed_out"):
+                return False
+            requested = conn.execute(
+                "SELECT sop_class_uid, sop_instance_uid FROM commitment_items"
+                " WHERE transaction_uid = ?",
+                (transaction_uid,),
+            ).fetchall()
             num_failed = 0
-            for reference in requested:
+            for sop_class_uid, sop_instance_uid in requested:
+                reference = (str(sop_class_uid), str(sop_instance_uid))
+                code: int | None = None
+                note = ""
                 if reference in failed:
-                    status, reason = "failed", failed[reference]
+                    status, code = "failed", failed[reference]
                 elif reference in confirmed:
-                    status, reason = "confirmed", None
+                    status = "confirmed"
                 else:
-                    status, reason = "failed", None
+                    status, note = "failed", COMMITMENT_NOT_REPORTED
                 num_failed += status == "failed"
                 conn.execute(
-                    "UPDATE commitment_items SET status = ?, failure_reason = ?"
+                    "UPDATE commitment_items SET status = ?, failure_reason = ?, note = ?"
                     " WHERE transaction_uid = ? AND sop_class_uid = ? AND sop_instance_uid = ?",
-                    (status, reason, transaction_uid, *reference),
+                    (status, code, note, transaction_uid, *reference),
                 )
             overall = "failed" if num_failed else "confirmed"
             error = f"{num_failed} image(s) not committed" if num_failed else ""
@@ -457,6 +476,7 @@ class SendQueue:
                 " WHERE transaction_uid = ?",
                 (overall, error, _now(), transaction_uid),
             )
+        return True
 
     def commitment_peer(self, transaction_uid: str) -> tuple[str, str] | None:
         """要求の（状態, 送り先の AE タイトル）。知らない Transaction UID なら None."""

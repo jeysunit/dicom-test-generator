@@ -29,7 +29,7 @@ from app.core.exceptions import ModalityConfigError, ModalityError
 from app.core.models import ScheduledPatient
 from app.modality.commitment_scu import COMMITMENT_INSTANCE_UID
 from app.modality.config import ModalityConfig
-from app.modality.queue import QUEUE_DB_NAME
+from app.modality.queue import COMMITMENT_NOT_REPORTED, QUEUE_DB_NAME, SendQueue
 from app.modality.service import ExamRequest, ModalityService
 from app.services.profile_loader import PROFILE_DIRS_ENV
 
@@ -435,6 +435,28 @@ def test_commitment_settings_out_of_range_are_refused(tmp_path, field, value) ->
     data["destinations"][0][field] = value
     with pytest.raises(PydanticValidationError):
         ModalityConfig.model_validate(data)
+
+
+def test_queue_writes_only_waiting_requests(tmp_path) -> None:
+    """先に書いた方を上書きしない：結果の後の N-ACTION の失敗・2つ目の結果（8.3.2）."""
+    queue = SendQueue(tmp_path / QUEUE_DB_NAME)
+    job_id = queue.add_job(str(tmp_path), "PACS_TEST", ["a.dcm", "b.dcm"])
+    refs = [("1.2.840.10008.5.1.4.1.1.2", "2.25.1"), ("1.2.840.10008.5.1.4.1.1.2", "2.25.2")]
+    queue.add_commitment(job_id, "PACS_TEST", "PACS_TEST", "2.25.77", refs, 600)
+
+    assert queue.record_commitment_report("2.25.77", {refs[0]}, {}) is True
+    queue.fail_commitment("2.25.77", "N-ACTION timed out")
+    assert queue.record_commitment_report("2.25.77", set(refs), {}) is False
+
+    state = queue.get_commitment("2.25.77")
+    assert state.status == "failed"
+    assert (state.num_confirmed, state.num_failed) == (1, 1)
+    assert state.error == "1 image(s) not committed"
+    with closing(sqlite3.connect(tmp_path / QUEUE_DB_NAME)) as conn:
+        notes = conn.execute(
+            "SELECT note FROM commitment_items WHERE sop_instance_uid = '2.25.2'"
+        ).fetchall()
+    assert notes == [(COMMITMENT_NOT_REPORTED,)]
 
 
 def _age_commitment(tmp_path: Path, transaction_uid: str, seconds: int) -> None:
