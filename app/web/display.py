@@ -14,6 +14,19 @@ TIME_MIN_LENGTH = 4
 PN_GROUPS = 3
 SEX_LABELS = {"M": "男", "F": "女", "O": "その他"}
 STATUS_LABELS = {"pending": "待ち", "sending": "送信中", "sent": "送れた", "failed": "失敗"}
+# 保管の確認の状態（10.6・10.8）と、出すときの色の印（待ち行列の状態と同じ CSS を使う）
+COMMITMENT_LABELS = {
+    "waiting": "確認待ち",
+    "confirmed": "確認済",
+    "failed": "確認の失敗",
+    "timed_out": "確認の時間切れ",
+}
+COMMITMENT_STATUS_CLASSES = {
+    "waiting": "pending",
+    "confirmed": "sent",
+    "failed": "failed",
+    "timed_out": "failed",
+}
 DEFAULT_CHARSET_LABEL = "既定"
 
 

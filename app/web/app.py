@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Request, Response
@@ -53,15 +54,30 @@ def create_app(
     password: str | None,
     service: ModalityService | None = None,
 ) -> FastAPI:
-    """画面のアプリを作る。`password` があれば HTTP Basic を付ける（10.9）."""
+    """画面のアプリを作る。`password` があれば HTTP Basic を付ける（10.9）.
+
+    起動のときに保管の確認の待ち受けを立て、止めるときに止める（使う送り先が
+    あるときだけ。spec/12 の 8.3.3）。画面のプロセスは「送れた」で自動に求める。
+    """
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        listener = app.state.service.start_commitment_listener()
+        try:
+            yield
+        finally:
+            if listener is not None:
+                listener.shutdown()
+
     app = FastAPI(
         title="dicom-test-generator",
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
         dependencies=[Depends(csrf_guard)],
+        lifespan=lifespan,
     )
-    app.state.service = service or ModalityService(config)
+    app.state.service = service or ModalityService(config, auto_commitment=True)
     app.state.config_path = config_path
     app.state.web = web
     app.state.csrf_token = new_csrf_token()

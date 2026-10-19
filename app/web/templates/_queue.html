@@ -12,6 +12,7 @@
         <th scope="col">送り先</th>
         <th scope="col">受付番号</th>
         <th scope="col">送れた枚数</th>
+        <th scope="col">保管の確認</th>
         <th scope="col">時刻</th>
         <th scope="col">出力のフォルダ</th>
         <th scope="col"><span class="sr-only">操作</span></th>
@@ -25,6 +26,12 @@
         <td>{{ job.destination }}</td>
         <td class="font-mono">{{ job.accession_number or "—" }}</td>
         <td>{{ job.num_sent }}/{{ job.num_files }}</td>
+        <td>
+          {% if job.commitment %}
+          <span class="status status-{{ COMMITMENT_STATUS_CLASSES.get(job.commitment, 'failed') }}">{{ COMMITMENT_LABELS.get(job.commitment, job.commitment) }}</span>
+          {% if job.commitment_error %}<span class="block text-xs text-danger">{{ job.commitment_error }}</span>{% endif %}
+          {% else %}—{% endif %}
+        </td>
         <td class="text-xs">{{ job.updated_at|replace("T", " ") }}</td>
         <td>{% with uid = job.folder %}{% include "_uid.html" %}{% endwith %}</td>
         <td>
