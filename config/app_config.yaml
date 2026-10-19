@@ -39,13 +39,16 @@ modality:
     max_results: 1000             # 応答の上限（spec/12 の 5.5）
     max_item_bytes: 262144
     max_total_bytes: 16777216
-    use_mpps: false
+    use_mpps: false               # MPPS を送るか（spec/12 の 8.4.1）
+  mpps: null                      # MPPS の送り先。null はワークリストの相手（spec/12 の 12 章）
   destinations:
     - name: "PACS_TEST"
       ae_title: "PACS_TEST"
       host: "127.0.0.1"
       port: 4242
       storage_commitment: false
+      commitment_timeout_seconds: 600  # 保管の確認の結果を待つ秒（spec/12 の 8.3）
+      commitment_wait_seconds: 0  # 同じ Association で結果を待つ秒。0 は待たない（8.3.1）
       timeout_seconds: 30
   default_destination: "PACS_TEST"
   retry:

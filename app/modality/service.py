@@ -21,7 +21,9 @@ from app.core.exceptions import (
     DICOMGeneratorError,
     FileReadError,
     FileWriteError,
+    ModalityConfigError,
     ModalityError,
+    MPPSError,
     ProfileError,
     ProfileMismatchError,
     ValidationError,
@@ -42,6 +44,7 @@ from app.core.models import (
 )
 from app.core.path_safety import ensure_within, safe_path_component
 from app.core.person_name import GROUP_SEPARATOR, compose_person_name
+from app.core.uid_generator import UIDGenerator
 from app.core.validation_text import describe_validation_error
 from app.core.worklist_charset import resolve_image_character_set
 from app.core.worklist_mapping import (
@@ -53,8 +56,11 @@ from app.core.worklist_mapping import (
 from app.services import ProfileLoaderService, StudyGeneratorService, TemplateLoaderService
 from app.services.profile_loader import profile_transfer_syntax
 
-from .config import ModalityConfig
-from .queue import QUEUE_DB_NAME, QueueJob, SendQueue
+from .commitment_scu import CommitmentListener, CommitmentManager
+from .config import DestinationConfig, ModalityConfig
+from .mpps_queue import MppsQueue, MppsRecord
+from .mpps_scu import STATE_COMPLETED, STATE_DISCONTINUED, MppsManager, MppsOutcome
+from .queue import QUEUE_DB_NAME, CommitmentState, QueueJob, SendQueue
 from .store_scu import EchoResult, StoreFileResult, echo, store_files
 from .worklist_scu import WorklistQuery, WorklistQueryResult, query_worklist
 
@@ -104,6 +110,7 @@ class ExamRequest(BaseModel):
     abnormal_level: str = "none"
     charset: str | None = None
     output_dir: str | None = None
+    mpps: bool | None = None  # None は設定（worklist.use_mpps）。8.4.1
 
 
 class ExamResult(BaseModel):
@@ -116,6 +123,7 @@ class ExamResult(BaseModel):
     study_instance_uid: str
     character_set: list[str]
     notices: list[str] = Field(default_factory=list)
+    mpps: MppsOutcome | None = None  # MPPS を使わない撮影では None（11.4）
 
 
 class SendResult(BaseModel):
@@ -159,6 +167,7 @@ class ModalityService:
         generator: StudyGeneratorService | None = None,
         template_loader: TemplateLoaderService | None = None,
         profile_loader: ProfileLoaderService | None = None,
+        auto_commitment: bool = False,
     ) -> None:
         self.config = config
         self._profile_loader = profile_loader or ProfileLoaderService()
@@ -166,6 +175,9 @@ class ModalityService:
         self._template_loader = template_loader or TemplateLoaderService()
         self._state_dir = Path(config.state_dir)
         self._queue: SendQueue | None = None
+        self._mpps_queue: MppsQueue | None = None
+        # 「送れた」になったらすぐに保管の確認を求める（画面のプロセス。8.3.3）
+        self._auto_commitment = auto_commitment
         # 同時に走る撮影は1つ（画面のプロセスの中。spec/12 の 10.5）
         self._exam_lock = threading.Lock()
 
@@ -174,6 +186,136 @@ class ModalityService:
         if self._queue is None:
             self._queue = SendQueue(self._state_dir / QUEUE_DB_NAME)
         return self._queue
+
+    @property
+    def mpps_queue(self) -> MppsQueue:
+        if self._mpps_queue is None:
+            self._mpps_queue = MppsQueue(self._state_dir / QUEUE_DB_NAME)
+        return self._mpps_queue
+
+    # --- 保管の確認（Phase 3c。8.3） -------------------------------------
+
+    def uses_commitment(self) -> bool:
+        return any(destination.storage_commitment for destination in self.config.destinations)
+
+    def start_commitment_listener(self) -> CommitmentListener | None:
+        """待ち受けを立てる。保管の確認を使う送り先が無ければ立てずに None（8.3）."""
+        if not self.uses_commitment():
+            return None
+        listener = self._new_listener()
+        listener.start()
+        return listener
+
+    def _new_listener(self) -> CommitmentListener:
+        listen = self.config.listen
+        return CommitmentListener(
+            self.config.ae_title, listen.bind_address, listen.port, self._commitments().receive
+        )
+
+    def request_commitment(self, job_id: int) -> CommitmentState:
+        """送れた件の保管の確認を求める（8.3.3。CLI の `commit`、画面の自動）."""
+        return self._commitments().request(job_id, self._commitment_node(job_id))
+
+    def commit_and_wait(self, job_id: int, wait_seconds: float | None = None) -> CommitmentState:
+        """CLI の `commit`：待ち受けを立ててから求め、結果か `wait_seconds` まで待つ（11.8）.
+
+        待ち受けを立てられなければ、N-ACTION を送らずに ModalityConfigError。
+        """
+        node = self._commitment_node(job_id)
+        listener = self._new_listener()
+        listener.start()
+        try:
+            state = self._commitments().request(job_id, node)
+            if state.status == "waiting":
+                seconds = node.commitment_timeout_seconds if wait_seconds is None else wait_seconds
+                state = self.wait_commitment(state.transaction_uid, seconds)
+        finally:
+            listener.shutdown()
+        return state
+
+    def _commitment_node(self, job_id: int) -> DestinationConfig:
+        """保管の確認を求めてよい件かを確かめ、送り先を返す."""
+        job = self.queue.get_job(job_id)
+        node = self.config.destination(job.destination)
+        if not node.storage_commitment:
+            raise ModalityConfigError(
+                f"Destination does not use storage commitment: {node.name}",
+                {"destination": node.name, "hint": "set storage_commitment: true"},
+            )
+        if not self._profile_allows(job.folder, "storage_commitment"):
+            raise ModalityConfigError(
+                "The device profile of this exam does not support storage commitment",
+                {"job_id": job_id},
+            )
+        if job.status != "sent":
+            raise ModalityError(
+                f"Queue job is not sent: {job_id}", {"job_id": job_id, "status": job.status}
+            )
+        return node
+
+    def wait_commitment(self, transaction_uid: str, seconds: float) -> CommitmentState:
+        return self._commitments().wait(transaction_uid, seconds)
+
+    def _commitments(self) -> CommitmentManager:
+        return CommitmentManager(self.config.ae_title, self.queue)
+
+    def _auto_commit(self, job_id: int) -> None:
+        """送れた件の保管の確認を自動で求める。求められなくても送れた結果は変えない."""
+        job = self.queue.get_job(job_id)
+        node = self.config.destination(job.destination)
+        try:
+            if node.storage_commitment and self._profile_allows(job.folder, "storage_commitment"):
+                self._commitments().request(job_id, node)
+        except (ModalityError, ConfigurationError) as exc:
+            logger.warning(
+                "Storage commitment was not requested: job_id=%s reason=%s",
+                job_id,
+                type(exc).__name__,
+            )
+
+    def _profile_allows(self, folder: str, service: str) -> bool:
+        """撮影に使った装置のプロファイルが、その働きに対応するか（spec/13 の 8）."""
+        profile_name = self.queue.exam_profile(folder)
+        return profile_name is None or self._profile_supports(profile_name, service)
+
+    def _profile_supports(self, profile_name: str | None, service: str) -> bool:
+        if not profile_name:
+            return True
+        services = self._profile_loader.load(profile_name).services
+        return bool(getattr(services, service))
+
+    # --- MPPS（Phase 3c。8.4） -------------------------------------------
+
+    def list_mpps(self) -> list[MppsRecord]:
+        return self.mpps_queue.list_all()
+
+    def retry_mpps(self) -> list[MppsRecord]:
+        """送れていない MPPS の知らせを送り直す。残れば MPPSError（11.9）."""
+        if not self.config.worklist.use_mpps:
+            raise ModalityConfigError(
+                "MPPS is not used (worklist.use_mpps is false)", {"use_mpps": False}
+            )
+        records = self._mpps().retry()
+        unsent = [record for record in records if not record.sent]
+        if unsent:
+            raise MPPSError(
+                "Some MPPS messages were not sent",
+                {"mpps_ids": ", ".join(str(r.id) for r in unsent), "reason": unsent[0].last_error},
+            )
+        return records
+
+    def _mpps(self) -> MppsManager:
+        return MppsManager(
+            self.config.ae_title,
+            self.config.station_name,
+            self.config.mpps_peer(),
+            self.config.retry.max_attempts,
+            self.mpps_queue,
+        )
+
+    def _uses_mpps(self, request: ExamRequest, profile_name: str | None) -> bool:
+        wanted = self.config.worklist.use_mpps if request.mpps is None else request.mpps
+        return wanted and self._profile_supports(profile_name, "mpps")
 
     # --- C-ECHO ---------------------------------------------------------
 
@@ -385,14 +527,30 @@ class ModalityService:
             if not ctx.patient.birth_date:
                 notices.append("生年月日が空です")
 
+        profile_name = request.profile or self.config.default_profile
+        use_mpps = self._uses_mpps(request, profile_name)
+        if use_mpps and ctx.study_instance_uid is None:
+            # MPPS と画像の Study をそろえるため、N-CREATE より前に UID を作る（8.4.1）
+            ctx = ctx.model_copy(update={"study_instance_uid": UIDGenerator().generate_study_uid()})
         output_dir = self._exam_output_dir(request, ctx, now)
         config = self._generation_config(request, ctx, template, output_dir, now)
+        mpps_id = self._mpps().start_exam(ctx, modality, now) if use_mpps else None
         try:
             self._generator.generate(config=config, scheduled=ctx)
         except DICOMGeneratorError:
             self._remove_if_empty(output_dir)
+            if mpps_id is not None:
+                # N-CREATE の後に撮影が止まった＝取り消し（DISCONTINUED。8.4.1）
+                self._mpps().finish_exam(mpps_id, STATE_DISCONTINUED, [], ctx, str(output_dir))
             raise
         files = sorted(str(path) for path in output_dir.glob("*.dcm"))
+        mpps = (
+            self._mpps().finish_exam(mpps_id, STATE_COMPLETED, files, ctx, str(output_dir))
+            if mpps_id is not None
+            else None
+        )
+        if profile_name:
+            self.queue.remember_exam_profile(str(output_dir), profile_name)
         study_uid = self._read_study_uid(files)
         if request.worklist_key is not None and study_uid:
             self.queue.remember_study_uid(request.worklist_key, study_uid)
@@ -411,6 +569,7 @@ class ModalityService:
             study_instance_uid=study_uid,
             character_set=character_set,
             notices=notices,
+            mpps=mpps,
         )
 
     # --- 送信 -----------------------------------------------------------
@@ -506,6 +665,8 @@ class ModalityService:
             error = next((r.reason for r in results if not r.sent), "")
             pending = [Path(path) for path in self.queue.unsent_files(job_id)]
         logger.info("Send finished: job_id=%s destination=%s status=%s", job_id, node.name, status)
+        if self._auto_commitment and status == "sent":
+            self._auto_commit(job_id)
         return SendResult(
             job_id=job_id, destination=node.name, status=status, results=results, error=error
         )
