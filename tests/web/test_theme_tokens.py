@@ -1,4 +1,4 @@
-"""見た目の値：入力の CSS の値が spec/12 の 10.2 の表と同じ（spec/12 の 14 章）."""
+"""見た目の値：入力の CSS の値が spec/12a の 10.2 の表と同じ（spec/12b の 14 章）."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SPEC = ROOT / "spec" / "12_modality_emulator.md"
+SPEC = ROOT / "spec" / "12a_web_screens_and_cli.md"
 INPUT_CSS = ROOT / "app" / "web" / "styles" / "input.css"
 _TABLE_ROW = re.compile(
     r"^\| `(--color-[a-z-]+)` \| `(#[0-9a-f]{6})`[^|]*\| `(#[0-9a-f]{6})`", re.MULTILINE

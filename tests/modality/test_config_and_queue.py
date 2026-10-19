@@ -73,7 +73,7 @@ def test_invalid_config_is_config_error(tmp_path, change) -> None:
 
 def test_missing_section_and_file(tmp_path) -> None:
     path = tmp_path / "other.yaml"
-    path.write_text("storage_scp: {}\n", encoding="utf-8")
+    path.write_text("profiles: {}\n", encoding="utf-8")
 
     with pytest.raises(ModalityConfigError):
         load_modality_config(path)

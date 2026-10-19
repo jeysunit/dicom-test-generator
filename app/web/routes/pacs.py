@@ -1,4 +1,4 @@
-"""PACS の画面（spec/12_modality_emulator.md 10.6・8 章）."""
+"""PACS の画面（spec/12a_web_screens_and_cli.md 10.6、spec/12_modality_emulator.md 8 章）."""
 
 from __future__ import annotations
 

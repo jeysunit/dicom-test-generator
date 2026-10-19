@@ -149,22 +149,6 @@ def quick_command(args: argparse.Namespace) -> int:
     return 0
 
 
-def scp_start_command(args: argparse.Namespace) -> int:
-    """Storage SCPを起動する."""
-    from app.scp.models import load_scp_config
-    from app.scp.server import StorageSCP
-
-    config = load_scp_config(Path(args.config))
-    scp = StorageSCP(config)
-
-    try:
-        scp.start()
-    except KeyboardInterrupt:
-        scp.shutdown()
-        print("\nSCP stopped by user")
-    return 0
-
-
 def profiles_list_command(args: argparse.Namespace) -> int:
     """読める装置のプロファイルを一覧にする（spec/13 の 7.2）.
 

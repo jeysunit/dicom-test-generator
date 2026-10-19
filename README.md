@@ -2,9 +2,9 @@
 
 DICOMテストデータ生成ツール
 
-A tool to generate synthetic and abnormal DICOM datasets
-for testing medical imaging systems.
-Pixel data is synthetic and not intended for clinical use.
+A tool to create DICOM datasets of made-up patients, including deliberately
+abnormal ones, for testing medical imaging systems.
+Pixel data is made up for testing and not intended for clinical use.
 
 ---
 
@@ -13,9 +13,11 @@ Pixel data is synthetic and not intended for clinical use.
 **DICOM Test Data Generator** は、医療画像システム
 （PACS、RIS、ビューア、画像取り込みシステムなど）の
 検証・開発・デバッグ用途のために、
-人工的な DICOM データを生成するツールです。
+試験用に作った架空の患者の DICOM データを作って送るツールです。
+CT などの検査装置（モダリティ）のふりをして、ワークリスト（検査の予約の一覧）を取り、
+予約の値で画像を作り、画像サーバー（PACS）へ送ることもできます。
 
-生成されるピクセルデータは人工的に作成されたものであり、実際の医療画像を表すものではありません。
+画像の中身は試験用に作ったもので、実際の医療画像ではありません。
 そのため、個人情報を含まず、安全にテスト用途へ利用できます。
 
 本ツールは以下のような用途を想定しています：
@@ -28,61 +30,106 @@ Pixel data is synthetic and not intended for clinical use.
 
 ---
 
-## 主な特徴
+## システム構成
 
-### ✅ リアルなDICOMメタデータ構造
+### 図1　全体
 
-* Study / Series / Instance の階層構造
-* UID生成（UUIDベース）
-* 空間座標計算（マルチスライス対応）
-* Transfer Syntax選択対応
+この図で分かること：このソフトの中の流れと、外の装置・仕組み（ワークリストの相手、
+画像サーバー）とのつながり。
 
-### ✅ 異常データ生成機能
+ウェブの画面と CLI（コマンドの画面）は、同じ処理の部分（Service）を呼ぶ。
+ワークリストの相手から予約を取り、予約の値で試験用の画像を作り、
+画像サーバー（PACS）へ送る。送った後に、保管の確認（Storage Commitment）と
+MPPS を、設定で選んだときだけ行う。
+内部の層の図は [spec/01_architecture.md](spec/01_architecture.md) にある。
 
-テスト用途のため、意図的に異常なDICOMを生成できます。
+```mermaid
+flowchart LR
+  classDef box fill:#ffffff,stroke:#0969da,stroke-width:2px,color:#1f2328
 
-例：
+  UI["ウェブの画面・CLI"]:::box
+  SVC["処理の部分（Service）"]:::box
+  subgraph FLOW["検査装置のふりをする部分"]
+    direction TB
+    MWL["(a) ワークリスト（検査の予約の一覧）を取る"]:::box
+    MAKE["(b) 予約から画像を作る<br/>テンプレート・装置のプロファイル"]:::box
+    QUEUE["(c) 送信の待ち行列<br/>失敗したら再送できる"]:::box
+    COMMIT["(d) 保管の確認・MPPS"]:::box
+  end
+  RIS["ワークリストの相手<br/>RIS・画像サーバーのワークリスト"]:::box
+  PACS[("画像サーバー（PACS）")]:::box
 
-* 必須タグ欠落
-* VR違反
-* 文字数超過
-* 不正UID
-* フォーマット違反
+  UI --> SVC
+  SVC --> MWL
+  SVC --> MAKE
+  SVC --> QUEUE
+  MWL -->|"予約を取る"| RIS
+  MAKE -->|"画像"| QUEUE
+  QUEUE -->|"DICOM で画像を送る"| PACS
+  QUEUE --> COMMIT
+  COMMIT -->|"保管の確認"| PACS
+  COMMIT -->|"MPPS（既定の送り先）"| RIS
+```
 
-異常レベルを段階的に設定可能です。
+### 図2　開発・試験のときの構成（本物の患者のデータを使わずに試す）
 
-### ✅ 日本語対応
+この図で分かること：試験のときに、画像を見るソフト（tsunagi-dicom）と組み合わせる構成。
 
-* Specific Character Set対応
-* 日本語患者名
-* 多言語PN表現（Alphabetic / Ideographic / Phonetic）
+このソフトで、CT などの検査装置のふりをして、試験用に作った架空の患者の画像を
+画像サーバーへ送り、[tsunagi-dicom](https://github.com/jeysunit/tsunagi-dicom)
+で見る。本物の患者のデータは使わない。
 
-### ✅ ピクセル生成モード
+```mermaid
+flowchart LR
+  classDef box fill:#ffffff,stroke:#0969da,stroke-width:2px,color:#1f2328
 
-複数のピクセル生成モードを提供します：
+  DTG["dicom-test-generator<br/>検査装置のふりをする試験用のソフト<br/>架空の患者の画像を作る"]:::box
+  PACS[("画像サーバー<br/>Orthanc など（試験用）")]:::box
+  TD["tsunagi-dicom<br/>画面と中継のサーバー"]:::box
 
-* 簡易モード（テキスト表示）
-* CT風モード（16bit HU値）
-* 合成ピクセル（検証用途）
+  DTG -->|"DICOM で画像を送る"| PACS
+  TD -->|"検査を検索し、画像を取る"| PACS
+```
 
-※いずれも実画像ではありません。
+---
 
-### ✅ モダリティのダミー（Phase 3a・3b・3c）
+## できること
 
-* ワークリストを取得し、予約の値で画像を作り、PACS へ送る（ウェブの画面と
-  CLI。[spec/12_modality_emulator.md](spec/12_modality_emulator.md)）。
-  起動のしかたは下の「モダリティのダミーのウェブの画面」
-* 保管の確認（Storage Commitment）と MPPS は、設定で選んだときだけ使う
-  （下の「保管の確認と MPPS（Phase 3c）」）
+いま使える機能です。
 
-### ✅ テンプレートベース設計
+### DICOM データを作る
 
-* モダリティテンプレート
-* 病院設定テンプレート
+* Study / Series / Instance の階層構造と、UID（UUIDベース）、マルチスライスの空間座標、Transfer Syntax の選択
+* 日本語の患者名（Specific Character Set、Alphabetic / Ideographic / Phonetic の多言語PN表現）
+* ピクセルの生成：簡易モード（テキスト表示）、CT風モード（16bit HU値）。いずれも実画像ではありません
+* 異常データの生成：必須タグ欠落、VR違反、文字数超過、不正UID、フォーマット違反など。異常のレベルを設定できます
+* モダリティテンプレート、病院設定テンプレート、YAML の Job による構成
 * 装置のプロファイル：装置のコンフォーマンスステートメントを読んで写し、
-  その装置の DICOM の出し方を擬態する。実在の装置のプロファイルは
-  リポジトリの外に置く（[spec/13_device_profiles.md](spec/13_device_profiles.md)）
-* YAML設定による柔軟な構成
+  その装置の DICOM の出し方を擬態します。実在の装置のプロファイルは
+  リポジトリの外に置きます（[spec/13_device_profiles.md](spec/13_device_profiles.md)）
+
+### モダリティの代わりをする
+
+ウェブの画面と CLI で、ワークリストを取る、予約を選ぶ、撮る（試験用の画像）、
+PACS へ送る、確かめる、を流します
+（[spec/12_modality_emulator.md](spec/12_modality_emulator.md)）。
+起動のしかたは下の「検査装置のふりをするウェブの画面」です。
+試験用の PACS・RIS にだけつないでください。
+
+* ワークリスト（検査の予約の一覧）を取る（MWL）
+* 画像を送る（C-STORE）、つながるかを確かめる（C-ECHO）、失敗した送信の待ち行列と再送
+* 予約のない緊急の患者の入力
+* 保管の確認（Storage Commitment）：送った画像を相手が保管したかを問う。選んだときだけ
+  （下の「保管の確認と MPPS」）
+* MPPS：撮影の始まりと終わりを相手に知らせる。選んだときだけ
+
+画像を受け取って保存する機能（Storage SCP）はありません。受け取る側は、
+試験用の PACS（Orthanc など）を用意してください
+（[ADR-0013](adr/0013-remove-storage-scp.md)）。
+
+PySide6 のデスクトップ画面（`python -m app.gui`）は、基本の生成だけを備えた
+凍結の機能です。機能は増やさず、ウェブの画面を使います
+（[spec/05_gui.md](spec/05_gui.md)）。
 
 ---
 
@@ -93,19 +140,6 @@ Pixel data is synthetic and not intended for clinical use.
 * DICOM開発者
 * 医療機器ソフトウェア開発者
 * QA / テストエンジニア
-
----
-
-## 非対象用途（重要）
-
-本ツールは以下の用途を目的としていません：
-
-* 診断用途
-* 医療行為
-* 臨床評価
-* AI学習用医療画像生成
-
-生成データは臨床利用できません。
 
 ---
 
@@ -123,7 +157,7 @@ Pixel data is synthetic and not intended for clinical use.
 ## インストール
 
 ```bash
-git clone https://github.com/jeysun/dicom-test-generator.git
+git clone https://github.com/jeysunit/dicom-test-generator.git
 cd dicom-test-generator
 
 # 仮想環境の作成・有効化
@@ -161,6 +195,8 @@ python -m app.cli version
 ```
 
 Job YAML に生成条件を記述します。`examples/` に最小構成・全オプション構成のサンプルがあります。
+引数の詳細は各サブコマンドの `--help` を見てください
+（[spec/04_cli.md](spec/04_cli.md)）。
 
 ---
 
@@ -205,33 +241,11 @@ character_set:
 
 ---
 
-## GUI（Phase 2）
-
-デスクトップGUI実装予定。
-
----
-
-## Storage SCP（Phase 1.5）
-
-手元で画像を受ける側です（[spec/11_storage_scp.md](spec/11_storage_scp.md)）。
-設定は `config/app_config.yaml` の `storage_scp:` の節です。`enabled: true` にしてから
-起動します。既定は手元（127.0.0.1）だけで待ち受けます。
-
-```bash
-python -m app.cli scp start
-```
-
-C-STORE を受けて保存し、C-ECHO（疎通の確かめ）には Success を返します。モダリティの
-ダミーの送り先にすると、PACS の画面の [C-ECHO] と `python -m app.cli echo` で
-「つながった」になります。
-
----
-
-## モダリティのダミーのウェブの画面（Phase 3b）
+## 検査装置のふりをするウェブの画面
 
 ワークリスト・撮影・PACS・設定の4つの画面で「取得→選ぶ→撮る→送る→確かめる」を
-流します（[spec/12_modality_emulator.md](spec/12_modality_emulator.md) の 10 章）。
-試験用の PACS・RIS にだけつないでください。
+流します（[spec/12a_web_screens_and_cli.md](spec/12a_web_screens_and_cli.md) の
+10 章）。試験用の PACS・RIS にだけつないでください。
 
 ### 起動
 
@@ -279,7 +293,7 @@ CI は CSS を作り直し、commit した `app.css` と差が無いことを確
 
 ---
 
-## 保管の確認と MPPS（Phase 3c）
+## 保管の確認と MPPS
 
 どちらも既定は使いません。`config/app_config.yaml` の `modality:` の節で選びます
 （[spec/12_modality_emulator.md](spec/12_modality_emulator.md) の 8.3・8.4・12 章）。
@@ -318,6 +332,8 @@ python -m app.cli commit --job 1 --wait 60
   返さない相手のときだけ、`commitment_wait_seconds` に秒を入れます
 
 ### 試験用の Orthanc で確かめる手順
+
+この手順の手の確かめは、まだ済んでいません（[WORKFLOW.md](WORKFLOW.md) の Phase 3c）。
 
 Orthanc（1.6.0 から）は保管の確認を受け、結果を別の Association で返します。結果を返す
 先として、この道具を Orthanc の設定の `DicomModalities` に登録します。
@@ -363,21 +379,34 @@ python -m app.cli mpps retry
 
 ---
 
-## プロジェクト構成
+## 注意
+
+* **医療機器ではありません。** 研究・開発・テスト用途だけを目的として提供しています。次の用途には使いません：診断、医療行為、臨床評価、AI学習用の医療画像の生成
+* 作られる DICOM データは試験用に作った架空のデータであり、臨床利用できません
+* 本番の PACS には送らず、試験用の PACS・RIS にだけつないでください
+* 本ソフトウェアの使用によって発生したいかなる損害についても、作者は責任を負いません
+
+---
+
+## 作る側の資料
+
+開発の段階（Phase）と完了の線は [WORKFLOW.md](WORKFLOW.md) にあります。仕様は `spec/`、設計判断は `adr/` です。
+
+### プロジェクト構成
 
 ```text
 dicom-test-generator/
 ├── app/
 │   ├── core/           # Core Engine（データモデル、DICOM構築、UID生成等）
 │   ├── services/       # Service Layer（テンプレート読み込み、患者検索、生成）
-│   └── cli/            # CLI（argparse、サブコマンド、進捗表示）
-├── tests/
-│   ├── core/           # Core Engineテスト
-│   ├── services/       # Service Layerテスト
-│   └── cli/            # CLIテスト
+│   ├── modality/       # 検査装置のふり（ワークリスト、送信、待ち行列、保管の確認、MPPS）
+│   ├── cli/            # CLI（argparse、サブコマンド、進捗表示）
+│   ├── web/            # ウェブの画面
+│   └── gui/            # PySide6 のデスクトップ画面（基本の生成だけ。凍結）
+├── tests/              # core・services・cli・modality・web・gui・integration
 ├── spec/               # 仕様書
 ├── adr/                # 設計判断記録
-├── docs/               # MkDocsドキュメント
+├── config/             # 設定（app_config.yaml）
 ├── templates/          # モダリティ・病院テンプレート（YAML）
 ├── profiles/examples/  # 架空の装置のプロファイルの例（実在の装置は外に置く）
 ├── data/               # 患者マスターデータ
@@ -385,53 +414,29 @@ dicom-test-generator/
 └── README.md           # 本ファイル
 ```
 
----
-
-## 開発方針
+### 開発方針
 
 本プロジェクトは仕様駆動開発を採用しています。
 
 * Core Engine を中心としたレイヤー構造
-* CLI → GUI → 通信の段階開発
+* CLI、ウェブの画面、通信の順に段階を踏んだ開発
 * ADRによる設計判断の記録
 
-詳細は `spec/` ディレクトリを参照してください。
+### 読む順
 
----
-
-## ドキュメント
-
-仕様書は `spec/` ディレクトリにあります。
-
-### 主要ドキュメント
-
-* [00_overview.md](spec/00_overview.md) - プロジェクト概要
-* [01_architecture.md](spec/01_architecture.md) - アーキテクチャ設計
-* [02_core_engine.md](spec/02_core_engine.md) - Core Engine API
-* [07_job_schema.md](spec/07_job_schema.md) - Job YAML スキーマ
-
-### MkDocsでドキュメント表示
-
-```bash
-pip install mkdocs mkdocs-material
-mkdocs serve
-# http://127.0.0.1:8000
-```
+1. [00_overview.md](spec/00_overview.md) - プロジェクト概要
+2. [01_architecture.md](spec/01_architecture.md) - アーキテクチャ設計
+3. [02_core_engine.md](spec/02_core_engine.md) - Core Engine API
+4. [07_job_schema.md](spec/07_job_schema.md) - Job YAML スキーマ
+5. [12_modality_emulator.md](spec/12_modality_emulator.md) - モダリティのダミー
+   （画面と CLI は [12a](spec/12a_web_screens_and_cli.md)、決定の記録は
+   [12b](spec/12b_decisions_and_limits.md)）
 
 ---
 
 ## ライセンス
 
 MIT License
-
----
-
-## 免責事項
-
-本ソフトウェアは研究・開発・テスト用途のみを目的として提供されています。
-本ソフトウェアの使用によって発生したいかなる損害についても、作者は責任を負いません。
-
-**生成されるDICOMデータは合成データであり、臨床利用できません。**
 
 ---
 
@@ -445,37 +450,7 @@ MIT License
 
 Issue / Pull Request を歓迎します。
 
-Repository: <https://github.com/jeysun/dicom-test-generator>
-
----
-
-## 今後の予定
-
-### Phase 0: Core Engine ✅ 完了
-
-* [x] データモデル実装（Pydantic v2）
-* [x] UID生成（UUID 2.25 / カスタムルート）
-* [x] ピクセルデータ生成（simple\_text / ct\_realistic）
-* [x] DICOM構築エンジン（DICOMBuilder / FileMetaBuilder / SpatialCalculator）
-
-### Phase 1: CLI ✅ 完了
-
-* [x] Service Layer（テンプレート読み込み、患者検索、スタディ生成）
-* [x] CLIコマンド実装（generate / validate / quick / version）
-* [x] Job YAML読み込みと設定マージ
-* [x] 進捗表示（tqdm）
-* [x] エラーハンドリングと終了コード
-
-### Phase 2: GUI
-
-* [ ] PySide6デスクトップアプリ
-* [ ] 非同期処理
-* [ ] プログレスバー
-
-### Phase 1.5: Storage SCP（オプション）
-
-* [ ] C-STORE受信
-* [ ] PyNetDICOM統合
+Repository: <https://github.com/jeysunit/dicom-test-generator>
 
 ---
 

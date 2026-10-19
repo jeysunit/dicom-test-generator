@@ -1,4 +1,4 @@
-// 地の切り替えと、値のコピー（spec/12 の 10.2・10.3）。インラインのスクリプトは使わない。
+// 地の切り替えと、値のコピー（spec/12a の 10.2・10.3）。インラインのスクリプトは使わない。
 (function () {
   var root = document.documentElement;
   var COPIED_MS = 1200;
@@ -26,7 +26,7 @@
     }
   });
 
-  // 氏名の欄：カーソルが離れたら空白を ^ にする（spec/12 の 10.5）。補助で、
+  // 氏名の欄：カーソルが離れたら空白を ^ にする（spec/12a の 10.5）。補助で、
   // サーバーの側でも同じ置き換えをする（app/core/person_name.py）。
   // JavaScript の \s は全角の空白（U+3000）も含む。
   document.addEventListener("focusout", function (event) {

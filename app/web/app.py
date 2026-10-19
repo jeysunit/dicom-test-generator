@@ -1,4 +1,4 @@
-"""FastAPI のアプリ（spec/12_modality_emulator.md 10 章）."""
+"""FastAPI のアプリ（spec/12a_web_screens_and_cli.md 10 章）."""
 
 from __future__ import annotations
 

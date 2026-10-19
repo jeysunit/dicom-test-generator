@@ -77,7 +77,7 @@ jobs:
           persist-credentials: false
 
       - name: Rebuild the CSS with the pinned Tailwind CSS standalone binary
-        # 版と sha256 は scripts/build_css.sh に固定してある（spec/12 の 10.1）
+        # 版と sha256 は scripts/build_css.sh に固定してある（spec/12a の 10.1）
         run: bash scripts/build_css.sh
 
       - name: Committed CSS must match the rebuilt CSS

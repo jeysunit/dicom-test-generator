@@ -15,7 +15,6 @@ from app.cli.commands import (
     generate_command,
     profiles_list_command,
     quick_command,
-    scp_start_command,
     validate_command,
     version_command,
 )
@@ -79,7 +78,7 @@ def setup_logging(verbose: bool, quiet: bool, log_file: str) -> None:
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(console_level)
-    # 端末には相手から来る値の制御文字を生で出さない（spec/12 の 11.7）
+    # 端末には相手から来る値の制御文字を生で出さない（spec/12a の 11.7）
     console_handler.setFormatter(TerminalSafeFormatter(log_format))
     root_logger.addHandler(console_handler)
 
@@ -115,8 +114,6 @@ _EPILOG = """\
   python -m app.cli quick -p P000001 -m ct_generic --profile dtg_synthetic_ct -s 1 -i 3 -o output/
   python -m app.cli profiles list
   python -m app.cli version
-  python -m app.cli scp start
-  python -m app.cli scp start --config config/app_config.yaml
   python -m app.cli echo --to PACS_TEST
   python -m app.cli worklist query --date today --modality CT
   python -m app.cli exam --from-worklist 3f9a1c0b2e -s 2 -i 1,20 --send
@@ -216,16 +213,6 @@ def _create_parser() -> argparse.ArgumentParser:
 
     version_parser = subparsers.add_parser("version", help="バージョン表示")
     version_parser.set_defaults(func=version_command)
-
-    scp_parser = subparsers.add_parser("scp", help="Storage SCP操作")
-    scp_subparsers = scp_parser.add_subparsers(dest="scp_command")
-    scp_start_parser = scp_subparsers.add_parser("start", help="Storage SCPを起動")
-    scp_start_parser.add_argument(
-        "--config",
-        default="config/app_config.yaml",
-        help="SCP設定ファイルパス（default: config/app_config.yaml）",
-    )
-    scp_start_parser.set_defaults(func=scp_start_command)
 
     register_modality_commands(subparsers, DEFAULT_LOG_FILE)
 

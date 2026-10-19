@@ -10,10 +10,12 @@
 
 - 仕様にない機能の追加
 - `requirements.txt` の無断変更
-- 既存コードの削除
+- 既存コードの削除（承認者の指示による撤去は除く。例：Storage SCP を外した
+  [ADR-0013](adr/0013-remove-storage-scp.md)）
 - 例外の握りつぶし
 
-実装前に `spec/` を読むこと。
+実装前に `spec/` を読むこと。モダリティのダミー（`app/modality/`・
+`app/web/`）は `spec/12_modality_emulator.md`（とその 12a・12b）を読む。
 
 実装開始前に必ず現在ブランチを確認し、`main` の場合は作業を開始しないこと。
 

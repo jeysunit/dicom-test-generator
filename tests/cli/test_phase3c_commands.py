@@ -1,4 +1,4 @@
-"""Phase 3c の CLI の試験：`commit`・`mpps`・`exam --mpps`・`queue list` の COMMIT（spec/12 の 11.8・11.9）."""
+"""Phase 3c の CLI の試験：`commit`・`mpps`・`exam --mpps`・`queue list` の COMMIT（spec/12a の 11.8・11.9）."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""手で入れた氏名を PN（DICOM の Person Name）の形にする（spec/12_modality_emulator.md 10.5）.
+"""手で入れた氏名を PN（DICOM の Person Name）の形にする（spec/12a_web_screens_and_cli.md 10.5）.
 
 人は姓と名の区切りの `^` を打たないので、空白を `^` に置き換える。Pure な処理。
 """

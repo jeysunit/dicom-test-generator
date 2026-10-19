@@ -180,7 +180,7 @@ class ModalityService:
         self._mpps_queue: MppsQueue | None = None
         # 「送れた」になったらすぐに保管の確認を求める（画面のプロセス。8.3.3）
         self._auto_commitment = auto_commitment
-        # 同時に走る撮影は1つ（画面のプロセスの中。spec/12 の 10.5）
+        # 同時に走る撮影は1つ（画面のプロセスの中。spec/12a の 10.5）
         self._exam_lock = threading.Lock()
 
     @property
@@ -403,7 +403,7 @@ class ModalityService:
 
     @staticmethod
     def emergency_person_name(alphabetic: str, ideographic: str, phonetic: str) -> str:
-        """手で入れた3つの氏名の欄を PN にする。空白は `^` にする（spec/12 の 10.5）.
+        """手で入れた3つの氏名の欄を PN にする。空白は `^` にする（spec/12a の 10.5）.
 
         画面のスクリプトの置き換えは補助で、ここで必ず同じ置き換えをする。
         """
@@ -510,7 +510,7 @@ class ModalityService:
             if emergency_patient is None:
                 raise ConfigurationError("emergency_patient is required for an emergency exam")
             if not emergency_patient.patient_name.split(GROUP_SEPARATOR, 1)[0].strip():
-                # 緊急の患者の氏名（英字）は必須（spec/12 の 10.5）。画面と CLI の両方に効く
+                # 緊急の患者の氏名（英字）は必須（spec/12a の 10.5）。画面と CLI の両方に効く
                 raise ValidationError(
                     "緊急の患者の氏名（英字）は必須です",
                     {"patient_id": emergency_patient.patient_id},

@@ -1,4 +1,4 @@
-"""C-FIND MWL の SCU の試験（手元の MWL の SCP を相手にする。spec/12 の 14 章）."""
+"""C-FIND MWL の SCU の試験（手元の MWL の SCP を相手にする。spec/12b の 14 章）."""
 
 from __future__ import annotations
 

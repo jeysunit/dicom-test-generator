@@ -7,8 +7,12 @@
 **実装方針**:
 
 - **Pydantic v2** を使用（型検証・シリアライズ）
-- Immutable推奨（`frozen=True`）
+- `app/core/models.py` の各モデルは Immutable（`model_config = {"frozen": True}`）
 - 明確なデフォルト値
+
+この文書のコードは、型と制約を示すために書き写したものである。正本は
+`app/core/models.py` で、食い違ったらコードが正しい。`GenerationConfig` を
+含むモデルの全体は同じファイルにある。
 
 ---
 
@@ -60,7 +64,15 @@ class Patient(BaseModel):
     weight: float | None = Field(None, ge=0, le=500, description="体重（kg）")
     size: float | None = Field(None, ge=0, le=300, description="身長（cm）")
     patient_comments: str | None = Field(None, max_length=128, description="患者コメント")
+
+    @property
+    def size_in_meters(self) -> float | None:
+        """DICOM Patient's Size (0010,1020) 用にメートル単位で返す."""
+        ...
 ```
+
+`size` は cm で持ち、DICOM に書くときに m へ換算する
+（[ADR-0007](../adr/0007-patient-size-in-centimeters.md)）。
 
 ---
 
@@ -128,7 +140,7 @@ class UIDContext(BaseModel):
 ```python
 class PixelSpecSimple(BaseModel):
     """Simple Textモードピクセル設定"""
-    mode: str = Field("simple_text", const=True)
+    mode: Literal["simple_text"] = "simple_text"
     width: int = Field(512, ge=64, le=4096)
     height: int = Field(512, ge=64, le=4096)
     background_color: int = Field(0, ge=0, le=255)
@@ -137,10 +149,10 @@ class PixelSpecSimple(BaseModel):
 
 class PixelSpecCTRealistic(BaseModel):
     """CT Realisticモードピクセル設定"""
-    mode: str = Field("ct_realistic", const=True)
+    mode: Literal["ct_realistic"] = "ct_realistic"
     width: int = Field(512, ge=64, le=4096)
     height: int = Field(512, ge=64, le=4096)
-    pattern: str = Field("gradient", pattern=r"^(gradient|circle|noise)$")
+    pattern: Literal["gradient", "circle", "noise"] = "gradient"
     bits_stored: int = Field(12, ge=8, le=16)
 
 PixelSpec = PixelSpecSimple | PixelSpecCTRealistic
@@ -178,7 +190,7 @@ class CharacterSetConfig(BaseModel):
 ```python
 class AbnormalConfig(BaseModel):
     """異常生成設定"""
-    level: str = Field("none", pattern=r"^(none|mild|moderate|severe)$")
+    level: Literal["none", "mild", "moderate", "severe"] = "none"
     allow_invalid_sop_uid: bool = Field(False, description="SOP UID 0始まり不正を許可")
     invalid_sop_uid_probability: float = Field(0.1, ge=0.0, le=1.0, description="不正UID生成確率")
 ```
@@ -210,11 +222,11 @@ class GenerationConfig(BaseModel):
     device_profile: str | None = Field(None, description="装置のプロファイル名（spec/13）")
     
     # UID生成設定
-    uid_method: str = Field("uuid_2_25", pattern=r"^(uuid_2_25|custom_root)$")
+    uid_method: Literal["uuid_2_25", "custom_root"] = "uuid_2_25"
     uid_custom_root: str | None = Field(None, description="カスタムRoot（custom_root使用時）")
     
     # ピクセルデータ設定
-    pixel_spec: PixelSpec
+    pixel_spec: PixelSpecSimple | PixelSpecCTRealistic
     
     # Transfer Syntax設定
     transfer_syntax: TransferSyntaxConfig
@@ -234,54 +246,29 @@ class GenerationConfig(BaseModel):
 
 ---
 
-## Generation Result（生成結果）
+## 生成の結果
 
-```python
-from datetime import datetime
+生成の結果を表すモデルは持たない。`StudyGeneratorService.generate` は、出力の
+フォルダの `Path` を返し、失敗は例外（[08_error_handling.md](08_error_handling.md)）
+で伝える。進捗は `progress_callback(生成した枚数, 総枚数)` で渡す。
 
-class GeneratedFileInfo(BaseModel):
-    """生成ファイル情報"""
-    filepath: str
-    patient_id: str
-    study_uid: str
-    series_uid: str
-    sop_uid: str
-    instance_number: int
-    file_size_bytes: int
-
-class GenerationResult(BaseModel):
-    """生成結果"""
-    success: bool
-    total_files: int
-    generated_files: list[GeneratedFileInfo]
-    failed_files: list[str] = Field(default_factory=list)
-    start_time: datetime
-    end_time: datetime
-    duration_seconds: float
-    output_dir: str
-    error_message: str | None = None
-    
-    @property
-    def success_rate(self) -> float:
-        """成功率を計算"""
-        if self.total_files == 0:
-            return 0.0
-        return len(self.generated_files) / self.total_files
-```
+出力のファイル名は `<Patient ID>_<検査日>_<モダリティ>_<連番>.dcm` で、各部分は
+`path_safety` で安全な字だけにする。連番のゼロ埋めの桁数は
+`max(4, 総出力枚数の桁数)` とする（総出力枚数が 10000 以上なら 5 桁）。
 
 ---
 
-## モダリティのダミーのモデル（Phase 3a）
+## モダリティのダミーのモデル
 
-`spec/12_modality_emulator.md` の 5・6 章の値を持つ。`app/core/models.py`
-に置き、どれも frozen にする。
+[12_modality_emulator.md](12_modality_emulator.md) の 5・6 章の値を持つ。
+`app/core/models.py` に置き、どれも frozen にする。
 
 ```python
 class WorklistItem(BaseModel):
     """ワークリストの1件（C-FIND MWL の応答）を読んだ値."""
-    key: str                          # 予約の鍵（SHA-1 の先頭 10 桁）
-    patient_name: str                 # PN をそのまま（成分は = と ^ で区切る）
-    patient_id: str
+    key: str                          # 予約の鍵（SHA-1 の先頭 10 桁）。必須
+    patient_name: str = ""            # PN をそのまま（成分は = と ^ で区切る）
+    patient_id: str = ""
     issuer_of_patient_id: str = ""
     birth_date: str = ""              # Type 2。空を許す
     sex: str = ""                     # Type 2。空を許す
@@ -306,11 +293,11 @@ class WorklistItem(BaseModel):
 
 class ScheduledPatient(BaseModel):
     """予約から写す患者の値。生年月日・性別の空を許す（Patient とは別）."""
-    patient_id: str                   # 16 文字以内（GenerationConfig と同じ制約）
+    patient_id: str                   # 1〜16 文字（上限は GenerationConfig と同じ）
     patient_name: str                 # PN の文字列
     issuer_of_patient_id: str = ""
-    birth_date: str = ""              # 空 か YYYYMMDD
-    sex: str = ""                     # 空 か M/F/O
+    birth_date: str = ""              # 空 か YYYYMMDD（pattern で検証）
+    sex: str = ""                     # 空 か M/F/O（pattern で検証）
     weight: str = ""
     size: str = ""
 
@@ -318,17 +305,17 @@ class ScheduledContext(BaseModel):
     """画像に写す予約の値（予約あり・予約なしの両方）."""
     scheduled: bool                   # False は緊急の患者（予約なし）
     patient: ScheduledPatient
-    study_instance_uid: str | None    # None ならこの道具が作る
+    study_instance_uid: str | None = None  # None ならこの道具が作る
     accession_number: str = ""        # 予約なしは空（長さ0）
     referring_physician_name: str = ""
-    study_id: str
+    study_id: str = ""
     study_description: str = ""
-    performed_procedure_step_id: str
+    performed_procedure_step_id: str  # 必須
     institution_name: str = ""        # 空なら病院テンプレートの値のまま
-    request_attributes: dict | None   # Request Attributes Sequence の1項目（DICOM JSON）
-    sequences: dict[str, list[dict]]  # Procedure Code・Issuer of Accession Number・Referenced Study
-    specific_character_set: list[str] # 画像の (0008,0005)
-    source_ae_title: str              # File Meta (0002,0016)
+    request_attributes: dict | None = None  # Request Attributes Sequence の1項目（DICOM JSON）
+    sequences: dict[str, list[dict]] = {}   # Procedure Code・Issuer of Accession Number・Referenced Study
+    specific_character_set: list[str] = []  # 画像の (0008,0005)
+    source_ae_title: str = ""         # File Meta (0002,0016)
 ```
 
 - `GenerationConfig.patient`（`Patient`）は変えない。予約から撮るとき
@@ -365,21 +352,15 @@ class SpatialCoordinates(BaseModel):
 
 ---
 
-## Template（テンプレート）
+## Template（テンプレート）と装置のプロファイル
 
-```python
-class TemplateInfo(BaseModel):
-    """テンプレート情報"""
-    name: str
-    manufacturer: str
-    model_name: str
-    modality: str
-    version: str
-    description: str
+テンプレート（`templates/` の YAML）は、型を付けずに `dict` で扱う。
+`TemplateLoaderService` が読み込んでマージし、`StudyGeneratorService` が
+`info`・`file_meta` などの欄を読む（欄の定義は [07_job_schema.md](07_job_schema.md)）。
 
-# テンプレート本体はdictで扱う（YAMLそのまま）
-# 型付けは Phase 2 以降で検討
-```
+装置のプロファイル（`DeviceProfile`）は、`app/core/device_profile.py` の
+Pydantic モデルで型を付けている。定義は [13_device_profiles.md](13_device_profiles.md)
+を正本とする。`GenerationConfig.device_profile` はその名前を指す。
 
 ---
 
@@ -401,7 +382,7 @@ patient = Patient(
     sex="M",
     age="044Y",
     weight=65.5,
-    size=1.70
+    size=170.0  # cm
 )
 
 # DICOM PN形式に変換
@@ -437,62 +418,13 @@ config = GenerationConfig(**job_dict)
 # etc.
 ```
 
-### GenerationResult作成
-
-```python
-from datetime import datetime
-from app.core.models import GenerationResult, GeneratedFileInfo
-
-result = GenerationResult(
-    success=True,
-    total_files=41,
-    generated_files=[
-        GeneratedFileInfo(
-            filepath="output/P000001_20240115_CT_0001.dcm",
-            patient_id="P000001",
-            study_uid="2.25.123...",
-            series_uid="2.25.456...",
-            sop_uid="2.25.789...",
-            instance_number=1,
-            file_size_bytes=262656
-        ),
-        # ...
-    ],
-    failed_files=[],
-    start_time=datetime.now(),
-    end_time=datetime.now(),
-    duration_seconds=5.2,
-    output_dir="output/ACC000001"
-)
-
-print(f"Success Rate: {result.success_rate * 100:.1f}%")
-```
-
-`GeneratedFileInfo.filepath` の連番ルール:
-
-- ゼロ埋め桁数は `max(4, 総出力枚数の桁数)` を使用
-- 例: 総出力枚数が10000以上なら `00001` 形式
-
 ---
 
 ## ファイル配置
 
-```text
-app/core/models.py
-```
-
-すべてのデータモデルを1ファイルに集約（Phase 0）。
-
-Phase 2以降、必要に応じて分割可能：
-
-```text
-app/core/models/
-├── __init__.py
-├── patient.py
-├── study.py
-├── generation.py
-└── spatial.py
-```
+`app/core/models.py` にすべてのデータモデルを置く。装置のプロファイルのモデルは
+`app/core/device_profile.py`、モダリティのダミーの設定のモデルは
+`app/modality/config.py` に置く。
 
 ---
 
@@ -507,71 +439,31 @@ try:
     patient = Patient(
         patient_id="P000001_TOO_LONG_ID",  # 16文字超過
         patient_name=...,
-        birth_date="20240199",  # 不正な日付
+        birth_date="19800115",
         sex="X",  # M/F/O 以外
-        ...
     )
 except ValidationError as e:
     print(e)
-    # ValidationError: 3 validation errors for Patient
+    # ValidationError: 2 validation errors for Patient
     #   patient_id
     #     String should have at most 16 characters
-    #   birth_date
-    #     String should match pattern '^\\d{8}$'
     #   sex
     #     String should match pattern '^(M|F|O)$'
 ```
 
-### カスタムバリデーション
+`Patient` のパターン検証は形（8 桁の数字）だけを見る。暦として有効な日付かと、
+検査日が生年月日以降かは、`GenerationConfig` の検証（`validate_date_consistency`）
+が行う。
 
-```python
-from pydantic import field_validator
+### ファイル名に使う値
 
-class Patient(BaseModel):
-    patient_id: str
-    # ...
-    
-    @field_validator('patient_id')
-    @classmethod
-    def validate_patient_id(cls, v: str) -> str:
-        # 禁止文字チェック
-        forbidden_chars = ['\\', '/', ':', '*', '?', '<', '>', '|', '.', '"']
-        if any(c in v for c in forbidden_chars):
-            raise ValueError(f"patient_id contains forbidden characters")
-        return v
-```
+Patient ID などの値を検証で禁止文字のある値として断ることはしない。出力の
+ファイル名とフォルダ名に使うときに、Core の `path_safety` が決まった字だけに
+置き換える（[02_core_engine.md](02_core_engine.md) の「Core のそのほかのモジュール」）。
 
 ---
 
-## シリアライズ
+## 関連する文書
 
-### JSON出力
-
-```python
-config = GenerationConfig(...)
-json_str = config.model_dump_json(indent=2)
-
-# ファイル保存
-with open("config.json", "w") as f:
-    f.write(json_str)
-```
-
-### YAML出力
-
-```python
-import yaml
-
-config = GenerationConfig(...)
-config_dict = config.model_dump()
-
-with open("config.yaml", "w") as f:
-    yaml.safe_dump(config_dict, f, allow_unicode=True)
-```
-
----
-
-## 次のステップ
-
-1. [07_job_schema.md](07_job_schema.md) で Job YAML スキーマを確認
-2. データモデル実装（`app/core/models.py`）
-3. Core Engine実装で使用
+- [07_job_schema.md](07_job_schema.md)：Job YAML のスキーマ
+- [02_core_engine.md](02_core_engine.md)：モデルを使う Core の処理

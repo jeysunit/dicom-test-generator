@@ -2,11 +2,12 @@
 
 ## 概要
 
-コマンドラインインターフェース（CLI）は、Job YAMLファイルからDICOMデータを生成する。
+コマンドラインインターフェース（CLI）は、Job YAMLファイルからDICOMデータを生成し、
+モダリティのダミー（spec/12）の操作を行う。入口は `python -m app.cli` の1本で、
+引数の詳細は各コマンドの `--help` を正本とする。この文書は、
+`generate`・`validate`・`quick` の仕様と、全コマンドに共通する決まり（終了コード・ログ）を定める。
 
-**Phase**: Phase 1
-
-**依存**: Phase 0 (Core Engine)
+**依存**: Core Engine（`app/core/`）、Service Layer（`app/services/`）
 
 ---
 
@@ -24,16 +25,19 @@ python -m app.cli <command> [options]
 | `validate` | Job YAML検証のみ | 1 |
 | `quick` | 簡易生成（1コマンド） | 1 |
 | `version` | バージョン表示 | 1 |
-| `profiles list` | 読める装置のプロファイルの一覧（spec/13） | P1 |
-| `scp start` | Storage SCP を起動 | 1.5 |
+| `profiles list` | 読める装置のプロファイルの一覧（spec/13） | 3a |
 | `echo` | C-ECHO | 3a |
 | `worklist query`・`worklist show` | ワークリストを引く・1件を出す | 3a |
 | `exam` | 予約（または緊急の患者）で撮る | 3a |
 | `send` | 出力のフォルダの画像を送る | 3a |
 | `queue list`・`queue retry` | 待ち行列と履歴・失敗の再送 | 3a |
+| `commit` | 送った検査の保管の確認（Storage Commitment）を求めて待つ | 3c |
+| `mpps list`・`mpps retry` | MPPS の知らせの待ち行列を出す・失敗を再送する | 3c |
 
-モダリティのダミーのコマンド（Phase 3a）の引数・出力・終了コードは
-[12_modality_emulator.md](12_modality_emulator.md) の 11 章で決める。
+`generate`・`validate`・`quick` 以外のコマンド（`echo`・`worklist`・`exam`・`send`・
+`queue`・`commit`・`mpps`）の引数・出力・終了コードは、
+[12a_web_screens_and_cli.md](12a_web_screens_and_cli.md) の 11 章で決める。
+`profiles list` と `--profile` は [13_device_profiles.md](13_device_profiles.md) が決める。
 
 ---
 
@@ -61,6 +65,8 @@ python -m app.cli generate <job_file> [options]
 | `--log-file FILE` | | ログファイルパス | logs/dicom_generator.log |
 | `--dry-run` | | 実行せず検証のみ | false |
 | `--profile NAME` | | 装置のプロファイル（Job YAML の `device_profile` を上書き。spec/13） | Job YAMLの設定 |
+
+`--verbose` と `--quiet` は同時に指定できない。
 
 ### 使用例
 
@@ -196,7 +202,7 @@ python -m app.cli quick [options]
 | `--study-date DATE` | 検査日（YYYYMMDD） | 今日 |
 | `--hospital NAME` | 病院テンプレート | なし |
 | `--profile NAME` | 装置のプロファイル（spec/13）。転送の形はプロファイルの最初の形 | なし |
-| `--pixel-mode MODE` | ピクセルモード | ct_realistic |
+| `--pixel-mode MODE` | ピクセルモード（`simple_text` / `ct_realistic`） | ct_realistic |
 
 ### 使用例
 
@@ -243,9 +249,11 @@ python -m app.cli version
 ```text
 DICOMテストデータ生成ツール
 Version: 1.1.0
-Python: 3.10.12
-PyDicom: 2.4.4
+Python: 3.12.3
+PyDicom: 3.0.2
 ```
+
+Python と PyDicom の行は、実行した環境のバージョンになる。
 
 ---
 
@@ -255,10 +263,13 @@ PyDicom: 2.4.4
 |-------|------|
 | 0 | 成功 |
 | 1 | 一般エラー（生成失敗） |
-| 2 | 設定エラー（Job YAML不正） |
+| 2 | 設定エラー（Job YAML不正・modality の設定の誤り） |
 | 3 | ファイルI/Oエラー |
-| 4 | バリデーションエラー |
-| 5 | 通信エラー（Association を張れない・相手が Failure を返した・時間切れ。モダリティのダミーのコマンド。`spec/12_modality_emulator.md` 11.6） |
+| 4 | バリデーションエラー（予約の値が写せない・表せない字を含む） |
+| 5 | 通信エラー（Association を張れない・相手が Failure を返した・時間切れ。モダリティのダミーのコマンド。[12a_web_screens_and_cli.md](12a_web_screens_and_cli.md) 11.6） |
+
+例外から終了コードへの対応は `app/cli/main.py` の `_map_exception_to_exit_code` が持つ。
+例外の階層は [08_error_handling.md](08_error_handling.md) が決める。
 
 ### 使用例（シェルスクリプト）
 
@@ -280,68 +291,30 @@ fi
 
 ## 進捗表示
 
-### プログレスバー
-
-```python
-# app/cli/progress.py
-from tqdm import tqdm
-
-def show_progress(iterable, desc, total):
-    """進捗バー表示"""
-    return tqdm(iterable, desc=desc, total=total, unit="img")
-
-# 使用例
-for i in show_progress(range(20), "Series 1", 20):
-    generate_image(i)
-```
-
-### 出力例
+画像の生成中は、`app/cli/progress.py` が tqdm の進捗バーを標準エラー出力に出す。
+`--quiet` のときは出さない。
 
 ```text
-Series 1: 100%|████████████████████████| 20/20 [00:02<00:00, 9.52img/s]
-Series 2: 100%|████████████████████████| 20/20 [00:02<00:00, 9.48img/s]
+ 60%|████████████████        | 12/20 [00:01<00:00, 9.52img/s]
 ```
 
 ---
 
-## エラーハンドリング
+## エラー表示
 
-### エラー表示
-
-```python
-# app/cli/main.py
-import sys
-from app.core.exceptions import DICOMGeneratorError
-
-try:
-    result = generate_from_job(job_config)
-except ConfigurationError as e:
-    print(f"[ERROR] Configuration error: {e}", file=sys.stderr)
-    sys.exit(2)
-except FileWriteError as e:
-    print(f"[ERROR] Cannot write file: {e}", file=sys.stderr)
-    sys.exit(3)
-except DICOMGeneratorError as e:
-    print(f"[ERROR] Generation failed: {e}", file=sys.stderr)
-    sys.exit(1)
-```
+`app/cli/main.py` の `main()` は、コマンドが投げた例外を1か所で受け、
+`[ERROR] <メッセージ>` を標準エラー出力に出して、上の終了コードで終わる。
+メッセージは端末に出す前に制御文字を見える形に直す
+（`app/cli/terminal.py` の `sanitize_for_terminal`。
+理由は [12a_web_screens_and_cli.md](12a_web_screens_and_cli.md) 11.7）。
 
 ---
 
 ## ログファイル
 
-### デフォルト設定
-
-```yaml
-# config/app_config.yaml
-logging:
-  level: "INFO"
-  file: "logs/dicom_generator.log"
-  max_bytes: 10485760  # 10MB
-  backup_count: 5
-```
-
-### ログローテーション
+ログの設定は設定ファイルでなく、`app/cli/main.py` の `setup_logging` に固定してある。
+出力先は各コマンドの `--log-file`（既定 `logs/dicom_generator.log`）で変える。
+ローテーションは 10MB・5世代で、仕組みの詳細は [09_logging.md](09_logging.md) が決める。
 
 ```text
 logs/
@@ -362,96 +335,45 @@ logs/
 ```text
 app/cli/
 ├── __init__.py
-├── main.py           # エントリポイント
-├── commands.py       # サブコマンド定義
-├── progress.py       # 進捗表示
-└── validators.py     # CLI引数検証
-```
-
-### main.py
-
-```python
-# app/cli/main.py
-import argparse
-import sys
-from .commands import generate_command, validate_command, quick_command
-
-def main():
-    parser = argparse.ArgumentParser(
-        prog='dicom-generator',
-        description='DICOMテストデータ生成ツール'
-    )
-    
-    subparsers = parser.add_subparsers(dest='command')
-    
-    # generate
-    gen_parser = subparsers.add_parser('generate')
-    gen_parser.add_argument('job_file')
-    gen_parser.add_argument('-o', '--output')
-    gen_parser.add_argument('-v', '--verbose', action='store_true')
-    gen_parser.add_argument('-q', '--quiet', action='store_true')
-    gen_parser.add_argument('--dry-run', action='store_true')
-    
-    # validate
-    val_parser = subparsers.add_parser('validate')
-    val_parser.add_argument('job_file')
-    
-    # quick
-    quick_parser = subparsers.add_parser('quick')
-    quick_parser.add_argument('-p', '--patient', required=True)
-    quick_parser.add_argument('-m', '--modality', required=True)
-    quick_parser.add_argument('-s', '--series', type=int, required=True)
-    quick_parser.add_argument('-i', '--images', required=True)
-    quick_parser.add_argument('-o', '--output', required=True)
-    
-    args = parser.parse_args()
-    
-    if args.command == 'generate':
-        sys.exit(generate_command(args))
-    elif args.command == 'validate':
-        sys.exit(validate_command(args))
-    elif args.command == 'quick':
-        sys.exit(quick_command(args))
-    else:
-        parser.print_help()
-        sys.exit(0)
-
-if __name__ == '__main__':
-    main()
+├── __main__.py            # python -m app.cli の入口
+├── main.py                # argparse の定義・ログの設定・終了コードの対応
+├── commands.py            # generate・validate・quick・profiles list・version
+├── modality_commands.py   # echo・worklist・exam・send・queue・commit・mpps
+├── progress.py            # 進捗表示（tqdm）
+└── terminal.py            # 端末へ出す前の制御文字の処理
 ```
 
 ---
 
 ## テスト
 
-### 単体テスト
+試験は `tests/cli/` にある。
+
+| ファイル | 対象 |
+|---------|------|
+| `test_commands.py` | generate・validate・quick |
+| `test_profile_commands.py` | `profiles list`・`--profile` |
+| `test_modality_commands.py` | echo・worklist・exam・send・queue |
+| `test_phase3c_commands.py` | commit・mpps |
+| `test_terminal.py` | 端末へ出す前の制御文字の処理 |
 
 ```python
-# tests/cli/test_commands.py
+# tests/cli/test_commands.py の形（要約）
 def test_generate_command_success(tmp_path):
-    job_file = tmp_path / "job.yaml"
-    job_file.write_text("""
-    job_name: "test"
-    output_dir: "output"
-    patient: {...}
-    """)
-    
     args = argparse.Namespace(
         job_file=str(job_file),
         output=None,
         verbose=False,
         quiet=False,
-        dry_run=False
+        dry_run=False,
     )
-    
-    exit_code = generate_command(args)
-    assert exit_code == 0
+    assert generate_command(args) == 0
 ```
 
 ---
 
-## 次のステップ
+## 関連文書
 
-1. [05_gui.md](05_gui.md) でGUI仕様を確認
-2. Service Layer実装
-3. CLI実装
+- [09_logging.md](09_logging.md): ログの仕組み
+- [12a_web_screens_and_cli.md](12a_web_screens_and_cli.md): モダリティのダミーのコマンド
+- [13_device_profiles.md](13_device_profiles.md): 装置のプロファイル

@@ -1,4 +1,4 @@
-"""頁と HTMX の部分を描く（spec/12_modality_emulator.md 10.3）."""
+"""頁と HTMX の部分を描く（spec/12a_web_screens_and_cli.md 10.3）."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""ModalityService の、画面（Phase 3b）から使う道の試験（spec/12 の 10 章・spec/13 の 8 章）."""
+"""ModalityService の、画面（Phase 3b）から使う道の試験（spec/12a の 10 章・spec/13 の 8 章）."""
 
 from __future__ import annotations
 
@@ -152,7 +152,7 @@ def test_emergency_person_name_is_normalized_on_the_server(tmp_path, worklist_sc
 
 @pytest.mark.parametrize("name", ["", "=緊急^太郎", "  "])
 def test_emergency_exam_requires_alphabetic_name(tmp_path, worklist_scp, name) -> None:
-    """緊急の患者の氏名（英字）は必須。CLI からも同じ（spec/12 の 10.5・11.4）."""
+    """緊急の患者の氏名（英字）は必須。CLI からも同じ（spec/12a の 10.5・11.4）."""
     service = _service(tmp_path, worklist_scp.port)
     patient = ScheduledPatient(patient_id="E0001", patient_name=name)
     with pytest.raises(ValidationError):

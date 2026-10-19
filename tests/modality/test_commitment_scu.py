@@ -1,4 +1,4 @@
-"""保管の確認（Storage Commitment）の試験（spec/12 の 8.3・14 章。Phase 3c）.
+"""保管の確認（Storage Commitment）の試験（spec/12 の 8.3、spec/12b の 14 章。Phase 3c）.
 
 手元の偽の PACS（tests/modality_peers.py の CommitmentPACS）を相手に、
 要求→結果→待ち行列の状態の一巡りを流す。実の PACS にはつながない。

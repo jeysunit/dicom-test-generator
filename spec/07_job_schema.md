@@ -7,8 +7,11 @@ Job YAMLは、DICOM生成の全設定を記述する統一フォーマット。
 **用途**:
 
 - CLI: `python -m app.cli generate job.yaml`
-- GUI: Job設定のロード・保存
 - テストケース: 再現可能な生成設定
+
+Job YAML は CLI だけが読む。PySide6 の画面（spec/05）は Job YAML の読み込み・保存を持たない。
+実体は `app/core/models.py` の `GenerationConfig`（Pydantic）で、この文書と食い違えば models.py が正本。
+実例は `examples/` にある（`job_minimal.yaml`・`job_full.yaml`・`job_acc000003.yaml`）。
 
 ---
 
@@ -158,6 +161,25 @@ character_set:
 
 ## フィールド詳細
 
+### 最上位
+
+| フィールド | 型 | 必須 | 説明 | デフォルト |
+|-----------|-----|------|------|----------|
+| `job_name` | string | ○ | ジョブ名 | - |
+| `output_dir` | string | ○ | 出力ディレクトリ（`--output` で上書き） | - |
+| `patient` | object | ○ | 下記 | - |
+| `study` | object | ○ | 下記 | - |
+| `series_list` | list | ○ | 1〜100 件 | - |
+| `modality_template` | string | ○ | `templates/modality/` のテンプレート名 | - |
+| `hospital_template` | string | - | `templates/hospital/` のテンプレート名 | null |
+| `device_profile` | string | - | 装置のプロファイル名（`--profile` で上書き。[13_device_profiles.md](13_device_profiles.md)） | null |
+| `uid_method` | string | - | `uuid_2_25` / `custom_root` | "uuid_2_25" |
+| `uid_custom_root` | string | - | `custom_root` のときの UID の根 | null |
+| `pixel_spec` | object | ○ | 下記 | - |
+| `transfer_syntax` | object | ○ | 下記 | - |
+| `character_set` | object | ○ | 下記 | - |
+| `abnormal` | object | - | 下記 | 正常データ |
+
 ### patient（必須）
 
 | フィールド | 型 | 必須 | 説明 | 例 |
@@ -167,9 +189,9 @@ character_set:
 | `birth_date` | string | ○ | 生年月日（YYYYMMDD） | "19800115" |
 | `sex` | string | ○ | 性別（M/F/O） | "M" |
 | `age` | string | - | 年齢入力（nnnY形式、互換用。DICOM出力は birth_date/study_date から日本法基準で算出） | "044Y" |
-| `weight` | float | - | 体重（kg） | 65.5 |
-| `size` | float | - | 身長（cm） | 170.0 |
-| `patient_comments` | string | - | 患者コメント | "" |
+| `weight` | float | - | 体重（kg、0〜500） | 65.5 |
+| `size` | float | - | 身長（cm、0〜300。DICOM の Patient's Size にはメートルで書く） | 170.0 |
+| `patient_comments` | string | - | 患者コメント（128文字以内） | "" |
 
 #### patient_name（必須）
 
@@ -183,37 +205,39 @@ character_set:
 
 | フィールド | 型 | 必須 | 説明 |
 |-----------|-----|------|------|
-| `accession_number` | string | ○ | Accession Number |
+| `accession_number` | string | ○ | Accession Number（16文字以内） |
 | `study_date` | string | ○ | 検査日（YYYYMMDD、birth_date 以上） |
 | `study_time` | string | ○ | 検査時刻（HHMMSS） |
-| `study_description` | string | - | 検査説明 |
+| `study_description` | string | - | 検査説明（64文字以内） |
 | `referring_physician_name` | string | - | 紹介医名 |
-| `num_series` | int | ○ | シリーズ数 |
+| `num_series` | int | ○ | シリーズ数（1〜100） |
 
 ### series_list（必須、リスト）
 
 | フィールド | 型 | 必須 | 説明 | デフォルト |
 |-----------|-----|------|------|----------|
-| `series_number` | int | ○ | シリーズ番号 | - |
-| `series_description` | string | - | シリーズ説明 | null |
-| `num_images` | int | ○ | 画像枚数 | - |
+| `series_number` | int | ○ | シリーズ番号（1以上） | - |
+| `series_description` | string | - | シリーズ説明（64文字以内） | null |
+| `num_images` | int | ○ | 画像枚数（1〜10000） | - |
 | `protocol_name` | string | - | プロトコル名 | null |
-| `slice_thickness` | float | - | スライス厚（mm） | 5.0 |
-| `slice_spacing` | float | - | スライス間隔（mm） | 5.0 |
+| `slice_thickness` | float | - | スライス厚（mm、0より大きい） | 5.0 |
+| `slice_spacing` | float | - | スライス間隔（mm、0より大きい） | 5.0 |
 | `start_z` | float | - | 開始Z座標（mm） | 0.0 |
 
 ### pixel_spec（必須）
+
+`mode` で2つの形に分かれる。`mode` は省略できない。
 
 #### Simple Textモード
 
 ```yaml
 pixel_spec:
   mode: "simple_text"
-  width: 512          # オプション、デフォルト512
-  height: 512         # オプション、デフォルト512
-  background_color: 0 # オプション、デフォルト0
-  text_color: 255     # オプション、デフォルト255
-  font_size: 24       # オプション、デフォルト24
+  width: 512          # オプション、デフォルト512（64〜4096）
+  height: 512         # オプション、デフォルト512（64〜4096）
+  background_color: 0 # オプション、デフォルト0（0〜255）
+  text_color: 255     # オプション、デフォルト255（0〜255）
+  font_size: 24       # オプション、デフォルト24（8〜72）
 ```
 
 #### CT Realisticモード
@@ -221,20 +245,22 @@ pixel_spec:
 ```yaml
 pixel_spec:
   mode: "ct_realistic"
-  width: 512          # オプション、デフォルト512
-  height: 512         # オプション、デフォルト512
+  width: 512          # オプション、デフォルト512（64〜4096）
+  height: 512         # オプション、デフォルト512（64〜4096）
   pattern: "gradient" # gradient, circle, noise
   bits_stored: 12     # 8-16
 ```
 
 ### transfer_syntax（必須）
 
-| フィールド | 型 | 必須 | 説明 |
-|-----------|-----|------|------|
-| `uid` | string | ○ | Transfer Syntax UID |
-| `name` | string | ○ | 名称 |
-| `is_implicit_vr` | bool | ○ | Implicit VRか |
-| `is_little_endian` | bool | ○ | Little Endianか |
+セクション自体は必須で、中のフィールドはすべて省略できる（省略すると Implicit VR Little Endian）。
+
+| フィールド | 型 | 必須 | 説明 | デフォルト |
+|-----------|-----|------|------|----------|
+| `uid` | string | - | Transfer Syntax UID | "1.2.840.10008.1.2" |
+| `name` | string | - | 名称 | "Implicit VR Little Endian" |
+| `is_implicit_vr` | bool | - | Implicit VRか | true |
+| `is_little_endian` | bool | - | Little Endianか | true |
 
 **よく使う値**:
 
@@ -256,11 +282,13 @@ transfer_syntax:
 
 ### character_set（必須）
 
-| フィールド | 型 | 必須 | 説明 |
-|-----------|-----|------|------|
-| `specific_character_set` | string | ○ | Specific Character Set |
-| `use_ideographic` | bool | ○ | 漢字を使用するか |
-| `use_phonetic` | bool | ○ | カナを使用するか |
+セクション自体は必須で、中のフィールドはすべて省略できる（省略すると日本語を使う設定）。
+
+| フィールド | 型 | 必須 | 説明 | デフォルト |
+|-----------|-----|------|------|----------|
+| `specific_character_set` | string | - | Specific Character Set | "ISO 2022 IR 6\\ISO 2022 IR 87" |
+| `use_ideographic` | bool | - | 漢字を使用するか | true |
+| `use_phonetic` | bool | - | カナを使用するか | true |
 
 **よく使う値**:
 
@@ -284,7 +312,7 @@ character_set:
 |-----------|-----|------|------|----------|
 | `level` | string | - | 異常レベル（none/mild/moderate/severe） | "none" |
 | `allow_invalid_sop_uid` | bool | - | SOP UID 0始まり不正を許可 | false |
-| `invalid_sop_uid_probability` | float | - | 不正UID生成確率 | 0.1 |
+| `invalid_sop_uid_probability` | float | - | 不正UID生成確率（0.0〜1.0） | 0.1 |
 
 ---
 
@@ -358,43 +386,19 @@ python -m app.cli generate job.yaml --verbose
 python -m app.cli generate job.yaml --output custom_output/
 ```
 
----
+### 装置のプロファイル上書き
 
-## GUI使用例
-
-### Job読み込み
-
-```python
-# GUIでJobファイルを開く
-config = load_job_file("job.yaml")
-
-# フィールドに反映
-ui.patient_id_field.setText(config.patient.patient_id)
-ui.accession_number_field.setText(config.study.accession_number)
-# ...
-```
-
-### Job保存
-
-```python
-# GUIから設定を収集
-config = GenerationConfig(
-    job_name=ui.job_name_field.text(),
-    output_dir=ui.output_dir_field.text(),
-    patient=...,
-    study=...,
-    # ...
-)
-
-# YAML保存
-save_job_file("my_job.yaml", config)
+```bash
+python -m app.cli generate job.yaml --profile dtg_synthetic_ct
 ```
 
 ---
 
 ## テストケース例
 
-### test_jobs/normal_ct_japanese.yaml
+以下は、試験や手元の確認に使える Job YAML の例である（リポジトリには置いていない）。
+
+### normal_ct_japanese.yaml
 
 ```yaml
 # 正常なCTデータ（日本語）
@@ -439,7 +443,7 @@ character_set:
   use_phonetic: true
 ```
 
-### test_jobs/abnormal_moderate.yaml
+### abnormal_moderate.yaml
 
 ```yaml
 # 異常データ（中度）
@@ -487,19 +491,7 @@ abnormal:
 
 ---
 
-## スキーマ拡張（将来）
+## 関連文書
 
-Phase 2以降で検討：
-
-- `multi_patient`: 複数患者の一括生成
-- `batch`: バッチ処理設定
-- `output_format`: ファイル命名規則カスタマイズ
-- `compression`: JPEG圧縮設定
-
----
-
-## 次のステップ
-
-1. [04_cli.md](04_cli.md) でCLI実装を確認
-2. [05_gui.md](05_gui.md) でGUI実装を確認
-3. Job YAMLを使ったテストケース作成
+- [04_cli.md](04_cli.md): Job YAML を読むコマンド
+- [13_device_profiles.md](13_device_profiles.md): `device_profile`

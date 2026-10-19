@@ -6,9 +6,11 @@
 ## 1. アーキテクチャルール
 
 - `MUST` レイヤー構造を厳守: `UI Layer -> Service Layer -> Core Engine`
+  （モダリティの通信と手順 `app/modality/` は Service Layer の一部）
 - `MUST` UI から Core Engine を直接呼ばない
 - `MUST` Core Engine は UI・ログ・設定ファイルに依存しない（Pure ロジック）
 - `MUST` フェーズ順に実装: Phase 0 (Core) -> Phase 1 (CLI) -> Phase 2 (GUI)
+  -> Phase 3 (モダリティのダミー)。各段の状態は WORKFLOW.md
 - `MUST` 仕様変更を伴う設計判断は ADR を追加または更新する
 - `SHOULD` 1PR 1目的を維持する
 
@@ -16,15 +18,18 @@
 app/
 ├── core/       # Phase 0: Pure ロジック（外部依存なし）
 ├── services/   # Service Layer: Core の組み合わせ + ログ
+├── modality/   # Phase 3: モダリティのダミーの通信と手順（Service Layer の一部）
 ├── cli/        # Phase 1: argparse CLI
-├── gui/        # Phase 2: PySide6 GUI
-└── scp/        # Phase 1.5: Storage SCP
+├── web/        # Phase 3b: ウェブの画面（FastAPI・Jinja2・HTMX）
+└── gui/        # Phase 2: PySide6 GUI（凍結）
 ```
 
 ## 2. Pythonコーディング規約
 
 - `MUST` Python 3.10+ 対応、型ヒント必須
 - `MUST` PEP 8 準拠。フォーマッタ/リンタ: ruff
+  （CI にはまだ入れていない。設定のファイルが無く、いまのコードに指摘が
+  残っているため。WORKFLOW.md の CI の節）
 - `MUST` データモデル: Pydantic v2
 - `MUST` 命名: snake_case（関数・変数）、PascalCase（クラス）、UPPER_CASE（定数）
 - `MUST` マジックナンバー禁止（定数として定義する）
@@ -53,7 +58,8 @@ app/
 
 `spec/09_logging.md` に従う。
 
-- `MUST` `print()` ではなく `logging` を使う
+- `MUST` `print()` ではなく `logging` を使う（例外：CLI が利用者に見せる
+  結果とエラーは、8 章のとおり標準出力・標準エラーへ出す）
 - `MUST` Core Engine はログを出力しない（Pure 関数）
 - `MUST` Service Layer 以上でログを出力する
 - `MUST` ロガー名: `logging.getLogger(__name__)`
@@ -148,7 +154,7 @@ type 一覧：
 
 - `MUST` エントリポイント: `python -m app.cli`
 - `MUST` 終了コード: 0=成功, 1=一般エラー, 2=設定エラー, 3=I/Oエラー,
-  4=バリデーションエラー, 5=通信エラー（`spec/12_modality_emulator.md` 11.6）
+  4=バリデーションエラー, 5=通信エラー（`spec/12a_web_screens_and_cli.md` 11.6）
 - `MUST` 結果は stdout、エラーは stderr に出力する
 - `MUST` `--help` を実装し、必須引数と使用例を示す
 
@@ -159,7 +165,8 @@ type 一覧：
 - `MUST` バグ修正には再発防止テストを先に書く（TDD）
 - `MUST` Core Engine のテストに外部リソース（ファイルI/O、ネットワーク）を使わない
 - `SHOULD` カバレッジ 80% 以上を目標とする
-- `SHOULD` テスト配置: `tests/` 以下に `core/`, `services/`, `integration/`, `e2e/`
+- `SHOULD` テスト配置: `tests/` 以下に `core/`, `services/`, `cli/`,
+  `modality/`, `web/`, `gui/`, `integration/`
 
 ## 10. AIへの禁止事項
 

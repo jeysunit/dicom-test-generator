@@ -1,13 +1,3 @@
-storage_scp:
-  enabled: false
-  ae_title: "DICOM_GEN_SCP"
-  port: 11112
-  bind_address: "127.0.0.1"
-  storage_dir: "scp_storage"
-  duplicate_handling: "overwrite"
-  supported_sop_classes:
-    - "1.2.840.10008.5.1.4.1.1.2"
-
 # 装置のプロファイルの置き場（spec/13_device_profiles.md の 6）。
 # 実在の装置のプロファイルはリポジトリの外に置き、ここか環境の変数
 # DTG_PROFILE_DIRS で指す。相対のパスはこのファイルの場所から。
@@ -53,9 +43,9 @@ modality:
   default_destination: "PACS_TEST"
   retry:
     max_attempts: 0               # 0 = 自動で再送しない
-  max_images_per_exam: 2000       # 1回の撮影の合計の枚数の上限（spec/12 の 10.5）
+  max_images_per_exam: 2000       # 1回の撮影の合計の枚数の上限（spec/12a の 10.5）
 
-# ウェブの画面（spec/12_modality_emulator.md の 10.9・12 章）。既定は手元だけ。
+# ウェブの画面（spec/12a_web_screens_and_cli.md の 10.9、spec/12_modality_emulator.md の 12 章）。既定は手元だけ。
 # 手元の外で待ち受けるときは、環境の変数 DTG_WEB_PASSWORD_FILE でパスワードの
 # ファイルを指す（無ければ起動しない）。パスワードをここに書かない。
 web:

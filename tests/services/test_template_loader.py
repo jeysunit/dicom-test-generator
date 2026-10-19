@@ -70,7 +70,7 @@ def test_template_parse_error(tmp_path) -> None:
 
 
 def test_generic_ct_template_has_no_commercial_names() -> None:
-    """ct_generic の中身は架空の名前だけを使う（spec/12 の 17）."""
+    """ct_generic の中身は架空の名前だけを使う（spec/12b の 17）."""
     service = TemplateLoaderService()
 
     template = service.load_modality_template("ct_generic")

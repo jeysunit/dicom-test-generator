@@ -13,16 +13,22 @@
 2. 実在の装置のプロファイルは、リポジトリの外のフォルダに置き、
    設定（`DTG_PROFILE_DIRS`・`profiles.search_paths`）で指して読む
 
-**状態**: 案（2026-10-18。承認者が案 A を選んだ。この文書の細部は
-PR のレビューで決める）
+**状態**: 実装済み（段 P1 と、3a・3c の一部）。未実装は `uid`・`pixel`・
+`series`・`worklist` の欄と、CT 以外の SOP Class（「11. 段」）。
+2026-10-18 に承認者が案 A を選んだ。
 
-**Phase**: 段 P1（この文書と同じ PR）・P2・3a・3c（「11. 段」）
+**Phase**: 段 P1・P2・3a・3c（「11. 段」）
 
 **設計判断**: [ADR-0012](../adr/0012-device-profiles.md)
 
 **関係**: `spec/06_dicom_rules.md`（DICOM の決まり）・
 `spec/07_job_schema.md`（Job YAML の `device_profile`）・
-`spec/12_modality_emulator.md`（撮るときにプロファイルを選ぶ。17 章）
+`spec/12_modality_emulator.md`（撮るときにプロファイルを選ぶ）・
+`spec/12b_decisions_and_limits.md`（17 章：テンプレートの名前）
+
+**実装**: `app/core/device_profile.py`（モデルと Dataset への当て方）・
+`app/services/profile_loader.py`（置き場と読み込み）・
+`profiles/examples/dtg_synthetic_ct.yaml`（架空の装置の例）
 
 ---
 
@@ -67,8 +73,9 @@ PACS・RIS・ビューアの試験で、**特定の装置が出す形の DICOM**
 
 ### 3.1 欄の一覧
 
-「段」は、その欄が生成に効き始める段（「11. 段」）。P1 より後の欄は、
-いまは書くと検証の誤りにする（黙って無視しない）。
+「段」は、その欄が生成に効き始める段（「11. 段」）。P1 より後の欄
+（`uid`・`pixel`・`series`・`worklist`）は、モデルに欄が無く、書くと
+検証の誤りになる（黙って無視しない。`extra="forbid"`）。
 
 | 欄 | 中身 | 写す元（PS3.2 Annex N） | 段 |
 |----|------|------------------------|----|
@@ -91,11 +98,11 @@ PACS・RIS・ビューアの試験で、**特定の装置が出す形の DICOM**
 | `attributes.empty` | 長さ0で出す属性（Presence・Source が EMPTY） | 同上 | P1 |
 | `attributes.omit` | 出さない属性（装置の表に無い Type 3） | 同上 | P1 |
 | `private_tags` | プライベートタグ（群・Private Creator・要素・VR・値） | Table N.9-20・N.9-21（Private Module） | P1 |
-| `services` | MWL・MPPS・保管の確認の対応の有無 | Table N.1-5・N.1.3.5-1〜N.1.3.7-1 | P1（値を持つだけ。効くのは 3a・3c） |
-| `uid` | UID の形（根の後ろの並び）。根は合成の根だけ | Table N.9-12・N.7 | P2 |
-| `pixel` | 行列・Bits Allocated/Stored・High Bit・Pixel Representation・Photometric Interpretation | Table N.9-8 | P2 |
-| `series` | シリーズ・画像の並び方（番号の振り方・Instance Number の始まり） | Table N.9-3・N.9-7 | P2 |
-| `worklist` | ワークリストから写す項目の違い（写さない・別の属性へ写す） | Table N.5-2・N.5-3 | 3a |
+| `services` | MWL・MPPS・保管の確認の対応の有無 | Table N.1-5・N.1.3.5-1〜N.1.3.7-1 | P1（値を持つ）。`mpps`・`storage_commitment` は 3c で効く。`modality_worklist` は値を持つだけで、まだ効かない |
+| `uid` | UID の形（根の後ろの並び）。根は合成の根だけ | Table N.9-12・N.7 | P2（未実装） |
+| `pixel` | 行列・Bits Allocated/Stored・High Bit・Pixel Representation・Photometric Interpretation | Table N.9-8 | P2（未実装） |
+| `series` | シリーズ・画像の並び方（番号の振り方・Instance Number の始まり） | Table N.9-3・N.9-7 | P2（未実装） |
+| `worklist` | ワークリストから写す項目の違い（写さない・別の属性へ写す） | Table N.5-2・N.5-3 | 3a（未実装） |
 
 ### 3.2 例（架空の装置）
 
@@ -341,8 +348,8 @@ profiles:
 
 ### 6.3 テンプレートの名前の決まりとの関係
 
-`spec/12` の 17 章の決まり（公開のテンプレートに商用の製品の名前を
-使わない）は、公開の置き場の**例のプロファイル**にも当てる。外の置き場の
+`spec/12b_decisions_and_limits.md` の 17 章の決まり（公開のテンプレートに
+商用の製品の名前を使わない）は、公開の置き場の**例のプロファイル**にも当てる。外の置き場の
 プロファイルには当てない（名前・中身に実在の装置の名前を書いてよい）。
 
 ---
@@ -391,19 +398,22 @@ PR #5 で名前を変えた、実在の装置の名前のテンプレートを `
 - 撮るときにプロファイルを選べる：設定 `modality.default_profile`
   （既定は無し）、撮影の画面の「装置」、CLI `exam --profile`
 - プロファイルの `device.modality` と予約のモダリティが違えば、
-  テンプレートと同じく撮影の画面で止める（spec/12 の 10.5）
+  テンプレートと同じく撮影の画面で止める
+  （[12a_web_screens_and_cli.md](12a_web_screens_and_cli.md) の 10.5）
 - `services.mpps`・`services.storage_commitment` が `false` の
   プロファイルでは、設定で選んでも MPPS・保管の確認を送らない
-  （装置が対応しない動きを作らない。3c で実装）
-- `worklist`（3a）で、予約から写す項目の違いを、spec/12 の 6 章の表の
-  上に重ねる
+  （装置が対応しない動きを作らない。3c で実装済み。
+  `app/modality/service.py` の `_profile_supports`・`_profile_allows`）
+- `worklist` の欄（予約から写す項目の違いを、
+  [12_modality_emulator.md](12_modality_emulator.md) の 6 章の表の上に重ねる）は
+  **未実装**。いまの写し方は 6 章の表のまま、プロファイルでは変えられない
 
 ---
 
 ## 9. 誤り
 
-`spec/08_error_handling.md` の階層に次を足す。どれも
-`ConfigurationError` の下で、CLI の終了コードは 2。
+`app/core/exceptions.py` にあり、`spec/08_error_handling.md` の階層に載せてある。
+どれも `ConfigurationError` の下で、CLI の終了コードは 2。
 
 ```text
 ConfigurationError
@@ -437,12 +447,16 @@ Device profile not found: abc (searched=/a, /b, /repo/profiles/examples)
 
 ## 11. 段
 
-| 段 | 中身 | 完了の線 |
-|----|------|----------|
-| **P1** | この文書・ADR-0012・モデル・読み込み・検証・重ね方（装置の値・転送の形・文字コード・属性・プライベートタグ）・CLI | 10 章の試験が通る。既存の試験が通る（前から落ちている1件を除く） |
-| **P2** | `uid`・`pixel`・`series` の欄。CT 以外の SOP Class | それぞれの試験。別の PR |
-| **3a** | `worklist` の欄・`exam --profile`・`modality.default_profile` | spec/12 の 3a と同じ PR か、その後。`exam --profile`・`modality.default_profile`・撮影の画面の「装置」は spec/12 の 3b の PR で足した。`worklist` の欄はまだ |
-| **3c** | `services` を MPPS・保管の確認に効かせる | spec/12 の 3c と同じ PR（spec/12 の 8.3.3・8.4.1。`services.modality_worklist` はまだ効かせない） |
+段の進み具合の一覧は WORKFLOW.md が持つ。この表は、プロファイルの機能が
+どの段に属し、コードにあるかを示す。
+
+| 段 | 中身 | 状態 |
+|----|------|------|
+| **P1** | ADR-0012・モデル・読み込み・検証・重ね方（装置の値・転送の形・文字コード・属性・プライベートタグ）・CLI | 実装済み（10 章の試験） |
+| **P2** | `uid`・`pixel`・`series` の欄。CT 以外の SOP Class | 未実装。モデルに欄が無く、作れる SOP Class は CT Image Storage だけ |
+| **3a** | `exam --profile`・`modality.default_profile`・撮影の画面の「装置」 | 実装済み |
+| **3a** | `worklist` の欄 | 未実装 |
+| **3c** | `services.mpps`・`services.storage_commitment` を MPPS・保管の確認に効かせる（[12_modality_emulator.md](12_modality_emulator.md) の 8.3.3・8.4.1） | 実装済み。`services.modality_worklist` は効かせていない |
 
 ---
 

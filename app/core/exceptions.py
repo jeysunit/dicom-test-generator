@@ -169,25 +169,6 @@ class DICOMValidationError(ValidationError):
     pass
 
 
-class SCPError(DICOMGeneratorError):
-    """Storage SCP ベース例外."""
-
-    pass
-
-
-class SCPConfigError(SCPError):
-    """SCP 設定エラー."""
-
-    pass
-
-
-class SCPStoreError(SCPError):
-    """C-STORE 処理エラー."""
-
-    def __init__(self, message: str, sop_uid: str | None = None):
-        super().__init__(message, {"sop_uid": sop_uid} if sop_uid else {})
-
-
 class ModalityError(DICOMGeneratorError):
     """モダリティのダミーの例外の基底（spec/12_modality_emulator.md 9.5）."""
 

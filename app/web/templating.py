@@ -1,4 +1,4 @@
-"""Jinja2 の環境（spec/12_modality_emulator.md 10.8）.
+"""Jinja2 の環境（spec/12a_web_screens_and_cli.md 10.8）.
 
 - 自動エスケープを必ず有効にする（相手から来る値を HTML として出さない）
 - `{{ }}` で出す文字列は、エスケープの前に制御文字・双方向の制御文字を見える形にする

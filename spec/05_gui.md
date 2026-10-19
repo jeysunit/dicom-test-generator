@@ -1,659 +1,171 @@
-# 05. GUI仕様
+# 05. PySide6 のデスクトップの画面（凍結）
 
 ## 概要
 
-PySide6を使用したデスクトップGUIアプリケーション。
+> **凍結**: この PySide6 の画面は機能を増やさない。直すのは壊れたときだけで、
+> モダリティのダミーの画面（ワークリスト・撮影・PACS・設定）は
+> ウェブの画面を使う（ADR-0011 の案 B。2026-10-18 に承認者が決めた）。
+> ウェブの画面は [12a_web_screens_and_cli.md](12a_web_screens_and_cli.md) の 10 章が決める。
+> コードは外していない。この文書は、実装済みの範囲だけを書く。
 
-> この文書は生成の道具の画面の仕様。モダリティのダミーの画面
-> （ワークリスト・撮影・PACS・設定）はウェブの画面で、
-> [12_modality_emulator.md](12_modality_emulator.md) で決める
-> （ADR-0011）。
->
-> この PySide6 の画面は凍結している（ADR-0011 の案 B。2026-10-18 に
-> 承認者が決めた）。直すのは壊れたときだけで、ウェブの画面が生成の
-> 機能も持てたら、別の PR で外す。
+PySide6 の画面は、Job YAML を書かずに、患者・シリーズ・出力先を選んで
+DICOM ファイルを生成するための道具である。生成の本体は Service Layer
+（`StudyGeneratorService`）が持ち、画面は設定を集めて呼ぶだけにする。
+生成は別スレッド（QThread）で動かし、画面を止めない。
 
-**Phase**: Phase 2
+**起動**: `python -m app.gui`
 
-**依存**: Phase 0 (Core Engine), Phase 1 (Service Layer)
-
----
-
-## メインウィンドウ
-
-### レイアウト
-
-```text
-┌──────────────────────────────────────────────────────────────┐
-│ DICOMテストデータ生成ツール v1.1                             │
-├──────────────────────────────────────────────────────────────┤
-│ [ファイル] [編集] [表示] [ヘルプ]                           │
-├──────────────────────────────────────────────────────────────┤
-│                                                               │
-│ ┌──────────────────────────────────────────────────────┐    │
-│ │ テンプレート選択                                      │    │
-│ ├──────────────────────────────────────────────────────┤    │
-│ │ モダリティ:  [Ct Generic                    ▼]      │    │
-│ │ 病院設定:    [A病院（日本語使用）           ▼]      │    │
-│ │              ├ なし（モダリティ標準）                │    │
-│ │              ├ A病院（日本語使用）                   │    │
-│ │              └ B病院（ローマ字のみ）                 │    │
-│ └──────────────────────────────────────────────────────┘    │
-│                                                               │
-│ ┌──────────────────────────────────────────────────────┐    │
-│ │ 患者情報                                              │    │
-│ ├──────────────────────────────────────────────────────┤    │
-│ │ 患者選択:    [P000001 - YAMADA TARO         ▼]      │    │
-│ │                                                       │    │
-│ │ Patient ID:          [P000001              ] □異常   │    │
-│ │ Patient Name:        [YAMADA^TARO=山田^太郎]         │    │
-│ │                      (病院設定に応じて表示)          │    │
-│ │ Birth Date:          [19800115             ] □異常   │    │
-│ │ Sex:                 [M ▼]                   □異常   │    │
-│ │ Age:                 [044Y                 ]         │    │
-│ │ Weight (kg):         [65.5                 ]         │    │
-│ │ Size (m):            [1.70                 ]         │    │
-│ └──────────────────────────────────────────────────────┘    │
-│                                                               │
-│ ┌──────────────────────────────────────────────────────┐    │
-│ │ 検査情報                                              │    │
-│ ├──────────────────────────────────────────────────────┤    │
-│ │ Accession Number:    [ACC000001            ] □異常   │    │
-│ │ Study Date:          [2024/01/15           ] □異常   │    │
-│ │ Study Time:          [14:30:00             ]         │    │
-│ │ Study Description:   [CT CHEST             ]         │    │
-│ │ Referring Physician: [TANAKA^JIRO=田中^次郎]         │    │
-│ └──────────────────────────────────────────────────────┘    │
-│                                                               │
-│ ┌──────────────────────────────────────────────────────┐    │
-│ │ 詳細設定                                              │    │
-│ ├──────────────────────────────────────────────────────┤    │
-│ │ Pixel Data Mode:     [CT Realistic ▼]               │    │
-│ │ Transfer Syntax:     [Implicit VR Little Endian ▼]  │    │
-│ │ 異常生成レベル:      [なし ▼]                       │    │
-│ │ ☑ SOP Instance UIDに0始まり不正を含める(10%)        │    │
-│ └──────────────────────────────────────────────────────┘    │
-│                                                               │
-│ ┌──────────────────────────────────────────────────────┐    │
-│ │ シリーズ・画像設定                                    │    │
-│ ├──────────────────────────────────────────────────────┤    │
-│ │ シリーズ数:          [3  ]                           │    │
-│ │                                                       │    │
-│ │ シリーズ1:           [1  ]枚  Slice Thickness [5.0mm]│    │
-│ │                      [詳細設定...]                    │    │
-│ │ シリーズ2:           [20 ]枚  Slice Spacing   [5.0mm]│    │
-│ │                      [詳細設定...]                    │    │
-│ │ シリーズ3:           [20 ]枚  Start Z         [0.0mm]│    │
-│ │                      [詳細設定...]                    │    │
-│ └──────────────────────────────────────────────────────┘    │
-│                                                               │
-│ ┌──────────────────────────────────────────────────────┐    │
-│ │ 出力設定                                              │    │
-│ ├──────────────────────────────────────────────────────┤    │
-│ │ 出力先:              [output/ACC000001     ] [参照]  │    │
-│ │ ファイル名形式:      患者ID_検査日_モダリティ_連番   │    │
-│ │ 例:                  P000001_20240115_CT_0001.dcm    │    │
-│ │                      P000001_20240115_CT_00001.dcm   │    │
-│ └──────────────────────────────────────────────────────┘    │
-│                                                               │
-│              [生成開始]           [キャンセル]               │
-│                                                               │
-│ ┌──────────────────────────────────────────────────────┐    │
-│ │ 進捗状況                                              │    │
-│ │ ████████████████░░░░░░░░░░░░  60% (24/41)           │    │
-│ │ 生成中: P000001_20240115_CT_024.dcm                  │    │
-│ └──────────────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────────────┘
-```
+**依存**: Core Engine、Service Layer（`app/services/`）
 
 ---
 
-## ウィジェット仕様
-
-### 出力ファイル命名ルール
-
-- 形式: `患者ID_検査日_モダリティ_連番.dcm`
-- 連番: ゼロ埋め桁数は `max(4, 総出力枚数の桁数)` を使用
-- そのため 10000枚以上では5桁ゼロ埋め、100000枚以上では6桁ゼロ埋めになる
-
-例:
-
-- `P000001_20240115_CT_0001.dcm`
-- `P000001_20240115_CT_0999.dcm`
-- `P000001_20240115_CT_1000.dcm`
-- `P000001_20240115_CT_00001.dcm`（総出力枚数が10000以上の場合）
-- `P000001_20240115_CT_10000.dcm`
-
-### テンプレート選択
-
-```python
-class TemplateSelector(QWidget):
-    """テンプレート選択ウィジェット"""
-    
-    template_changed = Signal(str, str)  # (modality, hospital)
-    
-    def __init__(self):
-        self.modality_combo = QComboBox()
-        self.hospital_combo = QComboBox()
-        
-    def load_templates(self):
-        """テンプレート一覧を読み込み"""
-        modalities = scan_modality_templates()
-        self.modality_combo.addItems(modalities)
-        
-        hospitals = ["なし"] + scan_hospital_templates()
-        self.hospital_combo.addItems(hospitals)
-```
-
-### 患者選択
-
-```python
-class PatientSelector(QWidget):
-    """患者選択・編集ウィジェット"""
-    
-    patient_changed = Signal(Patient)
-    
-    def __init__(self):
-        self.patient_combo = QComboBox()
-        self.patient_id_edit = QLineEdit()
-        self.patient_name_edit = QLineEdit()
-        # ...
-        
-    def load_patient_master(self, filepath):
-        """患者マスター読み込み"""
-        patients = load_patients(filepath)
-        for p in patients:
-            self.patient_combo.addItem(
-                f"{p.patient_id} - {p.patient_name.alphabetic}",
-                userData=p
-            )
-    
-    def on_patient_selected(self, index):
-        """患者選択時"""
-        patient = self.patient_combo.itemData(index)
-        self.populate_fields(patient)
-```
-
-### シリーズ設定
-
-```python
-class SeriesConfigWidget(QWidget):
-    """シリーズ設定ウィジェット"""
-    
-    def __init__(self, series_number: int):
-        self.series_number = series_number
-        self.num_images_spin = QSpinBox()
-        self.slice_thickness_spin = QDoubleSpinBox()
-        self.detail_button = QPushButton("詳細設定...")
-        
-    def get_config(self) -> SeriesConfig:
-        """設定取得"""
-        return SeriesConfig(
-            series_number=self.series_number,
-            num_images=self.num_images_spin.value(),
-            slice_thickness=self.slice_thickness_spin.value(),
-            # ...
-        )
-```
-
-### 進捗表示
-
-```python
-class ProgressWidget(QWidget):
-    """進捗表示ウィジェット"""
-    
-    def __init__(self):
-        self.progress_bar = QProgressBar()
-        self.status_label = QLabel("待機中")
-        
-    def update_progress(self, current: int, total: int, filename: str):
-        """進捗更新"""
-        progress = int((current / total) * 100)
-        self.progress_bar.setValue(progress)
-        self.status_label.setText(f"生成中: {filename}")
-```
-
----
-
-## メインウィンドウクラス
-
-```python
-# app/gui/main_window.py
-from PySide6.QtWidgets import QMainWindow, QMessageBox
-from PySide6.QtCore import Slot
-from .worker_thread import GeneratorWorker
-
-class MainWindow(QMainWindow):
-    """メインウィンドウ"""
-    
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("DICOMテストデータ生成ツール v1.1")
-        self.resize(900, 1000)
-        
-        self.worker = None
-        self.setup_ui()
-        self.connect_signals()
-        
-    def setup_ui(self):
-        """UI構築"""
-        central_widget = QWidget()
-        layout = QVBoxLayout(central_widget)
-        
-        # テンプレート選択
-        self.template_selector = TemplateSelector()
-        layout.addWidget(self.template_selector)
-        
-        # 患者情報
-        self.patient_selector = PatientSelector()
-        layout.addWidget(self.patient_selector)
-        
-        # 検査情報
-        self.study_widget = StudyWidget()
-        layout.addWidget(self.study_widget)
-        
-        # 詳細設定
-        self.detail_widget = DetailWidget()
-        layout.addWidget(self.detail_widget)
-        
-        # シリーズ設定
-        self.series_widget = SeriesListWidget()
-        layout.addWidget(self.series_widget)
-        
-        # 出力設定
-        self.output_widget = OutputWidget()
-        layout.addWidget(self.output_widget)
-        
-        # ボタン
-        button_layout = QHBoxLayout()
-        self.generate_button = QPushButton("生成開始")
-        self.cancel_button = QPushButton("キャンセル")
-        self.cancel_button.setEnabled(False)
-        button_layout.addWidget(self.generate_button)
-        button_layout.addWidget(self.cancel_button)
-        layout.addLayout(button_layout)
-        
-        # 進捗
-        self.progress_widget = ProgressWidget()
-        layout.addWidget(self.progress_widget)
-        
-        self.setCentralWidget(central_widget)
-        
-    def connect_signals(self):
-        """シグナル接続"""
-        self.generate_button.clicked.connect(self.on_generate_clicked)
-        self.cancel_button.clicked.connect(self.on_cancel_clicked)
-        
-    @Slot()
-    def on_generate_clicked(self):
-        """生成開始ボタン"""
-        # 設定収集
-        config = self.collect_config()
-        
-        # バリデーション
-        if not self.validate_config(config):
-            return
-        
-        # ワーカースレッド起動
-        self.worker = GeneratorWorker(config)
-        self.worker.progress_updated.connect(self.on_progress_updated)
-        self.worker.generation_finished.connect(self.on_generation_finished)
-        self.worker.start()
-        
-        # ボタン状態変更
-        self.generate_button.setEnabled(False)
-        self.cancel_button.setEnabled(True)
-        
-    @Slot()
-    def on_cancel_clicked(self):
-        """キャンセルボタン"""
-        if self.worker:
-            self.worker.request_cancel()
-            
-    @Slot(int, int, str)
-    def on_progress_updated(self, current: int, total: int, filename: str):
-        """進捗更新"""
-        self.progress_widget.update_progress(current, total, filename)
-        
-    @Slot(bool, str)
-    def on_generation_finished(self, success: bool, message: str):
-        """生成完了"""
-        # ボタン状態復帰
-        self.generate_button.setEnabled(True)
-        self.cancel_button.setEnabled(False)
-        
-        if success:
-            QMessageBox.information(self, "完了", message)
-        else:
-            QMessageBox.warning(self, "エラー", message)
-    
-    def collect_config(self) -> GenerationConfig:
-        """GUI設定を収集"""
-        return GenerationConfig(
-            job_name=f"GUI_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
-            output_dir=self.output_widget.get_output_dir(),
-            patient=self.patient_selector.get_patient(),
-            study=self.study_widget.get_study_config(),
-            series_list=self.series_widget.get_series_list(),
-            # ...
-        )
-    
-    def validate_config(self, config: GenerationConfig) -> bool:
-        """設定検証"""
-        try:
-            config.model_validate(config)
-            return True
-        except ValidationError as e:
-            QMessageBox.warning(self, "検証エラー", str(e))
-            return False
-```
-
----
-
-## メニューバー
-
-### ファイルメニュー
-
-| 項目 | ショートカット | 動作 |
-|------|--------------|------|
-| Job設定を開く... | Ctrl+O | Job YAMLを読み込み |
-| Job設定を保存... | Ctrl+S | Job YAMLとして保存 |
-| 終了 | Ctrl+Q | アプリ終了 |
-
-### 編集メニュー
-
-| 項目 | 動作 |
-|------|------|
-| 設定をリセット | デフォルト値に戻す |
-| 患者マスター再読み込み | 患者マスター再スキャン |
-
-### 表示メニュー
-
-| 項目 | 動作 |
-|------|------|
-| ログウィンドウ | ログ表示ダイアログ |
-
-### ヘルプメニュー
-
-| 項目 | 動作 |
-|------|------|
-| ドキュメント | ブラウザでドキュメント表示 |
-| バージョン情報 | バージョンダイアログ |
-
----
-
-## ダイアログ
-
-### シリーズ詳細設定ダイアログ
-
-```python
-class SeriesDetailDialog(QDialog):
-    """シリーズ詳細設定ダイアログ"""
-    
-    def __init__(self, series_config: SeriesConfig):
-        super().__init__()
-        self.setWindowTitle(f"シリーズ{series_config.series_number} 詳細設定")
-        
-        layout = QFormLayout()
-        
-        self.series_desc_edit = QLineEdit(series_config.series_description)
-        layout.addRow("Series Description:", self.series_desc_edit)
-        
-        self.protocol_edit = QLineEdit(series_config.protocol_name)
-        layout.addRow("Protocol Name:", self.protocol_edit)
-        
-        self.slice_thickness_spin = QDoubleSpinBox()
-        self.slice_thickness_spin.setValue(series_config.slice_thickness)
-        layout.addRow("Slice Thickness (mm):", self.slice_thickness_spin)
-        
-        # OK/Cancelボタン
-        button_box = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
-        )
-        button_box.accepted.connect(self.accept)
-        button_box.rejected.connect(self.reject)
-        layout.addRow(button_box)
-        
-        self.setLayout(layout)
-```
-
-### ログビューアダイアログ
-
-```python
-class LogViewerDialog(QDialog):
-    """ログビューアダイアログ"""
-    
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("ログビューア")
-        self.resize(800, 600)
-        
-        layout = QVBoxLayout()
-        
-        self.log_text = QTextEdit()
-        self.log_text.setReadOnly(True)
-        self.log_text.setFont(QFont("Courier", 9))
-        layout.addWidget(self.log_text)
-        
-        # 更新ボタン
-        refresh_button = QPushButton("更新")
-        refresh_button.clicked.connect(self.load_log)
-        layout.addWidget(refresh_button)
-        
-        self.setLayout(layout)
-        self.load_log()
-        
-    def load_log(self):
-        """ログファイル読み込み"""
-        try:
-            with open("logs/dicom_generator.log") as f:
-                content = f.read()
-                self.log_text.setPlainText(content)
-                # 最後までスクロール
-                self.log_text.moveCursor(QTextCursor.End)
-        except FileNotFoundError:
-            self.log_text.setPlainText("ログファイルが見つかりません")
-```
-
----
-
-## 設定の永続化
-
-### Job YAMLの読み込み・保存
-
-```python
-class MainWindow(QMainWindow):
-    
-    def load_job_file(self):
-        """Job YAML読み込み"""
-        filepath, _ = QFileDialog.getOpenFileName(
-            self,
-            "Job設定を開く",
-            "",
-            "YAML Files (*.yaml *.yml)"
-        )
-        
-        if not filepath:
-            return
-        
-        try:
-            with open(filepath) as f:
-                job_dict = yaml.safe_load(f)
-            
-            config = GenerationConfig(**job_dict)
-            self.populate_from_config(config)
-            
-            QMessageBox.information(self, "成功", "Job設定を読み込みました")
-        except Exception as e:
-            QMessageBox.warning(self, "エラー", f"読み込み失敗: {e}")
-    
-    def save_job_file(self):
-        """Job YAML保存"""
-        filepath, _ = QFileDialog.getSaveFileName(
-            self,
-            "Job設定を保存",
-            "",
-            "YAML Files (*.yaml)"
-        )
-        
-        if not filepath:
-            return
-        
-        try:
-            config = self.collect_config()
-            config_dict = config.model_dump()
-            
-            with open(filepath, 'w') as f:
-                yaml.safe_dump(config_dict, f, allow_unicode=True)
-            
-            QMessageBox.information(self, "成功", "Job設定を保存しました")
-        except Exception as e:
-            QMessageBox.warning(self, "エラー", f"保存失敗: {e}")
-```
-
----
-
-## スタイル
-
-### QSSスタイルシート
-
-```python
-# app/gui/styles.py
-
-MAIN_STYLE = """
-QGroupBox {
-    font-weight: bold;
-    border: 1px solid #CCCCCC;
-    border-radius: 5px;
-    margin-top: 10px;
-    padding-top: 10px;
-}
-
-QGroupBox::title {
-    subcontrol-origin: margin;
-    subcontrol-position: top left;
-    padding: 0 5px;
-}
-
-QPushButton#generate_button {
-    background-color: #4CAF50;
-    color: white;
-    font-weight: bold;
-    padding: 10px;
-    border-radius: 5px;
-}
-
-QPushButton#generate_button:hover {
-    background-color: #45a049;
-}
-
-QPushButton#generate_button:disabled {
-    background-color: #CCCCCC;
-}
-
-QPushButton#cancel_button {
-    background-color: #f44336;
-    color: white;
-    padding: 10px;
-    border-radius: 5px;
-}
-"""
-
-# 適用
-app.setStyleSheet(MAIN_STYLE)
-```
-
----
-
-## 実装ガイドライン
-
-### ファイル構成
+## 実装済みの範囲
 
 ```text
 app/gui/
 ├── __init__.py
-├── main_window.py        # メインウィンドウ
-├── worker_thread.py      # QThreadワーカー
-├── widgets/
-│   ├── __init__.py
-│   ├── template_selector.py
-│   ├── patient_selector.py
-│   ├── series_widget.py
-│   └── progress_widget.py
-├── dialogs/
-│   ├── __init__.py
-│   ├── series_detail_dialog.py
-│   └── log_viewer_dialog.py
-└── styles.py             # QSSスタイル
+├── __main__.py            # 起動（python -m app.gui）
+├── main_window.py         # メインウィンドウ（MainWindow）
+├── worker_thread.py       # 生成のワーカー（GeneratorWorker、QThread）
+└── widgets/
+    ├── template_selector.py   # TemplateSelector
+    ├── patient_form.py        # PatientForm
+    ├── series_config.py       # SeriesConfigWidget
+    ├── output_config.py       # OutputConfigWidget
+    └── progress_widget.py     # ProgressWidget
 ```
 
-### エントリポイント
+### メインウィンドウ
 
-```python
-# app/gui/__main__.py
-import sys
-from PySide6.QtWidgets import QApplication
-from .main_window import MainWindow
+題は「DICOMテストデータ生成ツール v1.1」、大きさは 900 x 1000。
+メニューバーは無い。縦に並べたグループを、スクロールできる領域に置く。
 
-def main():
-    app = QApplication(sys.argv)
-    
-    # アプリケーション情報設定
-    app.setApplicationName("DICOMテストデータ生成ツール")
-    app.setApplicationVersion("1.1.0")
-    app.setOrganizationName("DICOM Generator Project")
-    
-    # メインウィンドウ表示
-    window = MainWindow()
-    window.show()
-    
-    sys.exit(app.exec())
-
-if __name__ == '__main__':
-    main()
+```text
+┌──────────────────────────────────────────────────┐
+│ DICOMテストデータ生成ツール v1.1                 │
+├──────────────────────────────────────────────────┤
+│ ┌ テンプレート選択 ───────────────────────────┐ │
+│ │ モダリティ:  [Ct Generic                ▼] │ │
+│ │ 病院設定:    [なし                      ▼] │ │
+│ └────────────────────────────────────────────┘ │
+│ ┌ 患者情報 ───────────────────────────────────┐ │
+│ │ 患者選択:    [P000001 - YAMADA TARO     ▼] │ │
+│ │ Patient ID / Patient Name / Birth Date / Sex │ │
+│ └────────────────────────────────────────────┘ │
+│ ┌ 検査情報 ───────────────────────────────────┐ │
+│ │ Accession Number:  [ACC000001            ] │ │
+│ └────────────────────────────────────────────┘ │
+│ ┌ シリーズ・画像設定 ─────────────────────────┐ │
+│ │ シリーズ数:  [1]                            │ │
+│ │ シリーズ1: 画像数 [20]  スライス厚 [5.0 mm] │ │
+│ └────────────────────────────────────────────┘ │
+│ ┌ 出力設定 ───────────────────────────────────┐ │
+│ │ 出力先:  [output                  ] [参照]  │ │
+│ └────────────────────────────────────────────┘ │
+│            [生成開始]     [キャンセル]          │
+│ ┌ 進捗 ───────────────────────────────────────┐ │
+│ │ ████████░░░░  60%   生成中: ... (24/41)     │ │
+│ └────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────┘
 ```
 
-### 起動方法
+### ウィジェット
 
-```bash
-python -m app.gui
+| ウィジェット | 役割 | 取り出す値 |
+|-------------|------|-----------|
+| `TemplateSelector` | `templates/modality/` と `templates/hospital/` の YAML を一覧にして選ぶ。病院は「なし」を先頭に置く | `get_modality()`・`get_hospital()`（「なし」は `None`） |
+| `PatientForm` | `PatientLoaderService` が読む患者マスターから選び、欄に写す。欄は直せる。氏名は `=` で字種を区切る（`YAMADA^TARO=山田^太郎`） | `get_patient()` |
+| `SeriesConfigWidget` | シリーズ数（1〜10）と、シリーズごとの画像数（1〜10000、既定 20）・スライス厚（既定 5.0 mm） | `get_series_list()` |
+| `OutputConfigWidget` | 出力先のフォルダ。「参照」でフォルダ選択のダイアログを開く | `get_output_dir()` |
+| `ProgressWidget` | 進捗バーと状態の文（待機中／生成中） | `update_progress()`・`reset()` |
+
+Accession Number は `MainWindow` の「検査情報」の欄で、空なら設定エラーにする。
+検査日と検査時刻は、生成を始めた時刻から決める。
+ピクセルは `PixelSpecCTRealistic`、転送構文・文字セット・異常の設定は既定値で固定する。
+`device_profile`（spec/13）は画面から選べない。
+
+出力ファイル名の規則は、CLI と同じく Core が決める（[04_cli.md](04_cli.md)）。
+
+### 生成の流れ
+
+1. 「生成開始」で `MainWindow._collect_config()` が各ウィジェットから `GenerationConfig` を作る。
+   作れなければ警告のダイアログを出して止める。
+2. `GeneratorWorker` を作って開始し、「生成開始」を無効に、「キャンセル」を有効にする。
+3. 進捗のシグナルでバーを更新する。
+4. 終了のシグナルで、ボタンを元に戻し、成功なら「完了」、失敗なら「エラー」のダイアログを出す。
+
+---
+
+## 非同期処理
+
+生成は数百枚を超えることがあるので、`GeneratorWorker`（`QThread`）で動かす。
+この節の決まりは GUI だけに適用する。CLI とウェブの画面は別の仕組みで動く。
+
+**規則**: ウィジェットの操作は UI スレッドだけで行い、ワーカーとの受け渡しはシグナルだけにする。
+共有データへのロックは要らない（ワーカーは設定を受け取って独立に動く）。
+
+```text
+MainWindow（UI スレッド）
+    ↓ start()
+GeneratorWorker（ワーカースレッド）
+    ↓ progress_updated(current, total, filename)
+MainWindow._on_progress_updated → ProgressWidget
+    ↓ generation_finished(success, message)
+MainWindow._on_generation_finished
 ```
+
+### GeneratorWorker
+
+| 項目 | 内容 |
+|------|------|
+| 場所 | `app/gui/worker_thread.py` |
+| シグナル | `progress_updated(int, int, str)`（現在・合計・ファイル名）、`generation_finished(bool, str)`（成功か・メッセージ） |
+| 実行 | `run()` が `StudyGeneratorService().generate(config, progress_callback=...)` を呼ぶ |
+| 進捗 | Service のコールバック `(current, total)` を受けて `progress_updated` を出す。ファイル名は `image_NNNN.dcm` の形の表示用の名前 |
+| 失敗 | `DICOMGeneratorError` は「生成エラー: ...」、それ以外は「予期しないエラー: ...」で `generation_finished(False, ...)` を出す。どちらもログに残す |
+
+### キャンセル
+
+| 項目 | 内容 |
+|------|------|
+| 要求 | 「キャンセル」で `request_cancel()` を呼び、`cancel_requested` を立てる。ボタンは無効になり「キャンセル中...」と出る |
+| 効果 | 要求の後は進捗のシグナルを出さない。Service の生成は途中で止めず、`generate()` が戻った後に `cancel_requested` を見て `generation_finished(False, "Cancelled by user")` を出す |
+| 生成済みのファイル | 削除せず残す |
+
+つまり、キャンセルは生成を中断せず、完了の通知を「キャンセルされた」に変える。
+枚数が多い生成を途中で止める機能は無い。
+
+### 終了の後始末
+
+`_on_generation_finished` はワーカーを最大 5 秒待ち（`wait(5000)`）、
+終わらなければ警告をログに出し、参照を捨てる。
 
 ---
 
 ## テスト
 
-### UIテスト（pytest-qt）
+`tests/gui/` に pytest-qt の試験がある。表示の無い環境で動かすため、
+`QT_QPA_PLATFORM=offscreen` を指定する（CI も同じ。`.github/workflows/ci.yml`）。
 
-```python
-# tests/gui/test_main_window.py
-import pytest
-from pytestqt.qtbot import QtBot
-from app.gui.main_window import MainWindow
+| ファイル | 対象 |
+|---------|------|
+| `test_main_window.py` | 題・大きさ・ボタンの状態・設定の集め方・生成と取り消しと終了の画面の変化 |
+| `test_widgets.py` | 各ウィジェットの値の取り出し |
+| `test_worker_thread.py` | 進捗と終了のシグナル、キャンセル、例外の扱い |
 
-def test_main_window_creation(qtbot):
-    """メインウィンドウ作成テスト"""
-    window = MainWindow()
-    qtbot.addWidget(window)
-    
-    assert window.windowTitle() == "DICOMテストデータ生成ツール v1.1"
-
-def test_generate_button_click(qtbot):
-    """生成ボタンクリックテスト"""
-    window = MainWindow()
-    qtbot.addWidget(window)
-    
-    # 初期状態
-    assert window.generate_button.isEnabled()
-    assert not window.cancel_button.isEnabled()
-    
-    # TODO: 設定入力してクリック
+```bash
+QT_QPA_PLATFORM=offscreen pytest tests/gui/
 ```
 
 ---
 
-## 次のステップ
+## 作らない物
 
-1. [10_async_processing.md](10_async_processing.md) で非同期処理を確認
-2. GUI実装
-3. UIテスト作成
+次は実装しておらず、凍結のため実装しない。ウェブの画面か CLI を使う。
+
+- メニューバー（Job YAML の読み込み・保存を含む）
+- シリーズごとの詳細設定のダイアログ
+- ログビューア
+- スタイルシート（QSS）
+- 設定の永続化
+- 複数のワーカーによる並列生成
