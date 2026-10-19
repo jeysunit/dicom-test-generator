@@ -28,6 +28,60 @@ Pixel data is synthetic and not intended for clinical use.
 
 ---
 
+## システム構成
+
+### 図1　全体
+
+ウェブの画面と CLI は、同じ Service を呼ぶ。ワークリストの相手から予約を取り、予約の値で合成の画像を作り、画像サーバー（PACS）へ送る。点線は作業中（Phase 3c）。レイヤーの図は [spec/01_architecture.md](spec/01_architecture.md)。
+
+```mermaid
+flowchart LR
+  classDef box fill:#ffffff,stroke:#0969da,stroke-width:2px,color:#1f2328
+  classDef plan fill:#ffffff,stroke:#8c959f,stroke-dasharray:5 4,color:#57606a
+
+  UI["ウェブの画面・CLI"]:::box
+  SVC["Service"]:::box
+  subgraph FLOW["モダリティのダミー"]
+    direction TB
+    MWL["(a) ワークリストの取得<br/>MWL の SCU（C-FIND）"]:::box
+    MAKE["(b) 予約から画像を作る<br/>テンプレート・装置のプロファイル"]:::box
+    QUEUE["(c) 送信の待ち行列<br/>C-STORE の SCU"]:::box
+    COMMIT["(d) 保管の確認・MPPS<br/>作業中（Phase 3c）"]:::plan
+  end
+  RIS["ワークリストの相手<br/>RIS・画像サーバーのワークリスト"]:::box
+  PACS[("画像サーバー（PACS）")]:::box
+  SCP["手元の受け取る側<br/>Storage SCP"]:::box
+
+  UI --> SVC
+  SVC --> MWL
+  SVC --> MAKE
+  SVC --> QUEUE
+  MWL -->|"予約を取る"| RIS
+  MAKE -->|"画像"| QUEUE
+  QUEUE -->|"C-STORE"| PACS
+  QUEUE -->|"C-STORE（手元の試験）"| SCP
+  QUEUE -.-> COMMIT
+  COMMIT -.-> PACS
+```
+
+### 試しに使う組み合わせ
+
+モダリティのダミー（この道具）で合成の検査を画像サーバーへ送り、[tsunagi-dicom](https://github.com/jeysunit/tsunagi-dicom) で見る。実の患者のデータは使わない。
+
+```mermaid
+flowchart LR
+  classDef box fill:#ffffff,stroke:#0969da,stroke-width:2px,color:#1f2328
+
+  DTG["dicom-test-generator<br/>モダリティのダミー<br/>合成の検査を作る"]:::box
+  PACS[("画像サーバー<br/>Orthanc など（試験用）")]:::box
+  TD["tsunagi-dicom<br/>画面と BFF"]:::box
+
+  DTG -->|"C-STORE で送る"| PACS
+  TD -->|"DICOMweb で検索・取得"| PACS
+```
+
+---
+
 ## 主な特徴
 
 ### ✅ リアルなDICOMメタデータ構造
