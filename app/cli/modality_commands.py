@@ -24,6 +24,7 @@ from app.modality.worklist_scu import (
 )
 
 ANY = "any"
+DEFAULT_IMAGES_PER_SERIES = 1
 DEFAULT_CONFIG = "config/app_config.yaml"
 CHARSET_CHOICES = ("auto", "utf8", "jis", "jis_kana")
 PIXEL_MODE_CHOICES = ("simple_text", "ct_realistic")
@@ -88,7 +89,14 @@ def register_modality_commands(
     )
     exam_parser.add_argument("--hospital", help="病院テンプレート")
     exam_parser.add_argument("-s", "--series", type=int, default=1, help="シリーズ数")
-    exam_parser.add_argument("-i", "--images", default="1", help="各シリーズの枚数（カンマ区切り）")
+    exam_parser.add_argument(
+        "-i",
+        "--images",
+        help=(
+            "各シリーズの枚数（カンマ区切り）。省くと、シリーズごとに"
+            f"{DEFAULT_IMAGES_PER_SERIES} 枚"
+        ),
+    )
     exam_parser.add_argument("--pixel-mode", choices=PIXEL_MODE_CHOICES, help="ピクセル")
     exam_parser.add_argument(
         "--abnormal-level", choices=ABNORMAL_LEVEL_CHOICES, default="none", help="異常のデータ"
@@ -422,7 +430,12 @@ def _raise_if_failed(results: list[SendResult]) -> None:
         )
 
 
-def _parse_images(images: str, series: int) -> list[int]:
+def _parse_images(images: str | None, series: int) -> list[int]:
+    """`-i` を省いたら、どのシリーズも DEFAULT_IMAGES_PER_SERIES 枚にする."""
+    if images is None:
+        if series < 1:
+            raise ConfigurationError("Series count must be at least 1", {"series": series})
+        return [DEFAULT_IMAGES_PER_SERIES] * series
     try:
         values = [int(value.strip()) for value in images.split(",")]
     except ValueError as exc:

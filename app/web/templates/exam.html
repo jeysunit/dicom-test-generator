@@ -4,8 +4,9 @@
 {% if load_error %}
 {% with error = load_error %}{% include "_notice.html" %}{% endwith %}
 {% endif %}
-<form id="exam-form" hx-post="/exam" hx-target="#result" hx-disabled-elt="find #actions button" class="space-y-6">
+<form id="exam-form" hx-post="/exam" hx-target="#result" hx-disabled-elt="#actions button" hx-sync="this:drop" class="space-y-6">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" id="exam-token" name="exam_token" value="{{ exam_token }}">
   {% if item %}
   {% set alphabetic, ideographic, phonetic = item.patient_name|name_parts %}
   <input type="hidden" name="mode" value="scheduled">
@@ -99,11 +100,11 @@
       </label>
       <label class="field">
         <span class="field-label">シリーズ数 <span class="badge text-danger">必須</span></span>
-        <input type="number" name="series" value="1" min="1" max="99" class="input" required aria-required="true">
+        <input type="number" name="series" value="1" min="1" max="99" class="input" required aria-required="true" data-series-count>
       </label>
       <label class="field">
         <span class="field-label">枚数（シリーズごと。例 1,20） <span class="badge text-danger">必須</span></span>
-        <input type="text" name="images" value="1" class="input" required aria-required="true">
+        <input type="text" name="images" value="1" class="input" required aria-required="true" data-images-list>
       </label>
       <label class="field">
         <span class="field-label">異常のデータ</span>
@@ -112,11 +113,14 @@
         </select>
       </label>
     </div>
-    <p class="mt-4 text-xs text-label">1回の撮影は合計 {{ config.max_images_per_exam }} 枚まで。異常のデータは、予約から写した値も壊すことがあります。</p>
+    <p class="mt-4 text-xs text-label">シリーズ数を変えると、枚数をシリーズごとに同じ数で自動入力します（枚数を手で直した後は上書きしません）。</p>
+    <p class="mt-2 text-xs text-label">1回の撮影は合計 {{ config.max_images_per_exam }} 枚まで。異常のデータは、予約から写した値も壊すことがあります。</p>
     <p class="mt-2 text-xs text-label">{% if config.worklist.use_mpps %}MPPS：使う（{{ config.mpps_peer().ae_title }}）{% else %}MPPS：使わない{% endif %}</p>
     {% for error in profile_errors %}<p role="alert" class="mt-2 text-xs text-danger">{{ error }}</p>{% endfor %}
   </section>
   <div id="actions">{% include "_exam_actions.html" %}</div>
+  <p class="busy busy-exam" role="status"><span class="icon icon-refresh-cw animate-spin" aria-hidden="true"></span>撮影しています。終わるまでボタンは押せません</p>
+  <p class="busy busy-exam-send" role="status"><span class="icon icon-refresh-cw animate-spin" aria-hidden="true"></span>撮影して送っています。終わるまでボタンは押せません</p>
 </form>
 <section id="result" aria-live="polite"></section>
 {% endblock %}

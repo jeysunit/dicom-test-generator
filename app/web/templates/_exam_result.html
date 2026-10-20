@@ -1,3 +1,4 @@
+{% if next_token %}<input type="hidden" id="exam-token" name="exam_token" value="{{ next_token }}" hx-swap-oob="true">{% endif %}
 <div class="panel space-y-3" role="status">
   <p class="flex items-center gap-1 font-semibold text-value">
     <span class="icon icon-check" aria-hidden="true"></span>撮影しました：{{ result.files|length }} 枚
@@ -28,6 +29,7 @@
     <form hx-post="/exam/send" hx-target="#send-result" hx-disabled-elt="find button" class="flex justify-end">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="output_dir" value="{{ result.output_dir }}">
+      <p class="busy busy-send mr-auto" role="status"><span class="icon icon-refresh-cw animate-spin" aria-hidden="true"></span>送っています</p>
       <button type="submit" class="btn btn-primary"><span class="icon icon-send" aria-hidden="true"></span>送る</button>
     </form>
     {% endif %}

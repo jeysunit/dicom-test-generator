@@ -81,6 +81,7 @@ def create_app(
     app.state.config_path = config_path
     app.state.web = web
     app.state.csrf_token = new_csrf_token()
+    app.state.exam_tokens = exam.ExamTokens()
     app.state.templates = create_environment()
     check_host = is_loopback(web.bind_address)
 

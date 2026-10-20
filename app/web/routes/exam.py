@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import secrets
+import threading
+from collections import deque
 from typing import Annotated
 
 from fastapi import APIRouter, Form, Request
@@ -32,6 +35,47 @@ MODE_EMERGENCY = "emergency"
 MAX_SERIES = 99
 MAX_IMAGES_PER_SERIES = 1000
 FormStr = Annotated[str, Form()]
+# 受け付け済みの撮影のトークンを覚える数（二重の受付を止める。古いものから忘れる）
+TOKEN_MEMORY = 512
+DUPLICATE_MESSAGE = (
+    "この撮影は受け付け済みです（ボタンが続けて押された可能性があります）。"
+    "結果は PACS の画面の送信の履歴で確かめてください"
+)
+
+
+class ExamTokens:
+    """撮影の画面が出すトークン。同じトークンの撮影を2回は受けない（二度押しの対策）.
+
+    撮っている間と、撮り終えた後のトークンを断る。失敗した撮影のトークンは戻すので、
+    入力を直して同じ画面から押し直せる。撮り終えたら、結果の応答が新しいトークンを渡す。
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._active: set[str] = set()
+        self._done: deque[str] = deque(maxlen=TOKEN_MEMORY)
+
+    @staticmethod
+    def issue() -> str:
+        return secrets.token_urlsafe(12)
+
+    def begin(self, token: str) -> bool:
+        with self._lock:
+            if token in self._active or token in self._done:
+                return False
+            self._active.add(token)
+            return True
+
+    def finish(self, token: str, *, accepted: bool) -> None:
+        with self._lock:
+            self._active.discard(token)
+            if accepted:
+                self._done.append(token)
+
+
+def tokens_of(request: Request) -> ExamTokens:
+    tokens: ExamTokens = request.app.state.exam_tokens
+    return tokens
 
 
 @router.get("/exam", response_class=HTMLResponse)
@@ -68,6 +112,7 @@ def exam_page(request: Request, key: str = "") -> HTMLResponse:
         abnormal_choices=ABNORMAL_CHOICES,
         sex_choices=SEX_CHOICES,
         blocker=_blocker(service, item, template, profile),
+        exam_token=ExamTokens.issue(),
     )
 
 
@@ -106,8 +151,14 @@ def exam_run(
     birth_date: FormStr = "",
     sex: FormStr = "",
     study_description: FormStr = "",
+    exam_token: FormStr = "",
 ) -> HTMLResponse:
     service = service_of(request)
+    tokens = tokens_of(request)
+    # トークンの無い要求（スクリプトなど）は、これまでどおり受ける
+    if exam_token and not tokens.begin(exam_token):
+        return render(request, "_notice.html", error=DUPLICATE_MESSAGE)
+    accepted = False
     try:
         emergency_patient = None
         if mode == MODE_EMERGENCY:
@@ -131,12 +182,17 @@ def exam_run(
             charset=charset or None,
         )
         result = service.exam(exam_request)
+        accepted = True
     except (DICOMGeneratorError, ValidationError) as exc:
         return render_error(request, exc)
+    finally:
+        if exam_token:
+            tokens.finish(exam_token, accepted=accepted)
     send_result, send_error = None, ""
     if action == ACTION_EXAM_SEND:
         send_result, send_error = _send(service, result.output_dir)
-    return _exam_result(request, result, send_result, send_error)
+    next_token = ExamTokens.issue() if exam_token else ""
+    return _exam_result(request, result, send_result, send_error, next_token)
 
 
 @router.post("/exam/send", response_class=HTMLResponse)
@@ -149,9 +205,20 @@ def exam_send(request: Request, output_dir: FormStr = "") -> HTMLResponse:
 
 
 def _exam_result(
-    request: Request, result: ExamResult, send: SendResult | None, send_error: str
+    request: Request,
+    result: ExamResult,
+    send: SendResult | None,
+    send_error: str,
+    next_token: str,
 ) -> HTMLResponse:
-    return render(request, "_exam_result.html", result=result, send=send, send_error=send_error)
+    return render(
+        request,
+        "_exam_result.html",
+        result=result,
+        send=send,
+        send_error=send_error,
+        next_token=next_token,
+    )
 
 
 def _send(service: ModalityService, output_dir: str) -> tuple[SendResult | None, str]:
