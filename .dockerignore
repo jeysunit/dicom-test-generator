@@ -1,0 +1,21 @@
+# イメージに入れるのは Dockerfile の COPY の行のものだけ。ほかは送らない
+**/__pycache__
+**/*.py[cod]
+.git
+.github
+.cache
+.venv
+venv
+.pytest_cache
+.coverage
+htmlcov
+logs
+output
+modality_state
+*.dcm
+*.log
+profiles/*
+!profiles/examples
+tests
+adr
+spec

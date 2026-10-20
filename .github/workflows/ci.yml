@@ -82,3 +82,64 @@ jobs:
 
       - name: Committed CSS must match the rebuilt CSS
         run: git diff --exit-code -- app/web/static/app.css
+
+  docker:
+    name: Docker image builds and starts (no push)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      # actions/checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Build the image
+        run: docker build -t dicom-test-generator:ci .
+
+      - name: CLI runs without the GUI packages and as a non-root user
+        run: |
+          set -eu
+          docker run --rm dicom-test-generator:ci python -m app.cli version
+          test "$(docker run --rm dicom-test-generator:ci id -u)" != 0
+          docker run --rm dicom-test-generator:ci python -c \
+            'import importlib.util, sys; sys.exit(importlib.util.find_spec("PySide6") is not None)'
+          docker run --rm dicom-test-generator:ci python -m app.cli exam --emergency \
+            --patient-id DOCKER0001 --patient-name "DOCKER^TEST" -s 1 -i 2 --json > exam.json
+          python3 -c 'import json; d = json.load(open("exam.json")); assert len(d["files"]) == 2, d'
+
+      - name: Web UI listens on 0.0.0.0 and requires HTTP Basic
+        run: |
+          set -eu
+          work="$RUNNER_TEMP/dtg"
+          mkdir -p "$work"
+          # 設定の例の web: の節だけを 0.0.0.0 にする（コンテナの外から届くように）
+          awk '/^web:/ { web = 1 } web && /bind_address:/ { sub(/"127\.0\.0\.1"/, "\"0.0.0.0\"") } { print }' \
+            config/app_config.yaml > "$work/app_config.yaml"
+          grep -A2 '^web:' "$work/app_config.yaml" | grep -q 'bind_address: "0.0.0.0"'
+          head -c 24 /dev/urandom | base64 | tr -d '/+=\n' > "$work/password"
+          echo "::add-mask::$(cat "$work/password")"
+          chmod 0644 "$work/password" "$work/app_config.yaml"
+
+          # パスワードのファイルが無ければ起動しない（終了コード 2）
+          status=0
+          docker run --rm -v "$work/app_config.yaml:/app/config/app_config.yaml:ro" \
+            dicom-test-generator:ci || status=$?
+          test "$status" = 2
+
+          docker run -d --name dtg -p 127.0.0.1:18080:8080 \
+            -v "$work/app_config.yaml:/app/config/app_config.yaml:ro" \
+            -v "$work/password:/run/secrets/dtg_web_password:ro" \
+            -e DTG_WEB_PASSWORD_FILE=/run/secrets/dtg_web_password \
+            dicom-test-generator:ci
+          code=000
+          for _ in $(seq 1 30); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/ || true)"
+            [ "$code" != 000 ] && break
+            sleep 1
+          done
+          test "$code" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' -u "dtg:$(cat "$work/password")" http://127.0.0.1:18080/)" = 200
+
+      - name: Container log
+        if: always()
+        run: docker logs dtg || true
