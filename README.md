@@ -186,7 +186,7 @@ docker exec dtg python -m app.cli echo --to PACS_TEST
 * 送信先とワークリストの相手は、設定ファイルの `modality:` の節に書きます。
   コンテナから届くホスト名か IP アドレスにします
 * 予約の結果と送信のキューは `/app/modality_state`、作った画像は
-  `/app/output` に書きます。残すときは volume にします
+  `/app/output` に書きます。残すときは volume を mount します
 * パスワードのファイルは、コンテナの中のユーザー（uid 10001）が
   読めるようにします（例：`chmod 0644`）
 
