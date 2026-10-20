@@ -84,6 +84,9 @@ QT_QPA_PLATFORM=offscreen pytest
 - 画面の CSS：`scripts/build_css.sh`（版と sha256 を固定した Tailwind CSS の
   standalone の実行ファイル）で作り直し、commit した `app/web/static/app.css` と
   差が無いことを確かめる
+- Docker のイメージ：`Dockerfile` からイメージを作り（push しない）、CLI が
+  root 以外のユーザーで動くこと、Web 画面が `0.0.0.0` で起動して HTTP Basic
+  認証を求めること、パスワードのファイルが無ければ起動しないことを確かめる
 
 ruff は、設定のファイルが無く、いまのコードに指摘が残っているため、
 CI にはまだ入れていない。

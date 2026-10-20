@@ -155,6 +155,47 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+### Docker で動かす
+
+`Dockerfile` で、CLI と Web 画面のイメージを作れます（GUI は入りません）。
+コンテナは root 以外のユーザー（uid 10001）で動きます。
+
+```bash
+docker build -t dicom-test-generator .
+```
+
+設定ファイルはコンテナの外に置き、`/app/config/app_config.yaml` に
+mount します。Web 画面はコンテナの中で `0.0.0.0` に bind するので、
+設定の `web.bind_address` を `"0.0.0.0"` にし、HTTP Basic 認証の
+パスワードのファイルを渡します（「ネットワークに公開するとき」）。
+設定ファイルとパスワードのファイルは、リポジトリの外（例：`~/dtg/`）に
+置きます。次の例は、ポートをホストの 127.0.0.1 にだけ公開します。
+
+```bash
+docker run -d --name dtg -p 127.0.0.1:8080:8080 \
+  -v "$HOME/dtg/app_config.yaml:/app/config/app_config.yaml:ro" \
+  -v "$HOME/dtg/password.txt:/run/secrets/dtg_web_password:ro" \
+  -e DTG_WEB_PASSWORD_FILE=/run/secrets/dtg_web_password \
+  -v dtg-state:/app/modality_state -v dtg-output:/app/output \
+  dicom-test-generator
+
+# CLI は同じコンテナの中で動かす
+docker exec dtg python -m app.cli echo --to PACS_TEST
+```
+
+* 送信先とワークリストの相手は、設定ファイルの `modality:` の節に書きます。
+  コンテナから届くホスト名か IP アドレスにします
+* 予約の結果と送信のキューは `/app/modality_state`、作った画像は
+  `/app/output` に書きます。残すときは volume を mount します
+* パスワードのファイルは、コンテナの中のユーザー（uid 10001）が
+  読めるようにします（例：`chmod 0644`）
+* volume の代わりにホストのディレクトリを bind mount するときは、
+  そのディレクトリを uid 10001 が書き込めるようにします
+* この手順では、保管確認（Storage Commitment）の結果は受け取れません。
+  受け取るには、設定の `modality.listen.bind_address` を `"0.0.0.0"` にし、
+  待ち受けのポート（既定 11113）も公開します
+* イメージにヘルスチェックは入れていません
+
 ---
 
 ## 基本的な使い方（CLI）
