@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# dicom-test-generator のイメージ（モダリティのダミーの CLI と Web 画面）。
+# dicom-test-generator のイメージ（モダリティエミュレーターの CLI と Web 画面）。
 #
 # - 土台は Python の公式のイメージ（slim）。GUI（PySide6）と試験の包みは入れない
 # - root でない利用者（dtg、uid 10001）で動かす。コードは root のもののまま（dtg からは読むだけ）
@@ -10,7 +10,9 @@
 # - 書く場所：/app/modality_state（予約の結果・送信のキュー）、/app/output（作った画像）、
 #   /app/logs（CLI のログ）
 
-ARG PYTHON_IMAGE=python:3.12-slim-trixie
+# 土台は digest で固定する（複数のアーキテクチャの目録の digest。2026-10-20 に
+# docker buildx imagetools inspect で読んだ）。上げるときは同じ方法で読み直す
+ARG PYTHON_IMAGE=python:3.12-slim-trixie@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
 
 FROM ${PYTHON_IMAGE}
 
