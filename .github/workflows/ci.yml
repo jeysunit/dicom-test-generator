@@ -133,12 +133,15 @@ jobs:
             dicom-test-generator:ci
           code=000
           for _ in $(seq 1 30); do
-            code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/ || true)"
+            code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/worklist || true)"
             [ "$code" != 000 ] && break
             sleep 1
           done
+          echo "without credentials: $code"
           test "$code" = 401
-          test "$(curl -s -o /dev/null -w '%{http_code}' -u "dtg:$(cat "$work/password")" http://127.0.0.1:18080/)" = 200
+          code="$(curl -s -o /dev/null -w '%{http_code}' -u "dtg:$(cat "$work/password")" http://127.0.0.1:18080/worklist)"
+          echo "with credentials: $code"
+          test "$code" = 200
 
       - name: Container log
         if: always()
