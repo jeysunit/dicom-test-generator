@@ -142,6 +142,16 @@
   .link {
     @apply underline;
   }
+  /* 撮影・送信の途中の表示。htmx が要求の間、form に htmx-request を付ける。
+     form の data-action（app.js が押したボタンから入れる）で文言を選ぶ */
+  .busy {
+    @apply hidden items-center gap-2 rounded-md border border-border bg-surface px-3 py-2;
+  }
+  form.htmx-request[data-action="exam"] .busy-exam,
+  form.htmx-request[data-action="exam_send"] .busy-exam-send,
+  form.htmx-request .busy-send {
+    @apply flex;
+  }
 
   /* Lucide のアイコン（app/web/static/icons/）。文字の色で塗る */
   .icon {

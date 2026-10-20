@@ -200,6 +200,20 @@ def test_exam_emergency_requires_patient(monkeypatch, capsys, tmp_path, config) 
     assert "--patient-id" in err
 
 
+def test_exam_without_images_fills_one_per_series(monkeypatch, capsys, tmp_path, config) -> None:
+    """-i を省いたら、シリーズごとに 1 枚（-s 3 なら 1,1,1。spec/12a の 10.5）."""
+    code, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0003",
+        "--patient-name", "KINKYU^TARO", "-s", "3", "--pixel-mode", "simple_text", "--json",
+    )
+
+    data = json.loads(out)
+    assert code == 0
+    assert len(data["files"]) == 3
+    series_numbers = {int(pydicom.dcmread(path).SeriesNumber) for path in data["files"]}
+    assert series_numbers == {1, 2, 3}
+
+
 def test_exam_series_and_images_must_match(monkeypatch, capsys, tmp_path, config) -> None:
     code, _, _ = run_cli(
         monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E1",
