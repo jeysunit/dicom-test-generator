@@ -64,7 +64,26 @@ def test_send_failure_is_a_red_notice(tmp_path, worklist_scp) -> None:
     assert 'class="notice notice-error"' in html
 
 
-@pytest.mark.parametrize("path", ["/worklist", "/exam", "/pacs", "/settings"])
+def test_pacs_job_table_shows_patient_not_folder(client) -> None:
+    token = csrf_token(client, "/exam")
+    form = _emergency_form(action="exam_send", name_ideographic="緊急 太郎")
+    client.post("/exam", data=form, headers=post_headers(token))
+    queue = client.get("/pacs/queue").text
+
+    head = queue.split("</thead>", 1)[0]
+    for column in ("患者 ID", "氏名", "検査日時", "送信先", "画像数", "状態", "受付日時", "完了日時"):
+        assert f">{column}<" in head
+    assert "出力先フォルダ" not in queue
+    body = queue.split("<tbody>", 1)[1]
+    assert "E0001" in body
+    assert "緊急^太郎" not in body
+    assert "緊急 太郎" in body
+    # フォルダは行の「詳細」の「元のファイル」に残す
+    assert "<details" in body and "元のファイル" in body
+    assert "emergency_" in body
+
+
+@pytest.mark.parametrize("path",["/worklist", "/exam", "/pacs", "/settings"])
 def test_pages_do_not_use_avoided_words(client, path) -> None:
     html = client.get(path).text
 

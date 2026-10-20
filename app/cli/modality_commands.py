@@ -281,15 +281,20 @@ def queue_list_command(args: argparse.Namespace) -> int:
     if args.json:
         _print_json([job.model_dump() for job in jobs])
         return 0
+    # 元のファイルのフォルダは既定では出さない。-v で最後の列に足す
+    folder_header = "  FOLDER" if args.verbose else ""
     _emit(
-        f"{'ID':>4}  {'STATUS':8s} {'DEST':12s} {'SENT':>9}  {'COMMIT':9s}  {'UPDATED':19s}  FOLDER"
+        f"{'ID':>4}  {'STATUS':8s} {'PATIENT_ID':12s} {'ACCESSION':12s} {'DEST':12s} "
+        f"{'SENT':>9}  {'COMMIT':9s}  {'UPDATED':19s}{folder_header}"
     )
     for job in jobs:
         sent = f"{job.num_sent}/{job.num_files}"
         commitment = job.commitment or "-"
+        folder = f"  {job.folder}" if args.verbose else ""
         _emit(
-            f"{job.id:>4}  {job.status:8s} {job.destination:12s} {sent:>9}  {commitment:9s}  "
-            f"{job.updated_at:19s}  {job.folder}{STALE_MARK if job.stale else ''}"
+            f"{job.id:>4}  {job.status:8s} {job.patient_id or '-':12s} "
+            f"{job.accession_number or '-':12s} {job.destination:12s} {sent:>9}  "
+            f"{commitment:9s}  {job.updated_at:19s}{folder}{STALE_MARK if job.stale else ''}"
         )
     _emit(f"[INFO] {len(jobs)} job(s).")
     return 0

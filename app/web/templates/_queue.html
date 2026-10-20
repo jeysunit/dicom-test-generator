@@ -8,39 +8,53 @@
     <thead>
       <tr>
         <th scope="col">ジョブ</th>
-        <th scope="col">状態</th>
-        <th scope="col">送り先</th>
+        <th scope="col">患者 ID</th>
+        <th scope="col">氏名</th>
+        <th scope="col">検査日時</th>
         <th scope="col">受付番号</th>
-        <th scope="col">送信済み画像</th>
+        <th scope="col">送信先</th>
+        <th scope="col">画像数</th>
+        <th scope="col">状態</th>
         <th scope="col">保管の確認</th>
-        <th scope="col">時刻</th>
-        <th scope="col">出力先フォルダ</th>
-        <th scope="col"><span class="sr-only">操作</span></th>
+        <th scope="col">受付日時</th>
+        <th scope="col">完了日時</th>
+        <th scope="col"><span class="sr-only">詳細・操作</span></th>
       </tr>
     </thead>
     <tbody>
       {% for job in jobs %}
+      {% set alphabetic, ideographic, phonetic = job.patient_name|name_parts %}
       <tr>
         <td>{{ job.id }}</td>
-        <td><span class="status status-{{ job.status }}">{{ STATUS_LABELS.get(job.status, job.status) }}</span>{% if job.stale %} <span class="badge">止まった</span>{% endif %}</td>
-        <td>{{ job.destination }}</td>
+        <td class="font-mono">{{ job.patient_id or "—" }}</td>
+        <td>{{ ideographic or alphabetic or "—" }}</td>
+        <td class="text-xs">{{ job.study_datetime or "—" }}</td>
         <td class="font-mono">{{ job.accession_number or "—" }}</td>
+        <td>{{ job.destination }}</td>
         <td>{{ job.num_sent }}/{{ job.num_files }}</td>
+        <td><span class="status status-{{ job.status }}">{{ STATUS_LABELS.get(job.status, job.status) }}</span>{% if job.stale %} <span class="badge">止まった</span>{% endif %}</td>
         <td>
           {% if job.commitment %}
           <span class="status status-{{ COMMITMENT_STATUS_CLASSES.get(job.commitment, 'failed') }}">{{ COMMITMENT_LABELS.get(job.commitment, job.commitment) }}</span>
           {% if job.commitment_error %}<span class="block text-xs text-danger">{{ job.commitment_error }}</span>{% endif %}
           {% else %}—{% endif %}
         </td>
-        <td class="text-xs">{{ job.updated_at|replace("T", " ") }}</td>
-        <td>{% with uid = job.folder %}{% include "_uid.html" %}{% endwith %}</td>
+        <td class="text-xs">{{ job.created_at|replace("T", " ") }}</td>
+        <td class="text-xs">{% if job.status == "sent" %}{{ job.updated_at|replace("T", " ") }}{% else %}—{% endif %}</td>
         <td>
-          {% if job.status == "failed" %}
           <div class="flex flex-wrap items-center gap-2">
+            {% if job.status == "failed" %}
             <span class="text-xs text-danger">{{ job.last_error }}</span>
             <button type="button" class="btn btn-outline" hx-post="/pacs/retry/{{ job.id }}" hx-target="#queue" hx-disabled-elt="this">再送</button>
+            {% endif %}
+            <details class="text-xs" data-job="{{ job.id }}">
+              <summary class="link cursor-pointer">詳細</summary>
+              <dl class="values mt-2">
+                <dt>元のファイル</dt><dd>{% with uid = job.folder %}{% include "_uid.html" %}{% endwith %}</dd>
+                <dt>試行回数</dt><dd>{{ job.attempts }}</dd>
+              </dl>
+            </details>
           </div>
-          {% endif %}
         </td>
       </tr>
       {% endfor %}

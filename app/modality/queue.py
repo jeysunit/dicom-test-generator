@@ -120,6 +120,10 @@ class QueueJob(BaseModel):
     stale: bool = False  # 送信中のまま止まった件（8.2）
     commitment: str = ""  # 最後の保管の確認の状態。使わない件は空（8.3.3）
     commitment_error: str = ""
+    # 元のファイルの先頭から読んだ値（一覧の表示用。ファイルが無ければ空）
+    patient_id: str = ""
+    patient_name: str = ""
+    study_datetime: str = ""
 
 
 class CommitmentState(BaseModel):
