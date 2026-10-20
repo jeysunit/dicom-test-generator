@@ -1,17 +1,17 @@
 # syntax=docker/dockerfile:1
 # dicom-test-generator のイメージ（モダリティエミュレーターの CLI と Web 画面）。
 #
-# - 土台は Python の公式のイメージ（slim）。GUI（PySide6）と試験の包みは入れない
-# - root でない利用者（dtg、uid 10001）で動かす。コードは root のもののまま（dtg からは読むだけ）
+# - ベースイメージは Python の公式イメージ（slim）。GUI（PySide6）とテスト用パッケージは入れない
+# - root 以外のユーザー（dtg、uid 10001）で動かす。コードの所有者は root のまま（dtg は読み取りだけ）
 # - 設定は外から /app/config/app_config.yaml に mount する（イメージの中の設定は例）
 # - Web 画面はコンテナの中で 0.0.0.0 に bind するので、設定の web.bind_address を
 #   "0.0.0.0" にし、HTTP Basic のパスワードのファイルを DTG_WEB_PASSWORD_FILE で渡す
 #   （README の「Docker で動かす」）
-# - 書く場所：/app/modality_state（予約の結果・送信のキュー）、/app/output（作った画像）、
+# - 書き込む場所：/app/modality_state（予約の結果・送信キュー）、/app/output（作成した画像）、
 #   /app/logs（CLI のログ）
 
-# 土台は digest で固定する（複数のアーキテクチャの目録の digest。2026-10-20 に
-# docker buildx imagetools inspect で読んだ）。上げるときは同じ方法で読み直す
+# ベースイメージは digest で固定する（マルチアーキテクチャの manifest list の digest。
+# 2026-10-20 に docker buildx imagetools inspect で確認した）。更新するときも同じ方法で確認する
 ARG PYTHON_IMAGE=python:3.12-slim-trixie@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
 
 FROM ${PYTHON_IMAGE}

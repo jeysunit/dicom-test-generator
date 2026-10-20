@@ -189,6 +189,12 @@ docker exec dtg python -m app.cli echo --to PACS_TEST
   `/app/output` に書きます。残すときは volume を mount します
 * パスワードのファイルは、コンテナの中のユーザー（uid 10001）が
   読めるようにします（例：`chmod 0644`）
+* volume の代わりにホストのディレクトリを bind mount するときは、
+  そのディレクトリを uid 10001 が書き込めるようにします
+* この手順では、保管確認（Storage Commitment）の結果は受け取れません。
+  受け取るには、設定の `modality.listen.bind_address` を `"0.0.0.0"` にし、
+  待ち受けのポート（既定 11113）も公開します
+* イメージにヘルスチェックは入れていません
 
 ---
 
