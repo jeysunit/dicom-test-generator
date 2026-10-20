@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m app.web",
-        description="モダリティのダミーのウェブの画面を起動する（既定は手元の 127.0.0.1:8080）",
+        description="モダリティエミュレータのウェブ画面を起動する（既定は手元の 127.0.0.1:8080）",
         epilog=(
             f"手元の外で待ち受けるときは {PASSWORD_FILE_ENV} にパスワードのファイルを指す"
             f"（利用者の名前は {USERNAME}）。TLS は前段の逆プロキシで付ける。"

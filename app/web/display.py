@@ -13,8 +13,8 @@ DATE_LENGTH = 8
 TIME_MIN_LENGTH = 4
 PN_GROUPS = 3
 SEX_LABELS = {"M": "男", "F": "女", "O": "その他"}
-STATUS_LABELS = {"pending": "待ち", "sending": "送信中", "sent": "送れた", "failed": "失敗"}
-# 保管の確認の状態（10.6・10.8）と、出すときの色の印（待ち行列の状態と同じ CSS を使う）
+STATUS_LABELS = {"pending": "待機中", "sending": "送信中", "sent": "送信完了", "failed": "送信失敗"}
+# 保管の確認の状態（10.6・10.8）と、出すときの色の印（送信ジョブの状態と同じ CSS を使う）
 COMMITMENT_LABELS = {
     "waiting": "確認待ち",
     "confirmed": "確認済",
@@ -88,7 +88,7 @@ def exam_notices(item: WorklistItem, own_ae_title: str) -> list[str]:
     if item.scheduled_station_ae_title and item.scheduled_station_ae_title != own_ae_title:
         notices.append("この予約は別の装置の予定です")
     if not item.study_instance_uid:
-        notices.append("予約に Study Instance UID が無いため、この道具が作ります")
+        notices.append("予約に Study Instance UID が無いため、このツールが生成します")
     if not item.birth_date:
         notices.append("生年月日が空です")
     if not item.sex:

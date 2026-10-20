@@ -56,9 +56,9 @@ def test_same_token_is_accepted_once(client, tmp_path) -> None:
     first = client.post("/exam", data=_form(token), headers=post_headers(csrf))
     second = client.post("/exam", data=_form(token), headers=post_headers(csrf))
 
-    assert "撮影しました" in first.text
+    assert "撮影完了" in first.text
     assert "受け付け済み" in second.text
-    assert "撮影しました" not in second.text
+    assert "撮影完了" not in second.text
     assert len(list((tmp_path / "output").rglob("*.dcm"))) == 1
 
 
@@ -73,7 +73,7 @@ def test_result_hands_over_a_fresh_token(client, tmp_path) -> None:
 
     second = client.post("/exam", data=_form(next_token), headers=post_headers(csrf))
 
-    assert "撮影しました" in second.text
+    assert "撮影完了" in second.text
     assert len(list((tmp_path / "output").rglob("*.dcm"))) == 2
 
 
@@ -86,7 +86,7 @@ def test_failed_exam_gives_the_token_back(client) -> None:
 
     assert 'role="alert"' in failed.text
     assert "受け付け済み" not in retried.text
-    assert "撮影しました" in retried.text
+    assert "撮影完了" in retried.text
 
 
 def test_request_without_token_is_still_accepted(client) -> None:
@@ -94,7 +94,7 @@ def test_request_without_token_is_still_accepted(client) -> None:
 
     response = client.post("/exam", data=_form(""), headers=post_headers(csrf))
 
-    assert "撮影しました" in response.text
+    assert "撮影完了" in response.text
     assert "exam_token" not in response.text
 
 

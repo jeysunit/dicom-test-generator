@@ -35,8 +35,9 @@ def test_pick_exam_send_and_confirm(client, worklist_scp, storage_scp) -> None:
     response = client.post("/exam", data=_exam_form(key, "exam_send"), headers=post_headers(token))
 
     assert response.status_code == 200, response.text
-    assert "撮影しました" in response.text
-    assert "送れた" in response.text
+    assert "撮影完了：3 画像" in response.text
+    assert "送信完了：PACS_TEST へ 3/3 画像（ジョブ 1）" in response.text
+    assert "notice-ok" in response.text
     assert len(storage_scp.received) == 3
     first = storage_scp.received[0]
     assert first.PatientID == "P000001"
@@ -44,7 +45,7 @@ def test_pick_exam_send_and_confirm(client, worklist_scp, storage_scp) -> None:
     assert first.StudyInstanceUID == "2.25.100000000000000000000000000000000001"
 
     queue = client.get("/pacs/queue").text
-    assert "送れた" in queue
+    assert "送信完了" in queue
     assert "3/3" in queue
 
 
@@ -79,7 +80,7 @@ def test_exam_with_profile_then_send_from_result(client, storage_scp) -> None:
     output_dir = _OUTPUT_DIR_PATTERN.search(response.text).group(1)
 
     sent = client.post("/exam/send", data={"output_dir": output_dir}, headers=post_headers(token))
-    assert "送れた" in sent.text
+    assert "送信完了" in sent.text
     received = storage_scp.received[0]
     assert received.Manufacturer == "DTG Synthetic"
     assert str(received.PatientName) == "KINKYU^TARO=緊急^太郎"
@@ -116,5 +117,5 @@ def test_failed_send_is_retried_from_pacs(tmp_path, worklist_scp, storage_scp) -
     retried = reachable.post("/pacs/retry-failed", headers=post_headers(token))
 
     assert retried.status_code == 200
-    assert "送れた" in retried.text
+    assert "送信完了" in retried.text
     assert len(storage_scp.received) == 3

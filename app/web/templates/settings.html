@@ -18,7 +18,7 @@
   <h2 class="panel-title">ワークリストの相手</h2>
   <dl class="values">
     <dt>AE タイトル</dt><dd class="font-mono">{{ config.worklist.ae_title }}</dd>
-    <dt>住所</dt><dd class="font-mono">{{ config.worklist.host }}:{{ config.worklist.port }}</dd>
+    <dt>ホスト</dt><dd class="font-mono">{{ config.worklist.host }}:{{ config.worklist.port }}</dd>
     <dt>時間切れ</dt><dd>{{ config.worklist.timeout_seconds }} 秒</dd>
     <dt>MPPS</dt><dd>{% if config.worklist.use_mpps %}使う（送り先 <span class="font-mono">{{ config.mpps_peer().ae_title }} {{ config.mpps_peer().host }}:{{ config.mpps_peer().port }}</span>）{% else %}使わない{% endif %}</dd>
   </dl>
@@ -31,7 +31,7 @@
     <dd class="font-mono">{{ destination.ae_title }} {{ destination.host }}:{{ destination.port }}・保管の確認 {% if destination.storage_commitment %}使う（結果を待つ {{ "%g"|format(destination.commitment_timeout_seconds) }} 秒・同じ Association で待つ {{ "%g"|format(destination.commitment_wait_seconds) }} 秒）{% else %}使わない{% endif %}</dd>
     {% endfor %}
   </dl>
-  <p class="mt-4 text-xs text-label">Orthanc で保管の確認を使うときは、この道具を Orthanc の <code>DicomModalities</code> に登録してください（AE タイトル {{ config.ae_title }}・住所・待ち受けのポート {{ config.listen.port }}）。</p>
+  <p class="mt-4 text-xs text-label">Orthanc で保管の確認を使うときは、このツールを Orthanc の <code>DicomModalities</code> に登録してください（AE タイトル {{ config.ae_title }}・IP アドレス・待ち受けのポート {{ config.listen.port }}）。</p>
 </section>
 <section class="panel">
   <h2 class="panel-title">文字コードと撮影</h2>

@@ -96,4 +96,27 @@
   document.addEventListener("htmx:sendError", function (event) {
     showFailure(event, "サーバーに届きませんでした。接続を確かめてから、もう一度押してください");
   });
+
+  // PACS の送信ジョブ：2秒ごとに表を差し替えても、開いた「詳細」は開いたままにする。
+  var openJobs = [];
+  document.addEventListener("htmx:beforeSwap", function (event) {
+    if (event.target.id === "queue") {
+      openJobs = Array.prototype.map.call(
+        event.target.querySelectorAll("details[open][data-job]"),
+        function (details) {
+          return details.getAttribute("data-job");
+        }
+      );
+    }
+  });
+  document.addEventListener("htmx:afterSwap", function (event) {
+    if (event.target.id === "queue") {
+      openJobs.forEach(function (job) {
+        var details = event.target.querySelector('details[data-job="' + job + '"]');
+        if (details) {
+          details.setAttribute("open", "");
+        }
+      });
+    }
+  });
 })();

@@ -9,7 +9,7 @@
         <tr>
           <th scope="col">名前</th>
           <th scope="col">AE タイトル</th>
-          <th scope="col">住所</th>
+          <th scope="col">ホスト</th>
           <th scope="col">保管の確認</th>
           <th scope="col"><span class="sr-only">C-ECHO</span></th>
           <th scope="col">C-ECHO の結果</th>
@@ -36,7 +36,7 @@
 </section>
 <section class="panel">
   <div class="mb-4 flex flex-wrap items-center gap-3">
-    <h2 class="panel-title mb-0">送信の待ち行列と履歴</h2>
+    <h2 class="panel-title mb-0">送信ジョブと履歴</h2>
     <button type="button" class="btn btn-outline ml-auto" hx-post="/pacs/retry-failed" hx-target="#queue" hx-disabled-elt="this">
       <span class="icon icon-refresh-cw" aria-hidden="true"></span>失敗をすべて再送
     </button>

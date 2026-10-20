@@ -103,7 +103,7 @@
         <input type="number" name="series" value="1" min="1" max="99" class="input" required aria-required="true" data-series-count>
       </label>
       <label class="field">
-        <span class="field-label">枚数（シリーズごと。例 1,20） <span class="badge text-danger">必須</span></span>
+        <span class="field-label">画像数（シリーズごと。例 1,20） <span class="badge text-danger">必須</span></span>
         <input type="text" name="images" value="1" class="input" required aria-required="true" data-images-list>
       </label>
       <label class="field">
@@ -113,8 +113,8 @@
         </select>
       </label>
     </div>
-    <p class="mt-4 text-xs text-label">シリーズ数を変えると、枚数をシリーズごとに同じ数で自動入力します（枚数を手で直した後は上書きしません）。</p>
-    <p class="mt-2 text-xs text-label">1回の撮影は合計 {{ config.max_images_per_exam }} 枚まで。異常のデータは、予約から写した値も壊すことがあります。</p>
+    <p class="mt-4 text-xs text-label">シリーズ数を変えると、画像数をシリーズごとに同じ数で自動入力します（画像数を手で直した後は上書きしません）。</p>
+    <p class="mt-2 text-xs text-label">1回の撮影は合計 {{ config.max_images_per_exam }} 画像まで。異常のデータは、予約から写した値も壊すことがあります。</p>
     <p class="mt-2 text-xs text-label">{% if config.worklist.use_mpps %}MPPS：使う（{{ config.mpps_peer().ae_title }}）{% else %}MPPS：使わない{% endif %}</p>
     {% for error in profile_errors %}<p role="alert" class="mt-2 text-xs text-danger">{{ error }}</p>{% endfor %}
   </section>

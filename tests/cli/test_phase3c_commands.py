@@ -99,6 +99,10 @@ def test_commit_confirmed_is_exit_0(monkeypatch, capsys, tmp_path, worklist_scp,
     assert json.loads(out)[0]["commitment"] == "confirmed"
     code, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "queue", "list")
     assert "COMMIT" in out and "confirmed" in out
+    # 元のファイルのフォルダは既定では出さず、-v で出す
+    assert "FOLDER" not in out and "PATIENT_ID" in out
+    code, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "queue", "list", "-v")
+    assert "FOLDER" in out
 
 
 def test_commit_failed_is_exit_5(monkeypatch, capsys, tmp_path, worklist_scp, commitment_pacs) -> None:

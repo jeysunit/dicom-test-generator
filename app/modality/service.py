@@ -77,7 +77,9 @@ PPS_ID_PREFIX = "PPS"
 COUNTER_WIDTH = 6
 DEFAULT_TEMPLATE_MODALITY = "CT"
 MAX_FOLDER_SUFFIX = 100
-EXAM_BUSY_MESSAGE = "ほかの撮影が走っています。終わってから撮ってください"
+DICOM_DATE_LENGTH = 8
+DICOM_TIME_MIN_LENGTH = 4
+EXAM_BUSY_MESSAGE ="ほかの撮影が走っています。終わってから撮ってください"
 
 
 def check_send_files(folder: Path, files: list[str]) -> None:
@@ -93,6 +95,29 @@ def check_send_files(folder: Path, files: list[str]) -> None:
         resolved = path.resolve()
         if resolved.parent != root or not resolved.is_file():
             raise FileReadError(name, f"not a regular file directly inside {root}")
+
+
+def _read_job_summary(folder: Path) -> tuple[str, str, str]:
+    """フォルダの最初の画像から（患者 ID・氏名・検査日時）を読む。読めなければ空."""
+    try:
+        first = next(
+            path for path in sorted(folder.glob("*.dcm")) if path.is_file() and not path.is_symlink()
+        )
+        dataset = dcmread(
+            first,
+            stop_before_pixels=True,
+            specific_tags=["PatientID", "PatientName", "StudyDate", "StudyTime"],
+        )
+    except (StopIteration, OSError, InvalidDicomError):
+        return "", "", ""
+    study_date = str(dataset.get("StudyDate", ""))
+    study_time = str(dataset.get("StudyTime", ""))
+    study_datetime = ""
+    if len(study_date) == DICOM_DATE_LENGTH and study_date.isdigit():
+        study_datetime = f"{study_date[:4]}/{study_date[4:6]}/{study_date[6:]}"
+        if len(study_time) >= DICOM_TIME_MIN_LENGTH:
+            study_datetime += f" {study_time[:2]}:{study_time[2:4]}"
+    return str(dataset.get("PatientID", "")), str(dataset.get("PatientName", "")), study_datetime
 
 
 class ExamRequest(BaseModel):
@@ -182,6 +207,8 @@ class ModalityService:
         self._auto_commitment = auto_commitment
         # 同時に走る撮影は1つ（画面のプロセスの中。spec/12a の 10.5）
         self._exam_lock = threading.Lock()
+        # 送信ジョブの一覧に出す患者・検査の値（元のファイルから読み、ジョブの番号で覚える）
+        self._job_summaries: dict[int, tuple[str, str, str]] = {}
 
     @property
     def queue(self) -> SendQueue:
@@ -460,7 +487,7 @@ class ModalityService:
         limit = self.config.max_images_per_exam
         if total > limit:
             raise ValidationError(
-                f"1回の撮影は合計 {limit} 枚までです（{total} 枚を求められました）",
+                f"1回の撮影は合計 {limit} 画像までです（{total} 画像が指定されました）",
                 {"max_images_per_exam": limit, "requested": total},
             )
         if not self._exam_lock.acquire(blocking=False):
@@ -634,7 +661,23 @@ class ModalityService:
         return results
 
     def list_queue(self, status: str | None = None) -> list[QueueJob]:
-        return self.queue.list_jobs(status)
+        """送信ジョブの一覧。患者 ID・氏名・検査日時は、元のファイルの先頭から読んで足す."""
+        return [self._with_summary(job) for job in self.queue.list_jobs(status)]
+
+    def _with_summary(self, job: QueueJob) -> QueueJob:
+        summary = self._job_summaries.get(job.id)
+        if summary is None:
+            summary = _read_job_summary(Path(job.folder))
+            if any(summary):
+                self._job_summaries[job.id] = summary
+        patient_id, patient_name, study_datetime = summary
+        return job.model_copy(
+            update={
+                "patient_id": patient_id,
+                "patient_name": patient_name,
+                "study_datetime": study_datetime,
+            }
+        )
 
     def _send_job(self, job_id: int, files: list[str]) -> SendResult:
         job = self.queue.get_job(job_id)
@@ -688,7 +731,7 @@ class ModalityService:
         if item.scheduled_station_ae_title and item.scheduled_station_ae_title != self.config.ae_title:
             notices.append("この予約は別の装置の予定です")
         if not item.study_instance_uid:
-            notices.append("予約に Study Instance UID が無いため、この道具が作りました")
+            notices.append("予約に Study Instance UID が無いため、このツールが生成しました")
         if not item.birth_date:
             notices.append("生年月日が空です")
         if not item.sex:

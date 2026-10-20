@@ -189,7 +189,7 @@ def test_pacs_queue_partial_polls(client) -> None:
     partial = client.get("/pacs/queue")
     assert partial.status_code == 200
     assert "<html" not in partial.text
-    assert "まだ送った検査はありません" in partial.text
+    assert "送信した検査はまだありません" in partial.text
 
 
 def test_pacs_echo(client) -> None:
@@ -261,7 +261,7 @@ def test_emergency_required_and_bad_names_are_refused_on_the_server(
 ) -> None:
     html = _emergency(client, **fields)
     assert 'role="alert"' in html
-    assert "撮影しました" not in html
+    assert "撮影完了" not in html
     assert not list((tmp_path / "output").rglob("*.dcm"))
 
 
@@ -290,7 +290,7 @@ def test_broken_state_is_reported_without_values(client, tmp_path) -> None:
 
 
 def test_exam_page_shows_the_total_images_limit(client) -> None:
-    assert "2000 枚まで" in client.get("/exam").text
+    assert "2000 画像まで" in client.get("/exam").text
 
 
 def test_exam_over_the_total_limit_is_refused(client, tmp_path) -> None:

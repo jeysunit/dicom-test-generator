@@ -37,6 +37,8 @@ def test_spec_table_has_all_color_tokens() -> None:
         "--color-primary",
         "--color-primary-foreground",
         "--color-danger",
+        "--color-success",
+        "--color-warning",
     }
 
 
