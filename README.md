@@ -14,8 +14,8 @@ Pixel data is made up for testing and not intended for clinical use.
 （PACS、RIS、ビューア、画像取り込みシステムなど）の
 検証・開発・デバッグ用途のために、
 架空の患者の試験用 DICOM データを作成・送信するツールです。
-CT などの検査装置（モダリティ）を模擬して、ワークリスト（検査予約の一覧）を取得し、
-予約の内容で画像を作成して、画像サーバー（PACS）へ送信することもできます。
+CT などの検査装置（モダリティ）として動作し、ワークリスト（検査予約の一覧）を取得して、
+予約の内容で作成した画像を PACS へ送信することもできます。
 
 画像の中身は試験用に生成したもので、実際の医療画像ではありません。
 そのため、個人情報を含まず、安全にテスト用途へ利用できます。
@@ -32,14 +32,14 @@ CT などの検査装置（モダリティ）を模擬して、ワークリス�
 
 ## システム構成
 
-### 図1　全体
+### 全体の構成
 
 この図で分かること：本ツールの内部の処理の流れと、外部のシステム（ワークリストの提供元、
-画像サーバー）との接続。
+PACS）との接続。
 
 Web 画面と CLI は、同じサービス層（Service）を呼び出す。
 ワークリストの提供元から検査予約を取得し、予約の内容で試験用の画像を作成して、
-画像サーバー（PACS）へ送信する。送信後の保管確認（Storage Commitment）と
+PACS へ送信する。送信後の保管確認（Storage Commitment）と
 MPPS は、設定で有効にしたときだけ行う。
 内部のレイヤー構成の図は [spec/01_architecture.md](spec/01_architecture.md) にある。
 
@@ -49,15 +49,15 @@ flowchart LR
 
   UI["Web 画面・CLI"]:::box
   SVC["サービス層（Service）"]:::box
-  subgraph FLOW["モダリティの模擬"]
+  subgraph FLOW["モダリティエミュレーター"]
     direction TB
     MWL["(a) ワークリスト（検査予約の一覧）を取得"]:::box
     MAKE["(b) 予約から画像を作成<br/>テンプレート・装置プロファイル"]:::box
     QUEUE["(c) 送信キュー<br/>失敗時は再送できる"]:::box
     COMMIT["(d) 保管確認・MPPS"]:::box
   end
-  RIS["ワークリストの提供元<br/>RIS・画像サーバーのワークリスト"]:::box
-  PACS[("画像サーバー（PACS）")]:::box
+  RIS["ワークリストの提供元<br/>RIS・PACS のワークリスト"]:::box
+  PACS[("PACS")]:::box
 
   UI --> SVC
   SVC --> MWL
@@ -70,28 +70,6 @@ flowchart LR
   COMMIT -->|"保管確認"| PACS
   COMMIT -->|"MPPS（既定の送り先）"| RIS
 ```
-
-### 図2　開発・試験のときの構成（本物の患者のデータを使わずに試す）
-
-この図で分かること：試験のときに、画像ビューア（tsunagi-dicom）と組み合わせる構成。
-
-本ツールで CT などのモダリティを模擬し、架空の患者の試験用画像を
-画像サーバーへ送信して、[tsunagi-dicom](https://github.com/jeysunit/tsunagi-dicom)
-で表示する。実際の患者のデータは使わない。
-
-```mermaid
-flowchart LR
-  classDef box fill:#ffffff,stroke:#0969da,stroke-width:2px,color:#1f2328
-
-  DTG["dicom-test-generator<br/>モダリティを模擬する試験用ツール<br/>架空の患者の画像を作成"]:::box
-  PACS[("画像サーバー<br/>Orthanc など（試験用）")]:::box
-  TD["tsunagi-dicom<br/>画像ビューアと中継サーバー"]:::box
-
-  DTG -->|"DICOM で画像を送信"| PACS
-  PACS -->|"tsunagi-dicom が検査を検索し<br/>画像を取得"| TD
-```
-
-矢印は画像の流れる向きを表す。
 
 ---
 
@@ -109,15 +87,15 @@ flowchart LR
   `--abnormal-level` で選びます。指定しなければ正常なデータです
 * モダリティテンプレート、病院設定テンプレート、YAML の Job による構成
 * 装置プロファイル：装置の DICOM コンフォーマンスステートメントの内容を写し、
-  その装置の DICOM の出力を模擬します。実在の装置のプロファイルは
+  その装置の DICOM の出力を再現します。実在の装置のプロファイルは
   リポジトリの外に置きます（[spec/13_device_profiles.md](spec/13_device_profiles.md)）
 
-### モダリティを模擬する
+### モダリティとして動作する
 
 Web 画面と CLI で、ワークリストの取得、予約の選択、撮影（試験用画像の作成）、
 PACS への送信、結果の確認までを行います
 （[spec/12_modality_emulator.md](spec/12_modality_emulator.md)）。
-起動方法は下の「モダリティ模擬の Web 画面」を見てください。
+起動方法は下の「モダリティエミュレーターの Web 画面」を見てください。
 試験用の PACS・RIS にだけつないでください。
 
 * ワークリスト（検査予約の一覧）の取得（MWL）
@@ -248,7 +226,7 @@ character_set:
 
 ---
 
-## モダリティ模擬の Web 画面
+## モダリティエミュレーターの Web 画面
 
 ワークリスト・撮影・PACS・設定の4つの画面で「取得 → 選択 → 撮影 → 送信 → 確認」を
 行います（[spec/12a_web_screens_and_cli.md](spec/12a_web_screens_and_cli.md) の
@@ -406,7 +384,7 @@ dicom-test-generator/
 ├── app/
 │   ├── core/           # Core Engine（データモデル、DICOM構築、UID生成等）
 │   ├── services/       # Service Layer（テンプレート読み込み、患者検索、生成）
-│   ├── modality/       # モダリティの模擬（ワークリスト、送信、キュー、保管確認、MPPS）
+│   ├── modality/       # モダリティエミュレーター（ワークリスト、送信、キュー、保管確認、MPPS）
 │   ├── cli/            # CLI（argparse、サブコマンド、進捗表示）
 │   ├── web/            # Web 画面
 │   └── gui/            # PySide6 のデスクトップ画面（基本の生成機能のみ。機能追加は停止）
@@ -435,7 +413,7 @@ dicom-test-generator/
 2. [01_architecture.md](spec/01_architecture.md) - アーキテクチャ設計
 3. [02_core_engine.md](spec/02_core_engine.md) - Core Engine API
 4. [07_job_schema.md](spec/07_job_schema.md) - Job YAML スキーマ
-5. [12_modality_emulator.md](spec/12_modality_emulator.md) - モダリティの模擬
+5. [12_modality_emulator.md](spec/12_modality_emulator.md) - モダリティエミュレーター
    （Web 画面と CLI は [12a](spec/12a_web_screens_and_cli.md)、設計判断と制約は
    [12b](spec/12b_decisions_and_limits.md)）
 
