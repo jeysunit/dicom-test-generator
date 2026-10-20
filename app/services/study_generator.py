@@ -12,6 +12,8 @@ from pydicom.dataset import Dataset
 
 from app.core import (
     CT_IMAGE_STORAGE,
+    AbnormalGenerator,
+    apply_abnormal_to_dataset,
     DeviceProfile,
     DICOMBuilder,
     DICOMGeneratorError,
@@ -155,6 +157,12 @@ class StudyGeneratorService:
             except OSError as exc:
                 raise DirectoryCreateError(str(output_dir), str(exc)) from exc
 
+            abnormal_generator = AbnormalGenerator(level=config.abnormal.level)
+            if config.abnormal.level != "none":
+                logger.warning(
+                    "Abnormal data injection is enabled: level=%s", config.abnormal.level
+                )
+
             generated_count = 0
             file_sequence = 1
             for series_config in config.series_list:
@@ -207,6 +215,9 @@ class StudyGeneratorService:
                         apply_device_profile(
                             dataset, profile, apply_station_name=apply_station_name
                         )
+                    # 異常のデータは最後に当てる（予約・プロファイルの値にも効く。
+                    # spec/02 の AbnormalGenerator）。none では何も変えない
+                    apply_abnormal_to_dataset(dataset, abnormal_generator)
                     if scheduled is not None:
                         ensure_dataset_encodable(dataset)
 

@@ -28,10 +28,16 @@
 以降の節は、これらのクラスの仕様を書く。クラスの外にある Core のモジュールは
 「Core のそのほかのモジュール」にまとめる。
 
-**`AbnormalGenerator` の接続の現状**: `StudyGeneratorService` は
-`AbnormalGenerator` を呼ばない。生成で使う異常の設定は
-`abnormal.allow_invalid_sop_uid`（SOP Instance UID の 0 始まり）だけで、
-`abnormal.level` は設定として持つが、生成の経路には届いていない。
+**`AbnormalGenerator` の接続**: `StudyGeneratorService.generate` は、
+`abnormal.level` で作った `AbnormalGenerator` を、Dataset を組み終えた後
+（テンプレート・予約・装置のプロファイルを当てた後）に、画像1枚ごとに当てる。
+`generate` を通る道（`generate`・`quick`・モダリティのダミーの撮影・GUI）は
+すべてこれを通る。`level` が `none`（既定）のときは何も変えない。
+`abnormal.allow_invalid_sop_uid`（SOP Instance UID の 0 始まり）は `level` とは
+別の設定で、`level` に関わらず効く。
+レベルの指定は、Job YAML の `abnormal.level`、`generate` / `quick` の
+`--abnormal-level`（`generate` では CLI が Job YAML より優先）、
+モダリティのダミーの `exam --abnormal-level` と画面の「異常のデータ」。
 
 ---
 
@@ -535,6 +541,37 @@ patient_id = abnormal_gen.apply_abnormal_value(
 | **mild** | VR違反、文字数超過 |
 | **moderate** | Type 1,2タグをNone返却（欠落）、UID 0始まり |
 | **severe** | File Meta破損、Pixel Data欠落 |
+
+### Dataset への当て方
+
+`apply_abnormal_to_dataset(dataset, generator)`（`abnormal_generator.py`）が、
+次の表のタグのうち Dataset にあるものに `apply_abnormal_value` を当てる。
+表に無いタグは壊さない。壊した値が `None` ならタグを消す。
+
+| タグ | VR | Type | 最大長 |
+|------|----|------|--------|
+| PatientName | PN | 2 | — |
+| PatientID | LO | 2 | 64 |
+| PatientBirthDate | DA | 2 | — |
+| PatientSex | CS | 2 | — |
+| StudyInstanceUID | UI | 1 | — |
+| StudyDate | DA | 2 | — |
+| StudyTime | TM | 2 | — |
+| AccessionNumber | SH | 2 | 16 |
+| Modality | CS | 1 | — |
+| SeriesInstanceUID | UI | 1 | — |
+| SeriesNumber | IS | 2 | — |
+| InstanceNumber | IS | 1 | — |
+| SOPClassUID | UI | 1 | — |
+| SOPInstanceUID | UI | 1 | — |
+
+- `severe` は、この表の処理に加えて Pixel Data を消す。
+- **File Meta の破損は、いまは実装していない。** File Meta の値は壊さず、
+  Dataset 側の SOP Instance UID だけが File Meta と食い違いうる。
+- IS・DS の不正な文字列は、pydicom の検証を通らないので、生の値として入れる。
+- Study Instance UID を消した画像でも撮影の結果を返せるよう、画像から Study UID を
+  読む処理は、タグが無ければ空にする。
+- 壊し方の一部は乱数で決まる（`random`）。同じレベルでも画像ごとに値が違う。
 
 ---
 

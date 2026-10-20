@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import random
 import string
+import warnings
 from typing import Any, Literal
+
+from pydicom.dataelem import RawDataElement
+from pydicom.dataset import Dataset
+from pydicom.tag import Tag
 
 from .exceptions import GenerationError
 
@@ -129,3 +134,70 @@ class AbnormalGenerator:
         charset: str = string.ascii_letters + string.digits,
     ) -> str:
         return "".join(random.choice(charset) for _ in range(length))
+
+
+# 異常を当てるタグの表（keyword, VR, DICOM Type, 最大長）。表に無いタグは壊さない。
+# Type は PS3.3 の画像の IOD での扱い。最大長が None のものは、VR ごとの壊し方になる。
+ABNORMAL_TARGET_TAGS: tuple[tuple[str, str, int, int | None], ...] = (
+    ("PatientName", "PN", 2, None),
+    ("PatientID", "LO", 2, 64),
+    ("PatientBirthDate", "DA", 2, None),
+    ("PatientSex", "CS", 2, None),
+    ("StudyInstanceUID", "UI", 1, None),
+    ("StudyDate", "DA", 2, None),
+    ("StudyTime", "TM", 2, None),
+    ("AccessionNumber", "SH", 2, 16),
+    ("Modality", "CS", 1, None),
+    ("SeriesInstanceUID", "UI", 1, None),
+    ("SeriesNumber", "IS", 2, None),
+    ("InstanceNumber", "IS", 1, None),
+    ("SOPClassUID", "UI", 1, None),
+    ("SOPInstanceUID", "UI", 1, None),
+)
+
+_NUMERIC_STRING_VRS = frozenset({"IS", "DS"})
+
+
+def apply_abnormal_to_dataset(dataset: Dataset, generator: AbnormalGenerator) -> None:
+    """Dataset のタグに異常を当てる（spec/02 の AbnormalGenerator）.
+
+    ``ABNORMAL_TARGET_TAGS`` のうち Dataset にあるタグを ``generator`` の
+    レベルで壊す。壊した値が ``None`` ならタグを消す。``none`` では何も変えない。
+    ``severe`` は Pixel Data も消す。File Meta は壊さない。
+
+    pydicom が代入や書き出しで受けない壊し方は、書ける形に直す。
+    数値の VR（IS・DS）の不正な文字列は、検証を通らない生の値として入れる。
+    文字列の VR に入る整数は、文字列にして入れる。
+    """
+    if generator.level == "none":
+        return
+
+    transfer_syntax = str(getattr(dataset.file_meta, "TransferSyntaxUID", ""))
+    is_implicit = transfer_syntax == "1.2.840.10008.1.2"
+    is_little = transfer_syntax != "1.2.840.10008.1.2.2"
+
+    for keyword, vr, tag_type, max_length in ABNORMAL_TARGET_TAGS:
+        if keyword not in dataset:
+            continue
+        broken = generator.apply_abnormal_value(
+            keyword, dataset[keyword].value, vr, tag_type, max_length
+        )
+        if broken is None:
+            del dataset[keyword]
+            continue
+        if not isinstance(broken, str):
+            broken = str(broken)
+        if vr in _NUMERIC_STRING_VRS:
+            tag = Tag(keyword)
+            raw = broken.encode("ascii", errors="replace")
+            if len(raw) % 2:
+                raw += b" "
+            dataset[tag] = RawDataElement(tag, vr, len(raw), raw, 0, is_implicit, is_little)
+        else:
+            # わざと壊した値なので、pydicom の「VR に合わない」警告は出さない
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                setattr(dataset, keyword, broken)
+
+    if generator.level == "severe" and "PixelData" in dataset:
+        del dataset["PixelData"]

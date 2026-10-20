@@ -310,7 +310,7 @@ character_set:
 
 | フィールド | 型 | 必須 | 説明 | デフォルト |
 |-----------|-----|------|------|----------|
-| `level` | string | - | 異常レベル（none/mild/moderate/severe） | "none" |
+| `level` | string | - | 異常レベル（none/mild/moderate/severe）。画像に当たる（[02](02_core_engine.md)）。`generate --abnormal-level` で上書きできる。ほかの値は検証で止まる | "none" |
 | `allow_invalid_sop_uid` | bool | - | SOP UID 0始まり不正を許可 | false |
 | `invalid_sop_uid_probability` | float | - | 不正UID生成確率（0.0〜1.0） | 0.1 |
 

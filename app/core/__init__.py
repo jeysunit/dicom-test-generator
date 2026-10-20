@@ -36,7 +36,7 @@ from .exceptions import (
     WorklistMappingError,
     WorklistQueryError,
 )
-from .abnormal_generator import AbnormalGenerator
+from .abnormal_generator import AbnormalGenerator, apply_abnormal_to_dataset
 from .device_profile import DeviceProfile, apply_device_profile, normalize_character_set
 from .generator import CT_IMAGE_STORAGE, DICOMBuilder
 from .models import (
@@ -65,6 +65,7 @@ from .uid_generator import UIDGenerator
 __all__ = [
     "AbnormalConfig",
     "AbnormalGenerator",
+    "apply_abnormal_to_dataset",
     "AssociationError",
     "MPPSError",
     "ModalityConfigError",
