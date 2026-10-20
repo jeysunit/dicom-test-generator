@@ -1,21 +1,12 @@
-# イメージに入れるのは Dockerfile の COPY の行のものだけ。ほかは送らない
+# build context に入れるのは、Dockerfile の COPY の行のものだけ（許す物を並べる）。
+# ほかの物（.git・試験・出力・手元に置いた設定やパスワードのファイル）は送らない
+*
+!requirements.txt
+!app/
+!config/
+!data/
+!examples/
+!profiles/examples/
+!templates/
 **/__pycache__
 **/*.py[cod]
-.git
-.github
-.cache
-.venv
-venv
-.pytest_cache
-.coverage
-htmlcov
-logs
-output
-modality_state
-*.dcm
-*.log
-profiles/*
-!profiles/examples
-tests
-adr
-spec

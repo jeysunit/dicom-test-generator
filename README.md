@@ -168,12 +168,13 @@ docker build -t dicom-test-generator .
 mount します。Web 画面はコンテナの中で `0.0.0.0` に bind するので、
 設定の `web.bind_address` を `"0.0.0.0"` にし、HTTP Basic 認証の
 パスワードのファイルを渡します（「ネットワークに公開するとき」）。
-次の例は、ポートをホストの 127.0.0.1 にだけ公開します。
+設定ファイルとパスワードのファイルは、リポジトリの外（例：`~/dtg/`）に
+置きます。次の例は、ポートをホストの 127.0.0.1 にだけ公開します。
 
 ```bash
 docker run -d --name dtg -p 127.0.0.1:8080:8080 \
-  -v "$PWD/my_config.yaml:/app/config/app_config.yaml:ro" \
-  -v "$PWD/password.txt:/run/secrets/dtg_web_password:ro" \
+  -v "$HOME/dtg/app_config.yaml:/app/config/app_config.yaml:ro" \
+  -v "$HOME/dtg/password.txt:/run/secrets/dtg_web_password:ro" \
   -e DTG_WEB_PASSWORD_FILE=/run/secrets/dtg_web_password \
   -v dtg-state:/app/modality_state -v dtg-output:/app/output \
   dicom-test-generator
