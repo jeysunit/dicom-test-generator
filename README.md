@@ -88,8 +88,10 @@ flowchart LR
   TD["tsunagi-dicom<br/>画面と中継のサーバー"]:::box
 
   DTG -->|"DICOM で画像を送る"| PACS
-  TD -->|"検査を検索し、画像を取る"| PACS
+  PACS -->|"tsunagi-dicom が検査を検索して<br/>画像を取りに行く"| TD
 ```
+
+矢印は、画像が流れる向きを表す。
 
 ---
 
