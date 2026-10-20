@@ -252,17 +252,17 @@ def _parse_images(images: str, series: str) -> list[int]:
         values = [int(value.strip()) for value in images.split(",")]
     except ValueError as exc:
         raise ConfigurationError(
-            "シリーズ数と枚数は整数で入れてください（枚数はカンマ区切り）",
+            "シリーズ数と画像数は整数で入れてください（画像数はカンマ区切り）",
             {"series": series, "images": images},
         ) from exc
     if not 1 <= count <= MAX_SERIES:
         raise ConfigurationError(f"シリーズ数は 1〜{MAX_SERIES} にしてください", {"series": series})
     if any(not 1 <= value <= MAX_IMAGES_PER_SERIES for value in values):
         raise ConfigurationError(
-            f"枚数は 1〜{MAX_IMAGES_PER_SERIES} にしてください", {"images": images}
+            f"画像数は 1〜{MAX_IMAGES_PER_SERIES} にしてください", {"images": images}
         )
     if len(values) != count:
         raise ConfigurationError(
-            "枚数の数をシリーズ数と同じにしてください", {"series": count, "images": images}
+            "画像数の項目の数をシリーズ数と同じにしてください", {"series": count, "images": images}
         )
     return values

@@ -460,7 +460,7 @@ class ModalityService:
         limit = self.config.max_images_per_exam
         if total > limit:
             raise ValidationError(
-                f"1回の撮影は合計 {limit} 枚までです（{total} 枚を求められました）",
+                f"1回の撮影は合計 {limit} 画像までです（{total} 画像が指定されました）",
                 {"max_images_per_exam": limit, "requested": total},
             )
         if not self._exam_lock.acquire(blocking=False):
@@ -688,7 +688,7 @@ class ModalityService:
         if item.scheduled_station_ae_title and item.scheduled_station_ae_title != self.config.ae_title:
             notices.append("この予約は別の装置の予定です")
         if not item.study_instance_uid:
-            notices.append("予約に Study Instance UID が無いため、この道具が作りました")
+            notices.append("予約に Study Instance UID が無いため、このツールが生成しました")
         if not item.birth_date:
             notices.append("生年月日が空です")
         if not item.sex:

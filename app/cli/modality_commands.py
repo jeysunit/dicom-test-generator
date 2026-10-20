@@ -93,8 +93,8 @@ def register_modality_commands(
         "-i",
         "--images",
         help=(
-            "各シリーズの枚数（カンマ区切り）。省くと、シリーズごとに"
-            f"{DEFAULT_IMAGES_PER_SERIES} 枚"
+            "各シリーズの画像数（カンマ区切り）。省くと、シリーズごとに"
+            f"{DEFAULT_IMAGES_PER_SERIES} 画像"
         ),
     )
     exam_parser.add_argument("--pixel-mode", choices=PIXEL_MODE_CHOICES, help="ピクセル")
@@ -120,15 +120,15 @@ def register_modality_commands(
     send_parser.add_argument("--to", help="送り先の名前（default: 既定の送り先）")
     send_parser.set_defaults(func=send_command)
 
-    queue_parser = subparsers.add_parser("queue", help="送信の待ち行列")
+    queue_parser = subparsers.add_parser("queue", help="送信ジョブ")
     queue_sub = queue_parser.add_subparsers(dest="queue_command")
-    list_parser = queue_sub.add_parser("list", parents=[common], help="待ち行列と履歴を出す")
+    list_parser = queue_sub.add_parser("list", parents=[common], help="送信ジョブと履歴を出す")
     list_parser.add_argument("--status", choices=QUEUE_STATUS_CHOICES, help="状態で絞る")
     list_parser.set_defaults(func=queue_list_command)
     retry_parser = queue_sub.add_parser("retry", parents=[common], help="失敗を再送する")
     retry_target = retry_parser.add_mutually_exclusive_group(required=True)
     retry_target.add_argument("--all", action="store_true", help="失敗の全部")
-    retry_target.add_argument("--job", type=int, help="待ち行列の ID")
+    retry_target.add_argument("--job", type=int, help="送信ジョブの ID")
     retry_target.add_argument(
         "--stale", action="store_true", help="送信中のまま止まった件の全部（失敗に戻して送る）"
     )
@@ -137,7 +137,7 @@ def register_modality_commands(
     commit_parser = subparsers.add_parser(
         "commit", parents=[common], help="送った検査の保管の確認を求めて待つ（Phase 3c）"
     )
-    commit_parser.add_argument("--job", type=int, required=True, help="待ち行列の ID（送れた件）")
+    commit_parser.add_argument("--job", type=int, required=True, help="送信ジョブの ID（送信完了の件）")
     commit_parser.add_argument(
         "--wait",
         type=_positive_seconds,
@@ -145,12 +145,12 @@ def register_modality_commands(
     )
     commit_parser.set_defaults(func=commit_command)
 
-    mpps_parser = subparsers.add_parser("mpps", help="MPPS の知らせの待ち行列（Phase 3c）")
+    mpps_parser = subparsers.add_parser("mpps", help="MPPS の送信ジョブ（Phase 3c）")
     mpps_sub = mpps_parser.add_subparsers(dest="mpps_command")
     mpps_list_parser = mpps_sub.add_parser("list", parents=[common], help="MPPS の知らせを出す")
     mpps_list_parser.set_defaults(func=mpps_list_command)
     mpps_retry_parser = mpps_sub.add_parser(
-        "retry", parents=[common], help="送れなかった MPPS の知らせを送り直す"
+        "retry", parents=[common], help="送信に失敗した MPPS を再送する"
     )
     mpps_retry_parser.set_defaults(func=mpps_retry_command)
 

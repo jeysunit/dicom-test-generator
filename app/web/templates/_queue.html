@@ -1,20 +1,20 @@
 {% if notice %}<p role="status" class="notice notice-ok mb-3">{{ notice }}</p>{% endif %}
 {% if queue_error %}{% with error = queue_error %}{% include "_notice.html" %}{% endwith %}{% endif %}
 {% if not jobs %}
-<p class="text-label">まだ送った検査はありません</p>
+<p class="text-label">送信した検査はまだありません</p>
 {% else %}
 <div class="overflow-x-auto">
   <table class="table">
     <thead>
       <tr>
-        <th scope="col">ID</th>
+        <th scope="col">ジョブ</th>
         <th scope="col">状態</th>
         <th scope="col">送り先</th>
         <th scope="col">受付番号</th>
-        <th scope="col">送れた枚数</th>
+        <th scope="col">送信済み画像</th>
         <th scope="col">保管の確認</th>
         <th scope="col">時刻</th>
-        <th scope="col">出力のフォルダ</th>
+        <th scope="col">出力先フォルダ</th>
         <th scope="col"><span class="sr-only">操作</span></th>
       </tr>
     </thead>

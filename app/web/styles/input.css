@@ -19,6 +19,8 @@
   --color-primary: #0969da;
   --color-primary-foreground: #ffffff;
   --color-danger: #d1242f;
+  --color-success: #1a7f37;
+  --color-warning: #9a6700;
   --font-sans: system-ui, "Noto Sans JP", sans-serif;
   --font-mono: ui-monospace, "Noto Sans Mono", monospace;
 }
@@ -34,6 +36,8 @@
   --color-primary: #1f6feb;
   --color-primary-foreground: #ffffff;
   --color-danger: #ff7b72;
+  --color-success: #3fb950;
+  --color-warning: #d29922;
   color-scheme: dark;
 }
 
@@ -134,7 +138,16 @@
     @apply flex items-start gap-2 rounded-md border px-3 py-2;
   }
   .notice-ok {
-    @apply border-border bg-surface text-foreground;
+    @apply border-success bg-surface text-foreground;
+  }
+  .notice-ok .icon {
+    @apply text-success;
+  }
+  .notice-warn {
+    @apply border-warning bg-surface text-foreground;
+  }
+  .notice-warn .icon {
+    @apply text-warning;
   }
   .notice-error {
     @apply border-danger text-danger;

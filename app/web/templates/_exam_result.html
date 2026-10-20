@@ -1,23 +1,28 @@
 {% if next_token %}<input type="hidden" id="exam-token" name="exam_token" value="{{ next_token }}" hx-swap-oob="true">{% endif %}
-<div class="panel space-y-3" role="status">
-  <p class="flex items-center gap-1 font-semibold text-value">
-    <span class="icon icon-check" aria-hidden="true"></span>撮影しました：{{ result.files|length }} 枚
+<div class="panel space-y-3">
+  <p role="status" class="notice notice-ok font-semibold text-value">
+    <span class="icon icon-check" aria-hidden="true"></span>
+    <span>撮影完了：{{ result.files|length }} 画像</span>
   </p>
   <dl class="values">
-    <dt>出力のフォルダ</dt><dd>{% with uid = result.output_dir %}{% include "_uid.html" %}{% endwith %}</dd>
+    <dt>出力先フォルダ</dt><dd>{% with uid = result.output_dir %}{% include "_uid.html" %}{% endwith %}</dd>
     <dt>Study Instance UID</dt><dd>{% with uid = result.study_instance_uid %}{% include "_uid.html" %}{% endwith %}</dd>
     <dt>文字コード</dt><dd>{{ result.character_set|charset_label }}</dd>
   </dl>
-  {% if result.notices %}
-  <ul class="space-y-1 text-xs">
-    {% for notice in result.notices %}<li>{{ notice }}</li>{% endfor %}
-  </ul>
-  {% endif %}
+  {% for notice in result.notices %}
+  <p role="status" class="notice notice-warn text-xs">
+    <span class="icon icon-triangle-alert" aria-hidden="true"></span>
+    <span>注意：{{ notice }}</span>
+  </p>
+  {% endfor %}
   {% if result.mpps %}
   {% if result.mpps.sent %}
-  <p class="text-xs">MPPS：{{ result.mpps.state }} を送りました</p>
+  <p class="text-xs">MPPS：{{ result.mpps.state }} を送信しました</p>
   {% else %}
-  <p role="alert" class="text-xs text-danger">MPPS：送れませんでした（{{ result.mpps.error }}）。<code>python -m app.cli mpps retry</code> で再送します</p>
+  <p role="alert" class="notice notice-warn text-xs">
+    <span class="icon icon-triangle-alert" aria-hidden="true"></span>
+    <span>注意：MPPS の送信に失敗しました（{{ result.mpps.error }}）。<code>python -m app.cli mpps retry</code> で再送できます</span>
+  </p>
   {% endif %}
   {% endif %}
   <div id="send-result">
@@ -29,8 +34,8 @@
     <form hx-post="/exam/send" hx-target="#send-result" hx-disabled-elt="find button" class="flex justify-end">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="output_dir" value="{{ result.output_dir }}">
-      <p class="busy busy-send mr-auto" role="status"><span class="icon icon-refresh-cw animate-spin" aria-hidden="true"></span>送っています</p>
-      <button type="submit" class="btn btn-primary"><span class="icon icon-send" aria-hidden="true"></span>送る</button>
+      <p class="busy busy-send mr-auto" role="status"><span class="icon icon-refresh-cw animate-spin" aria-hidden="true"></span>送信しています</p>
+      <button type="submit" class="btn btn-primary"><span class="icon icon-send" aria-hidden="true"></span>送信</button>
     </form>
     {% endif %}
   </div>

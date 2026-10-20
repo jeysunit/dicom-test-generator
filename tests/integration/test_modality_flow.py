@@ -127,7 +127,7 @@ def test_same_order_twice_adds_series_to_same_study(
         )
         assert code == 0
         notices = json.loads(out)["notices"]
-        assert "予約に Study Instance UID が無いため、この道具が作りました" in notices
+        assert "予約に Study Instance UID が無いため、このツールが生成しました" in notices
         assert "生年月日が空です" in notices
 
     datasets = storage_scp.received

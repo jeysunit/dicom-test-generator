@@ -107,7 +107,7 @@ def test_pacs_queue_without_commitment_shows_dash(tmp_path, worklist_scp, storag
     with _client(tmp_path, _config(tmp_path, worklist_scp.port, storage_scp.port)) as client:
         _exam_send(client)
         queue = client.get("/pacs/queue").text
-    assert "送れた" in queue
+    assert "送信完了" in queue
     assert "確認" not in queue.split("<tbody>", 1)[1]
 
 
@@ -116,7 +116,7 @@ def test_exam_page_and_result_show_mpps(tmp_path, worklist_scp, storage_scp, mpp
     with _client(tmp_path, config) as client:
         assert "MPPS：使う（RIS_TEST）" in client.get("/exam").text
         result = _exam_send(client)
-    assert "MPPS：COMPLETED を送りました" in result
+    assert "MPPS：COMPLETED を送信しました" in result
     assert len(mpps_scp.sets) == 1
 
 
@@ -124,11 +124,11 @@ def test_exam_result_shows_mpps_failure(tmp_path, worklist_scp, storage_scp) -> 
     config = _config(tmp_path, worklist_scp.port, storage_scp.port, mpps_port=free_port())
     with _client(tmp_path, config) as client:
         result = _exam_send(client)
-    assert "MPPS：送れませんでした" in result
+    assert "MPPS の送信に失敗しました" in result
     assert "mpps retry" in result
     # MPPS を送れなくても撮影と送信は止めない
-    assert "撮影しました" in result
-    assert "送れた" in result
+    assert "撮影完了" in result
+    assert "送信完了" in result
 
 
 def test_exam_page_without_mpps(tmp_path, worklist_scp, storage_scp) -> None:

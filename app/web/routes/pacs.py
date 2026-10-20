@@ -72,4 +72,4 @@ def _retry_notice(results: list[SendResult]) -> str:
     if not results:
         return "失敗の件はありません"
     sent = sum(1 for result in results if result.status == "sent")
-    return f"{len(results)} 件を再送しました（送れた {sent} 件）"
+    return f"{len(results)} 件を再送しました（送信完了 {sent} 件）"
