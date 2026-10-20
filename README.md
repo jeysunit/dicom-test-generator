@@ -102,7 +102,9 @@ flowchart LR
 * Study / Series / Instance の階層構造と、UID（UUIDベース）、マルチスライスの空間座標、Transfer Syntax の選択
 * 日本語の患者名（Specific Character Set、Alphabetic / Ideographic / Phonetic の多言語PN表現）
 * ピクセルの生成：簡易モード（テキスト表示）、CT風モード（16bit HU値）。いずれも実画像ではありません
-* 異常データの生成：必須タグ欠落、VR違反、文字数超過、不正UID、フォーマット違反など。異常のレベルを設定できます
+* 異常データの生成：必須タグ欠落、VR違反、文字数超過、不正UID、Pixel Data 欠落。
+  レベル（none / mild / moderate / severe）は Job YAML の `abnormal.level` か
+  `--abnormal-level` で選びます。指定しなければ正常なデータです
 * モダリティテンプレート、病院設定テンプレート、YAML の Job による構成
 * 装置のプロファイル：装置のコンフォーマンスステートメントを読んで写し、
   その装置の DICOM の出し方を擬態します。実在の装置のプロファイルは
@@ -189,6 +191,9 @@ python -m app.cli validate examples/job_minimal.yaml
 
 # CLI引数のみで簡易生成
 python -m app.cli quick -p P000001 -m ct_generic -s 3 -i 1,20,20 -o output/
+
+# 異常のデータを作る（none / mild / moderate / severe）
+python -m app.cli quick -p P000001 -m ct_generic -s 1 -i 5 -o output/ --abnormal-level mild
 
 # バージョン表示
 python -m app.cli version

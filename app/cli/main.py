@@ -33,6 +33,7 @@ from app.core import (
     WorklistMappingError,
     WorklistQueryError,
 )
+from app.core.abnormal_generator import ABNORMAL_LEVELS
 
 EXIT_COMMUNICATION_ERROR = 5
 _COMMUNICATION_ERRORS = (
@@ -157,6 +158,11 @@ def _create_parser() -> argparse.ArgumentParser:
         help=f"ログファイルパス（default: {DEFAULT_LOG_FILE}）",
     )
     generate_parser.add_argument(
+        "--abnormal-level",
+        choices=ABNORMAL_LEVELS,
+        help="異常のデータのレベル（Job YAML の abnormal.level を上書き。未指定なら Job YAML の値、無ければ none）",
+    )
+    generate_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="生成は行わず設定検証のみを実行",
@@ -201,6 +207,12 @@ def _create_parser() -> argparse.ArgumentParser:
         "--pixel-mode",
         default="ct_realistic",
         help="ピクセルモード（simple_text / ct_realistic）",
+    )
+    quick_parser.add_argument(
+        "--abnormal-level",
+        choices=ABNORMAL_LEVELS,
+        default="none",
+        help="異常のデータのレベル（default: none）",
     )
     quick_parser.set_defaults(func=quick_command)
 

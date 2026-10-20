@@ -773,7 +773,8 @@ class ModalityService:
     def _read_study_uid(files: list[str]) -> str:
         if not files:
             return ""
-        return str(dcmread(files[0], stop_before_pixels=True).StudyInstanceUID)
+        # 異常のデータ（moderate・severe）では Study Instance UID が無いことがある
+        return str(getattr(dcmread(files[0], stop_before_pixels=True), "StudyInstanceUID", ""))
 
     def _save_worklist(self, result: WorklistQueryResult) -> None:
         path = self._state_dir / WORKLIST_STATE_FILE

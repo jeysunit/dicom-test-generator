@@ -65,6 +65,7 @@ python -m app.cli generate <job_file> [options]
 | `--log-file FILE` | | ログファイルパス | logs/dicom_generator.log |
 | `--dry-run` | | 実行せず検証のみ | false |
 | `--profile NAME` | | 装置のプロファイル（Job YAML の `device_profile` を上書き。spec/13） | Job YAMLの設定 |
+| `--abnormal-level L` | | 異常のデータのレベル（`none` / `mild` / `moderate` / `severe`。Job YAML の `abnormal.level` を上書き。[02](02_core_engine.md)） | Job YAMLの設定（無ければ none） |
 
 `--verbose` と `--quiet` は同時に指定できない。
 
@@ -203,6 +204,7 @@ python -m app.cli quick [options]
 | `--hospital NAME` | 病院テンプレート | なし |
 | `--profile NAME` | 装置のプロファイル（spec/13）。転送の形はプロファイルの最初の形 | なし |
 | `--pixel-mode MODE` | ピクセルモード（`simple_text` / `ct_realistic`） | ct_realistic |
+| `--abnormal-level L` | 異常のデータのレベル（`none` / `mild` / `moderate` / `severe`。[02](02_core_engine.md)） | none |
 
 ### 使用例
 

@@ -45,6 +45,16 @@ def generate_command(args: argparse.Namespace) -> int:
     profile_name = getattr(args, "profile", None)
     if profile_name:
         job_data["device_profile"] = profile_name
+    abnormal_level = getattr(args, "abnormal_level", None)
+    if abnormal_level:
+        # CLI の値が Job YAML の abnormal.level より優先（ほかの abnormal の項目は残す）
+        abnormal_section = job_data.get("abnormal") or {}
+        if not isinstance(abnormal_section, dict):
+            raise ConfigurationError(
+                "Job YAML 'abnormal' must be a mapping",
+                {"path": args.job_file},
+            )
+        job_data["abnormal"] = {**abnormal_section, "level": abnormal_level}
 
     config = GenerationConfig.model_validate(job_data)
 
@@ -141,7 +151,7 @@ def quick_command(args: argparse.Namespace) -> int:
         pixel_spec=pixel_spec,
         transfer_syntax=transfer_syntax,
         character_set=CharacterSetConfig(),
-        abnormal=AbnormalConfig(),
+        abnormal=AbnormalConfig(level=getattr(args, "abnormal_level", None) or "none"),
     )
 
     output_path = StudyGeneratorService().generate(config=config, progress_callback=None)
