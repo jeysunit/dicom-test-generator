@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 
 import numpy as np
 from pydicom.dataset import Dataset, FileMetaDataset
+from pydicom.valuerep import format_number_as_ds
 
 from .exceptions import DICOMBuildError
 from .models import (
@@ -19,6 +20,26 @@ from .models import (
 
 # CT Image Storage SOP Class UID
 CT_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.2"
+
+# CT Image IOD の必須の属性の既定値（spec/06 の「CT Image の必須の属性」）。
+# 装置のプロファイルの attributes.set で変えられる（spec/13）
+DEFAULT_IMAGE_TYPE = ("ORIGINAL", "PRIMARY", "AXIAL")  # PS3.3 C.8.2.1.1.1
+DEFAULT_PATIENT_POSITION = "HFS"  # PS3.3 C.7.3.1.1.2
+DEFAULT_POSITION_REFERENCE_INDICATOR = ""  # PS3.3 C.7.4.1.1.2（Type 2）
+
+# DS（PS3.5 6.2、16 バイトまで）に書く前に丸める有効桁の数。
+# float の誤差（16〜17 桁目）を落とし、小さい値も指数で残す
+DS_SIGNIFICANT_DIGITS = 12
+
+
+def format_ds(value: float) -> str:
+    """数を 16 バイト以内の DS の文字にする（PS3.5 6.2）.
+
+    浮動小数の誤差（0.1 * 3 = 0.30000000000000004）を有効 12 桁で丸めてから、
+    なお長ければ pydicom で 16 字に収める（指数の形を含む）。
+    """
+    rounded = float(f"{float(value):.{DS_SIGNIFICANT_DIGITS}g}")
+    return format_number_as_ds(rounded)
 
 
 class DICOMBuilder:
@@ -70,9 +91,9 @@ class DICOMBuilder:
                 study_config.study_date,
             )
             if patient.weight is not None:
-                ds.PatientWeight = str(patient.weight)
+                ds.PatientWeight = format_ds(patient.weight)
             if patient.size_in_meters is not None:
-                ds.PatientSize = str(patient.size_in_meters)
+                ds.PatientSize = format_ds(patient.size_in_meters)
 
             # General Study Module
             ds.StudyInstanceUID = uid_context.study_instance_uid
@@ -93,9 +114,14 @@ class DICOMBuilder:
                 ds.SeriesDescription = series_config.series_description
             if series_config.protocol_name is not None:
                 ds.ProtocolName = series_config.protocol_name
-            ds.FrameOfReferenceUID = uid_context.frame_of_reference_uid
+            ds.PatientPosition = DEFAULT_PATIENT_POSITION
 
-            # General Image Module
+            # Frame of Reference Module
+            ds.FrameOfReferenceUID = uid_context.frame_of_reference_uid
+            ds.PositionReferenceIndicator = DEFAULT_POSITION_REFERENCE_INDICATOR
+
+            # General Image Module・CT Image Module
+            ds.ImageType = list(DEFAULT_IMAGE_TYPE)
             ds.InstanceNumber = str(instance_config.instance_number)
             ds.AcquisitionNumber = str(instance_config.acquisition_number)
             ds.ContentDate = study_config.study_date
@@ -109,13 +135,15 @@ class DICOMBuilder:
             ds.InstanceCreatorUID = uid_context.instance_creator_uid
 
             # Spatial
-            ds.ImagePositionPatient = [str(v) for v in spatial.image_position_patient]
-            ds.ImageOrientationPatient = [
-                str(v) for v in spatial.image_orientation_patient
+            ds.ImagePositionPatient = [
+                format_ds(v) for v in spatial.image_position_patient
             ]
-            ds.SliceLocation = str(spatial.slice_location)
-            ds.SliceThickness = str(series_config.slice_thickness)
-            ds.PixelSpacing = [str(v) for v in spatial.pixel_spacing]
+            ds.ImageOrientationPatient = [
+                format_ds(v) for v in spatial.image_orientation_patient
+            ]
+            ds.SliceLocation = format_ds(spatial.slice_location)
+            ds.SliceThickness = format_ds(series_config.slice_thickness)
+            ds.PixelSpacing = [format_ds(v) for v in spatial.pixel_spacing]
 
             # Pixel Data
             self._set_pixel_data(ds, pixel_data, bits_stored=bits_stored)
@@ -145,6 +173,7 @@ class DICOMBuilder:
             ds.HighBit = 7
             ds.PixelRepresentation = 0
         elif pixel_data.dtype == np.int16:
+            self._check_signed_range(pixel_data, bits_stored)
             ds.BitsAllocated = 16
             ds.BitsStored = bits_stored
             ds.HighBit = bits_stored - 1
@@ -160,6 +189,24 @@ class DICOMBuilder:
             )
 
         ds.PixelData = pixel_data.tobytes()
+
+    @staticmethod
+    def _check_signed_range(pixel_data: np.ndarray, bits_stored: int) -> None:
+        """符号ありの画素が Bits Stored で表せるかを確かめる（PS3.5 8）.
+
+        Bits Stored を超える値は、読む側が High Bit で符号を広げるため
+        別の値に化ける（12 ビットの 2048 は -2048 になる）。
+        """
+        lower = -(1 << (bits_stored - 1))
+        upper = (1 << (bits_stored - 1)) - 1
+        if pixel_data.size and (
+            int(pixel_data.min()) < lower or int(pixel_data.max()) > upper
+        ):
+            raise DICOMBuildError(
+                f"Pixel values {int(pixel_data.min())}..{int(pixel_data.max())} "
+                f"do not fit signed Bits Stored {bits_stored} ({lower}..{upper})",
+                tag="PixelData",
+            )
 
     _SUPPORTED_TRANSFER_SYNTAXES = {
         "1.2.840.10008.1.2",      # Implicit VR Little Endian

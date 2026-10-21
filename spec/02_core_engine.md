@@ -222,9 +222,12 @@ pixels_ct = pixel_gen.generate_ct_realistic(
 
 **パターン**:
 
-- `gradient`: 左→右で HU値 -1024 → 1024
+- `gradient`: 左→右で HU値 -1024 → Bits Stored の上限（12 ビットで 1023）
 - `circle`: 中心に高HU値の円（Bone）、周辺は低HU値（Soft Tissue）
 - `noise`: ランダムノイズ
+
+値は Bits Stored の符号ありの範囲に収める（spec/06 の「画素の値の範囲」。
+PS3.5 8）。
 
 **HU値変換**:
 
@@ -461,13 +464,15 @@ ds.save_as("output.dcm", write_like_original=False)
 1. File Meta を Dataset に設定
 2. Patient Module タグ設定（Patient's Age は生年月日と検査日から算出）
 3. General Study Module タグ設定
-4. General Series Module タグ設定
-5. General Image Module タグ設定
-6. SOP Common Module タグ設定
-7. 空間座標タグ設定
-8. Pixel Data設定
-9. Transfer Syntax に合わせた設定
-10. Dataset返却
+4. General Series Module タグ設定（Patient Position の既定値 `HFS` を含む）
+5. Frame of Reference Module タグ設定（Position Reference Indicator は空）
+6. General Image Module・CT Image Module タグ設定（Image Type の既定値
+   `ORIGINAL\PRIMARY\AXIAL` を含む。spec/06 の「CT Image の必須の属性」）
+7. SOP Common Module タグ設定
+8. 空間座標タグ設定（DS は 16 字以内。spec/06 の「DS の書き方」）
+9. Pixel Data設定（画素が Bits Stored の範囲に収まるかを確かめる）
+10. Transfer Syntax に合わせた設定
+11. Dataset返却
 
 ---
 
