@@ -449,6 +449,20 @@ ds2.PatientName = "YAMADA^TARO"
 ds2.save_as("output2.dcm")
 ```
 
+### 表せない字
+
+Specific Character Set は、既定の字の集まり（ASCII）に無い字を使う
+ときに必須（PS3.3 C.12.1 の Type 1C、PS3.5 6.1）。宣言した文字コードで
+表せない字を書くと、pydicom は `?` に置き換えるか、宣言の無いバイトの
+まま書く。この道具は、画像を 1 枚書く前にその画像のすべての文字の属性を
+確かめ、表せない字があればその画像を書かずに止める（それより前に書いた
+画像は残る）。予約の撮影は `WorklistMappingError`（spec/12 の 7.2）、
+Job の生成は `DICOMValidationError`（どちらも CLI の終了コード 4。
+spec/04）。Job の生成の誤りの文とログには、属性の名前と文字コードだけを
+出し、表せない字そのもの（氏名の一部など）は出さない。
+例：文字コードが空の病院テンプレート（`hospital_b`）で、Job の紹介医名や
+検査の説明に漢字・`é` があれば止める。
+
 ## PatientAge (0010,1010)
 
 `PatientAge` は Job YAML の `patient.age` をそのまま使用せず、

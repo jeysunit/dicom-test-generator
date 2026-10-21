@@ -364,9 +364,12 @@ Description・Scheduled Procedure Step ID・Scheduled Procedure Step
 Description・Scheduled Protocol Code Sequence）、患者の値、
 Performed Procedure Step ID・Start Date・Start Time・Description、
 Modality、Performed Station AE Title（自分の AE タイトル）。
-N-SET（状態 `COMPLETED`）で Performed Series Sequence（シリーズごとの
-Series Instance UID と、作った画像の SOP Class・Instance UID）と
-End Date・Time を送る。予約なしの形では Referenced Study Sequence を
+N-SET（状態 `COMPLETED`・`DISCONTINUED`）で Performed Series Sequence
+（シリーズごとの Series Instance UID と、作った画像の SOP Class・
+Instance UID）と End Date・Time を送る。Performed Series Sequence は
+この時点で空にしない（PS3.4 F.7.2 の表 F.7.2-1 の Note 2）。画像が
+1 枚も無ければ、画像の無いシリーズの項目を 1 つ入れる（Series Instance
+UID は新しく作り、Protocol Name は `DTG`）。予約なしの形では Referenced Study Sequence を
 空にする（RAD TF-2x Table A.1-2）。**MPPS そのものの** SOP Class・
 Instance UID は DIMSE のコマンドの欄（N-CREATE の Affected SOP
 Class・Instance UID、N-SET の Requested SOP Class・Instance UID）で
@@ -601,9 +604,14 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID
   撮影を取り消す操作を持たない（Phase 3b で削った）
 - 予約に Study Instance UID が無いときは、N-CREATE より前にこの道具が
   UID を作り、その UID で画像も作る（MPPS と画像の Study をそろえる）
+- MPPS の SOP Instance UID も N-CREATE で決まるので、画像の Referenced
+  Performed Procedure Step Sequence にその UID を入れる（6.2 の表。
+  IHE RAD TF-2x A.1.3・A.2.2）
 - 送る値は 6.4 のとおり。Performed Series Sequence は作った画像の
   ヘッダーから組む（シリーズごとに Series Instance UID・Series
   Description・Protocol Name と、画像の Referenced SOP Class・Instance UID）
+- DISCONTINUED では、止まる前に書けた画像も知らせる（PS3.4 F.7.2.2.2）。
+  読めない画像は飛ばす。COMPLETED で画像を読めなければ DISCONTINUED にする
 - 送れない（Association を張れない・相手が Failure を返した・時間切れ）
   ときは、その知らせを状態の置き場の MPPS の待ち行列に「失敗」で残す。
   相手の Warning は送れた扱いにする
