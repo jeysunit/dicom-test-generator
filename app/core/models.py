@@ -282,6 +282,9 @@ class ScheduledContext(BaseModel):
     study_id: str = ""
     study_description: str = ""
     performed_procedure_step_id: str
+    # MPPS を使うときの MPPS の SOP Instance UID。画像の Referenced Performed
+    # Procedure Step Sequence に写す（IHE RAD TF-2x A.1.3・A.2.2）
+    performed_procedure_step_sop_instance_uid: str = ""
     institution_name: str = ""
     request_attributes: dict | None = None
     sequences: DicomJsonSequences = Field(default_factory=dict)

@@ -17,6 +17,7 @@ from app.core import (
     DeviceProfile,
     DICOMBuilder,
     DICOMGeneratorError,
+    DICOMValidationError,
     DirectoryCreateError,
     FileMetaBuilder,
     FileWriteError,
@@ -30,6 +31,7 @@ from app.core import (
     SpatialCalculator,
     UIDContext,
     UIDGenerator,
+    WorklistMappingError,
     apply_device_profile,
     normalize_character_set,
 )
@@ -218,8 +220,8 @@ class StudyGeneratorService:
                     # 異常のデータは最後に当てる（予約・プロファイルの値にも効く。
                     # spec/02 の AbnormalGenerator）。none では何も変えない
                     apply_abnormal_to_dataset(dataset, abnormal_generator)
-                    if scheduled is not None:
-                        ensure_dataset_encodable(dataset)
+                    # 表せない字は黙って `?` にせず止める（PS3.3 C.12.1・PS3.5 6.1）
+                    self._ensure_encodable(dataset, scheduled is not None)
 
                     # Patient ID・検査日・モダリティは信用できない値（予約・Job）なので、
                     # 決まった字だけにしてから名前に使う（spec/12 の 6.5）
@@ -384,6 +386,31 @@ class StudyGeneratorService:
             height=config.pixel_spec.height,
         )
         return pixels, 8
+
+    @staticmethod
+    def _ensure_encodable(dataset: Dataset, scheduled: bool) -> None:
+        """文字の属性が Specific Character Set で表せるかを確かめる.
+
+        予約の撮影は WorklistMappingError（spec/12 の 7.2）、Job の生成は
+        DICOMValidationError で止める（どちらも CLI の終了コード 4。spec/04）。
+        Job の値（紹介医名・検査の説明など）も、宣言の無い字のまま書けば
+        受け手で `?` や別の字に化ける。
+        """
+        if scheduled:
+            ensure_dataset_encodable(dataset)
+            return
+        try:
+            ensure_dataset_encodable(dataset)
+        except WorklistMappingError as exc:
+            # 表せない字そのもの（氏名の一部など）は文にもログにも出さない。
+            # 元の例外は字を含むので、つながりを切る（ログの exc_info に出るため）
+            attribute = str(exc.details.get("attribute", ""))
+            character_set = str(exc.details.get("character_set", ""))
+            raise DICOMValidationError(
+                f"{attribute} に {character_set} で表せない字があります。"
+                "Job の character_set か病院テンプレートの文字コードを見直してください",
+                {"attribute": attribute, "character_set": character_set},
+            ) from None
 
     @staticmethod
     def _sequence_width(total_images: int) -> int:

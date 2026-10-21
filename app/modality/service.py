@@ -61,7 +61,13 @@ from app.services.profile_loader import profile_transfer_syntax
 from .commitment_scu import CommitmentListener, CommitmentManager
 from .config import DestinationConfig, ModalityConfig
 from .mpps_queue import MppsQueue, MppsRecord
-from .mpps_scu import STATE_COMPLETED, STATE_DISCONTINUED, MppsManager, MppsOutcome
+from .mpps_scu import (
+    IMAGE_READ_ERRORS,
+    STATE_COMPLETED,
+    STATE_DISCONTINUED,
+    MppsManager,
+    MppsOutcome,
+)
 from .queue import QUEUE_DB_NAME, CommitmentState, QueueJob, SendQueue
 from .store_scu import EchoResult, StoreFileResult, echo, store_files
 from .worklist_scu import WorklistQuery, WorklistQueryResult, query_worklist
@@ -567,13 +573,21 @@ class ModalityService:
         output_dir = self._exam_output_dir(request, ctx, now)
         config = self._generation_config(request, ctx, template, output_dir, now)
         mpps_id = self._mpps().start_exam(ctx, modality, now) if use_mpps else None
+        if mpps_id is not None:
+            # 画像に MPPS への参照を入れる（IHE RAD TF-2x A.1.3・A.2.2）
+            mpps_uid = self.mpps_queue.get(mpps_id).sop_instance_uid
+            ctx = ctx.model_copy(update={"performed_procedure_step_sop_instance_uid": mpps_uid})
         try:
             self._generator.generate(config=config, scheduled=ctx)
         except (DICOMGeneratorError, OSError):
+            # 止まる前に書けた画像も DISCONTINUED の N-SET で知らせる（PS3.4 F.7.2.2.2）
+            partial = sorted(str(path) for path in output_dir.glob("*.dcm"))
             self._remove_if_empty(output_dir)
             if mpps_id is not None:
                 # N-CREATE の後に撮影が止まった＝取り消し（DISCONTINUED。8.4.1）
-                self._mpps().finish_exam(mpps_id, STATE_DISCONTINUED, [], ctx, str(output_dir))
+                self._mpps().finish_exam(
+                    mpps_id, STATE_DISCONTINUED, partial, ctx, str(output_dir)
+                )
             raise
         files = sorted(str(path) for path in output_dir.glob("*.dcm"))
         mpps = None
@@ -582,9 +596,12 @@ class ModalityService:
                 mpps = self._mpps().finish_exam(
                     mpps_id, STATE_COMPLETED, files, ctx, str(output_dir)
                 )
-            except (OSError, InvalidDicomError, AttributeError):
-                # 作った画像のヘッダーを読めなければ、開いたままにせず DISCONTINUED を残す
-                self._mpps().finish_exam(mpps_id, STATE_DISCONTINUED, [], ctx, str(output_dir))
+            except IMAGE_READ_ERRORS:
+                # 作った画像のヘッダーを読めなければ、開いたままにせず DISCONTINUED を残す。
+                # DISCONTINUED は読めた画像だけを知らせる
+                self._mpps().finish_exam(
+                    mpps_id, STATE_DISCONTINUED, files, ctx, str(output_dir)
+                )
                 raise
         if profile_name:
             self.queue.remember_exam_profile(str(output_dir), profile_name)

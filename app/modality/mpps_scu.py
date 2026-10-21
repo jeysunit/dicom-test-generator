@@ -15,6 +15,7 @@ from typing import Final
 from pydantic import BaseModel
 from pydicom import dcmread
 from pydicom.dataset import Dataset
+from pydicom.errors import InvalidDicomError
 from pydicom.sequence import Sequence as DicomSequence
 from pynetdicom.sop_class import ModalityPerformedProcedureStep
 
@@ -39,6 +40,17 @@ STATUS_PROCESSING_FAILURE = 0x0110
 # N-CREATE・N-SET の Warning（PS3.4 F.7.2・PS3.7 C）。送れた扱いにする
 WARNING_STATUSES = frozenset({0x0001, 0x0107, 0x0116})
 DEFAULT_PROTOCOL_NAME = "DTG"
+# 作った画像のヘッダーを読めないときの例外。pydicom は壊れたファイルや
+# VR の合わない値で、読み込み・値の変換のときにこれらを上げる
+IMAGE_READ_ERRORS: tuple[type[Exception], ...] = (
+    OSError,
+    InvalidDicomError,
+    AttributeError,
+    KeyError,
+    ValueError,
+    TypeError,
+    NotImplementedError,
+)
 _SCHEDULED_STEP_KEYWORDS = (
     "RequestedProcedureID",
     "RequestedProcedureDescription",
@@ -90,14 +102,23 @@ def build_n_create(
 def build_n_set(
     state: str, files: Sequence[str], ended: datetime, character_set: Sequence[str]
 ) -> Dataset:
-    """終わりの N-SET（COMPLETED・DISCONTINUED）の値。シリーズは作った画像のヘッダーから."""
+    """終わりの N-SET（COMPLETED・DISCONTINUED）の値。シリーズは作った画像のヘッダーから.
+
+    Performed Series Sequence は COMPLETED・DISCONTINUED の時点で空にしない
+    （PS3.4 F.7.2 の表 F.7.2-1 の Note 2）。DISCONTINUED は読めた画像だけを
+    知らせ（F.7.2.2.2）、1 枚も無ければ画像の無いシリーズの項目を 1 つ入れる。
+    COMPLETED で読めない画像があれば例外を上げる（呼び手が DISCONTINUED にする）。
+    """
     ds = Dataset()
     if character_set:
         ds.SpecificCharacterSet = list(character_set)
     ds.PerformedProcedureStepStatus = state
     ds.PerformedProcedureStepEndDate = ended.strftime("%Y%m%d")
     ds.PerformedProcedureStepEndTime = ended.strftime("%H%M%S")
-    ds.PerformedSeriesSequence = _performed_series(files)
+    series = _performed_series(files, skip_unreadable=state == STATE_DISCONTINUED)
+    if not series:
+        series = [_series_item(UIDGenerator().generate_series_uid(), DEFAULT_PROTOCOL_NAME, "")]
+    ds.PerformedSeriesSequence = series
     return ds
 
 
@@ -391,28 +412,47 @@ def _sequence(ctx: ScheduledContext, keyword: str) -> DicomSequence:
     return DicomSequence([Dataset.from_json(item) for item in ctx.sequences.get(keyword, [])])
 
 
-def _performed_series(files: Sequence[str]) -> list[Dataset]:
+def _performed_series(files: Sequence[str], skip_unreadable: bool = False) -> list[Dataset]:
     series: dict[str, Dataset] = {}
+    skipped = 0
     for path in files:
-        image = dcmread(path, stop_before_pixels=True)
-        uid = str(image.SeriesInstanceUID)
+        try:
+            image = dcmread(path, stop_before_pixels=True)
+            uid = str(image.SeriesInstanceUID)
+            reference = Dataset()
+            reference.ReferencedSOPClassUID = str(image.SOPClassUID)
+            reference.ReferencedSOPInstanceUID = str(image.SOPInstanceUID)
+        except IMAGE_READ_ERRORS:
+            if not skip_unreadable:
+                raise
+            skipped += 1
+            continue
         item = series.get(uid)
         if item is None:
-            item = Dataset()
-            item.PerformingPhysicianName = ""
-            item.ProtocolName = str(
-                image.get("ProtocolName", "") or image.get("SeriesDescription", "")
-                or DEFAULT_PROTOCOL_NAME
+            item = _series_item(
+                uid,
+                str(
+                    image.get("ProtocolName", "") or image.get("SeriesDescription", "")
+                    or DEFAULT_PROTOCOL_NAME
+                ),
+                str(image.get("SeriesDescription", "") or ""),
             )
-            item.OperatorsName = ""
-            item.SeriesInstanceUID = uid
-            item.SeriesDescription = str(image.get("SeriesDescription", "") or "")
-            item.RetrieveAETitle = ""
-            item.ReferencedImageSequence = []
-            item.ReferencedNonImageCompositeSOPInstanceSequence = []
             series[uid] = item
-        reference = Dataset()
-        reference.ReferencedSOPClassUID = str(image.SOPClassUID)
-        reference.ReferencedSOPInstanceUID = str(image.SOPInstanceUID)
         item.ReferencedImageSequence.append(reference)
+    if skipped:
+        logger.warning("MPPS DISCONTINUED: skipped %s unreadable images", skipped)
     return list(series.values())
+
+
+def _series_item(series_uid: str, protocol_name: str, series_description: str) -> Dataset:
+    """Performed Series Sequence の項目（PS3.4 F.7.2 の表 F.7.2-1）."""
+    item = Dataset()
+    item.PerformingPhysicianName = ""
+    item.ProtocolName = protocol_name  # Type 1
+    item.OperatorsName = ""
+    item.SeriesInstanceUID = series_uid
+    item.SeriesDescription = series_description
+    item.RetrieveAETitle = ""
+    item.ReferencedImageSequence = []
+    item.ReferencedNonImageCompositeSOPInstanceSequence = []
+    return item

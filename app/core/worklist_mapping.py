@@ -47,6 +47,8 @@ _TOP_LEVEL_SEQUENCES = (
     "RequestedProcedureCodeSequence",
     "ReferencedStudySequence",
 )
+# Modality Performed Procedure Step SOP Class（PS3.4 F.7）
+MPPS_SOP_CLASS_UID = "1.2.840.10008.3.1.2.3.3"
 # 予約なし（Table A.1-2）で出力しない属性
 _SCHEDULED_ONLY_ATTRIBUTES = (
     "RequestAttributesSequence",
@@ -263,6 +265,13 @@ def apply_scheduled_context(ds: Dataset, ctx: ScheduledContext) -> None:
     if ctx.request_attributes is not None:
         ds.RequestAttributesSequence = Sequence([Dataset.from_json(ctx.request_attributes)])
 
+    if ctx.performed_procedure_step_sop_instance_uid:
+        # MPPS を使うモダリティは、画像に MPPS への参照を入れる
+        # （IHE RAD TF-2x A.1.3・A.2.2。PS3.3 C.7.3.1 の Type 3、項目は 1 つ）
+        reference = Dataset()
+        reference.ReferencedSOPClassUID = MPPS_SOP_CLASS_UID
+        reference.ReferencedSOPInstanceUID = ctx.performed_procedure_step_sop_instance_uid
+        ds.ReferencedPerformedProcedureStepSequence = Sequence([reference])
     ds.PerformedProcedureStepID = ctx.performed_procedure_step_id
     ds.PerformedProcedureStepStartDate = ds.get("StudyDate", "")
     ds.PerformedProcedureStepStartTime = ds.get("StudyTime", "")
