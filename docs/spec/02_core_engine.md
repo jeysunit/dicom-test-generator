@@ -1,250 +1,119 @@
 # 02. Core Engine
 
-## 概要
+DICOM の生成の中核となる Core（`app/core/`）のクラスと、そのインターフェースを
+定める。Core は UI に依存せず、ログを出力しない。ログは Service Layer が出力する。
 
-**Core Engine** はDICOM生成の中核ロジックを提供する。UI非依存で、単体テスト可能。
-
-**重要設計原則**:
-
-- Pure Python（外部UI依存なし）
-- 関数型スタイル（状態を持たない）
-- 明確な入出力
-
----
-
-## API一覧
-
-### 主要クラス
+## 1. クラスの一覧
 
 | クラス名 | 責務 | モジュール |
 |---------|------|-----------|
-| `UIDGenerator` | UID生成 | `uid_generator.py` |
-| `PixelGenerator` | ピクセルデータ生成 | `pixel_generator.py` |
-| `FileMetaBuilder` | File Meta Information構築 | `dicom_writer.py` |
-| `SpatialCalculator` | 空間座標計算 | `dicom_writer.py` |
-| `DICOMBuilder` | DICOM Dataset構築 | `generator.py` |
-| `AbnormalGenerator` | 異常データ生成 | `abnormal_generator.py` |
+| `UIDGenerator` | UID の生成 | `uid_generator.py` |
+| `PixelGenerator` | ピクセルデータの生成 | `pixel_generator.py` |
+| `FileMetaBuilder` | File Meta Information の構築 | `dicom_writer.py` |
+| `SpatialCalculator` | 空間座標の計算 | `dicom_writer.py` |
+| `DICOMBuilder` | DICOM Dataset の構築 | `generator.py` |
+| `AbnormalGenerator` | 異常のデータの生成 | `abnormal_generator.py` |
 
-以降の節は、これらのクラスの仕様を書く。クラスの外にある Core のモジュールは
-「Core のそのほかのモジュール」にまとめる。
+- 利用側は `from app.core import ...` で import する
+- データモデルは `models.py` にある（[03_data_models.md](03_data_models.md)）
+- 例外は `exceptions.py` にある（[08_error_handling.md](08_error_handling.md)）
+- 上の表に無い Core のモジュールは 8 章にまとめる
 
-**`AbnormalGenerator` の接続**: `StudyGeneratorService.generate` は、
-`abnormal.level` で生成した `AbnormalGenerator` を、Dataset を組み立てた後
-（テンプレート・予約・装置プロファイルを適用した後）に、画像1枚ごとに適用する。
-`generate` を経由する経路（`generate`・`quick`・モダリティエミュレーターの撮影・
-GUI）はすべてこの処理を経由する。`level` が `none`（既定）のときは何も変えない。
-`abnormal.allow_invalid_sop_uid`（SOP Instance UID の 0 始まり）は `level` とは
-別の設定で、`level` に関わらず有効。
-レベルの指定は、Job YAML の `abnormal.level`、`generate` / `quick` の
-`--abnormal-level`（`generate` では CLI が Job YAML より優先）、
-モダリティエミュレーターの `exam --abnormal-level` と画面の「異常のデータ」。
+## 2. UIDGenerator
 
----
+DICOM の UID（Study・Series・SOP Instance など）を生成する。
 
-## UIDGenerator
-
-### 目的
-
-DICOM UID（Study, Series, SOP Instance等）を生成する。
-
-### インターフェース
+### 2.1 インターフェース
 
 ```python
 class UIDGenerator:
-    """UID生成器
-    
-    2つの生成方式をサポート：
-    1. UUID 2.25方式（デフォルト）
-    2. カスタムRoot方式（組織OID取得済みの場合）
-    """
-    
     def __init__(
         self,
         method: Literal["uuid_2_25", "custom_root"] = "uuid_2_25",
         custom_root: str = "",
         run_scoped: bool = False,
-    ):
-        """
-        Args:
-            method: UID生成方式
-            custom_root: カスタムRoot使用時のOID（自分の組織に割り当てられた根。
-                例の "1.2.3.4.5" は架空）
-            run_scoped: True なら根の後ろに生成ごとの番号（64 ビットの乱数）を
-                つなぐ。`StudyGeneratorService` は True で使う
-        """
-        pass
-    
-    def generate_study_uid(self) -> str:
-        """Study Instance UIDを生成
-        
-        スコープ: Study単位（1スタディにつき1回）
-        
-        Returns:
-            str: 例 "2.25.123456789012345678901234567890"
-        """
-        pass
-    
-    def generate_series_uid(self) -> str:
-        """Series Instance UIDを生成
-        
-        スコープ: Series単位（1シリーズにつき1回）
-        """
-        pass
-    
-    def generate_sop_uid(self, allow_invalid: bool = False) -> str:
-        """SOP Instance UIDを生成
-        
-        スコープ: Instance単位（各画像ごと）
-        
-        Args:
-            allow_invalid: Trueの場合、10%の確率で0始まり不正OIDを生成
-        
-        Returns:
-            str: 正常または不正（0始まり）UID
-        """
-        pass
-    
-    def generate_frame_of_reference_uid(self) -> str:
-        """Frame of Reference UIDを生成
-        
-        スコープ: Study単位（同一スタディ内で共通）
-        """
-        pass
-    
-    def generate_instance_creator_uid(self) -> str:
-        """Instance Creator UIDを生成
-        
-        生成の側（`StudyGeneratorService`）は使わない。Instance Creator UID と
-        Implementation Class UID は、`app/services/study_generator.py` の
-        定数（`INSTANCE_CREATOR_UID`・`IMPLEMENTATION_CLASS_UID`）で、
-        すべての生成で同じ値を使う（PS3.7 D.3.3.2、PS3.10 7.1。spec/06）
-        """
-        pass
+    ): ...
+    def generate_study_uid(self) -> str: ...
+    def generate_series_uid(self) -> str: ...
+    def generate_sop_uid(self, allow_invalid: bool = False) -> str: ...
+    def generate_frame_of_reference_uid(self) -> str: ...
+    def generate_instance_creator_uid(self) -> str: ...
 ```
 
-### 使用例
+| 引数 | 内容 |
+|------|------|
+| `method` | `uuid_2_25`（既定）または `custom_root` |
+| `custom_root` | `custom_root` のときの根の OID |
+| `run_scoped` | True なら、根の後ろに生成器ごとの番号（64 ビットの乱数）を連結する。`StudyGeneratorService` は True で使う |
+| `allow_invalid` | True なら、10% の確率で 0 始まりの不正な UID を返す |
 
-```python
-# UUID 2.25方式（デフォルト）
-uid_gen = UIDGenerator(method="uuid_2_25")
-study_uid = uid_gen.generate_study_uid()
-# => "2.25.113059749145936325402354257176981405696"
+- `generate_study_uid` などの各メソッドは、どれも同じ方式で新しい UID を1つ
+  返す。スコープ（Study ごとか画像ごとか）は呼ぶ側が決める
+- `StudyGeneratorService` は `generate_instance_creator_uid` を使わない。
+  Instance Creator UID と Implementation Class UID は、
+  `app/services/study_generator.py` の定数（`INSTANCE_CREATOR_UID`・
+  `IMPLEMENTATION_CLASS_UID`）で、すべての生成で同じ値を使う
+  （PS3.7 D.3.3.2、PS3.10 7.1。[06_dicom_rules.md](06_dicom_rules.md)）
 
-# カスタムRoot方式（根は架空の例）
-uid_gen = UIDGenerator(
-    method="custom_root",
-    custom_root="1.2.3.4.5",
-    run_scoped=True,
-)
-study_uid = uid_gen.generate_study_uid()
-# => "1.2.3.4.5.{生成ごとの番号}.1"
-```
+### 2.2 生成の規則
 
-### 実装詳細
-
-- **UUID 2.25**: `uuid.uuid4().int` を10進数変換
-- **カスタムRoot**: `{root}.{counter}` で連番管理。`run_scoped=True` なら
+- **UUID 2.25**：`2.25.` の後に `uuid.uuid4().int` の 10 進数を連結する
+- **カスタムの根**：`{root}.{counter}` の連番。`run_scoped=True` なら
   `{root}.{run_id}.{counter}`。`run_id` は生成器ごとの 64 ビットの乱数で、
   連番が生成のたびに 1 に戻っても、前の生成の UID と重複する確率は
   無視できる（UID は世界で一意。PS3.5 9。一意性は 2.25 と同じく確率による）
-- **ルートの形式**（PS3.5 9.1）：数字と `.` だけ、2 成分以上、最初の成分は
+- **根の形式**（PS3.5 9.1）：数字と `.` だけ、2 成分以上、最初の成分は
   0・1・2（0・1 なら 2 番目は 0〜39）、成分の先頭に 0 を置かない（`0` だけの
   成分は可）、64 文字まで。`run_scoped=True` なら、番号と連番を連結しても
-  64 文字に収まるよう、ルートは `CUSTOM_ROOT_MAX_LENGTH`（35 文字）まで
-- 生成した UID が 64 文字を超えるときは `UIDGenerationError`
-- **0始まり不正**: ランダムな位置でドットの直後に0を置く
-- 方式が不正、`custom_root` が空または OID の形式でないときは
-  `UIDGenerationError`
+  64 文字に収まるよう、根は `CUSTOM_ROOT_MAX_LENGTH`（35 文字）まで
+- **0 始まりの不正な UID**：UUID 2.25 では `2.25.0` の後に UUID の数字を続け、
+  数字の途中のランダムな位置に `.` を入れる。カスタムの根では
+  `{root}.0{counter}` にする
+- 次のときは `UIDGenerationError` を送出する：方式が不正、`custom_root` が空
+  または根の形式に合わない、根が長すぎる、生成した UID が 64 文字を超える
 
----
+## 3. PixelGenerator
 
-## PixelGenerator
+ピクセルデータ（numpy の配列）を生成する。
 
-### 目的
-
-ピクセルデータ（numpy配列）を生成する。
-
-### インターフェース
+### 3.1 インターフェース
 
 ```python
 class PixelGenerator:
-    """ピクセルデータ生成器
-    
-    2つのモードをサポート：
-    1. Simple Text: SOP Instance UID表示（8bit）
-    2. CT Realistic: 医療ビューア対応（16bit signed）
-    """
-    
     def generate_simple_text(
         self,
         sop_instance_uid: str,
         width: int = 512,
-        height: int = 512
-    ) -> np.ndarray:
-        """Simple Textモードのピクセルデータ生成
-        
-        Args:
-            sop_instance_uid: 表示するUID
-            width: 画像幅（ピクセル）
-            height: 画像高さ（ピクセル）
-        
-        Returns:
-            np.ndarray: shape=(height, width), dtype=uint8
-        """
-        pass
-    
+        height: int = 512,
+    ) -> np.ndarray: ...
     def generate_ct_realistic(
         self,
         width: int = 512,
         height: int = 512,
         pattern: Literal["gradient", "circle", "noise"] = "gradient",
-        bits_stored: int = 12
-    ) -> np.ndarray:
-        """CT Realisticモードのピクセルデータ生成
-        
-        Args:
-            width: 画像幅
-            height: 画像高さ
-            pattern: パターン種類
-            bits_stored: Bits Stored（12〜16。PS3.3 C.8.2.1.1.5）
-        
-        Returns:
-            np.ndarray: shape=(height, width), dtype=int16
-        """
-        pass
+        bits_stored: int = 12,
+    ) -> np.ndarray: ...
 ```
 
-### 使用例
+| メソッド | 戻り値 | 内容 |
+|----------|--------|------|
+| `generate_simple_text` | shape=(height, width)、dtype=uint8 | 黒の背景に白の文字で SOP Instance UID を描画する。フォントは DejaVu Sans Mono の 16 ポイント（無ければ Pillow の既定のフォント） |
+| `generate_ct_realistic` | shape=(height, width)、dtype=int16 | 下の 3.2 のパターン |
 
-```python
-pixel_gen = PixelGenerator()
+失敗したときと、`pattern` が不正なときは `PixelGenerationError` を送出する。
 
-# Simple Text
-pixels_text = pixel_gen.generate_simple_text(
-    sop_instance_uid="2.25.123..."
-)
-# => shape=(512, 512), dtype=uint8, 黒背景に白文字
+### 3.2 CT のパターン
 
-# CT Realistic
-pixels_ct = pixel_gen.generate_ct_realistic(
-    pattern="gradient",
-    bits_stored=12
-)
-# => shape=(512, 512), dtype=int16, HU値対応
-```
+値は Bits Stored の符号ありの範囲（0〜上限。12 ビットなら 0〜2047）に収める
+（[06_dicom_rules.md](06_dicom_rules.md) の「画素の値の範囲」。PS3.5 8）。
 
-### CTリアルモードの詳細
+| パターン | 画素の値 |
+|----------|----------|
+| `gradient` | 左から右へ 0 → 上限（HU -1024 → 12 ビットで 1023） |
+| `circle` | 中心の円（半径は幅と高さの小さいほうの 1/4）は 2024（HU 1000、Bone）、周囲は 1064（HU 40、Soft Tissue）。どちらも上限を超えれば上限にする |
+| `noise` | 0〜上限の一様な乱数 |
 
-**パターン**:
-
-- `gradient`: 左→右で HU値 -1024 → Bits Stored の上限（12 ビットで 1023）
-- `circle`: 中心に高HU値の円（Bone）、周辺は低HU値（Soft Tissue）
-- `noise`: ランダムノイズ
-
-値は Bits Stored の符号ありの範囲に収める（spec/06 の「画素の値の範囲」。
-PS3.5 8）。
-
-**HU値変換**:
+HU への変換は次のとおり。
 
 ```text
 HU = Pixel Value × Rescale Slope + Rescale Intercept
@@ -252,158 +121,76 @@ Rescale Intercept = -1024
 Rescale Slope = 1
 ```
 
----
+## 4. FileMetaBuilder
 
-## FileMetaBuilder
+File Meta Information（Group 0002）を構築する。
 
-### 目的
-
-File Meta Information (Group 0002) を構築する。
-
-### インターフェース
+### 4.1 インターフェース
 
 ```python
 class FileMetaBuilder:
-    """File Meta Information構築器"""
-    
     def build(
         self,
         sop_class_uid: str,
         sop_instance_uid: str,
         transfer_syntax_uid: str,
         implementation_class_uid: str,
-        implementation_version_name: str
-    ) -> FileMetaDataset:
-        """File Metaを構築
-        
-        Args:
-            sop_class_uid: Media Storage SOP Class UID
-            sop_instance_uid: Media Storage SOP Instance UID
-            transfer_syntax_uid: Transfer Syntax UID
-            implementation_class_uid: 実装者UID
-            implementation_version_name: 実装バージョン名
-        
-        Returns:
-            FileMetaDataset: PyDicomのFile Meta
-        """
-        pass
+        implementation_version_name: str,
+    ) -> FileMetaDataset: ...
 ```
 
-### 使用例
+失敗したときは `FileMetaError` を送出する。
 
-```python
-from pydicom.dataset import FileMetaDataset
-
-builder = FileMetaBuilder()
-file_meta = builder.build(
-    sop_class_uid="1.2.840.10008.5.1.4.1.1.2",  # CT Image Storage
-    sop_instance_uid=sop_uid,
-    transfer_syntax_uid="1.2.840.10008.1.2",    # Implicit VR Little Endian
-    implementation_class_uid="2.25.123...",
-    implementation_version_name="DICOM_GEN_1.1"
-)
-```
-
-### 必須要素
+### 4.2 設定する属性
 
 | Tag | Attribute Name | Value |
 |-----|----------------|-------|
 | (0002,0001) | File Meta Information Version | `b'\x00\x01'` |
-| (0002,0002) | Media Storage SOP Class UID | 引数から |
-| (0002,0003) | Media Storage SOP Instance UID | 引数から |
-| (0002,0010) | Transfer Syntax UID | 引数から |
-| (0002,0012) | Implementation Class UID | 引数から |
-| (0002,0013) | Implementation Version Name | 引数から |
+| (0002,0002) | Media Storage SOP Class UID | `sop_class_uid` |
+| (0002,0003) | Media Storage SOP Instance UID | `sop_instance_uid` |
+| (0002,0010) | Transfer Syntax UID | `transfer_syntax_uid` |
+| (0002,0012) | Implementation Class UID | `implementation_class_uid` |
+| (0002,0013) | Implementation Version Name | `implementation_version_name` |
 
----
+## 5. SpatialCalculator
 
-## SpatialCalculator
+マルチスライスの空間座標を計算する。
 
-### 目的
-
-マルチスライス時の空間座標を計算する。
-
-### インターフェース
+### 5.1 インターフェース
 
 ```python
-@dataclass
-class SpatialCoordinates:
-    """空間座標データ"""
-    instance_number: int
-    image_position_patient: list[float]  # [X, Y, Z]
-    slice_location: float
-
 class SpatialCalculator:
-    """空間座標計算器"""
-    
     def __init__(
         self,
         slice_thickness: float,
         slice_spacing: float,
-        start_z: float = 0.0
-    ):
-        """
-        Args:
-            slice_thickness: スライス厚（mm）
-            slice_spacing: スライス間隔（mm）
-            start_z: 開始Z座標（mm）
-        """
-        pass
-    
-    def calculate(self, slice_index: int) -> SpatialCoordinates:
-        """指定スライスインデックスの空間座標を計算
-        
-        Args:
-            slice_index: スライスインデックス（0始まり）
-        
-        Returns:
-            SpatialCoordinates: 計算結果
-        """
-        pass
+        start_z: float = 0.0,
+    ): ...
+    def calculate(self, slice_index: int) -> SpatialCoordinates: ...
 ```
 
-### 使用例
+- 長さの単位は mm。`slice_index` は 0 始まり
+- `slice_index` が負なら `ValueError` を送出する
+- 戻り値の `SpatialCoordinates` は [03_data_models.md](03_data_models.md) の
+  モデル
 
-```python
-calc = SpatialCalculator(
-    slice_thickness=5.0,
-    slice_spacing=5.0,
-    start_z=0.0
-)
-
-for i in range(20):
-    coords = calc.calculate(i)
-    print(f"Slice {i}: Instance#{coords.instance_number}, Z={coords.slice_location}")
-
-# Slice 0: Instance#1, Z=0.0
-# Slice 1: Instance#2, Z=5.0
-# Slice 2: Instance#3, Z=10.0
-# ...
-```
-
-### 計算式
+### 5.2 計算式
 
 ```text
-instance_number = slice_index + 1  # 1始まり
+instance_number = slice_index + 1
 z = start_z + (slice_index * slice_spacing)
 image_position_patient = [0.0, 0.0, z]
 slice_location = z
 ```
 
----
+## 6. DICOMBuilder
 
-## DICOMBuilder
+患者・スタディ・シリーズ・画像の値から、CT Image Storage の Dataset を構築する。
 
-### 目的
-
-各種データを統合してDICOM Datasetを構築する。
-
-### インターフェース
+### 6.1 インターフェース
 
 ```python
 class DICOMBuilder:
-    """DICOM Dataset構築器（メインクラス）"""
-    
     def build_ct_image(
         self,
         patient: Patient,
@@ -419,155 +206,117 @@ class DICOMBuilder:
         specific_character_set: str | None = None,
         use_ideographic: bool = True,
         use_phonetic: bool = True,
-        bits_stored: int = 16
-    ) -> Dataset:
-        """CT Image Storageを構築
-        
-        Args:
-            patient: 患者情報
-            study_config: スタディ設定
-            series_config: シリーズ設定
-            instance_config: インスタンス設定
-            uid_context: UID情報
-            spatial: 空間座標
-            pixel_data: ピクセルデータ
-            file_meta: File Meta Information
-                （Media Storage SOP Instance UID が sop_instance_uid と
-                異なれば DICOMBuildError）
-            sop_instance_uid: SOP Instance UID
-            series_instance_uid: Series Instance UID
-            specific_character_set: Specific Character Set（None なら設定しない）
-            use_ideographic: PN に漢字表記を入れるか
-            use_phonetic: PN にカナ表記を入れるか
-            bits_stored: Bits Stored
-        
-        Returns:
-            Dataset: 完成したDICOM Dataset
-        """
-        pass
+        bits_stored: int = 16,
+    ) -> Dataset: ...
 ```
+
+| 引数 | 内容 |
+|------|------|
+| `file_meta` | File Meta Information。Media Storage SOP Instance UID が `sop_instance_uid` と異なれば `DICOMBuildError` |
+| `specific_character_set` | Specific Character Set。`None` なら、氏名に ASCII 以外の文字があるときだけ `ISO 2022 IR 6\ISO 2022 IR 87` を設定する。値が空で、氏名に ASCII 以外の文字があれば `DICOMBuildError` |
+| `use_ideographic`・`use_phonetic` | PN に漢字・カナのコンポーネントグループを入れるか |
+| `bits_stored` | Bits Stored（12〜16。PS3.3 C.8.2.1.1.5） |
 
 `DICOMBuilder` は患者・スタディ・シリーズ・画像・空間座標・ピクセルの各タグを
 設定するだけで、テンプレートの属性・予約の値・装置プロファイルは重ねない。
 重ねる順序は `StudyGeneratorService` が持つ（[architecture.md](../architecture.md)
 の「生成の流れ」）。異常値の注入も `DICOMBuilder` は行わない。
 
-### 使用例
+失敗はすべて `DICOMBuildError` として送出する。
 
-```python
-builder = DICOMBuilder()
+### 6.2 処理の流れ
 
-ds = builder.build_ct_image(
-    patient=patient,
-    study_config=study_config,
-    series_config=series_config,
-    instance_config=instance_config,
-    uid_context=uid_ctx,
-    spatial=spatial_coords,
-    pixel_data=pixels,
-    file_meta=file_meta,
-    sop_instance_uid=sop_uid,
-    series_instance_uid=series_uid,
-)
+1. File Meta の Media Storage SOP Instance UID と `sop_instance_uid` が一致する
+   ことを確認し、File Meta を Dataset に設定する
+2. Patient Module のタグを設定する。Patient's Age は生年月日と検査日から
+   算出する（日本の法律の加齢の規則。
+   [ADR-0008](../decisions/0008-patient-age-derived-from-dates.md)）。
+   検査日が生年月日より前、または年齢が 0〜999 に収まらなければエラー。
+   Patient's Weight・Patient's Size は値があるときだけ設定する
+3. General Study Module のタグを設定する。Referring Physician's Name は
+   Type 2 なので、Job に無ければ空の値で出力する（PS3.3 C.7.2.1）。
+   Study ID は空
+4. General Series Module のタグを設定する（Modality は `CT`、Patient Position
+   の既定値は `HFS`）
+5. Frame of Reference Module のタグを設定する（Position Reference Indicator
+   は空）
+6. General Image Module・CT Image Module のタグを設定する（Image Type の
+   既定値 `ORIGINAL\PRIMARY\AXIAL`、Acquisition Number、Content Date・
+   Content Time。[06_dicom_rules.md](06_dicom_rules.md) の
+   「CT Image の必須の属性」）
+7. SOP Common Module のタグを設定する（SOP Class UID は File Meta の
+   Media Storage SOP Class UID）
+8. 空間座標のタグを設定する（Image Position・Image Orientation・
+   Slice Location・Slice Thickness・Pixel Spacing。DS は 16 文字以内。
+   [06_dicom_rules.md](06_dicom_rules.md) の「DS の書き方」）
+9. Pixel Data を設定する（6.3）
+10. Transfer Syntax を検証する。生成できるのは Implicit VR Little Endian と
+    Explicit VR Little Endian だけで、Explicit VR Big Endian（廃止。PS3.5 A.3）
+    とそのほかの値はエラーにする
 
-# 保存
-ds.save_as("output.dcm", write_like_original=False)
-```
+### 6.3 Pixel Data
 
-### 内部処理フロー
+| 属性 | 値 |
+|------|----|
+| Samples per Pixel | 1 |
+| Photometric Interpretation | `MONOCHROME2` |
+| Bits Allocated | 16 |
+| Bits Stored・High Bit | `bits_stored`・`bits_stored - 1` |
+| Pixel Representation | 1（符号あり） |
+| Rescale Intercept・Rescale Slope | `-1024`・`1` |
+| Window Center・Window Width | `40\400`・`400\1500` |
 
-1. File Meta を Dataset に設定
-2. Patient Module タグ設定（Patient's Age は生年月日と検査日から算出）
-3. General Study Module タグ設定（Referring Physician's Name は Type 2 なので、
-   Job に無ければ空の値で出力する。PS3.3 C.7.2.1）
-4. General Series Module タグ設定（Patient Position の既定値 `HFS` を含む）
-5. Frame of Reference Module タグ設定（Position Reference Indicator は空）
-6. General Image Module・CT Image Module タグ設定（Image Type の既定値
-   `ORIGINAL\PRIMARY\AXIAL` を含む。spec/06 の「CT Image の必須の属性」）
-7. SOP Common Module タグ設定
-8. 空間座標タグ設定（DS は 16 文字以内。spec/06 の「DS の書き方」）
-9. Pixel Data設定（画素が Bits Stored の範囲に収まるかを検証する）
-10. Transfer Syntax に合わせた設定
-11. Dataset返却
+- uint8 の画素（Simple Text）は、0〜255 を 0〜Bits Stored の上限に広げて
+  int16 にする
+- int16 の画素が Bits Stored の符号ありの範囲に収まらなければエラー
+- uint8・int16 以外の dtype はエラー
 
----
+## 7. AbnormalGenerator
 
-## AbnormalGenerator
+異常のデータ（不正な値）を生成する。
 
-### 目的
-
-異常データ（不正値）を生成する。
-
-### インターフェース
+### 7.1 インターフェース
 
 ```python
 class AbnormalGenerator:
-    """異常データ生成器"""
-    
-    def __init__(self, level: Literal["none", "mild", "moderate", "severe"]):
-        """
-        Args:
-            level: 異常レベル
-                - none: 正常データ
-                - mild: VR違反、文字数超過
-                - moderate: 必須タグ欠落、UID不正
-                - severe: File Meta破損、Pixel Data欠落
-        """
-        pass
-    
+    def __init__(self, level: Literal["none", "mild", "moderate", "severe"]): ...
+    @property
+    def level(self) -> str: ...
     def apply_abnormal_value(
         self,
         tag_name: str,
         normal_value: Any,
         vr: str,
         tag_type: int,
-        max_length: Optional[int] = None
-    ) -> Optional[Any]:
-        """異常値を適用
-        
-        Args:
-            tag_name: タグ名（例: "PatientID"）
-            normal_value: 正常値
-            vr: Value Representation
-            tag_type: DICOM Type (1, 2, 3等)
-            max_length: 最大長（VRによる）
-        
-        Returns:
-            異常値 or None（タグ欠落の場合）
-        """
-        pass
+        max_length: int | None = None,
+    ) -> Any | None: ...
+
+def apply_abnormal_to_dataset(
+    dataset: Dataset, generator: AbnormalGenerator
+) -> None: ...
 ```
 
-### 使用例
+- `level` が上の4つ以外なら `GenerationError` を送出する
+- `apply_abnormal_value` は、壊した値を返す。`None` はタグの欠落を表す
 
-```python
-abnormal_gen = AbnormalGenerator(level="mild")
+### 7.2 レベルごとの動作
 
-# Patient ID に異常値適用
-patient_id = abnormal_gen.apply_abnormal_value(
-    tag_name="PatientID",
-    normal_value="P000001",
-    vr="LO",
-    tag_type=2,
-    max_length=16
-)
-# => "INVALID_ID_STRING_OVER_16_CHARS"  (文字数超過)
-```
+`apply_abnormal_value` の動作は次のとおり。
 
-### レベル別挙動
-
-| Level | 挙動 |
+| Level | 動作 |
 |-------|------|
-| **none** | 正常値をそのまま返す |
-| **mild** | VR違反、文字数超過 |
-| **moderate** | Type 1,2タグをNone返却（欠落）、UID 0始まり |
-| **severe** | File Meta破損、Pixel Data欠落 |
+| `none` | 正常値をそのまま返す |
+| `mild` | `max_length` があれば、その 2 倍の長さのランダムな文字列。無ければ VR ごとに、DA は `INVALID_DATE`、TM は `INVALID_TIME`、IS は `NOT_A_NUMBER`、DS は `NOT_DECIMAL`、CS は `invalid_cs!`、UI は 64 文字を超える UID。そのほかの VR は正常値の後にランダムな 8 文字を連結する |
+| `moderate` | Type 1 は `None`。Type 2 は 50% の確率で `None`。それ以外は、UI なら `0.2.25.` で始まる 0 始まりの UID、UI 以外は `mild` と同じ |
+| `severe` | Type 1・2 は `None`。Type 3 は 50% の確率で `None`。それ以外は、UI なら `INVALID_UID_XXXX`、UI 以外は型の異なる値（数値なら `INVALID_TYPE`、それ以外なら `12345`） |
 
-### Dataset への適用
+壊し方の一部は乱数で決まる（`random`）。同じレベルでも画像ごとに値が異なる。
 
-`apply_abnormal_to_dataset(dataset, generator)`（`abnormal_generator.py`）が、
-次の表のタグのうち Dataset にあるものに `apply_abnormal_value` を適用する。
-表に無いタグは壊さない。壊した値が `None` ならタグを削除する。
+### 7.3 Dataset への適用
+
+`apply_abnormal_to_dataset(dataset, generator)` が、次の表のタグのうち Dataset
+にあるものに `apply_abnormal_value` を適用する。表に無いタグは壊さない。
+壊した値が `None` ならタグを削除する。`none` では何も変えない。
 
 | タグ | VR | Type | 最大長 |
 |------|----|------|--------|
@@ -586,27 +335,47 @@ patient_id = abnormal_gen.apply_abnormal_value(
 | SOPClassUID | UI | 1 | — |
 | SOPInstanceUID | UI | 1 | — |
 
-- `severe` は、この表の処理に加えて Pixel Data を削除する。
-- **File Meta の破損は、現在は実装していない。** File Meta の値は壊さず、
-  Dataset 側の SOP Instance UID だけが File Meta と食い違うことがある。
+- 表のタグは Type 1・2 だけなので、`moderate` では Type 1 のタグ（UI を
+  含む）を削除し、Type 2 のタグは半数を削除して残りを `mild` と同じ形で壊す。
+  `severe` では表のタグをすべて削除する
+- `severe` は、この表の処理に加えて Pixel Data を削除する
+- File Meta は壊さない。Dataset 側の SOP Instance UID だけが File Meta と
+  食い違うことがある
 - IS・DS の不正な文字列は、pydicom の検証を通過しないので、生の値として入れる。
+  文字列の VR に入る整数は、文字列にして入れる
 - Study Instance UID を削除した画像でも撮影の結果を返せるよう、画像から Study UID
-  を読み取る処理は、タグが無ければ空にする。
-- 壊し方の一部は乱数で決まる（`random`）。同じレベルでも画像ごとに値が異なる。
+  を読み取る処理は、タグが無ければ空にする
 - **定義の範囲**：異常のデータで生成する規格の違反は、上の表のタグの壊し方・
   Pixel Data の削除・`allow_invalid_sop_uid` の SOP Instance UID の 0 始まり
   だけ。Transfer Syntax・画素値・File Meta は定義に含まれない（廃止された
   Explicit VR Big Endian は異常のデータでも生成しない）。通常の経路の規格の
-  チェックは、この定義の壊し方を妨げない（spec/06 の「通常の経路と異常のデータの
-  経路」、[ADR-0014](../decisions/0014-separate-normal-and-abnormal-paths.md)）
+  チェックは、この定義の壊し方を妨げない（[06_dicom_rules.md](06_dicom_rules.md)
+  の「通常の経路と異常のデータの経路」、
+  [ADR-0014](../decisions/0014-separate-normal-and-abnormal-paths.md)）
 
----
+### 7.4 生成への組み込み
 
-## Core のそのほかのモジュール
+`StudyGeneratorService.generate` は、`abnormal.level` で生成した
+`AbnormalGenerator` を、Dataset を組み立てた後（テンプレート・予約・
+装置プロファイルを適用した後）に、画像1枚ごとに適用する。`generate` を経由する
+経路（`generate`・`quick`・モダリティエミュレーターの撮影・GUI）はすべてこの
+処理を経由する。`level` が `none`（既定）のときは何も変えない。
+
+`abnormal.allow_invalid_sop_uid`（SOP Instance UID の 0 始まり）は `level` とは
+別の設定で、`level` に関わらず有効。
+
+レベルを指定する場所は次のとおり。
+
+- Job YAML の `abnormal.level`
+- `generate`・`quick` の `--abnormal-level`（`generate` では CLI が Job YAML
+  より優先）
+- モダリティエミュレーターの `exam --abnormal-level` と、画面の「異常のデータ」
+
+## 8. Core のそのほかのモジュール
 
 モダリティエミュレーター（[12_modality_emulator.md](12_modality_emulator.md)）と
-装置プロファイル（[13_device_profiles.md](13_device_profiles.md)）のために、Core に
-Pure な処理が追加された。どれも通信・ファイル・ログを使わない。ここでは役割だけを
+装置プロファイル（[13_device_profiles.md](13_device_profiles.md)）のための、
+Pure な処理のモジュール。どれも通信・ファイル・ログを使わない。ここでは役割だけを
 書き、詳細は各仕様を正本とする。
 
 | モジュール | 役割 | 仕様 |
@@ -622,92 +391,21 @@ Pure な処理が追加された。どれも通信・ファイル・ログを使
 | `text_safety.py` | 相手から来る値の制御文字を可視化する | [12a](12a_web_screens_and_cli.md) |
 | `validation_text.py` | Pydantic の検証エラーを、値を出さずにメッセージにする | [12](12_modality_emulator.md) の 12 章 |
 
----
+## 9. テスト
 
-## 実装ガイドライン
+| ファイル | 対象 |
+|---------|------|
+| `tests/core/test_uid_generator.py`・`test_uid_custom_root.py` | `UIDGenerator` |
+| `tests/core/test_pixel_generator.py`・`test_ct_bits.py` | `PixelGenerator` と Bits Stored |
+| `tests/core/test_dicom_writer.py` | `FileMetaBuilder`・`SpatialCalculator` |
+| `tests/core/test_dicom_builder.py`・`test_ct_image_conformance.py` | `DICOMBuilder` が構築した Dataset のタグ |
+| `tests/core/test_abnormal_generator.py` | `AbnormalGenerator`・`apply_abnormal_to_dataset` |
+| `tests/services/test_study_generator.py` | Service を含めた生成 |
+| `tests/integration/test_modality_flow.py` | 予約から送信までの流れ |
 
-### Pythonクラス定義場所
-
-クラスとモジュールの対応は「API一覧」の表のとおり。`FileMetaBuilder` と
-`SpatialCalculator` は `dicom_writer.py` に、`DICOMBuilder` は `generator.py`
-にある。利用側は `from app.core import ...` で import する。
-
-### データモデル
-
-データクラスは `app/core/models.py` に定義。詳細は [03_data_models.md](03_data_models.md) を参照。
-
-### エラーハンドリング
-
-Core Engine内では以下の例外を発生させる：
-
-```python
-from app.core.exceptions import (
-    UIDGenerationError,
-    PixelGenerationError,
-    FileMetaError,
-    DICOMBuildError
-)
-
-# 例
-if method not in ["uuid_2_25", "custom_root"]:
-    raise UIDGenerationError(f"Invalid method: {method}")
-```
-
-### ログ出力
-
-Core Engineはログ出力しない（Pure関数）。Service Layerでログ出力。
-
----
-
-## テスト方針
-
-### Unit Test
-
-各クラスを独立してテスト：
-
-```python
-# tests/core/test_uid_generator.py
-def test_generate_study_uid_uuid_2_25():
-    uid_gen = UIDGenerator(method="uuid_2_25")
-    uid = uid_gen.generate_study_uid()
-    
-    assert uid.startswith("2.25.")
-    assert len(uid) > 10
-
-def test_generate_sop_uid_with_invalid():
-    uid_gen = UIDGenerator()
-    
-    invalid_count = 0
-    for _ in range(100):
-        uid = uid_gen.generate_sop_uid(allow_invalid=True)
-        if ".0" in uid[5:]:  # 先頭以外に.0がある
-            invalid_count += 1
-    
-    assert 5 <= invalid_count <= 15  # 約10%
-```
-
-### Dataset 構築のテスト
-
-`DICOMBuilder` は `tests/core/test_dicom_builder.py` で、構築した Dataset の
-タグを確認する。Service を含めた生成は `tests/services/test_study_generator.py`、
-予約から送信までの流れは `tests/integration/test_modality_flow.py` で確認する。
 テストの構成は [development.md](../development.md) の「テスト」を参照。
 
----
-
-## パフォーマンス目標
-
-| 処理 | 目標時間 |
-|------|---------|
-| UID生成 | <1ms |
-| Pixel Data生成（Simple） | <10ms |
-| Pixel Data生成（CT Real） | <50ms |
-| DICOM Dataset構築 | <50ms |
-| **1画像生成合計** | **<100ms** |
-
----
-
-## 関連する文書
+## 10. 関連する文書
 
 - [03_data_models.md](03_data_models.md)：データモデル
 - [architecture.md](../architecture.md)：Core を使う Service Layer の手順

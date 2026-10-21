@@ -63,7 +63,7 @@ def test_job_with_unrepresentable_text_stops(tmp_path, study: dict) -> None:
 
 
 def test_unrepresentable_text_is_not_in_error_or_log(tmp_path, caplog) -> None:
-    # 氏名などの字（PHI）を誤りの文とログに出さない（docs/README.md の「書き方」）
+    # 氏名などの字（PHI）を誤りの文とログに出さない（docs/development.md の 7 章）
     config = _config(tmp_path, charset="", referring_physician_name="SATO^HANAKO=佐藤^花子")
 
     with caplog.at_level("DEBUG"), pytest.raises(DICOMValidationError) as exc_info:

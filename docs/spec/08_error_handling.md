@@ -1,15 +1,18 @@
 # 08. エラーハンドリング
 
-## 概要
+DTG の例外の階層と、例外から CLI の終了コード・画面の表示への対応を定める。
+例外の使い方の規約（基底の例外を使う、握りつぶさない、など）は
+[docs/README.md](../README.md) の「コーディング規約」にある。
 
-このドキュメントでは、アプリケーション全体のエラーハンドリング戦略を定義する。
+## 1. 例外の階層
 
----
+### 1.1 階層
 
-## 例外階層
+例外は `app/core/exceptions.py` にある。この節と食い違えば exceptions.py が
+正本。
 
 ```text
-DICOMGeneratorError (Base)
+DICOMGeneratorError
 ├── ConfigurationError
 │   ├── TemplateError
 │   │   ├── TemplateNotFoundError
@@ -17,7 +20,7 @@ DICOMGeneratorError (Base)
 │   ├── PatientDataError
 │   │   ├── PatientNotFoundError
 │   │   └── PatientDataInvalidError
-│   ├── ProfileError                  # 装置プロファイル（spec/13 の 9）
+│   ├── ProfileError                  # 装置プロファイル（spec/13 の 9 章）
 │   │   ├── ProfileNotFoundError
 │   │   ├── ProfileParseError
 │   │   ├── DuplicateProfileError
@@ -49,432 +52,103 @@ DICOMGeneratorError (Base)
     └── MPPSError                # N-CREATE・N-SET の失敗
 ```
 
-`ModalityError` は `ConfigurationError` などとは別の系統にする
-（`ModalityConfigError` は `ConfigurationError` の子にしない）。
-`app/core/exceptions.py` に置き、`app/modality/` と `app/core/` の
-予約の値の転記（`worklist_mapping.py`）が使う。
+- `ModalityError` は `ConfigurationError` などとは別の系統にする
+  （`ModalityConfigError` は `ConfigurationError` の子にしない）。
+  `app/modality/` と、`app/core/` の予約の値の転記（`worklist_mapping.py`）が
+  使う
+- `IOError` と `ValidationError` は組み込みの同名のクラスとは別のクラスである
+- `JobSchemaError` と `JobValidationError` は定義だけで、送出する箇所は無い。
+  Job YAML の検証のエラーは Pydantic の `ValidationError` のまま上がる
+  （spec/07 の 4 章）
 
-階層図は `app/core/exceptions.py` と一致している。食い違えば exceptions.py が正本。
+### 1.2 メッセージ
 
----
+`DICOMGeneratorError` は `message` と `details`（辞書）を持つ。`str()` は
+`details` があれば `message (キー=値, ...)`、無ければ `message` を返す。
+`to_dict()` は `error_type`・`message`・`details` の辞書を返す。
 
-## 例外クラス定義
+| 例外 | `details` のキー |
+|------|------------------|
+| `TemplateNotFoundError` | `template_name`、古い名前のテンプレートでは `hint`（spec/13 の 7.3） |
+| `TemplateParseError` | `template_path`・`error` |
+| `ProfileNotFoundError` | `profile_name`・`searched` |
+| `ProfileParseError` | `profile_path`・`errors` |
+| `DuplicateProfileError` | `profile_name`・`paths` |
+| `PatientNotFoundError` | `patient_id` |
+| `UIDGenerationError` | `uid_type`（指定したときだけ） |
+| `PixelGenerationError` | `mode`（指定したときだけ） |
+| `DICOMBuildError` | `tag`（指定したときだけ） |
+| `FileWriteError`・`FileReadError` | `filepath`・`reason` |
+| `DirectoryCreateError` | `dirpath`・`reason` |
 
-### ベース例外
+例：`Failed to write file: /output/test.dcm (filepath=/output/test.dcm,
+reason=Permission denied)`
 
-```python
-# app/core/exceptions.py
+## 2. 例外の扱い
 
-class DICOMGeneratorError(Exception):
-    """ベース例外クラス"""
-    
-    def __init__(self, message: str, details: dict = None):
-        self.message = message
-        self.details = details or {}
-        super().__init__(self.message)
-    
-    def __str__(self):
-        if self.details:
-            details_str = ", ".join(f"{k}={v}" for k, v in self.details.items())
-            return f"{self.message} ({details_str})"
-        return self.message
-```
+### 2.1 生成（`StudyGeneratorService`）
 
-### Configuration系エラー
+- 最初のエラーで生成を停止する。画像の単位で処理を続けることはしない。
+  それより前に書き出した画像は残る
+- `DICOMGeneratorError` は、ERROR のログ（Traceback つき）を出力してから
+  そのまま再送出する
+- それ以外の例外は、ERROR のログを出力してから `GenerationError`
+  （`Unexpected generation error: ...`）に包んで送出する
+- 出力フォルダを作成できなければ `DirectoryCreateError`、ファイルを書き出せ
+  なければ `FileWriteError`
 
-```python
-class ConfigurationError(DICOMGeneratorError):
-    """設定関連エラー"""
-    pass
+ログの内容は [09_logging.md](09_logging.md) の 3 章にある。
 
-class TemplateError(ConfigurationError):
-    """テンプレート関連エラー"""
-    pass
+### 2.2 CLI
 
-class TemplateNotFoundError(TemplateError):
-    """テンプレートが見つからない"""
-    
-    def __init__(self, template_name: str, hint: str | None = None):
-        # hint: 古い名前（装置ごとのテンプレート）で読みに来たときの案内
-        # （装置のプロファイルの置き場へ。spec/13_device_profiles.md の 7.3）
-        details = {"template_name": template_name}
-        if hint is not None:
-            details["hint"] = hint
-        super().__init__(f"Template not found: {template_name}", details)
-
-class TemplateParseError(TemplateError):
-    """テンプレートのパースエラー"""
-    
-    def __init__(self, template_path: str, parse_error: str):
-        super().__init__(
-            f"Failed to parse template: {template_path}",
-            {"template_path": template_path, "error": parse_error}
-        )
-
-class PatientDataError(ConfigurationError):
-    """患者マスターデータエラー"""
-    pass
-
-class PatientNotFoundError(PatientDataError):
-    """患者が見つからない"""
-    
-    def __init__(self, patient_id: str):
-        super().__init__(
-            f"Patient not found: {patient_id}",
-            {"patient_id": patient_id}
-        )
-
-class JobSchemaError(ConfigurationError):
-    """Job YAML スキーマエラー"""
-    
-    def __init__(self, validation_errors: list):
-        super().__init__(
-            "Job configuration validation failed",
-            {"errors": validation_errors}
-        )
-```
-
-### Generation系エラー
-
-```python
-class GenerationError(DICOMGeneratorError):
-    """生成関連エラー"""
-    pass
-
-class UIDGenerationError(GenerationError):
-    """UID生成エラー"""
-    
-    def __init__(self, message: str, uid_type: str = None):
-        super().__init__(
-            message,
-            {"uid_type": uid_type} if uid_type else {}
-        )
-
-class PixelGenerationError(GenerationError):
-    """ピクセルデータ生成エラー"""
-    
-    def __init__(self, message: str, mode: str = None):
-        super().__init__(
-            message,
-            {"mode": mode} if mode else {}
-        )
-
-class FileMetaError(GenerationError):
-    """File Meta Information構築エラー"""
-    pass
-
-class DICOMBuildError(GenerationError):
-    """DICOM Dataset構築エラー"""
-    
-    def __init__(self, message: str, tag: str = None):
-        super().__init__(
-            message,
-            {"tag": tag} if tag else {}
-        )
-```
-
-### IO系エラー
-
-```python
-class IOError(DICOMGeneratorError):
-    """ファイルI/Oエラー"""
-    pass
-
-class FileWriteError(IOError):
-    """ファイル書き込みエラー"""
-    
-    def __init__(self, filepath: str, reason: str):
-        super().__init__(
-            f"Failed to write file: {filepath}",
-            {"filepath": filepath, "reason": reason}
-        )
-
-class FileReadError(IOError):
-    """ファイル読み込みエラー"""
-    
-    def __init__(self, filepath: str, reason: str):
-        super().__init__(
-            f"Failed to read file: {filepath}",
-            {"filepath": filepath, "reason": reason}
-        )
-
-class DirectoryCreateError(IOError):
-    """ディレクトリ作成エラー"""
-    
-    def __init__(self, dirpath: str, reason: str):
-        super().__init__(
-            f"Failed to create directory: {dirpath}",
-            {"dirpath": dirpath, "reason": reason}
-        )
-```
-
-### Validation系エラー
-
-```python
-class ValidationError(DICOMGeneratorError):
-    """バリデーションエラー"""
-    pass
-
-class JobValidationError(ValidationError):
-    """Job設定バリデーションエラー"""
-    pass
-
-class DICOMValidationError(ValidationError):
-    """DICOM検証エラー"""
-    pass
-```
-
----
-
-## エラー伝播戦略
-
-### レイヤー別の責務
-
-```text
-Core Engine:
-  - 例外を発生させる（raise）
-  - ログは出力しない（Pure関数）
-  ↓
-Service Layer:
-  - Core Engineの例外をキャッチ
-  - ログ出力
-  - 必要に応じて再raise
-  ↓
-UI Layer (CLI/GUI):
-  - Service Layerの例外をキャッチ
-  - ユーザーに表示
-  - 終了コード設定（CLI）またはダイアログ表示（GUI）
-```
-
-### 実装例
-
-#### Core Engine
-
-```python
-# app/core/uid_generator.py
-from .exceptions import UIDGenerationError
-
-class UIDGenerator:
-    def __init__(self, method="uuid_2_25", custom_root=""):
-        if method not in ["uuid_2_25", "custom_root"]:
-            raise UIDGenerationError(
-                f"Invalid UID generation method: {method}",
-                uid_type="configuration"
-            )
-        self.method = method
-        self.custom_root = custom_root
-```
-
-#### Service Layer
-
-```python
-# app/services/study_generator.py
-import logging
-from app.core.exceptions import DICOMGeneratorError, GenerationError
-
-logger = logging.getLogger(__name__)
-
-class StudyGeneratorService:
-    def generate_study(self, config):
-        try:
-            # Core Engine呼び出し
-            result = core_generate(config)
-            logger.info(f"Study generated successfully: {result.study_uid}")
-            return result
-        
-        except GenerationError as e:
-            logger.error(f"Generation failed: {e}")
-            raise  # 再raise
-        
-        except DICOMGeneratorError as e:
-            logger.error(f"Unexpected error: {e}")
-            raise
-```
-
-#### CLI
-
-`app/cli/main.py` の `main()` が、コマンドの例外を1か所で受ける。
+`app/cli/main.py` の `main()` が、コマンドの例外を 1 か所で受ける。
 `_map_exception_to_exit_code` が、例外の型から終了コードを決め、
-`[ERROR] <メッセージ>` を標準エラー出力に出す（対応は次章の表）。
-メッセージは端末に出す前に制御文字を見える形に直す。
+`[ERROR] <メッセージ>` を標準エラー出力に出す（対応は 3 章の表）。
+メッセージは端末に出す前に制御文字を可視化する。
 
-#### GUI（PySide6。凍結。spec/05）
+### 2.3 PySide6 の画面（spec/05）
 
 `MainWindow` は設定を集める段階の例外を警告のダイアログで出す。
-生成中の例外は `GeneratorWorker` が受け、`DICOMGeneratorError` は
-「生成エラー」、それ以外は「予期しないエラー」のメッセージにして
-`generation_finished(False, ...)` で UI スレッドへ渡す。
+生成中の例外は `GeneratorWorker` が受け、ERROR のログを出力してから、
+`DICOMGeneratorError` は「生成エラー」、それ以外は「予期しないエラー」の
+メッセージにして `generation_finished(False, ...)` で UI スレッドへ渡す。
+キャンセルの扱いは [05_gui.md](05_gui.md) の「非同期処理」の節にある。
 
----
+### 2.4 Web 画面の起動
 
-## 終了コード（CLI）
+`python -m app.web` は、設定ファイルの読み込みとパスワードの確認で
+`ConfigurationError`・`ModalityConfigError` が出れば、`[ERROR] <メッセージ>`
+を標準エラー出力に出して終了コード 2 で終了する。正常に停止したときは 0。
+
+## 3. 終了コード（CLI）
 
 | コード | 意味 | 例外 |
 |-------|------|------|
 | 0 | 成功 | - |
 | 1 | 一般エラー | GenerationError |
 | 2 | 設定エラー | ConfigurationError |
-| 3 | ファイルI/Oエラー | IOError |
-| 4 | バリデーションエラー | ValidationError・WorklistMappingError・Pydantic の ValidationError |
+| 3 | ファイル I/O エラー | IOError |
+| 4 | 検証のエラー | ValidationError・WorklistMappingError・Pydantic の ValidationError |
 | 5 | 通信エラー | AssociationError・WorklistQueryError・StoreError・StorageCommitmentError・MPPSError |
 
 - `ModalityConfigError` は 2（設定エラー）にする
 - ほかの `ModalityError`（例：最後に取得した結果に無い予約のキー）は 1
 - 上のどれでもない例外も 1
 
-判定は上から順に行う（`app/cli/main.py` の `_map_exception_to_exit_code`）。
-`ModalityError` 系は `ConfigurationError` などの子でないので、重ならない。
+判定は `ModalityConfigError`・`WorklistMappingError`・通信エラー・
+`ConfigurationError`・`IOError`・`ValidationError`・Pydantic の
+`ValidationError`・ほかの `DICOMGeneratorError`・それ以外の順に行う
+（`app/cli/main.py` の `_map_exception_to_exit_code`）。`ModalityError` 系は
+`ConfigurationError` などの子でないので、重ならない。
 
----
+## 4. テスト
 
-## ログレベルとエラー
+| テスト | 対象 |
+|--------|------|
+| `tests/core/test_exceptions.py` | 例外のクラス・`str()`・`to_dict()` |
+| `tests/cli/test_commands.py`・`tests/cli/test_modality_commands.py` | 終了コードの対応 |
 
-| エラー種別 | ログレベル | 処理継続 |
-|-----------|-----------|---------|
-| ConfigurationError | ERROR | 中断 |
-| TemplateError | ERROR | 中断 |
-| PatientDataError | ERROR | 中断 |
-| UIDGenerationError | ERROR | 中断 |
-| PixelGenerationError | ERROR | 中断（画像単位） |
-| FileWriteError | ERROR | 中断（画像単位） |
-| ValidationError | ERROR | 中断 |
-| 異常値注入（意図的） | WARNING | 継続 |
+## 5. 関連文書
 
----
-
-## エラーメッセージ設計
-
-### 原則
-
-1. **ユーザー視点**: 何が問題か明確に
-2. **解決策提示**: 可能な場合は対処法を示す
-3. **詳細情報**: デバッグに必要な情報を含める
-
-### 良い例
-
-```python
-raise TemplateNotFoundError("mr_head_generic")
-# => "Template not found: mr_head_generic (template_name=mr_head_generic)"
-```
-
-```python
-raise FileWriteError(
-    filepath="/output/test.dcm",
-    reason="Permission denied"
-)
-# => "Failed to write file: /output/test.dcm (filepath=/output/test.dcm, reason=Permission denied)"
-```
-
-### 悪い例
-
-```python
-raise Exception("Error")  # ❌ 何のエラーか不明
-raise ValueError("Invalid")  # ❌ 何が不正か不明
-```
-
----
-
-## エラーリカバリー
-
-### 部分的失敗の扱い
-
-**原則**: 画像単位でエラーハンドリング
-
-```python
-def generate_series(series_config):
-    results = []
-    errors = []
-    
-    for i in range(series_config.num_images):
-        try:
-            dcm = generate_image(i)
-            dcm.save_as(filepath)
-            results.append(filepath)
-        
-        except (PixelGenerationError, FileWriteError) as e:
-            logger.error(f"Failed to generate image {i}: {e}")
-            errors.append({"index": i, "error": str(e)})
-            continue  # 次の画像へ
-    
-    if errors:
-        logger.warning(f"Partial failure: {len(errors)}/{series_config.num_images} failed")
-    
-    return results, errors
-```
-
-### キャンセル時の扱い
-
-キャンセルがあるのは PySide6 の画面だけで、扱いは [05_gui.md](05_gui.md) の
-「非同期処理」の節が決める。
-
----
-
-## テスト
-
-### 例外のテスト
-
-```python
-# tests/core/test_uid_generator.py
-import pytest
-from app.core.uid_generator import UIDGenerator
-from app.core.exceptions import UIDGenerationError
-
-def test_invalid_method_raises_error():
-    with pytest.raises(UIDGenerationError) as exc_info:
-        UIDGenerator(method="invalid_method")
-    
-    assert "Invalid UID generation method" in str(exc_info.value)
-    assert exc_info.value.details["uid_type"] == "configuration"
-```
-
-### エラーハンドリングのテスト
-
-```python
-# tests/services/ の形
-def test_service_wraps_unexpected_error(monkeypatch):
-    # Core の DICOMBuilder が想定外の例外を投げる状況を作る
-    ...
-    with pytest.raises(GenerationError):
-        StudyGeneratorService().generate(config)
-```
-
-例外クラスそのもののテストは `tests/core/test_exceptions.py` にある。
-
----
-
-## デバッグ支援
-
-### 詳細情報の出力
-
-```python
-class DICOMGeneratorError(Exception):
-    def to_dict(self):
-        """デバッグ用辞書変換"""
-        return {
-            "error_type": self.__class__.__name__,
-            "message": self.message,
-            "details": self.details
-        }
-```
-
-### ログ出力
-
-```python
-import logging
-import json
-
-logger = logging.getLogger(__name__)
-
-try:
-    result = generate()
-except DICOMGeneratorError as e:
-    logger.error(f"Error occurred: {json.dumps(e.to_dict(), indent=2)}")
-    raise
-```
-
----
-
-## 関連文書
-
-- [09_logging.md](09_logging.md): ログの仕組み
-- [04_cli.md](04_cli.md): 終了コード
+- [04_cli.md](04_cli.md)：終了コード
+- [09_logging.md](09_logging.md)：ログ

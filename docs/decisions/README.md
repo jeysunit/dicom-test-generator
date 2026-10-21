@@ -1,7 +1,7 @@
-# 設計の判断（ADR）
+# 設計判断（ADR）
 
-ADR の一覧と、ADR に固有の書き方です。spec と ADR の役割の違いは
-[docs/README.md](../README.md) の「書き方」にあります。
+ADR の一覧と、ADR に固有の書き方です。ドキュメントに共通の書き方は
+[docs/README.md の「書き方」](../README.md#書き方) にあります。
 
 ## 一覧
 

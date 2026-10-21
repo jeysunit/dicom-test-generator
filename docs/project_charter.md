@@ -75,7 +75,7 @@ CT 以外のモダリティ（MR・CR・DX・US など）はまだ実装して�
 
 ## 6. 開発の方針
 
-- **仕様を先に決めてから実装する。** 手順は [README.md](README.md) の「書き方」
+- **仕様を先に決めてから実装する。** 手順は [development.md](development.md) の 6 章
 - **機能は追加するより減らす。** テストの相手として不要な機能は追加しない
 - **層を分ける。** UI は Service を経由して Core を使う。依存は上から下への一方向
   （[architecture.md](architecture.md)）

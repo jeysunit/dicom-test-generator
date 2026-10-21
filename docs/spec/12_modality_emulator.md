@@ -804,8 +804,8 @@ web:
 [09_logging.md](09_logging.md) に従う。
 
 - 通信の開始・終了・相手の Status の値・件数を INFO で記録する
-- 患者の氏名・生年月日はログに出力しない（[README.md](../README.md) の
-  「書き方」）。出力するのは予約のキー・受付番号・SOP Instance UID まで
+- 患者の氏名・生年月日はログに出力しない（[development.md](../development.md) の
+  7 章）。出力するのは予約のキー・受付番号・SOP Instance UID まで
 - pynetdicom のログは WARNING 以上だけを出力する（既定）。`--verbose` で DEBUG に
   する
 

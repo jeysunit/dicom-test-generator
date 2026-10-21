@@ -1,7 +1,7 @@
 # 開発
 
-開発環境、テスト、CI と、変更を確認するコマンドをまとめる。規則（変更の手順・
-コーディング規約・Git・文書の書き方）は [README.md](README.md) の「書き方」にある。
+開発環境、確認のコマンド、CI、テスト、変更の手順、コーディング規約をまとめる。
+ドキュメントの書き方は [README.md の「書き方」](README.md#書き方) にある。
 
 ## 1. 環境
 
@@ -22,12 +22,15 @@ PR を作成する前に、次を実行する。
 # テスト（ディスプレイの無い環境では QT_QPA_PLATFORM=offscreen を付ける）
 QT_QPA_PLATFORM=offscreen pytest
 
-# Markdown
+# Markdown の形式（設定は .markdownlint-cli2.yaml）
 npx markdownlint-cli2 "**/*.md" "#.venv" "#.pytest_cache"
 
 # ADR の最終更新日の記入漏れ
 python scripts/check_doc_dates.py origin/main..HEAD
 ```
+
+`check_doc_dates.py` は、指定した範囲で最後に変更したコミットの日付より ADR の
+「最終更新日」が古いか、行が無ければ終了コード 1 で失敗する。
 
 ## 3. CI
 
@@ -119,3 +122,55 @@ commit している。利用者がこれらを用意する必要は無い。
 bash scripts/fetch_web_assets.sh   # htmx と Lucide のアイコン
 bash scripts/build_css.sh          # app/web/styles/input.css から app/web/static/app.css を生成する
 ```
+
+## 6. 変更の手順
+
+作業は `main` から作成したブランチで行い、PR でマージする。`main` に直接 commit・
+push しない。1つの PR には1つの目的だけを入れる。動作を変更するときは、次の順に
+更新する。各ドキュメントに何を書くかは [README.md の「書き方」](README.md#書き方)
+に従う。
+
+1. spec を更新する
+2. 設計判断（方式の選択、規格が許す形式のどれを選ぶか）を伴うなら、ADR を作成する
+3. テストを先に書き、コードを変更する。バグを修正するときは、再発を防ぐテストを
+   先に書く
+4. 使い方が変わるなら、[usage.md](usage.md) を更新する
+
+spec に無い機能は追加しない。仕様の不明な点を推測で補って実装しない。既存の
+テストに合格させるために仕様を変えない（実装を修正する）。
+
+## 7. コーディング規約
+
+- 層の構造は [architecture.md](architecture.md) の 2 章のとおり。UI から Core
+  Engine を直接呼ばない。Core Engine は UI・ログ・設定ファイルに依存しない
+- Python 3.10 以上で動作させ、型ヒントを付ける。PEP 8 に従う（ruff は、設定
+  ファイルが無く、現在のコードに指摘が残っているため、CI にはまだ入れていない）
+- データモデルは Pydantic v2
+- 命名は snake_case（関数・変数）、PascalCase（クラス）、UPPER_CASE（定数）。
+  マジックナンバーは定数にする
+- 1ファイル 800 行以下、1関数 50 行以下を目安にする。既存のオブジェクトを変更
+  せず、新しく生成するほうを選ぶ
+- 依存は `requirements.txt` で管理する。標準ライブラリで済むなら外部の
+  パッケージを追加しない
+- 例外は [spec/08](spec/08_error_handling.md) の階層に従う。基底の例外は
+  `DICOMGeneratorError` で、汎用の `Exception` や `ValueError` を直接 raise
+  しない。Core Engine は raise し、Service Layer は捕捉してログに出力し、UI Layer
+  は捕捉して利用者に表示する。`except Exception:` で握りつぶさない。エラー
+  メッセージには原因と文脈（入力の ID、処理の段階）を含める
+- ログは [spec/09](spec/09_logging.md) に従う。`print()` ではなく `logging` を
+  使う（CLI が利用者に表示する結果とエラーを除く）。Core Engine はログを出力
+  しない。患者の氏名・生年月日などの個人情報と秘密情報をログに出力しない
+- CLI は [spec/04](spec/04_cli.md) に従う。結果は標準出力、エラーは標準エラー
+  出力に出す。`--help` で必須の引数と使用例を示す
+- 新しい機能には、正常系と異常系のテストを追加する。カバレッジは 80% 以上を
+  目標にする。Core Engine のテストでは、ファイルやネットワークを使わない
+
+## 8. Git
+
+- ブランチ名は `<type>/<topic>`（`feature/`・`fix/`・`refactor/`・`docs/`・
+  `test/`）
+- コミットメッセージは Conventional Commits の形式（`feat:`・`fix:`・
+  `refactor:`・`test:`・`docs:`・`chore:`）。説明は日本語でよい。1つのコミット
+  には1つの論理的な変更だけを入れる
+- 秘密情報（API キー・パスワードなど）はコミットしない
+- PR には、目的・変更点・確認方法・影響範囲を書く

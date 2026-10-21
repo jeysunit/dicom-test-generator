@@ -163,6 +163,6 @@ pixel_spec:
 
 ## 参考資料
 
-- [06_dicom_rules.md](../spec/06_dicom_rules.md#pixel-data)
+- [06_dicom_rules.md](../spec/06_dicom_rules.md#4-pixel-data)
 - DICOM Standard Part 3: C.8.2 CT Image Module
 - Horos: <https://horosproject.org/>

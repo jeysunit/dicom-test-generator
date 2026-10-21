@@ -1,15 +1,15 @@
 # 06. DICOM の規則
 
-## 概要
+DTG が生成する DICOM ファイルの属性・値・符号化の規則を定める。値・Type・
+長さ・文字コードは原典（dicom.nema.org の PS3.x）で確認し、規格の節番号を
+書く。Type の定義は PS3.5 7.4、VR の定義は PS3.5 6.2 の表 6.2-1 による。
 
-この文書は、DTG が生成する DICOM の詳細を定める。
+## 1. 前提
 
-**重要**: DTG は DICOM と HL7（v2・FHIR）の規格に違反しないことを開発の前提と
-する。この仕様の値・Type・長さ・文字コードは、原典（dicom.nema.org の PS3.x。
-IHE の Technical Framework）で確認し、規格の節番号を書く。仕様を変えるときも
-原典に合わせる。
+DTG は DICOM と HL7（v2・FHIR）の規格に違反しないことを開発の前提とする。
+仕様を変えるときも原典（PS3.x、IHE の Technical Framework）に合わせる。
 
-### 通常の経路と異常のデータの経路
+### 1.1 通常の経路と異常のデータの経路
 
 DTG は、あえて DICOM の規格に違反したデータを生成する機能（異常のデータ）を
 持つ。規格に違反しないという前提は、通常の経路にだけ適用する
@@ -33,7 +33,7 @@ DTG は、あえて DICOM の規格に違反したデータを生成する機能
   異常のデータの経路でも生成しない。生成できるようにするときは、先に spec/02 の
   定義に追加する
 
-### 装置のコンフォーマンスステートメントからの再現
+### 1.2 装置のコンフォーマンスステートメントからの再現
 
 特定の装置の DICOM の出力方法（製造者・型名・ソフトウェアバージョン・文字コードの
 組み合わせ・必ず出力する属性・空で出力する属性・プライベートタグ・Transfer
@@ -42,253 +42,158 @@ Syntax）は、その装置のコンフォーマンスステートメント（DI
 形式・転記の手順・配置場所は [spec/13_device_profiles.md](13_device_profiles.md)
 にある。実在の装置のプロファイルは公開のリポジトリに置かない（ADR-0012）。
 
----
+## 2. File Meta Information
 
-## File Meta Information
+File Meta Information（Group 0002）は `FileMetaBuilder`
+（`app/core/dicom_writer.py`）が組み立てる（PS3.10 7.1）。
 
-### 概要
-
-**File Meta Information**は、DICOMファイルの最初に格納される必須情報（Group 0002）。
-
-**重要**: File Meta Informationが不完全または誤っていると、多くのDICOMビューアで読み込みエラーが発生する。
-
-### 必須要素
-
-| Tag | Attribute Name | Type | 値の決定方法 |
-|-----|----------------|------|------------|
-| (0002,0001) | File Meta Information Version | 1 | `b'\x00\x01'` (固定) |
-| (0002,0002) | Media Storage SOP Class UID | 1 | テンプレートから（例: CT Image Storage） |
-| (0002,0003) | Media Storage SOP Instance UID | 1 | 画像のSOP Instance UIDと同一 |
-| (0002,0010) | Transfer Syntax UID | 1 | 選択されたTransfer Syntax |
+| Tag | Attribute Name | Type | 値 |
+|-----|----------------|------|----|
+| (0002,0001) | File Meta Information Version | 1 | `00H 01H`（固定） |
+| (0002,0002) | Media Storage SOP Class UID | 1 | モダリティテンプレートの `file_meta.media_storage_sop_class_uid`（既定は CT Image Storage `1.2.840.10008.5.1.4.1.1.2`）。装置プロファイルを使うときは、プロファイルの `storage.sop_classes` の最初の値 |
+| (0002,0003) | Media Storage SOP Instance UID | 1 | 画像の SOP Instance UID と同じ値。異なれば `DICOMBuildError` |
+| (0002,0010) | Transfer Syntax UID | 1 | Job の `transfer_syntax.uid`（9 章） |
 | (0002,0012) | Implementation Class UID | 1 | DTG の固定の UID（`IMPLEMENTATION_CLASS_UID`。同じ実装は同じ UID。PS3.7 D.3.3.2、PS3.10 7.1） |
-| (0002,0013) | Implementation Version Name | 3 | 例: "DICOM_GEN_1.1" |
+| (0002,0013) | Implementation Version Name | 3 | モダリティテンプレートの `file_meta.implementation_version_name`（既定 `DICOM_GEN_1.1`）。装置プロファイルの `device.implementation_version_name` があれば、その値 |
 
-### テンプレート定義例
+- File Meta Information Group Length (0002,0000) とプリアンブルは、
+  書き出すときに pydicom が付ける（`pydicom.dcmwrite` の
+  `enforce_file_format=True`）
+- モダリティテンプレートの `file_meta.transfer_syntax_uid` は読まない。
+  Transfer Syntax は Job の値だけで決まる
 
-```yaml
-file_meta:
-  media_storage_sop_class_uid: "1.2.840.10008.5.1.4.1.1.2"  # CT Image Storage
-  transfer_syntax_uid: "1.2.840.10008.1.2"  # Implicit VR Little Endian
-  implementation_class_uid: "2.25.{固定UUID}"
-  implementation_version_name: "DICOM_GEN_1.1"
-  source_application_entity_title: ""  # オプション
-```
+## 3. UID の生成
 
-### PyDicom実装
+### 3.1 UID の種類と範囲
 
-```python
-from pydicom.dataset import FileMetaDataset, Dataset
+| UID | 範囲 | 生成する時点 | 備考 |
+|-----|------|--------------|------|
+| Study Instance UID | Study | 生成の開始時に 1 回 | 予約からの撮影で予約に値があれば、その値を使う（spec/12） |
+| Series Instance UID | Series | シリーズごとに 1 回 | |
+| SOP Instance UID | Instance | 画像ごと | |
+| Frame of Reference UID | Study | 生成の開始時に 1 回 | 同じ Study のすべてのシリーズで共通（空間座標を共有するため） |
+| Instance Creator UID | 固定 | 定数（`INSTANCE_CREATOR_UID`） | DTG が生成するすべての画像で共通 |
 
-def create_file_meta(sop_class_uid, sop_instance_uid, transfer_syntax_uid, 
-                     implementation_class_uid, implementation_version_name):
-    file_meta = FileMetaDataset()
-    
-    # 必須要素
-    file_meta.FileMetaInformationVersion = b'\x00\x01'
-    file_meta.MediaStorageSOPClassUID = sop_class_uid
-    file_meta.MediaStorageSOPInstanceUID = sop_instance_uid
-    file_meta.TransferSyntaxUID = transfer_syntax_uid
-    file_meta.ImplementationClassUID = implementation_class_uid
-    
-    # オプション（推奨）
-    file_meta.ImplementationVersionName = implementation_version_name
-    
-    return file_meta
+生成の方式は Job の `uid_method` で選ぶ（`uuid_2_25` が既定）。生成は
+`UIDGenerator`（`app/core/uid_generator.py`）が行う。
 
-# 使用例
-ds = Dataset()
-ds.file_meta = create_file_meta(
-    sop_class_uid="1.2.840.10008.5.1.4.1.1.2",
-    sop_instance_uid=generated_sop_uid,
-    transfer_syntax_uid="1.2.840.10008.1.2",
-    implementation_class_uid="2.25.123456789...",
-    implementation_version_name="DICOM_GEN_1.1"
-)
+### 3.2 UUID 2.25 方式
 
-# 保存時
-ds.save_as("output.dcm", write_like_original=False)
-```
+形式は `2.25.{UUID の 128 ビットの整数の 10 進表記}`（PS3.5 B.2）。UUID は
+バージョン 4（乱数）を使う。
 
-**注意事項**:
+例：`2.25.113059749145936325402354257176981405696`
 
-- `write_like_original=False` を指定すること（新規ファイル作成時）
-- File Metaの Transfer Syntax UID とデータセット本体の圧縮形式は一致させること
+### 3.3 カスタム Root 方式
 
----
-
-## UID生成スコープ
-
-### UID種別とスコープ
-
-| UID種別 | スコープ | 生成タイミング | 備考 |
-|--------|---------|--------------|------|
-| **Study Instance UID** | Study単位 | スタディ生成時に1回 | 同一スタディ内の全シリーズ・全画像で共通 |
-| **Series Instance UID** | Series単位 | シリーズ生成時に1回 | 同一シリーズ内の全画像で共通 |
-| **SOP Instance UID** | Instance単位 | 画像ごとに生成 | 各画像で一意 |
-| **Frame of Reference UID** | Study単位 | スタディ生成時に1回 | 同一スタディ内で共通（CT/MRの場合） |
-| **Instance Creator UID** | 固定 | 定数（`INSTANCE_CREATOR_UID`） | 全生成データで共通（実装者UID） |
-
-**注意**: Frame of Reference UIDは、同一スタディ内の全シリーズで共通とする（空間座標の整合性のため）。
-
-### UID生成方式
-
-#### UUID 2.25方式（デフォルト）
-
-**形式**: `2.25.{UUIDを10進数変換}`
-
-**例**: `2.25.113059749145936325402354257176981405696`
-
-**実装例**:
-
-```python
-import uuid
-
-def generate_uid_uuid():
-    uuid_int = uuid.uuid4().int
-    return f"2.25.{uuid_int}"
-```
-
-#### カスタム Root 方式
-
-**形式**: `{custom_root}.{生成ごとの番号}.{連番}`
+形式は `{custom_root}.{生成ごとの番号}.{連番}`。ルートは Job の
+`uid_custom_root` で指定する。
 
 - UID は世界で一意でなければならない（PS3.5 9）。連番は生成のたびに 1 に
   戻るので、生成ごとの番号（64 ビットの乱数、20 桁まで）をルートの後ろに
   連結し、前の生成の UID と重複する確率を無視できるほど小さくする
   （2.25 の UUID と同じく、確率による一意性）
+- 連番は、1 回の生成の中で Study・Frame of Reference・Series・SOP Instance
+  の順に生成するたびに 1 ずつ増える
 - ルートは PS3.5 9.1 の形式：数字と `.` だけ、2 成分以上、最初の成分は 0・1・2
   （0・1 なら 2 番目は 0〜39。ITU-T X.660）、成分の先頭に 0 を置かない
-  （`0` だけの成分は可）。UID は 64 文字までなので、ルートは 35 文字まで
+  （`0` だけの成分は可）。UID は 64 文字までなので、ルートは 35 文字まで。
+  外れれば `UIDGenerationError`
 - ルートは自分の組織に割り当てられたものを使う。他の組織のルートを使わない
 
-#### SOP Instance UIDの不正パターン生成
+### 3.4 SOP Instance UID の不正な値（異常のデータ）
 
-**要件**: 「異常」チェックボックスがONの場合、約10%の確率で0始まり不正OIDを生成
+Job の `abnormal.allow_invalid_sop_uid` が `true` のとき、SOP Instance UID を
+10% の確率で、先頭が 0 の成分を含む値にする（PS3.5 9.1 に違反する）。
+確率は固定で、Job の `abnormal.invalid_sop_uid_probability` は使わない。
 
-**不正パターン例**:
+| 方式 | 不正な値の形 |
+|------|--------------|
+| `uuid_2_25` | `2.25.0{UUID の整数の前半}.{後半}`（新しい UUID を任意の位置で 2 つに分ける） |
+| `custom_root` | `{custom_root}.{生成ごとの番号}.0{連番}` |
 
 ```text
 正常: 2.25.123456789012345678901234567890
 不正: 2.25.0123456.789012345678901234567890
-              ^^
-              0で始まるコンポーネント（DICOM規格違反）
 ```
 
-**実装ロジック**:
+## 4. Pixel Data
 
-```python
-import random
+### 4.1 モード
 
-def generate_uid_with_invalid(allow_invalid=False):
-    uuid_int = uuid.uuid4().int
-    uid = f"2.25.{uuid_int}"
-    
-    if allow_invalid and random.random() < 0.1:
-        # 10%の確率で0始まり不正
-        uid_str = str(uuid_int)
-        split_pos = random.randint(3, len(uid_str) - 3)
-        invalid_uid = f"2.25.0{uid_str[:split_pos]}.{uid_str[split_pos:]}"
-        return invalid_uid
-    
-    return uid
-```
+Job の `pixel_spec.mode` で選ぶ（[ADR-0005](../decisions/0005-pixel-modes.md)）。
+どちらのモードも CT Image（PS3.3 C.8.2.1）の画素として書く。
 
----
+| モード | 用途 | Bits Allocated | Bits Stored | Pixel Representation | 内容 |
+|--------|------|----------------|-------------|----------------------|------|
+| `simple_text` | 簡易確認 | 16 | 12（固定） | 1（符号あり） | SOP Instance UID の文字列 |
+| `ct_realistic` | ビューアでの表示 | 16 | 12〜16（既定 12） | 1（符号あり） | HU 値のパターン |
 
-## Pixel Data
+### 4.2 画素の属性
 
-### モード
+`DICOMBuilder`（`app/core/generator.py`）が、どちらのモードでも次の値を書く。
 
-| モード | 用途 | Bits Allocated | Pixel Representation | 表示内容 |
-|--------|------|----------------|---------------------|---------|
-| **simple_text** | 簡易確認 | 16 | 1 (signed) | SOP Instance UIDテキスト |
-| **ct_realistic** | 医療ビューア表示 | 16 | 1 (signed) | CTリアルモード（HU値） |
-
-### Simple Textモード
-
-**仕様**:
-
-- **サイズ**: 512×512ピクセル（デフォルト）
-- **背景色**: 黒（8 ビットの画像の値 0 → 画素 0、HU −1024）
-- **テキスト色**: 白（8 ビットの画像の値 255 → 画素 2047、HU 1023）
-- **表示内容**: SOP Instance UID
-- **Photometric Interpretation**: MONOCHROME2
-- **Bits Allocated/Stored**: 16/12
-- **High Bit**: 11
-- **Pixel Representation**: 1 (signed)
-- **Rescale Intercept/Slope**: −1024 / 1
-- **Samples per Pixel**: 1
+| Tag | Attribute Name | 値 |
+|-----|----------------|----|
+| (0028,0002) | Samples per Pixel | 1 |
+| (0028,0004) | Photometric Interpretation | `MONOCHROME2` |
+| (0028,0010) | Rows | `pixel_spec.height`（既定 512） |
+| (0028,0011) | Columns | `pixel_spec.width`（既定 512） |
+| (0028,0100) | Bits Allocated | 16 |
+| (0028,0101) | Bits Stored | 4.1 の表のとおり |
+| (0028,0102) | High Bit | Bits Stored − 1 |
+| (0028,0103) | Pixel Representation | 1 |
+| (0028,1050) | Window Center | `40\400` |
+| (0028,1051) | Window Width | `400\1500` |
+| (0028,1052) | Rescale Intercept | `-1024` |
+| (0028,1053) | Rescale Slope | `1` |
 
 CT Image では Bits Allocated は 16、Bits Stored は 12〜16、Rescale
-Intercept・Slope は Type 1（PS3.3 C.8.2.1.1.4・C.8.2.1.1.5）。文字は
-Pillow で 8 ビットの画像に描き、`DICOMBuilder` が 0〜255 を 0〜2047 に
-広げて CT の画素として書く。
-
-### CT Realisticモード（医療ビューア対応）
-
-**仕様**:
-
-- **サイズ**: 512×512ピクセル（デフォルト）
-- **Photometric Interpretation**: MONOCHROME2
-- **Bits Allocated**: 16
-- **Bits Stored**: 12-16（Job の `pixel_spec.bits_stored`。12 未満はエラー。
-  PS3.3 C.8.2.1.1.5）
-- **High Bit**: 11-15
-- **Pixel Representation**: 1 (signed, 2's complement)
-- **Samples per Pixel**: 1
-- **Rescale Intercept**: -1024（HU値変換用）
-- **Rescale Slope**: 1
-- **Window Center**: [40, 400]（例: Soft Tissue, Lung）
-- **Window Width**: [400, 1500]
-
-**ピクセル値とHU値の関係**:
+Intercept・Slope は Type 1（PS3.3 C.8.2.1.1.4・C.8.2.1.1.5）。Bits Stored が
+この範囲の外なら `DICOMBuildError` になる。画素の値と HU 値の関係は次のとおり。
 
 ```text
 HU = Pixel Value × Rescale Slope + Rescale Intercept
 ```
 
-**例**:
+モダリティテンプレートの `ct_image.rescale_intercept`・`rescale_slope` と
+`window_presets` は読まない。上の値は固定である。
 
-- Pixel Value = 0 → HU = 0 × 1 + (-1024) = -1024 (Air)
-- Pixel Value = 1024 → HU = 1024 × 1 + (-1024) = 0 (Water)
-- Pixel Value = 2024 → HU = 2024 × 1 + (-1024) = 1000 (Bone)
+### 4.3 simple_text
 
-**画素値の範囲**（PS3.3 C.7.6.3 の Pixel Representation、PS3.5 8）:
+1. Pillow で 8 ビットのグレースケールの画像を作成する。背景は 0（黒）、
+   文字は 255（白）
+2. SOP Instance UID を、幅 10 ピクセルあたり 1 文字で折り返し、x = 10、
+   y = 高さの 1/4 から 20 ピクセルの行間で描く。フォントは DejaVu Sans Mono
+   の 16 ポイントで、無ければ Pillow の既定のフォント
+3. `DICOMBuilder` が 0〜255 を 0〜2047 に線形に広げ（四捨五入）、Bits Stored
+   12 の CT の画素として書く。背景は画素 0（HU −1024）、文字は画素 2047
+   （HU 1023）になる
 
-Pixel Representation 1 の画素は、Bits Stored のビット数の 2 の補数で
-表す。値は −2^(Bits Stored − 1) 〜 2^(Bits Stored − 1) − 1 に収める。
-12 ビットなら −2048〜2047 で、DTG は 0〜2047（HU −1024〜1023）を
-使う。範囲を超える値は、読み込む側が High Bit で符号拡張するため別の値に
-変わる（12 ビットの 2048 は −2048）。`DICOMBuilder` は範囲を超える
-画素を `DICOMBuildError` で拒否する。
+Job の `pixel_spec.background_color`・`text_color`・`font_size` は受け付けるが、
+画像には反映しない。
 
-**生成パターン**:
+### 4.4 ct_realistic
 
-1. **gradient**: 左から右へHU値が増加（12 ビットで HU −1024〜1023）
-2. **circle**: 中心に高HU値の円（ボーン、HU 1000）、周辺に低HU値
-   （ソフトティッシュ、HU 40）。Bits Stored の上限を超えるときは上限に収める
-3. **noise**: 0 から Bits Stored の上限までの一様な乱数
+`pixel_spec.pattern` で次の 3 つから選ぶ（既定 `gradient`）。Bits Stored の
+上限は 2^(Bits Stored − 1) − 1（12 ビットなら 2047）。
 
-**対応するDICOMタグ**:
+| パターン | 画素の値 |
+|----------|----------|
+| `gradient` | 左端 0 から右端の上限まで、列ごとに線形に増やす（12 ビットで HU −1024〜1023） |
+| `circle` | 中心に半径 min(幅, 高さ)/4 の円。円の内側は 2024（HU 1000、骨）、外側は 1064（HU 40、軟部組織）。上限を超える値は上限に収める |
+| `noise` | 0 から上限までの一様な乱数 |
 
-| Tag | Attribute Name | Value (CT Realistic) |
-|-----|----------------|----------------------|
-| (0028,0002) | Samples per Pixel | 1 |
-| (0028,0004) | Photometric Interpretation | "MONOCHROME2" |
-| (0028,0010) | Rows | 512 |
-| (0028,0011) | Columns | 512 |
-| (0028,0100) | Bits Allocated | 16 |
-| (0028,0101) | Bits Stored | 12〜16（既定 12） |
-| (0028,0102) | High Bit | Bits Stored − 1 |
-| (0028,0103) | Pixel Representation | 1 |
-| (0028,1052) | Rescale Intercept | -1024 |
-| (0028,1053) | Rescale Slope | 1 |
-| (0028,1050) | Window Center | [40, 400] |
-| (0028,1051) | Window Width | [400, 1500] |
+### 4.5 画素の値の範囲
 
----
+Pixel Representation 1 の画素は、Bits Stored のビット数の 2 の補数で表す
+（PS3.3 C.7.6.3、PS3.5 8）。値は −2^(Bits Stored − 1) 〜
+2^(Bits Stored − 1) − 1 に収める。12 ビットなら −2048〜2047 で、DTG は
+0〜2047（HU −1024〜1023）を使う。範囲を超える値は、読み込む側が High Bit で
+符号拡張するため別の値に変わる（12 ビットの 2048 は −2048）。
+`DICOMBuilder` は範囲を超える画素を `DICOMBuildError` で拒否する。
 
-## CT Image の必須の属性
+## 5. CT Image の必須の属性
 
 CT Image IOD（PS3.3 A.3）の Type 1・2・2C の属性のうち、Job・テンプレート・
 予約から値が来ないものは、`DICOMBuilder` が次の既定値で必ず出力する。
@@ -306,57 +211,35 @@ CT の Image Type の値 3 の Defined Terms は `AXIAL` と `LOCALIZER`
 （C.8.2.1.1.1。`AXIAL` は断層の画像を指し、横断に限らない）。DTG は
 断層の画像を生成するので、既定を `AXIAL` にする。
 
----
+## 6. マルチスライスの空間座標
 
-## マルチスライス空間座標
+### 6.1 計算の規則
 
-### 関連タグ
+シリーズの i 枚目（0 始まり）の値は `SpatialCalculator`
+（`app/core/dicom_writer.py`）が計算する。`start_z`・`slice_spacing`・
+`slice_thickness` は Job の `series_list` の値（既定は 0.0・5.0・5.0 mm）。
 
-| Tag | Attribute Name | Type | 連動ルール |
-|-----|----------------|------|----------|
-| (0020,0013) | Instance Number | 2 | 1からの連番 |
-| (0020,0032) | Image Position (Patient) | 1 | [X, Y, Z] - Zを変化させる |
-| (0020,1041) | Slice Location | 3 | Zと同一値またはZ基準の連番 |
-| (0018,0050) | Slice Thickness | 2 | 全画像で共通 |
-| (0028,0030) | Pixel Spacing | 1 | [行間隔, 列間隔] - 全画像で共通 |
+| Tag | Attribute Name | Type | 値 |
+|-----|----------------|------|----|
+| (0020,0013) | Instance Number | 2 | i + 1 |
+| (0020,0032) | Image Position (Patient) | 1 | `[0, 0, z]`。z = `start_z` + i × `slice_spacing` |
+| (0020,0037) | Image Orientation (Patient) | 1 | `[1, 0, 0, 0, 1, 0]`（固定） |
+| (0020,1041) | Slice Location | 3 | z |
+| (0018,0050) | Slice Thickness | 2 | `slice_thickness`（シリーズで共通） |
+| (0028,0030) | Pixel Spacing | 1 | `[0.5, 0.5]`（固定） |
 
-### 空間座標計算ロジック
+Type は PS3.3 C.7.6.1（General Image）と C.7.6.2（Image Plane）による。
+モダリティテンプレートの `spatial` の節は読まない。
 
-**計算式**:
+例：20 枚、厚さ 5 mm、間隔 5 mm、開始 z = 0 のとき
 
-```python
-def calculate_spatial_coords(slice_index, slice_thickness, slice_spacing, start_z):
-    """スライスインデックス（0始まり）から空間座標を計算"""
-    instance_number = slice_index + 1  # 1始まり
-    
-    # Z座標
-    z = start_z + (slice_index * slice_spacing)
-    
-    # Image Position (Patient)
-    # X, Yは固定、Zのみ変化
-    image_position = [0.0, 0.0, z]
-    
-    # Slice Location
-    slice_location = z
-    
-    return {
-        "instance_number": instance_number,
-        "image_position_patient": image_position,
-        "slice_location": slice_location
-    }
-```
+| i | Instance Number | Image Position (Patient) | Slice Location |
+|---|-----------------|--------------------------|----------------|
+| 0 | 1 | `[0, 0, 0]` | 0 |
+| 1 | 2 | `[0, 0, 5]` | 5 |
+| 19 | 20 | `[0, 0, 95]` | 95 |
 
-**例**: 20枚のスライス、厚さ5mm、間隔5mm、開始Z=0
-
-| Slice Index | Instance Number | Image Position (Patient) | Slice Location |
-|-------------|----------------|-------------------------|----------------|
-| 0 | 1 | [0, 0, 0] | 0 |
-| 1 | 2 | [0, 0, 5] | 5 |
-| 2 | 3 | [0, 0, 10] | 10 |
-| ... | ... | ... | ... |
-| 19 | 20 | [0, 0, 95] | 95 |
-
-### DS の書き方
+### 6.2 DS の書き方
 
 DS（Decimal String）は 16 バイトまで（PS3.5 6.2 の表 6.2-1）。
 `str(float)` は浮動小数点の誤差で 16 文字を超える（間隔 0.1 の 4 枚目は
@@ -368,111 +251,54 @@ Weight・Patient's Size）は、有効 12 桁で丸めてから
 （`app/core/generator.py` の `format_ds`）。上の例は `0.3`・`1.657` になる。
 小さい値は 0 にせず、指数表記で残す（`1e-07`。DS は指数表記を許す）。
 
-### テンプレート設定
+## 7. 文字コード
 
-```yaml
-spatial:
-  slice_thickness: 5.0      # mm
-  slice_spacing: 5.0        # mm（通常はthicknessと同じ）
-  start_z: 0.0              # mm
-  pixel_spacing: [0.5, 0.5] # [行, 列] mm
-  image_orientation_patient: [1, 0, 0, 0, 1, 0]  # 標準軸位断
-```
+### 7.1 Specific Character Set (0008,0005)
 
----
+値は次の順に決め、後のものが前のものを上書きする。
 
-## 文字コード（多言語）
+1. Job の `character_set.specific_character_set`（既定
+   `ISO 2022 IR 6\ISO 2022 IR 87`）
+2. 病院テンプレートの `overrides.character_set.specific_character_set`
+3. 装置プロファイルの `character_set.default`（病院テンプレートが 2 を
+   書いていないときだけ。spec/13）
 
-### Specific Character Set (0008,0005)
+- `\` で区切った値は複数の値として書く（PS3.3 C.12.1.1.2）
+- 値が空なら (0008,0005) を書かない。このとき患者名に ASCII 以外の文字が
+  あれば `DICOMBuildError` で停止する（PS3.3 C.12.1 の Type 1C）
+- 病院テンプレートが値に `null` を書いたときは、患者名に ASCII 以外の文字が
+  あれば `ISO 2022 IR 6\ISO 2022 IR 87` を書き、無ければ書かない
+- 予約からの撮影では、Specific Character Set と患者の値を予約の値で
+  上書きする（spec/12 の 6 章）
 
-| 値 | エンコーディング | 用途 | PN対応 |
-|----|----------------|------|--------|
-| （空文字） | ASCII | 英数字のみ | alphabeticのみ |
-| `ISO_IR 100` | ISO 8859-1 (Latin-1) | 西欧言語 | alphabeticのみ |
-| `ISO 2022 IR 87` | ISO-2022-JP | 日本語（JIS） | alphabetic + ideographic + phonetic |
-| `ISO_IR 192` | UTF-8 | 多言語 | alphabetic + ideographic + phonetic |
+### 7.2 PN の構成
 
-### PN (Person Name) の構造
-
-**形式**: `{Alphabetic}={Ideographic}={Phonetic}`
-
-**例**:
+PN（Person Name）は英字・漢字・かなの 3 つのコンポーネントグループを `=` で
+つなぐ（PS3.5 6.2.1）。Job の `patient.patient_name` の `alphabetic`・
+`ideographic`・`phonetic` をこの順に並べる。
 
 ```text
 YAMADA^TARO=山田^太郎=ヤマダ^タロウ
 ```
 
-各コンポーネント:
+- 英字のコンポーネントグループは常に書く
+- 漢字は `use_ideographic`、かなは `use_phonetic` が `true` で、値があるときだけ
+  書く。どちらも Job の `character_set` の値を、病院テンプレートの
+  `overrides.patient_module.patient_name` が上書きする。
+  `use_alphabetic` は読まない
+- 末尾の空のコンポーネントグループは削除する。途中の空は残す
+  （漢字が無くかながある例：`YAMADA^TARO==ヤマダ^タロウ`）
 
-- **Alphabetic**: ローマ字（ASCII）
-- **Ideographic**: 漢字（ISO 2022 IR 87またはUTF-8）
-- **Phonetic**: カタカナ（ISO 2022 IR 87またはUTF-8）
+### 7.3 病院テンプレート
 
-### 病院テンプレートでの制御
+`templates/hospital/` の 2 つのテンプレートの出力は次のとおり。
 
-#### A病院（日本語使用）
+| テンプレート | Specific Character Set | Patient's Name |
+|--------------|------------------------|----------------|
+| `hospital_a` | `ISO 2022 IR 6\ISO 2022 IR 87` | `YAMADA^TARO=山田^太郎=ヤマダ^タロウ` |
+| `hospital_b` | （書かない） | `YAMADA^TARO` |
 
-```yaml
-overrides:
-  character_set:
-    default: "ISO 2022 IR 6\\ISO 2022 IR 87"
-  
-  patient_module:
-    patient_name:
-      use_alphabetic: true
-      use_ideographic: true
-      use_phonetic: true
-```
-
-**期待する出力**:
-
-```text
-(0008,0005) Specific Character Set: "ISO 2022 IR 6\ISO 2022 IR 87"
-(0010,0010) Patient's Name: "YAMADA^TARO=山田^太郎=ヤマダ^タロウ"
-```
-
-#### B病院（ローマ字のみ）
-
-```yaml
-overrides:
-  character_set:
-    default: ""  # ASCII
-  
-  patient_module:
-    patient_name:
-      use_alphabetic: true
-      use_ideographic: false
-      use_phonetic: false
-```
-
-**期待する出力**:
-
-```text
-(0008,0005) Specific Character Set: (空)
-(0010,0010) Patient's Name: "YAMADA^TARO"
-```
-
-### PyDicom実装注意点
-
-```python
-from pydicom.dataset import Dataset
-
-# 日本語使用の場合
-ds = Dataset()
-ds.SpecificCharacterSet = ['ISO 2022 IR 6', 'ISO 2022 IR 87']
-ds.PatientName = "YAMADA^TARO=山田^太郎=ヤマダ^タロウ"
-
-# PyDicomはデフォルトと拡張文字集合を使い分けてエンコード
-ds.save_as("output.dcm")
-
-# ローマ字のみの場合
-ds2 = Dataset()
-ds2.SpecificCharacterSet = ''  # または設定しない
-ds2.PatientName = "YAMADA^TARO"
-ds2.save_as("output2.dcm")
-```
-
-### 表現できない文字
+### 7.4 表現できない文字
 
 Specific Character Set は、デフォルトの文字セット（ASCII）に無い文字を使う
 ときに必須（PS3.3 C.12.1 の Type 1C、PS3.5 6.1）。宣言した文字コードで
@@ -488,65 +314,58 @@ spec/04）。Job の生成のエラーメッセージとログには、属性の
 例：文字コードが空の病院テンプレート（`hospital_b`）で、Job の紹介医名や
 検査の説明に漢字・`é` があれば停止する。
 
-## PatientAge (0010,1010)
+## 8. Patient's Age (0010,1010)
 
-`PatientAge` は Job YAML の `patient.age` をそのまま使用せず、
-`birth_date` と `study_date` から **日本法基準** で算出する。
+Patient's Age は Job の `patient.age` を使わず、`birth_date` と
+`study_date` から日本の法律の基準で算出する
+（[ADR-0008](../decisions/0008-patient-age-derived-from-dates.md)）。
 
-### 法的根拠
+### 8.1 法的根拠
 
-- **年齢計算ニ関スル法律**（明治35年法律第50号）: 出生の日より起算
-- **民法143条**: 期間を年で定めた場合、暦に従い計算。応当日がない場合はその月の末日に満了
+- **年齢計算ニ関スル法律**（明治 35 年法律第 50 号）：出生の日から起算する
+- **民法 143 条**：期間を年で定めたときは暦に従って計算する。応当日が無いときは
+  その月の末日に満了する
 
-### アルゴリズム
+### 8.2 算出の規則
 
-加齢日（N歳に達する日）= 誕生日の前日のN年後。
+N 歳に達する日（加齢日）は、誕生日の前日の N 年後の同じ月日とする。その日が
+存在しないとき（前日が 2 月 29 日で、N 年後が閏年でない）は 2 月 28 日とする。
+年齢は、加齢日が検査日以前である最大の N。
 
-```python
-from datetime import date, timedelta
+### 8.3 2 月 29 日生まれの例
 
-def _age_reached_date(birth: date, n: int) -> date:
-    """N歳到達日（加齢日）を算出"""
-    eve = birth - timedelta(days=1)  # 誕生日の前日
-    target_year = eve.year + n
-    try:
-        return eve.replace(year=target_year)
-    except ValueError:
-        # eve=2/29（birth=3/1、閏年）で非閏年の場合 → 2/28
-        return date(target_year, eve.month, 28)
-```
+| 生年月日 | 検査日 | 値 | 理由 |
+|----------|--------|----|------|
+| 2000-02-29 | 2025-02-27 | `024Y` | 加齢日（2/28）の前日 |
+| 2000-02-29 | 2025-02-28 | `025Y` | 閏年でない年の加齢日 |
+| 2000-02-29 | 2024-02-28 | `024Y` | 閏年の加齢日 |
 
-### 具体例（2/29生まれ）
+### 8.4 制約
 
-| 生年月日 | 検査日 | 期待値 | 理由 |
-|---------|--------|-------|------|
-| 2000-02-29 | 2025-02-27 | 024Y | 加齢日(2/28)の前日 |
-| 2000-02-29 | 2025-02-28 | 025Y | 非閏年の加齢日 |
-| 2000-02-29 | 2024-02-28 | 024Y | 閏年の加齢日 |
+- `study_date` は `birth_date` 以上でなければならない（Job の検証のエラー。
+  spec/07）
+- 値は AS の形式 `nnnY`（PS3.5 6.2）。0〜999 の範囲の外は `DICOMBuildError`
 
-### 制約
+## 9. Transfer Syntax
 
-- `study_date >= birth_date` を必須とする（バリデーションエラー）
-- DICOM AS 形式: `nnnY`（0〜999の範囲、範囲外はビルドエラー）
-
----
-
-## Transfer Syntax
-
-### サポートするTransfer Syntax
+### 9.1 生成する Transfer Syntax
 
 | Transfer Syntax | UID | VR | Endian |
-|----------------|-----|-----|--------|
-| **Implicit VR Little Endian** | 1.2.840.10008.1.2 | Implicit | Little |
-| **Explicit VR Little Endian** | 1.2.840.10008.1.2.1 | Explicit | Little |
+|-----------------|-----|----|--------|
+| Implicit VR Little Endian（既定） | 1.2.840.10008.1.2 | Implicit | Little |
+| Explicit VR Little Endian | 1.2.840.10008.1.2.1 | Explicit | Little |
 
+Job の `transfer_syntax.uid` で選ぶ。符号化の方法は UID から決まり、Job の
+`transfer_syntax` の `name`・`is_implicit_vr`・`is_little_endian` は使わない。
 この 2 つが `app/core/generator.py` の `DICOMBuilder` が受け付ける Transfer
 Syntax で、ほかの UID は `DICOMBuildError` になる。
+
+### 9.2 Explicit VR Big Endian
 
 Explicit VR Big Endian（1.2.840.10008.1.2.2）は規格で廃止された形式
 （PS3.5 A.3）なので生成しない
 （[ADR-0015](../decisions/0015-no-explicit-vr-big-endian.md)）。Job で
-指定すると、出力フォルダを作成する前に停止する：
+指定すると、出力フォルダを作成する前に停止する。
 
 - 装置プロファイルを選択していれば、先にプロファイルと合うかを検証する。
   プロファイルが Big Endian を持たなければ `ProfileMismatchError`
@@ -557,70 +376,15 @@ Explicit VR Big Endian（1.2.840.10008.1.2.2）は規格で廃止された形式
   Transfer Syntax を決めるとき）は `ProfileMismatchError`（終了コード 2）
 
 異常のデータの定義（spec/02）にも含まれないので、異常のデータのレベルに関わらず
-生成しない（上の「通常の経路と異常のデータの経路」）。
+生成しない（1.1 の「通常の経路と異常のデータの経路」）。
 
-### PyDicom実装
+## 10. 参考資料
 
-```python
-from pydicom.dataset import Dataset, FileMetaDataset
-
-def save_with_transfer_syntax(ds, filepath, transfer_syntax_uid):
-    # File Metaに設定
-    ds.file_meta.TransferSyntaxUID = transfer_syntax_uid
-    
-    # Implicit VRの場合
-    if transfer_syntax_uid == "1.2.840.10008.1.2":
-        ds.is_implicit_VR = True
-        ds.is_little_endian = True
-    
-    # Explicit VR Little Endianの場合
-    elif transfer_syntax_uid == "1.2.840.10008.1.2.1":
-        ds.is_implicit_VR = False
-        ds.is_little_endian = True
-    
-    ds.save_as(filepath, write_like_original=False)
-```
-
----
-
-## DICOMタグ Type定義
-
-| Type | 説明 | 要件 |
-|------|------|------|
-| 1 | Required | 必須、空値不可 |
-| 1C | Conditional | 条件付き必須 |
-| 2 | Required, Empty if Unknown | 必須、値不明時は空値可 |
-| 2C | Conditional | 条件付き必須、値不明時は空値可 |
-| 3 | Optional | オプション |
-
----
-
-## VR (Value Representation) 一覧
-
-| VR | 名称 | 説明 | 例 |
-|----|------|------|-----|
-| AE | Application Entity | AEタイトル | "PACS" |
-| AS | Age String | 年齢 | "040Y" |
-| CS | Code String | コード文字列 | "M" |
-| DA | Date | 日付 | "20240115" |
-| DS | Decimal String | 10進数文字列（16バイト） | "12.5" |
-| IS | Integer String | 整数文字列 | "100" |
-| LO | Long String | 長い文字列（64文字） | "CT CHEST" |
-| LT | Long Text | 長いテキスト（10240文字） | コメント等 |
-| PN | Person Name | 人名 | "YAMADA^TARO" |
-| SH | Short String | 短い文字列（16文字） | "ACC001" |
-| TM | Time | 時刻 | "143000" |
-| UI | Unique Identifier | UID | "2.25.123..." |
-| US | Unsigned Short | 符号なし16bit整数 | 512 |
-
----
-
-## 参考資料
-
-1. **DICOM Standard**: <https://www.dicomstandard.org/>
-2. **PyDicom Documentation**: <https://pydicom.github.io/>
-3. **IHE Japan**: <https://www.ihe-j.org/> (OID取得情報)
-4. **RFC 3061**: UUID Based OID (2.25系)
+1. **DICOM Standard**：<https://www.dicomstandard.org/>
+2. **pydicom**：<https://pydicom.github.io/>
+3. **IHE Japan**：<https://www.ihe-j.org/>（OID の取得の情報）
+4. **ITU-T X.667（ISO/IEC 9834-8）**：UUID から 2.25 の OID を作る規則
+   （PS3.5 B.2 が参照する）
 5. **装置のコンフォーマンスステートメント**（DICOM PS3.2 Annex N の形式）：
    再現する装置ごとに参照する。どの文書のどの版から転記したかは、外部の
    配置場所のプロファイルの `source` に書く（spec/13）

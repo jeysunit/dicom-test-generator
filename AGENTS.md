@@ -2,9 +2,9 @@
 
 実装の前に、次を順に読んでください。
 
-1. [docs/README.md](docs/README.md) の「書き方」：変更の手順、コーディング規約、
-   Git、文書の書き方。ここに書いた規則に従う
-2. [docs/development.md](docs/development.md)：開発環境、テスト、確認のコマンド
+1. [docs/development.md](docs/development.md)：開発環境、テスト、確認のコマンド、
+   変更の手順、コーディング規約、Git。ここに書いた規則に従う
+2. [docs/README.md](docs/README.md) の「書き方」：ドキュメントの書き方
 3. [docs/project_charter.md](docs/project_charter.md)：目的、範囲、規格の前提
 4. [docs/spec/](docs/spec/)：現在の動作。モダリティエミュレーター（`app/modality/`・
    `app/web/`）は [docs/spec/12](docs/spec/12_modality_emulator.md) と
