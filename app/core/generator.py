@@ -26,6 +26,9 @@ CT_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.2"
 DEFAULT_IMAGE_TYPE = ("ORIGINAL", "PRIMARY", "AXIAL")  # PS3.3 C.8.2.1.1.1
 DEFAULT_PATIENT_POSITION = "HFS"  # PS3.3 C.7.3.1.1.2
 DEFAULT_POSITION_REFERENCE_INDICATOR = ""  # PS3.3 C.7.4.1.1.2（Type 2）
+# CT Image の Bits Stored の範囲（PS3.3 C.8.2.1.1.5）
+CT_BITS_STORED_MIN = 12
+CT_BITS_STORED_MAX = 16
 
 # DS（PS3.5 6.2、16 バイトまで）に書く前に丸める有効桁の数。
 # float の誤差（16〜17 桁目）を落とし、小さい値も指数で残す
@@ -167,6 +170,12 @@ class DICOMBuilder:
         ds.SamplesPerPixel = 1
         ds.PhotometricInterpretation = "MONOCHROME2"
 
+        if not CT_BITS_STORED_MIN <= bits_stored <= CT_BITS_STORED_MAX:
+            raise DICOMBuildError(
+                f"Bits Stored {bits_stored} is not allowed for CT "
+                f"({CT_BITS_STORED_MIN}..{CT_BITS_STORED_MAX}, PS3.3 C.8.2.1.1.5)",
+                tag="BitsStored",
+            )
         if pixel_data.dtype == np.uint8:
             # CT Image は Bits Allocated 16・Bits Stored 12〜16 で、Rescale が
             # Type 1（PS3.3 C.8.2.1.1.4・C.8.2.1.1.5）。8 ビットの文字の画像は

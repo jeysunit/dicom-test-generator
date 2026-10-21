@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 from pydantic import ValidationError
 
+from app.core.exceptions import DICOMBuildError
 from app.core.models import PixelSpecCTRealistic
 from tests.core.test_ct_image_conformance import _build
 
@@ -24,6 +25,16 @@ def test_text_image_is_written_as_16_bit_ct() -> None:
     assert str(ds.RescaleSlope) == "1"
     values = np.frombuffer(ds.PixelData, dtype="<i2")
     assert values.tolist() == [0, 1028, 2047]
+
+
+@pytest.mark.parametrize("bits_stored", [8, 11, 17])
+@pytest.mark.parametrize("dtype", [np.uint8, np.int16])
+def test_builder_rejects_bits_stored_outside_12_to_16(bits_stored: int, dtype) -> None:
+    # 公開の build_ct_image を直接呼んでも、CT に無い Bits Stored は書かない
+    pixels = np.zeros((2, 2), dtype=dtype)
+
+    with pytest.raises(DICOMBuildError, match="Bits Stored"):
+        _build(pixels=pixels, bits_stored=bits_stored)
 
 
 def test_ct_realistic_bits_stored_below_12_is_rejected() -> None:

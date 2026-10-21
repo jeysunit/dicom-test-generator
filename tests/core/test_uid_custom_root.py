@@ -47,7 +47,7 @@ def test_run_scoped_uids_are_valid() -> None:
 
 
 def test_run_scoped_uid_with_longest_root_fits_64() -> None:
-    root = "1." + "2" * (CUSTOM_ROOT_MAX_LENGTH - 2)
+    root = "2." + "2" * (CUSTOM_ROOT_MAX_LENGTH - 2)
     generator = UIDGenerator(method="custom_root", custom_root=root, run_scoped=True)
 
     uids = [generator.generate_sop_uid() for _ in range(3)]
@@ -64,7 +64,9 @@ def test_run_scoped_uid_with_longest_root_fits_64() -> None:
         "1..2",
         "1.2.",
         "1.2.a",
-        "1." + "2" * 70,  # 64 字を超える
+        "2." + "2" * 70,  # 64 字を超える
+        "1",  # 成分が 1 つ
+        "1.40.3",  # 最初が 0・1 なら 2 番目は 0〜39
     ],
 )
 def test_invalid_custom_root_is_rejected(root: str) -> None:
@@ -72,8 +74,13 @@ def test_invalid_custom_root_is_rejected(root: str) -> None:
         UIDGenerator(method="custom_root", custom_root=root)
 
 
+@pytest.mark.parametrize("root", ["1.39.5", "2.999.1", "0.0"])
+def test_valid_custom_root_is_accepted(root: str) -> None:
+    UIDGenerator(method="custom_root", custom_root=root, run_scoped=True)
+
+
 def test_run_scoped_root_too_long_for_suffix_is_rejected() -> None:
-    root = "1." + "2" * (CUSTOM_ROOT_MAX_LENGTH - 1)
+    root = "2." + "2" * (CUSTOM_ROOT_MAX_LENGTH - 1)
 
     with pytest.raises(UIDGenerationError, match=str(CUSTOM_ROOT_MAX_LENGTH)):
         UIDGenerator(method="custom_root", custom_root=root, run_scoped=True)
@@ -81,7 +88,7 @@ def test_run_scoped_root_too_long_for_suffix_is_rejected() -> None:
 
 def test_generated_uid_longer_than_64_is_rejected() -> None:
     # run_scoped でなくても、64 字を超える UID は作らない
-    root = "1." + "2" * (UID_MAX_LENGTH - 3)
+    root = "2." + "2" * (UID_MAX_LENGTH - 3)
     generator = UIDGenerator(method="custom_root", custom_root=root)
 
     with pytest.raises(UIDGenerationError, match="64"):

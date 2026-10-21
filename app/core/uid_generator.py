@@ -10,8 +10,12 @@ import uuid
 from .exceptions import UIDGenerationError
 from .uid_format import UID_MAX_LENGTH, is_valid_uid
 
-# custom_root の最初の成分（ISO/ITU-T の根。0・1・2 だけ）
+# custom_root の最初の成分（ISO/ITU-T の根。0・1・2 だけ）。根は 2 成分以上で、
+# 最初が 0・1 なら 2 番目は 0〜39（ITU-T X.660 の OID の木）
 ROOT_FIRST_ARCS = frozenset({"0", "1", "2"})
+ROOT_MIN_ARCS = 2
+LIMITED_FIRST_ARCS = frozenset({"0", "1"})
+LIMITED_SECOND_ARC_MAX = 39
 # run_scoped のときに根の後ろにつなぐ成分の最大の桁。
 # 生成ごとの番号（64 ビットの乱数、20 桁まで）と連番（7 桁まで。
 # 1 回の生成は 100 シリーズ × 10000 枚と数個の UID）を足す
@@ -28,7 +32,8 @@ class UIDGenerator:
     1. UUID 2.25方式（デフォルト）: f"2.25.{uuid.uuid4().int}"
     2. カスタムRoot方式: f"{root}.{counter}" で連番管理。
        run_scoped=True なら f"{root}.{run_id}.{counter}"。run_id は
-       生成器ごとの 64 ビットの乱数で、別の生成の UID と重ならない（PS3.5 9）
+       生成器ごとの 64 ビットの乱数で、別の生成の UID と重なる見込みを
+       無視できるほど小さくする（PS3.5 9）
     """
 
     def __init__(
@@ -59,10 +64,17 @@ class UIDGenerator:
                 "custom_root is required when method is 'custom_root'",
                 uid_type="configuration",
             )
-        if not is_valid_uid(custom_root) or custom_root.split(".")[0] not in ROOT_FIRST_ARCS:
+        arcs = custom_root.split(".")
+        if (
+            not is_valid_uid(custom_root)
+            or len(arcs) < ROOT_MIN_ARCS
+            or arcs[0] not in ROOT_FIRST_ARCS
+            or (arcs[0] in LIMITED_FIRST_ARCS and int(arcs[1]) > LIMITED_SECOND_ARC_MAX)
+        ):
             raise UIDGenerationError(
                 f"Invalid OID format for custom_root: {custom_root} "
-                "(digits and dots, first arc 0/1/2, no leading zero, up to 64 chars)",
+                "(digits and dots, at least 2 arcs, first arc 0/1/2 and second arc "
+                "0-39 under 0/1, no leading zero, up to 64 chars)",
                 uid_type="configuration",
             )
         if run_scoped and len(custom_root) > CUSTOM_ROOT_MAX_LENGTH:
