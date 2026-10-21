@@ -531,9 +531,16 @@ def _age_reached_date(birth: date, n: int) -> date:
 Explicit VR Big Endian（1.2.840.10008.1.2.2）は規格で廃止された形
 （PS3.5 A.3）なので作らない。前は受けていたが、画素（OW）を Little
 Endian のバイト列のまま書いていて、読み戻すと値が入れ替わった
-（PS3.5 8）。Job や装置のプロファイルで指定すると、出力のフォルダを
-作る前に `DICOMValidationError`（CLI の終了コード 4）で止める。装置の
-プロファイルの最初の転送の形が Big Endian なら `ProfileMismatchError`。
+（PS3.5 8）。Job で指定すると、出力のフォルダを作る前に止める：
+
+- 装置のプロファイルを選んでいれば、先にプロファイルと合うかを確かめる。
+  プロファイルが Big Endian を持たなければ `ProfileMismatchError`
+  （CLI の終了コード 2）
+- それを通った Big Endian の指定は `DICOMValidationError`（終了コード 4）
+- 装置のプロファイルの最初の転送の形が Big Endian で、その形を使う道
+  （`quick --profile` とモダリティのダミーの撮影で、プロファイルから
+  転送の形を決めるとき）は `ProfileMismatchError`（終了コード 2）
+
 異常のデータの約束（spec/02）にも無いので、異常のデータのレベルに関わらず
 作らない（上の「ふつうの経路と異常のデータの経路」）。
 
