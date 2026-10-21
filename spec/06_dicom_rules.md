@@ -122,6 +122,19 @@ def generate_uid_uuid():
     return f"2.25.{uuid_int}"
 ```
 
+#### カスタム Root 方式
+
+**形式**: `{custom_root}.{生成ごとの番号}.{連番}`
+
+- UID は世界で一意でなければならない（PS3.5 9）。連番は生成のたびに 1 に
+  戻るので、生成ごとの番号（64 ビットの乱数、20 桁まで）を根の後ろに
+  つなぎ、前の生成の UID と重なる見込みを無視できるほど小さくする
+  （2.25 の UUID と同じく、確率による一意）
+- 根は PS3.5 9.1 の形：数字と `.` だけ、2 成分以上、最初の成分は 0・1・2
+  （0・1 なら 2 番目は 0〜39。ITU-T X.660）、成分の先頭に 0 を置かない
+  （`0` だけの成分は可）。UID は 64 字までなので、根は 35 字まで
+- 根は自分の組織に割り当てられたものを使う。他の組織の根を借りない
+
 #### SOP Instance UIDの不正パターン生成
 
 **要件**: 「異常」チェックボックスがONの場合、約10%の確率で0始まり不正OIDを生成
@@ -162,7 +175,7 @@ def generate_uid_with_invalid(allow_invalid=False):
 
 | モード | 用途 | Bits Allocated | Pixel Representation | 表示内容 |
 |--------|------|----------------|---------------------|---------|
-| **simple_text** | 簡易確認 | 8 | 0 (unsigned) | SOP Instance UIDテキスト |
+| **simple_text** | 簡易確認 | 16 | 1 (signed) | SOP Instance UIDテキスト |
 | **ct_realistic** | 医療ビューア表示 | 16 | 1 (signed) | CTリアルモード（HU値） |
 
 ### Simple Textモード
@@ -170,14 +183,20 @@ def generate_uid_with_invalid(allow_invalid=False):
 **仕様**:
 
 - **サイズ**: 512×512ピクセル（デフォルト）
-- **背景色**: 黒（値=0）
-- **テキスト色**: 白（値=255）
+- **背景色**: 黒（8 ビットの画像の値 0 → 画素 0、HU −1024）
+- **テキスト色**: 白（8 ビットの画像の値 255 → 画素 2047、HU 1023）
 - **表示内容**: SOP Instance UID
 - **Photometric Interpretation**: MONOCHROME2
-- **Bits Allocated/Stored**: 8/8
-- **High Bit**: 7
-- **Pixel Representation**: 0 (unsigned)
+- **Bits Allocated/Stored**: 16/12
+- **High Bit**: 11
+- **Pixel Representation**: 1 (signed)
+- **Rescale Intercept/Slope**: −1024 / 1
 - **Samples per Pixel**: 1
+
+CT Image では Bits Allocated は 16、Bits Stored は 12〜16、Rescale
+Intercept・Slope は Type 1（PS3.3 C.8.2.1.1.4・C.8.2.1.1.5）。文字は
+Pillow で 8 ビットの画像に描き、`DICOMBuilder` が 0〜255 を 0〜2047 に
+広げて CT の画素として書く。
 
 ### CT Realisticモード（医療ビューア対応）
 
@@ -186,7 +205,8 @@ def generate_uid_with_invalid(allow_invalid=False):
 - **サイズ**: 512×512ピクセル（デフォルト）
 - **Photometric Interpretation**: MONOCHROME2
 - **Bits Allocated**: 16
-- **Bits Stored**: 12-16（テンプレート設定による）
+- **Bits Stored**: 12-16（Job の `pixel_spec.bits_stored`。12 未満は誤り。
+  PS3.3 C.8.2.1.1.5）
 - **High Bit**: 11-15
 - **Pixel Representation**: 1 (signed, 2's complement)
 - **Samples per Pixel**: 1
@@ -232,8 +252,8 @@ Pixel Representation 1 の画素は、Bits Stored のビット数の 2 の補数
 | (0028,0010) | Rows | 512 |
 | (0028,0011) | Columns | 512 |
 | (0028,0100) | Bits Allocated | 16 |
-| (0028,0101) | Bits Stored | 12 or 16 |
-| (0028,0102) | High Bit | 11 or 15 |
+| (0028,0101) | Bits Stored | 12〜16（既定 12） |
+| (0028,0102) | High Bit | Bits Stored − 1 |
 | (0028,0103) | Pixel Representation | 1 |
 | (0028,1052) | Rescale Intercept | -1024 |
 | (0028,1053) | Rescale Slope | 1 |

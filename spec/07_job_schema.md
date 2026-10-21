@@ -248,8 +248,11 @@ pixel_spec:
   width: 512          # オプション、デフォルト512（64〜4096）
   height: 512         # オプション、デフォルト512（64〜4096）
   pattern: "gradient" # gradient, circle, noise
-  bits_stored: 12     # 8-16
+  bits_stored: 12     # 12-16（CT。PS3.3 C.8.2.1.1.5）
 ```
+
+2026-10-21 から `bits_stored` の下限は 12。前に受けていた 8〜11 は検証の
+誤り（終了コード 4）になるので、古い Job YAML は 12 以上に直す。
 
 ### transfer_syntax（必須）
 
