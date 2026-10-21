@@ -24,6 +24,8 @@
 | 装置プロファイルの `services.modality_worklist` | 値を持つだけで、動作に反映されない | [spec/13](spec/13_device_profiles.md) の 3.1 |
 | 表現できない文字を `?` に置き換えて撮影する異常のデータ | 表現できない文字があれば必ず停止する | [ADR-0018](decisions/0018-stop-on-unrepresentable-characters.md) |
 | 色と文字の値（デザイントークン）を1か所のファイルで管理する | 入力の CSS に値を書き、テストで表と比較している | [spec/12a](spec/12a_web_screens_and_cli.md) の 10.1 |
+| Job とテンプレートの、受け付けるが生成に使わない項目（`pixel_spec.background_color`・`text_color`・`font_size`、`abnormal.invalid_sop_uid_probability`、`transfer_syntax` の `uid` 以外、`patient.age`・`patient_comments`、`study.num_series`、テンプレートの `spatial`・`ct_image.rescale_*`・`window_presets`・`file_meta.transfer_syntax_uid`、病院テンプレートの `use_alphabetic`） | 検証はするが、画像には反映しない | [spec/03](spec/03_data_models.md)・[spec/06](spec/06_dicom_rules.md)・[spec/07](spec/07_job_schema.md) |
+| 例外 `JobSchemaError`・`JobValidationError` | 定義だけで、送出する箇所が無い | [spec/08](spec/08_error_handling.md) |
 
 ## 3. 未決定のもの
 
