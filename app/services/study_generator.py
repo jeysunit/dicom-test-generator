@@ -63,6 +63,9 @@ CT_IMAGE_TAG_MAP = {
     "convolution_kernel": "ConvolutionKernel",
 }
 
+# simple_text の画像の Bits Stored（CT Image は 12〜16。PS3.3 C.8.2.1.1.5）
+SIMPLE_TEXT_BITS_STORED = 12
+
 
 class StudyGeneratorService:
     """DICOMスタディ生成を担うService Layer."""
@@ -100,9 +103,12 @@ class StudyGeneratorService:
         )
 
         try:
+            # custom_root は生成ごとの番号を根の後ろにつなぎ、前の生成の UID と
+            # 重ならないようにする（PS3.5 9。spec/06 の「カスタム Root 方式」）
             uid_generator = UIDGenerator(
                 method=config.uid_method,
                 custom_root=config.uid_custom_root or "",
+                run_scoped=True,
             )
             study_uid = (
                 scheduled.study_instance_uid
@@ -386,7 +392,8 @@ class StudyGeneratorService:
             width=config.pixel_spec.width,
             height=config.pixel_spec.height,
         )
-        return pixels, 8
+        # 文字の画像も CT の 16 ビットで書く（PS3.3 C.8.2.1.1.5。DICOMBuilder が広げる）
+        return pixels, SIMPLE_TEXT_BITS_STORED
 
     @staticmethod
     def _sequence_width(total_images: int) -> int:

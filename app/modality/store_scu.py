@@ -25,6 +25,8 @@ STATUS_SUCCESS = 0x0000
 WARNING_STATUSES = frozenset({0x0001, 0xB000, 0xB006, 0xB007})
 MAX_PRESENTATION_CONTEXTS = 128
 MILLISECONDS_PER_SECOND = 1000
+# 既定の転送の形。申し込む SOP Class ごとに必ず含める（PS3.5 10.1）
+IMPLICIT_VR_LITTLE_ENDIAN = "1.2.840.10008.1.2"
 
 StoreOutcome = Literal["success", "warning", "failure"]
 
@@ -112,7 +114,7 @@ def store_files(
 
     ae = make_ae(own_ae_title, timeout_seconds)
     for sop_class, transfer_syntaxes in contexts.items():
-        ae.add_requested_context(sop_class, sorted(transfer_syntaxes))
+        ae.add_requested_context(sop_class, requested_transfer_syntaxes(transfer_syntaxes))
     logger.info(
         "C-STORE start: peer=%s files=%s", node.ae_title, len(readable)
     )
@@ -132,6 +134,17 @@ def store_files(
     sent = sum(1 for result in results if result.sent)
     logger.info("C-STORE done: peer=%s sent=%s/%s", node.ae_title, sent, len(results))
     return results
+
+
+def requested_transfer_syntaxes(file_transfer_syntaxes: set[str]) -> list[str]:
+    """1つの SOP Class で申し込む転送の形（ファイルの形の後に Implicit VR LE）.
+
+    PS3.5 10.1 は、申し込む抽象構文ごとに Implicit VR Little Endian を
+    含めることを求める。相手が Implicit を選べば、pynetdicom が
+    Explicit VR Little Endian のファイルを Implicit に直して送る。
+    """
+    requested = sorted(file_transfer_syntaxes - {IMPLICIT_VR_LITTLE_ENDIAN})
+    return [*requested, IMPLICIT_VR_LITTLE_ENDIAN]
 
 
 def _read_headers(

@@ -25,6 +25,21 @@ DEVICE_SPECIFIC_TEMPLATES: dict[str, str] = {
 }
 
 
+def _deep_merge(base: dict, overrides: dict) -> dict:
+    """`overrides` を `base` に重ねた新しい dict を返す（どちらも変えない）.
+
+    両方が dict の鍵は中へ進んで重ね、それ以外は `overrides` の値で置き換える。
+    """
+    merged = dict(base)
+    for key, value in overrides.items():
+        current = merged.get(key)
+        if isinstance(current, dict) and isinstance(value, dict):
+            merged[key] = _deep_merge(current, value)
+        else:
+            merged[key] = value
+    return merged
+
+
 def _device_profile_hint(base_template: str) -> str:
     return (
         "this name was a device-specific template; device-specific output is now "
@@ -67,7 +82,12 @@ class TemplateLoaderService:
         return directory / f"{name}.yaml"
 
     def merge_templates(self, modality_name: str, hospital_name: str | None) -> dict:
-        """テンプレートを浅いマージで統合する."""
+        """病院テンプレートの overrides をモダリティテンプレートに深くマージする.
+
+        節（`general_equipment` など）の中は鍵ごとに上書きし、病院が書かない鍵は
+        モダリティの値を残す。浅いマージでは節ごと置き換わり、Type 2 の
+        Manufacturer (0008,0070) が消えていた（PS3.3 C.7.5.1）。
+        """
         modality_template = self.load_modality_template(modality_name)
         if hospital_name is None:
             return dict(modality_template)
@@ -80,10 +100,7 @@ class TemplateLoaderService:
                 "'overrides' must be a mapping",
             )
 
-        merged = dict(modality_template)
-        for key, value in overrides.items():
-            merged[key] = value
-        return merged
+        return _deep_merge(modality_template, overrides)
 
     def _load_yaml_template(self, path: Path, template_name: str) -> dict:
         if not path.exists():

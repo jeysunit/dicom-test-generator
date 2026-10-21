@@ -136,7 +136,8 @@ class PixelSpecCTRealistic(BaseModel):
     width: int = Field(512, ge=64, le=4096)
     height: int = Field(512, ge=64, le=4096)
     pattern: Literal["gradient", "circle", "noise"] = "gradient"
-    bits_stored: int = Field(12, ge=8, le=16)
+    # CT Image の Bits Stored は 12〜16（PS3.3 C.8.2.1.1.5）
+    bits_stored: int = Field(12, ge=12, le=16)
 
 
 PixelSpec = PixelSpecSimple | PixelSpecCTRealistic
