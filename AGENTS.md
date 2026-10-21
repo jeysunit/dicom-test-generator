@@ -14,6 +14,10 @@
   [ADR-0013](adr/0013-remove-storage-scp.md)）
 - 例外の握りつぶし
 
+DICOM と HL7（v2・FHIR）の規格に違反しないことを開発の前提とする。
+識別子の型と長さ・属性の Type・応答の状態・文字コードは原典
+（dicom.nema.org・hl7.org・IHE）で確かめ、出どころを spec か ADR に書く。
+
 実装前に `spec/` を読むこと。モダリティのダミー（`app/modality/`・
 `app/web/`）は `spec/12_modality_emulator.md`（とその 12a・12b）を読む。
 

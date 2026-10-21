@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import time
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -31,7 +31,8 @@ MESSAGE_ID = 1
 # C-CANCEL の後、相手が止まるのを timeout_seconds のこの倍だけ待つ
 CANCEL_GRACE_FACTOR = 1
 DATE_FORMAT = "%Y%m%d"
-_DATE_PATTERN = re.compile(r"^\d{8}$")
+# DA は既定の字の集まりの 0〜9 だけ（`\d` は全角などほかの数字も受けるので使わない）
+_DATE_PATTERN = re.compile(r"[0-9]{8}")
 _ASCII_MAX = 0x7F
 _QUERY_CHARACTER_SETS = {
     "ISO_IR 192": CHOICE_TO_CHARACTER_SET["utf8"],
@@ -102,12 +103,23 @@ def parse_date_option(text: str, today: date) -> str:
         return f"{value}-{value}"
     low, separator, high = text.partition("-")
     high = high if separator else low
-    if not (_DATE_PATTERN.match(low) and _DATE_PATTERN.match(high)) or low > high:
+    if not (_is_calendar_date(low) and _is_calendar_date(high)) or low > high:
         raise ValidationError(
             "Date must be today, YYYYMMDD or YYYYMMDD-YYYYMMDD",
             {"date": text},
         )
     return f"{low}-{high}"
+
+
+def _is_calendar_date(value: str) -> bool:
+    """8 桁で、暦にある日か（DA。PS3.5 6.2。`20261399` は断る）."""
+    if not _DATE_PATTERN.fullmatch(value):
+        return False
+    try:
+        datetime.strptime(value, DATE_FORMAT)
+    except ValueError:
+        return False
+    return True
 
 
 def add_name_wildcards(name: str) -> str:

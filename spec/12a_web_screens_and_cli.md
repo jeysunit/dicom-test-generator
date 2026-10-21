@@ -255,6 +255,11 @@ tsunagi-dicom と同じ値を書き、出典（リポジトリ・ファイル・
     サーバーの側（`ModalityService.emergency_person_name`）でも同じ置き換えを
     するので、スクリプトが切れていても同じ値になる
   - `=`（群の区切り）と制御文字は、どの欄でも断る（`ValidationError`）
+- **`\` は断る**：`\` は DICOM の値の区切り（PS3.5 6.2）で、LO・PN・SH に
+  入れると同じ属性の値が複数になり、VM 1 の属性（Patient ID・Patient's
+  Name・Study Description）に合わない。緊急の患者の「患者 ID」「氏名」と
+  「検査の記述」に `\` があれば、サーバーの側（`ModalityService.exam`）で
+  `ValidationError` にして撮らない（画面・CLI とも。CLI は終了コード 4）
   - 一覧・撮影の画面の表示は今までどおり（`^` を空白にして出す）
 - 主のボタンは [撮影して送る]（既定の送り先へ）。[撮影] は線のボタンにし、
   撮った後の結果に [送る] を出す
@@ -440,7 +445,7 @@ python -m app.cli worklist query --patient-id P000001
 
 | オプション | 説明 | デフォルト |
 |-----------|------|-----------|
-| `--date DATE` | `today`・`YYYYMMDD`・`YYYYMMDD-YYYYMMDD` | today |
+| `--date DATE` | `today`・`YYYYMMDD`・`YYYYMMDD-YYYYMMDD`（暦にある日だけ。`20261399` は誤り。PS3.5 6.2 の DA） | today |
 | `--modality M` | モダリティ。`any` で条件にしない | 設定のテンプレートのモダリティ |
 | `--station-aet AET` | 予定の AE タイトル。`any` で条件にしない | 自分の AE タイトル |
 | `--patient-id ID` | 患者 ID | なし |

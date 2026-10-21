@@ -15,6 +15,9 @@
 - 不明点は推測せず質問する
 - requirements.txt を勝手に変更しない
 - 仕様にない機能は実装しない
+- DICOM と HL7（v2・FHIR）の規格に違反しないことを開発の前提とする。
+  識別子の型と長さ・属性の Type・応答の状態・文字コードは原典
+  （dicom.nema.org・hl7.org・IHE）で確かめ、出どころを spec か ADR に書く
 - PySide6 の GUI（`app/gui/`）は凍結。機能を足さない（ADR-0011 の案 B。
   モダリティの画面はウェブの画面）
 

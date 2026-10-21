@@ -4,7 +4,10 @@
 
 このドキュメントでは、医療DICOMの詳細仕様を定義する。
 
-**重要**: この仕様は医療標準に準拠しており、変更不可。
+**重要**: この道具は DICOM と HL7（v2・FHIR）の規格に違反しないことを
+開発の前提とする。この仕様の値・Type・長さ・文字コードは、原典
+（dicom.nema.org の PS3.x。IHE の Technical Framework）で確かめ、
+規格の節番号を書く。仕様を変えるときも原典に合わせる。
 
 ### 装置のコンフォーマンスステートメントからの擬態
 
@@ -34,7 +37,7 @@
 | (0002,0002) | Media Storage SOP Class UID | 1 | テンプレートから（例: CT Image Storage） |
 | (0002,0003) | Media Storage SOP Instance UID | 1 | 画像のSOP Instance UIDと同一 |
 | (0002,0010) | Transfer Syntax UID | 1 | 選択されたTransfer Syntax |
-| (0002,0012) | Implementation Class UID | 1 | 実装者のUID（2.25または組織OID） |
+| (0002,0012) | Implementation Class UID | 1 | この道具の固定の UID（`IMPLEMENTATION_CLASS_UID`。同じ実装は同じ UID。PS3.7 D.3.3.2、PS3.10 7.1） |
 | (0002,0013) | Implementation Version Name | 3 | 例: "DICOM_GEN_1.1" |
 
 ### テンプレート定義例
@@ -100,7 +103,7 @@ ds.save_as("output.dcm", write_like_original=False)
 | **Series Instance UID** | Series単位 | シリーズ生成時に1回 | 同一シリーズ内の全画像で共通 |
 | **SOP Instance UID** | Instance単位 | 画像ごとに生成 | 各画像で一意 |
 | **Frame of Reference UID** | Study単位 | スタディ生成時に1回 | 同一スタディ内で共通（CT/MRの場合） |
-| **Instance Creator UID** | 固定 | アプリ起動時に1回 | 全生成データで共通（実装者UID） |
+| **Instance Creator UID** | 固定 | 定数（`INSTANCE_CREATOR_UID`） | 全生成データで共通（実装者UID） |
 
 **注意**: Frame of Reference UIDは、同一スタディ内の全シリーズで共通とする（空間座標の整合性のため）。
 
