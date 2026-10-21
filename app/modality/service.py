@@ -86,6 +86,16 @@ MAX_FOLDER_SUFFIX = 100
 DICOM_DATE_LENGTH = 8
 DICOM_TIME_MIN_LENGTH = 4
 EXAM_BUSY_MESSAGE ="ほかの撮影が走っています。終わってから撮ってください"
+# DICOM の値の区切り（PS3.5 6.2）。LO・PN・SH の値に入れると VM が増える
+VALUE_DELIMITER = "\\"
+
+
+def _reject_value_delimiter(fields: tuple[tuple[str, str], ...]) -> None:
+    """手で入れた値に `\\` があれば断る（ValidationError）."""
+    for label, value in fields:
+        if VALUE_DELIMITER in value:
+            # 誤りの文に入れた値を出さない（spec/12 の 12 章）
+            raise ValidationError(f"{label}に「\\」は使えません（DICOM の値の区切り）")
 
 
 def check_send_files(folder: Path, files: list[str]) -> None:
@@ -548,6 +558,13 @@ class ModalityService:
                     "緊急の患者の氏名（英字）は必須です",
                     {"patient_id": emergency_patient.patient_id},
                 )
+            _reject_value_delimiter(
+                (
+                    ("Patient ID", emergency_patient.patient_id),
+                    ("氏名", emergency_patient.patient_name),
+                    ("検査の説明", request.study_description),
+                )
+            )
             character_set = resolve_image_character_set(
                 choice, None, self.config.character_set_fallback
             )

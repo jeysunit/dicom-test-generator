@@ -44,6 +44,11 @@ from .template_loader import TemplateLoaderService
 
 logger = logging.getLogger(__name__)
 DEFAULT_IMPLEMENTATION_VERSION_NAME = "DICOM_GEN_1.1"
+# この道具（DTG）の実装を表す固定の UID。同じ実装は同じ Implementation Class UID
+# を使う（PS3.7 D.3.3.2、PS3.10 7.1）。版の違いは Implementation Version Name で表す
+IMPLEMENTATION_CLASS_UID = "2.25.209401092321175805341347975050777963523"
+# Instance Creator UID (0008,0014) も、作った画像すべてで共通の固定の値にする（spec/06）
+INSTANCE_CREATOR_UID = "2.25.79995515066742824497440504634117232234"
 
 GENERAL_EQUIPMENT_TAG_MAP = {
     "manufacturer": "Manufacturer",
@@ -59,6 +64,9 @@ CT_IMAGE_TAG_MAP = {
     "x_ray_tube_current": "XRayTubeCurrent",
     "convolution_kernel": "ConvolutionKernel",
 }
+
+# simple_text の画像の Bits Stored（CT Image は 12〜16。PS3.3 C.8.2.1.1.5）
+SIMPLE_TEXT_BITS_STORED = 12
 
 
 class StudyGeneratorService:
@@ -97,9 +105,12 @@ class StudyGeneratorService:
         )
 
         try:
+            # custom_root は生成ごとの番号を根の後ろにつなぎ、前の生成の UID と
+            # 重ならないようにする（PS3.5 9。spec/06 の「カスタム Root 方式」）
             uid_generator = UIDGenerator(
                 method=config.uid_method,
                 custom_root=config.uid_custom_root or "",
+                run_scoped=True,
             )
             study_uid = (
                 scheduled.study_instance_uid
@@ -107,14 +118,12 @@ class StudyGeneratorService:
                 else uid_generator.generate_study_uid()
             )
             frame_of_reference_uid = uid_generator.generate_frame_of_reference_uid()
-            implementation_class_uid = uid_generator.generate_instance_creator_uid()
-            instance_creator_uid = uid_generator.generate_instance_creator_uid()
 
             uid_context = UIDContext(
                 study_instance_uid=study_uid,
                 frame_of_reference_uid=frame_of_reference_uid,
-                implementation_class_uid=implementation_class_uid,
-                instance_creator_uid=instance_creator_uid,
+                implementation_class_uid=IMPLEMENTATION_CLASS_UID,
+                instance_creator_uid=INSTANCE_CREATOR_UID,
             )
 
             template = self._template_loader.merge_templates(
@@ -385,7 +394,8 @@ class StudyGeneratorService:
             width=config.pixel_spec.width,
             height=config.pixel_spec.height,
         )
-        return pixels, 8
+        # 文字の画像も CT の 16 ビットで書く（PS3.3 C.8.2.1.1.5。DICOMBuilder が広げる）
+        return pixels, SIMPLE_TEXT_BITS_STORED
 
     @staticmethod
     def _ensure_encodable(dataset: Dataset, scheduled: bool) -> None:

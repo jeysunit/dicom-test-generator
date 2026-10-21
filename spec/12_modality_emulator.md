@@ -468,6 +468,11 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID
 | 失敗 | Association を張れない、相手が Failure を返した、時間切れ | 再送・取り消す |
 
 - 1回の送信では、1つの検査の画像を1つの Association で送る
+- Presentation Context は SOP Class ごとに 1 つ申し込み、転送の形は
+  ファイルの形と Implicit VR Little Endian を並べる（申し込む抽象構文
+  ごとに Implicit VR Little Endian を含める。PS3.5 10.1）。相手が
+  Implicit を選べば、pynetdicom が Explicit VR Little Endian のファイルを
+  Implicit に直して送る
 - 失敗の理由（相手の Status の値・pynetdicom の例外の型）を残す
 - 再送は失敗の分だけを送る。自動の再送は既定でしない
   （設定 `retry.max_attempts` で回数を決めたときだけ）
