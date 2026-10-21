@@ -186,7 +186,9 @@ def test_generation_failure_sends_discontinued(tmp_path, worklist_scp, mpps_scp,
     (uid, modification), = mpps_scp.sets
     assert uid in mpps_scp.created
     assert modification.PerformedProcedureStepStatus == "DISCONTINUED"
-    assert modification.PerformedSeriesSequence == []
+    # 画像が無くても Performed Series Sequence を空にしない（PS3.4 F.7.2 の表 F.7.2-1 の Note 2）
+    (series,) = modification.PerformedSeriesSequence
+    assert list(series.ReferencedImageSequence) == []
     assert [(r.state, r.sent) for r in service.list_mpps()] == [("DISCONTINUED", True)]
 
 
