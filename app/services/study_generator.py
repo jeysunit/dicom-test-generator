@@ -42,6 +42,11 @@ from .template_loader import TemplateLoaderService
 
 logger = logging.getLogger(__name__)
 DEFAULT_IMPLEMENTATION_VERSION_NAME = "DICOM_GEN_1.1"
+# この道具（DTG）の実装を表す固定の UID。同じ実装は同じ Implementation Class UID
+# を使う（PS3.7 D.3.3.2、PS3.10 7.1）。版の違いは Implementation Version Name で表す
+IMPLEMENTATION_CLASS_UID = "2.25.209401092321175805341347975050777963523"
+# Instance Creator UID (0008,0014) も、作った画像すべてで共通の固定の値にする（spec/06）
+INSTANCE_CREATOR_UID = "2.25.79995515066742824497440504634117232234"
 
 GENERAL_EQUIPMENT_TAG_MAP = {
     "manufacturer": "Manufacturer",
@@ -105,14 +110,12 @@ class StudyGeneratorService:
                 else uid_generator.generate_study_uid()
             )
             frame_of_reference_uid = uid_generator.generate_frame_of_reference_uid()
-            implementation_class_uid = uid_generator.generate_instance_creator_uid()
-            instance_creator_uid = uid_generator.generate_instance_creator_uid()
 
             uid_context = UIDContext(
                 study_instance_uid=study_uid,
                 frame_of_reference_uid=frame_of_reference_uid,
-                implementation_class_uid=implementation_class_uid,
-                instance_creator_uid=instance_creator_uid,
+                implementation_class_uid=IMPLEMENTATION_CLASS_UID,
+                instance_creator_uid=INSTANCE_CREATOR_UID,
             )
 
             template = self._template_loader.merge_templates(

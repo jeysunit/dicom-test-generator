@@ -110,8 +110,10 @@ class UIDGenerator:
     def generate_instance_creator_uid(self) -> str:
         """Instance Creator UIDを生成
         
-        スコープ: 1回の生成（`StudyGeneratorService.generate`）で共通。
-        Implementation Class UID にも同じ方法で別に1つ作る
+        生成の側（`StudyGeneratorService`）は使わない。Instance Creator UID と
+        Implementation Class UID は、`app/services/study_generator.py` の
+        定数（`INSTANCE_CREATOR_UID`・`IMPLEMENTATION_CLASS_UID`）で、
+        すべての生成で同じ値を使う（PS3.7 D.3.3.2、PS3.10 7.1。spec/06）
         """
         pass
 ```
