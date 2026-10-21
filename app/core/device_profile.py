@@ -82,7 +82,24 @@ OMIT_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
         "RescaleIntercept",
         "RescaleSlope",
         "ImageType",
+        "PatientPosition",
+        "PositionReferenceIndicator",
         "InstanceCreatorUID",
+    }
+)
+
+# attributes.empty と空の attributes.set で空にできない属性（spec/13 の 3.3）。
+# この道具が CT Image で出す Type 1 の属性で、PROTECTED_KEYWORDS に無いもの
+# （PS3.3 C.7.3.1・C.7.6.2・C.8.2.1）。Type 1 は空の値を許さない
+EMPTY_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "Modality",
+        "ImageType",
+        "ImagePositionPatient",
+        "ImageOrientationPatient",
+        "PixelSpacing",
+        "RescaleIntercept",
+        "RescaleSlope",
     }
 )
 
@@ -229,6 +246,12 @@ def _keyword_vr(keyword: str) -> str:
     return dictionary_VR(tag)
 
 
+def _is_empty_value(value: AttributeValue) -> bool:
+    """空の文字か、空の文字だけの並びか（値の無い属性になる）."""
+    values = value if isinstance(value, list) else [value]
+    return all(isinstance(item, str) and not item.strip() for item in values)
+
+
 def _check_keyword(keyword: str) -> str:
     vr = _keyword_vr(keyword)
     if keyword in PROTECTED_KEYWORDS:
@@ -267,6 +290,14 @@ class ProfileAttributes(_StrictModel):
                 if group == "omit" and keyword in OMIT_FORBIDDEN_KEYWORDS:
                     raise ValueError(
                         f"{keyword} is a Type 1/2 attribute and cannot be omitted "
+                        "(use abnormal data to break required attributes)"
+                    )
+                if keyword in EMPTY_FORBIDDEN_KEYWORDS and (
+                    group == "empty"
+                    or (group == "set" and _is_empty_value(self.set_values[keyword]))
+                ):
+                    raise ValueError(
+                        f"{keyword} is a Type 1 attribute and cannot be empty "
                         "(use abnormal data to break required attributes)"
                     )
                 if group == "set":
