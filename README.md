@@ -2,16 +2,28 @@
 
 ## 概要
 
-DICOM Test Data Generator（DTG）は、架空の患者の DICOM 画像を生成して PACS へ送信する
-テスト用のツールです。CT などのモダリティとして動作し、ワークリストを取得して、
-予約の内容で生成した画像を送信します。PACS・RIS・ビューアを、本物の患者のデータを
-使わずにテストするために使います。
+DICOM Test Data Generator（DTG）は、架空の患者の架空の検査の DICOM 画像を作成する
+テスト用のツールです。用途は、PACS・RIS・ビューアを、本物の患者のデータを使わずに
+テストすることです。補助の機能として、作成した画像を PACS へ送信する、ワークリストを
+取得して予約の内容で作成する、Web 画面・GUI から操作する、ができます（モダリティの
+ように振る舞えます）。
+
+図の実線は主な機能、点線は補助の機能です。矢印はデータが流れる向きです。
 
 ```mermaid
 flowchart LR
-  RIS["RIS"] -->|"予約（ワークリスト）"| DTG["DTG<br/>画像を生成"]
-  DTG -->|"画像（DICOM）"| PACS[("PACS")]
-  PACS -->|"画像"| VIEWER["テスト対象<br/>ビューアなど"]
+  DTG["DTG<br/>架空の検査の DICOM 画像を作成"]
+  FILES[("DICOM ファイル")]
+  subgraph TARGET["テスト対象"]
+    PACS[("PACS")]
+    RIS["RIS"]
+    VIEWER["ビューア"]
+  end
+
+  DTG -->|"DICOM 画像"| FILES
+  DTG -.->|"DICOM 画像（送信）"| PACS
+  RIS -.->|"予約（ワークリスト）"| DTG
+  PACS -->|"画像"| VIEWER
 ```
 
 ## 注意
