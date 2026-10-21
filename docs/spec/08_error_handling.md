@@ -20,7 +20,7 @@ DICOMGeneratorError (Base)
 │   ├── PatientDataError
 │   │   ├── PatientNotFoundError
 │   │   └── PatientDataInvalidError
-│   ├── ProfileError                  # 装置のプロファイル（spec/13 の 9）
+│   ├── ProfileError                  # 装置プロファイル（spec/13 の 9）
 │   │   ├── ProfileNotFoundError
 │   │   ├── ProfileParseError
 │   │   ├── DuplicateProfileError
@@ -43,19 +43,19 @@ DICOMGeneratorError (Base)
 │   └── DICOMValidationError
 │
 └── ModalityError（モダリティエミュレーター。spec/12）
-    ├── ModalityConfigError      # modality: の節の誤り
-    ├── AssociationError         # Association を張れない・断られた・切れた
-    ├── WorklistQueryError       # C-FIND の失敗・時間切れ
-    ├── WorklistMappingError     # 予約の値が写せない（文字・長さ・モダリティ）
+    ├── ModalityConfigError      # modality: の節のエラー
+    ├── AssociationError         # Association を確立できない・拒否された・切断された
+    ├── WorklistQueryError       # C-FIND の失敗・タイムアウト
+    ├── WorklistMappingError     # 予約の値を転記できない（文字・長さ・モダリティ）
     ├── StoreError               # C-STORE の失敗
-    ├── StorageCommitmentError   # 保管確認の失敗・時間切れ
+    ├── StorageCommitmentError   # 保管確認の失敗・タイムアウト
     └── MPPSError                # N-CREATE・N-SET の失敗
 ```
 
 `ModalityError` は `ConfigurationError` などとは別の系統にする
 （`ModalityConfigError` は `ConfigurationError` の子にしない）。
 `app/core/exceptions.py` に置き、`app/modality/` と `app/core/` の
-写し方（`worklist_mapping.py`）が使う。
+予約の値の転記（`worklist_mapping.py`）が使う。
 
 階層図は `app/core/exceptions.py` と一致している。食い違えば exceptions.py が正本。
 
@@ -322,7 +322,7 @@ class StudyGeneratorService:
 | 5 | 通信エラー | AssociationError・WorklistQueryError・StoreError・StorageCommitmentError・MPPSError |
 
 - `ModalityConfigError` は 2（設定エラー）にする
-- ほかの `ModalityError`（例：最後に引いた結果に無い予約の鍵）は 1
+- ほかの `ModalityError`（例：最後に取得した結果に無い予約のキー）は 1
 - 上のどれでもない例外も 1
 
 判定は上から順に行う（`app/cli/main.py` の `_map_exception_to_exit_code`）。
@@ -441,7 +441,7 @@ def test_service_wraps_unexpected_error(monkeypatch):
         StudyGeneratorService().generate(config)
 ```
 
-例外クラスそのものの試験は `tests/core/test_exceptions.py` にある。
+例外クラスそのもののテストは `tests/core/test_exceptions.py` にある。
 
 ---
 

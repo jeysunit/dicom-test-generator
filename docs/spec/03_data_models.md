@@ -321,13 +321,13 @@ class ScheduledContext(BaseModel):
     source_ae_title: str = ""         # File Meta (0002,0016)
 ```
 
-- `GenerationConfig.patient`（`Patient`）は変えない。予約から撮るとき
-  `ModalityService` は、生成のための仮の `Patient` を作って
+- `GenerationConfig.patient`（`Patient`）は変えない。予約から撮影するとき
+  `ModalityService` は、生成のための仮の `Patient` を作成して
   `GenerationConfig` に入れ、画像の患者の値は `ScheduledContext` で
   上書きする（生年月日が空なら仮の生年月日は検査日にし、画像では
-  空にして Patient's Age を出さない）
+  空にして Patient's Age を出力しない）
 - `StudyGeneratorService.generate` は `scheduled: ScheduledContext | None`
-  を受ける。渡さなければいまと同じ動き
+  を受け取る。渡さなければ従来と同じ動作
 
 ---
 
@@ -355,13 +355,14 @@ class SpatialCoordinates(BaseModel):
 
 ---
 
-## Template（テンプレート）と装置のプロファイル
+## Template（テンプレート）と装置プロファイル
 
 テンプレート（`templates/` の YAML）は、型を付けずに `dict` で扱う。
 `TemplateLoaderService` が読み込んでマージし、`StudyGeneratorService` が
-`info`・`file_meta` などの欄を読む（欄の定義は [07_job_schema.md](07_job_schema.md)）。
+`info`・`file_meta` などのフィールドを読む（フィールドの定義は
+[07_job_schema.md](07_job_schema.md)）。
 
-装置のプロファイル（`DeviceProfile`）は、`app/core/device_profile.py` の
+装置プロファイル（`DeviceProfile`）は、`app/core/device_profile.py` の
 Pydantic モデルで型を付けている。定義は [13_device_profiles.md](13_device_profiles.md)
 を正本とする。`GenerationConfig.device_profile` はその名前を指す。
 
@@ -425,7 +426,7 @@ config = GenerationConfig(**job_dict)
 
 ## ファイル配置
 
-`app/core/models.py` にすべてのデータモデルを置く。装置のプロファイルのモデルは
+`app/core/models.py` にすべてのデータモデルを置く。装置プロファイルのモデルは
 `app/core/device_profile.py`、モダリティエミュレーターの設定のモデルは
 `app/modality/config.py` に置く。
 
@@ -460,8 +461,8 @@ except ValidationError as e:
 
 ### ファイル名に使う値
 
-Patient ID などの値を検証で禁止文字のある値として断ることはしない。出力の
-ファイル名とフォルダ名に使うときに、Core の `path_safety` が決まった字だけに
+Patient ID などの値を、検証で禁止文字のある値として拒否することはしない。出力の
+ファイル名とフォルダ名に使うときに、Core の `path_safety` が決まった文字だけに
 置き換える（[02_core_engine.md](02_core_engine.md) の「Core のそのほかのモジュール」）。
 
 ---

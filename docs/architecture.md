@@ -5,14 +5,14 @@
 
 ## 1. 全体の構成
 
-**UI（Web 画面・CLI・デスクトップの画面）は Service を呼び、Service は Core を
-使う。** 依存は上から下の一方向で、逆向きの import はしない。モダリティ
+**UI（Web 画面・CLI・デスクトップ画面）は Service を呼び、Service は Core を
+使う。** 依存は上から下への一方向で、逆向きの import はしない。モダリティ
 エミュレーターの通信と手順（`app/modality/`）は Service Layer の一部として扱う。
 
-次の図は、DTG の中の処理の流れと、外のシステム（ワークリストの相手、PACS）との
-接続を示す。Web 画面と CLI は同じ Service を呼ぶ。ワークリストの相手から予約を
-取得し、予約の値で試験用の画像を作り、PACS へ送る。送った後の保管確認と MPPS は、
-設定で有効にしたときだけ行う。
+次の図は、DTG の内部の処理の流れと、外部のシステム（ワークリストの取得先、PACS）
+との接続を示す。Web 画面と CLI は同じ Service を呼ぶ。ワークリストの取得先から予約を
+取得し、予約の値でテスト用の画像を生成して、PACS へ送信する。送信後の保管確認と
+MPPS は、設定で有効にしたときだけ行う。
 
 ```mermaid
 flowchart LR
@@ -23,11 +23,11 @@ flowchart LR
   subgraph FLOW["モダリティエミュレーター"]
     direction TB
     MWL["(a) ワークリスト（検査の予約の一覧）を取得"]:::box
-    MAKE["(b) 予約から画像を作る<br/>テンプレート・装置のプロファイル"]:::box
+    MAKE["(b) 予約から画像を生成<br/>テンプレート・装置プロファイル"]:::box
     QUEUE["(c) 送信キュー<br/>失敗したら再送できる"]:::box
     COMMIT["(d) 保管確認・MPPS"]:::box
   end
-  RIS["ワークリストの相手<br/>RIS・PACS のワークリスト"]:::box
+  RIS["ワークリストの取得先<br/>RIS・PACS のワークリスト"]:::box
   PACS[("PACS")]:::box
 
   UI --> SVC
@@ -36,24 +36,24 @@ flowchart LR
   SVC --> QUEUE
   MWL -->|"予約を取得"| RIS
   MAKE -->|"画像"| QUEUE
-  QUEUE -->|"DICOM で画像を送る"| PACS
+  QUEUE -->|"DICOM で画像を送信"| PACS
   QUEUE --> COMMIT
   COMMIT -->|"保管確認"| PACS
-  COMMIT -->|"MPPS（既定の送り先）"| RIS
+  COMMIT -->|"MPPS（既定の送信先）"| RIS
 ```
 
-試験では、DTG が PACS へ画像を送り、ビューアなどの試験の対象がその PACS から
-画像を取得する。PACS は使う側が用意する（Orthanc など）。
+テストでは、DTG が PACS へ画像を送信し、ビューアなどのテスト対象がその PACS から
+画像を取得する。PACS は利用者が用意する（Orthanc など）。
 
 ```mermaid
 flowchart LR
   classDef box fill:#ffffff,stroke:#0969da,stroke-width:2px,color:#1f2328
 
-  DTG["DTG<br/>架空の患者の画像を作って送る"]:::box
-  PACS[("PACS<br/>Orthanc など（試験用）")]:::box
-  TARGET["試験の対象<br/>ビューア・取り込みシステムなど"]:::box
+  DTG["DTG<br/>架空の患者の画像を生成して送信"]:::box
+  PACS[("PACS<br/>Orthanc など（テスト用）")]:::box
+  TARGET["テスト対象<br/>ビューア・取り込みシステムなど"]:::box
 
-  DTG -->|"DICOM で画像を送る"| PACS
+  DTG -->|"DICOM で画像を送信"| PACS
   TARGET -->|"検査を検索し、画像を取得"| PACS
 ```
 
@@ -67,14 +67,14 @@ GUI (app/gui/) ─┴→ Service (app/services/) ──→ Core (app/core/)
 ```
 
 - UI は Core を直接操作しない。正しくは `CLI → Service Layer → Core Engine`
-  で、`CLI → Core Engine` のように Service Layer を飛ばさない。これで、Core は
-  UI に依存せず単体で試験でき、CLI・Web 画面・デスクトップの画面が同じ手順を
-  使える
+  で、`CLI → Core Engine` のように Service Layer を経由しない呼び出しはしない。
+  これにより、Core は UI に依存せず単体でテストでき、CLI・Web 画面・デスクトップ
+  画面が同じ手順を使える
 - `app/modality/` は `app/services/` と `app/core/` だけを import する。
   `app/cli/`・`app/web/`・`app/gui/` は import しない
 - Core は Pure に保ち、通信・ファイル・ログ・永続化を持たない。予約から生成の
-  設定への写し方も、通信が要らないので Core に置く
-- デスクトップの画面（`app/gui/`）はモダリティエミュレーターを呼ばない
+  設定への転記も、通信が不要なので Core に置く
+- デスクトップ画面（`app/gui/`）はモダリティエミュレーターを呼ばない
   （[spec/05](spec/05_gui.md)）
 
 `app/modality/` の依存の向き・配置・例外は
@@ -82,57 +82,58 @@ GUI (app/gui/) ─┴→ Service (app/services/) ──→ Core (app/core/)
 
 ## 3. ディレクトリ
 
-ファイル名の一覧は書かない。ファイルは増減するので、実体は `ls` で確かめる。
+ファイル名の一覧は書かない。ファイルは増減するので、実際の構成は `ls` で確認する。
 
 | ディレクトリ | 層 | 役割 | spec |
 |--------------|----|------|------|
-| `app/core/` | Core | Pure な処理。データモデル、UID の生成、ピクセルデータ、File Meta、空間座標、DICOM Dataset の構築、異常値、装置のプロファイルの適用、予約の写し方、文字コード、パスの安全、例外 | [02](spec/02_core_engine.md)・[03](spec/03_data_models.md)・[08](spec/08_error_handling.md) |
-| `app/services/` | Service | 生成の手順（`StudyGeneratorService`）と、テンプレート・患者マスター・装置のプロファイルの読み込み | [02](spec/02_core_engine.md)・[13](spec/13_device_profiles.md) |
+| `app/core/` | Core | Pure な処理。データモデル、UID の生成、ピクセルデータ、File Meta、空間座標、DICOM Dataset の構築、異常値、装置プロファイルの適用、予約の値の転記、文字コード、パスの安全性、例外 | [02](spec/02_core_engine.md)・[03](spec/03_data_models.md)・[08](spec/08_error_handling.md) |
+| `app/services/` | Service | 生成の手順（`StudyGeneratorService`）と、テンプレート・患者マスター・装置プロファイルの読み込み | [02](spec/02_core_engine.md)・[13](spec/13_device_profiles.md) |
 | `app/modality/` | Service | モダリティエミュレーターの通信と手順。ワークリストの取得、C-STORE・C-ECHO、保管確認、MPPS、送信キューと履歴（sqlite3）、手順をまとめる `ModalityService` | [12](spec/12_modality_emulator.md) |
-| `app/cli/` | UI | `python -m app.cli` の入口。生成・検証・簡易生成と、モダリティエミュレーターの操作 | [04](spec/04_cli.md)・[12a](spec/12a_web_screens_and_cli.md) |
+| `app/cli/` | UI | `python -m app.cli` のエントリポイント。生成・検証・簡易生成と、モダリティエミュレーターの操作 | [04](spec/04_cli.md)・[12a](spec/12a_web_screens_and_cli.md) |
 | `app/web/` | UI | `python -m app.web` の Web 画面。FastAPI、ルート（`routes/`）、Jinja2 のテンプレート、静的ファイル | [12a](spec/12a_web_screens_and_cli.md) |
-| `app/gui/` | UI | PySide6 のデスクトップの画面。機能は足さない | [05](spec/05_gui.md) |
+| `app/gui/` | UI | PySide6 のデスクトップ画面。機能は追加しない | [05](spec/05_gui.md) |
 | `templates/` | データ | モダリティと病院のテンプレート（YAML） | [07](spec/07_job_schema.md) |
-| `profiles/` | データ | 装置のプロファイルの例。実在の装置のプロファイルはリポジトリの外に置く | [13](spec/13_device_profiles.md) |
+| `profiles/` | データ | 装置プロファイルの例。実在の装置のプロファイルはリポジトリの外に置く | [13](spec/13_device_profiles.md) |
 | `config/` | 設定 | `app_config.yaml`（モダリティエミュレーターと Web 画面の設定） | [12](spec/12_modality_emulator.md) の 12 章 |
 | `data/` | データ | 患者マスター（架空の患者） | [03](spec/03_data_models.md) |
 | `examples/` | 例 | Job YAML の例 | [07](spec/07_job_schema.md) |
-| `scripts/` | スクリプト | Web 画面の CSS と静的ファイルを用意するスクリプト、文書の日付を確かめるスクリプト | [development.md](development.md) |
-| `tests/` | 試験 | 層ごとの試験 | [development.md](development.md) |
+| `scripts/` | スクリプト | Web 画面の CSS と静的ファイルを用意するスクリプト、文書の日付を検証するスクリプト | [development.md](development.md) |
+| `tests/` | テスト | 層ごとのテスト | [development.md](development.md) |
 | `docs/` | 文書 | この文書と spec・ADR | [README](README.md) |
 
 ## 4. 生成の流れ
 
-`StudyGeneratorService.generate` が次の順に行う。CLI と画面で共通である。
+`StudyGeneratorService.generate` が次の順に処理する。CLI と画面で共通である。
 
-1. UID を用意する。Study Instance UID（予約に UID があればそれ）、Frame of
+1. UID を用意する。Study Instance UID（予約に UID があればそれを使う）、Frame of
    Reference UID などを決める
-2. モダリティと病院のテンプレートを読み込んでマージする。病院の `overrides` を
-   節の中まで深くマージし、病院が書かない鍵はモダリティの値を残す（浅いマージ
-   では Type 2 の Manufacturer が消える。PS3.3 C.7.5.1）。装置のプロファイルを
+2. モダリティと病院のテンプレートを読み込んでマージする。病院の `overrides` は
+   節の中まで深くマージし、病院が指定しないキーはモダリティの値を残す（浅い
+   マージでは Type 2 の Manufacturer が消える。PS3.3 C.7.5.1）。装置プロファイルを
    指定していれば読み込み、テンプレート・Transfer Syntax・文字コードと合うかを
-   確かめる
-3. シリーズごとに Series Instance UID を作り、画像ごとに次を行う
-   1. SOP Instance UID とピクセルデータを作る
-   2. File Meta を作る
-   3. `DICOMBuilder` で Dataset を作る
-   4. テンプレートの属性、予約の値、装置のプロファイルの順に重ねる
-   5. 異常のデータを当てる（レベルが `none` なら何も変えない）
-   6. 画像の文字コードで表せない字が無いかを確かめる（予約から撮るときは
-      `WorklistMappingError`、Job の生成は `DICOMValidationError` で止める。
+   検証する
+3. シリーズごとに Series Instance UID を生成し、画像ごとに次を行う
+   1. SOP Instance UID とピクセルデータを生成する
+   2. File Meta を生成する
+   3. `DICOMBuilder` で Dataset を生成する
+   4. テンプレートの属性、予約の値、装置プロファイルの順に重ねる
+   5. 異常のデータを適用する（レベルが `none` なら何も変えない）
+   6. 画像の文字コードで表現できない文字が無いかを検証する（予約からの撮影は
+      `WorklistMappingError`、Job の生成は `DICOMValidationError` で停止する。
       PS3.3 C.12.1・PS3.5 6.1）
-   7. 出力のフォルダの中にファイルを書く（名前は `path_safety` で安全にする）
-4. 完了のログを出す
+   7. 出力フォルダの中にファイルを書き出す（ファイル名は `path_safety` で安全な
+      形にする）
+4. 完了のログを出力する
 
 ## 5. エラーの扱い
 
 ```text
 Core Engine:
-  ↓ 例外を発生させる（DICOMGeneratorError の下）
+  ↓ 例外を送出する（DICOMGeneratorError の下）
 Service Layer:
-  ↓ 捕まえてログに出し、再送出する
-UI Layer（CLI・Web 画面・デスクトップの画面）:
-  ↓ 捕まえて表示し、終了する（CLI は終了コードで返す）
+  ↓ 捕捉してログに出力し、再送出する
+UI Layer（CLI・Web 画面・デスクトップ画面）:
+  ↓ 捕捉して表示し、終了する（CLI は終了コードで返す）
 ```
 
 例外の階層と終了コードは [spec/08](spec/08_error_handling.md) にある。
@@ -149,22 +150,22 @@ UI Layer（CLI・Web 画面・デスクトップの画面）:
 | 画像 | Pillow・numpy |
 | CLI | tqdm |
 | Web 画面 | fastapi・uvicorn・jinja2・python-multipart |
-| デスクトップの画面 | PySide6 |
-| 試験 | pytest・pytest-qt・httpx |
+| デスクトップ画面 | PySide6 |
+| テスト | pytest・pytest-qt・httpx |
 
-HTMX と、Tailwind CSS で作る CSS は、版を固定して `scripts/` のスクリプトで
-用意する（Python の依存ではない）。Python は 3.10 以上で、CI は 3.10 と 3.12 で
-流す。
+HTMX と、Tailwind CSS で生成する CSS は、バージョンを固定して `scripts/` の
+スクリプトで用意する（Python の依存ではない）。Python は 3.10 以上で、CI は 3.10 と
+3.12 で実行する。
 
 ## 7. セキュリティ
 
-- 入力の検証：Job YAML は Pydantic でスキーマを検証する。ワークリストの応答や
-  UID など、相手から来る値は、画像やパスに使う前に形を確かめる
+- 入力の検証：Job YAML は Pydantic でスキーマを検証する。ワークリストの応答や UID
+  など、相手から来る値は、画像やパスに使う前に形式を検証する
   （[spec/12](spec/12_modality_emulator.md) の 6.5）
-- ファイルの出力：パスに使う値は `path_safety` で決まった字だけにし、出力の
-  フォルダの外に書けないことを確かめる
+- ファイルの出力：パスに使う値は `path_safety` で決まった文字だけにし、出力フォルダ
+  の外に書き出せないことを検証する
 - Web 画面：既定はループバックだけで待ち受ける。それ以外のアドレスで待ち受ける
-  ときはパスワードのファイルが要る（[spec/12a](spec/12a_web_screens_and_cli.md)
+  ときはパスワードのファイルが必要（[spec/12a](spec/12a_web_screens_and_cli.md)
   の 10.9）
-- 患者のデータは架空で、機密性は無い。ログに Patient ID などが入るが、試験の
+- 患者のデータは架空で、機密性は無い。ログに Patient ID などが含まれるが、テスト
   環境での使用を前提とする

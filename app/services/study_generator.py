@@ -285,7 +285,7 @@ class StudyGeneratorService:
         """廃止の転送の形を、出力のフォルダを作る前に断る（PS3.5 A.3）.
 
         Explicit VR Big Endian は異常のデータの約束（docs/spec/02）にも無いので、
-        異常のデータのレベルに関わらず作らない（docs/spec/06 の「ふつうの経路と
+        異常のデータのレベルに関わらず作らない（docs/spec/06 の「通常の経路と
         異常のデータの経路」）。
         """
         name = RETIRED_TRANSFER_SYNTAXES.get(transfer_syntax_uid)

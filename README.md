@@ -3,54 +3,54 @@
 - 作成日：2026-02-22
 - 最終更新日：2026-10-22
 
-DICOM Test Data Generator（DTG）は、架空の患者の DICOM データを作って送る、
-試験用のツールです。CT などのモダリティとして振る舞い、ワークリスト（検査の
-予約の一覧）を取得して、予約の内容で作った画像を PACS へ送ることもできます。
+DICOM Test Data Generator（DTG）は、架空の患者の DICOM データを生成して送信する、
+テスト用のツールです。CT などのモダリティとして動作し、ワークリスト（検査の予約の
+一覧）を取得して、予約の内容で生成した画像を PACS へ送信することもできます。
 PACS・RIS・ビューア・画像の取り込みシステムの検証、開発、デバッグに使います。
 
-画像の中身は試験用に合成したもので、実際の医療画像ではありません。個人情報を
-含まないので、試験に安全に使えます。
+画像の中身はテスト用に合成したもので、実際の医療画像ではありません。個人情報を
+含まないので、テストに安全に使えます。
 
 - **医療機器ではありません。** 診断・医療行為・臨床評価・AI の学習用の医療画像の
   生成には使えません
-- 本番の PACS には送らず、試験用の PACS・RIS にだけつないでください
+- 本番の PACS には送信せず、テスト用の PACS・RIS にだけ接続してください
 
 ## できること
 
-### DICOM データを作る
+### DICOM データの生成
 
-- Study・Series・Instance の階層、UID（UUID ベースの 2.25 の形）、マルチスライスの
+- Study・Series・Instance の階層、UID（UUID ベースの 2.25 の形式）、マルチスライスの
   空間座標、Transfer Syntax の選択
 - 日本語の患者名（Specific Character Set。PN の英字・漢字・かなの表記）
-- ピクセルの生成：簡易モード（UID の文字を描く）と CT モード（16 ビットの HU 値）。
-  どちらも実際の画像ではありません
+- ピクセルの生成：簡易モード（UID の文字列を描画する）と CT モード（16 ビットの
+  HU 値）。どちらも実際の画像ではありません
 - 異常のデータの生成：必須タグの欠落、VR の違反、文字数の超過、不正な UID、
   Pixel Data の欠落。レベル（none・mild・moderate・severe）は Job YAML の
   `abnormal.level` か `--abnormal-level` で選びます。指定しなければ、規格どおりの
-  データを作ります
-- モダリティのテンプレート、病院のテンプレート、YAML の Job による設定
-- 装置のプロファイル：装置の DICOM コンフォーマンスステートメントの内容を写し、
-  その装置の DICOM の出し方を再現します。実在の装置のプロファイルはリポジトリの
+  データを生成します
+- モダリティテンプレート、病院テンプレート、YAML の Job による設定
+- 装置プロファイル：装置の DICOM コンフォーマンスステートメントの内容を転記し、
+  その装置の DICOM の出力を再現します。実在の装置のプロファイルはリポジトリの
   外に置きます（[docs/spec/13](docs/spec/13_device_profiles.md)）
 
-### モダリティとして動く
+### モダリティとしての動作
 
-Web 画面と CLI で、ワークリストの取得、予約の選択、撮影（試験用の画像の作成）、
+Web 画面と CLI で、ワークリストの取得、予約の選択、撮影（テスト用の画像の生成）、
 PACS への送信、結果の確認までを行います
 （[docs/spec/12](docs/spec/12_modality_emulator.md)）。
 
 - ワークリストの取得（MWL）
-- 画像の送信（C-STORE）、疎通確認（C-ECHO）、失敗した送信のキューと再送
+- 画像の送信（C-STORE）、疎通確認（C-ECHO）、送信に失敗した画像のキューと再送
 - 予約の無い緊急の患者の入力
-- 保管確認（Storage Commitment）：送った画像を相手が保管したかを問い合わせる。
+- 保管確認（Storage Commitment）：送信した画像を相手が保管したかを問い合わせる。
   有効にしたときだけ
 - MPPS：撮影の開始と終了を相手に通知する。有効にしたときだけ
 
-画像を受信して保存する機能（Storage SCP）はありません。受信する側には、試験用の
+画像を受信して保存する機能（Storage SCP）はありません。受信側には、テスト用の
 PACS（Orthanc など）を用意してください。
 
-PySide6 のデスクトップの画面（`python -m app.gui`）は基本の生成だけを持ち、機能は
-足していません。Web 画面を使ってください。
+PySide6 のデスクトップ画面（`python -m app.gui`）は基本の生成機能だけを持ち、機能は
+追加していません。Web 画面を使ってください。
 
 ## 動作環境
 
@@ -76,8 +76,8 @@ pip install -r requirements.txt
 
 ### Docker で動かす
 
-`Dockerfile` で、CLI と Web 画面のイメージを作れます（デスクトップの画面は入り
-ません）。コンテナは root 以外のユーザー（uid 10001）で動きます。
+`Dockerfile` で、CLI と Web 画面のイメージをビルドできます（デスクトップ画面は
+含みません）。コンテナは root 以外のユーザー（uid 10001）で動作します。
 
 ```bash
 docker build -t dicom-test-generator .
@@ -98,14 +98,14 @@ docker run -d --name dtg -p 127.0.0.1:8080:8080 \
   -v dtg-state:/app/modality_state -v dtg-output:/app/output \
   dicom-test-generator
 
-# CLI は同じコンテナの中で動かす
+# CLI は同じコンテナの中で実行する
 docker exec dtg python -m app.cli echo --to PACS_TEST
 ```
 
-- 送り先とワークリストの相手は、設定ファイルの `modality:` の節に書きます。
-  コンテナから届くホスト名か IP アドレスにします
-- 予約の結果と送信キューは `/app/modality_state`、作った画像は `/app/output` に
-  書きます。残すときはボリュームをマウントします
+- 送信先とワークリストの取得先は、設定ファイルの `modality:` の節に書きます。
+  コンテナから到達できるホスト名か IP アドレスにします
+- 予約の結果と送信キューは `/app/modality_state`、生成した画像は `/app/output` に
+  書き出します。残すときはボリュームをマウントします
 - パスワードのファイルは、コンテナの中のユーザー（uid 10001）が読めるようにします
   （例：`chmod 0644`）
 - ボリュームの代わりにホストのディレクトリをバインドマウントするときは、その
@@ -115,36 +115,36 @@ docker exec dtg python -m app.cli echo --to PACS_TEST
   11113）も公開します
 - イメージにヘルスチェックは入れていません
 
-## DICOM ファイルを作る（CLI）
+## DICOM ファイルの生成（CLI）
 
 ```bash
-# Job YAML から作る
+# Job YAML から生成する
 python -m app.cli generate examples/job_minimal.yaml
 
-# 出力先を指定して作る
+# 出力先を指定して生成する
 python -m app.cli generate examples/job_full.yaml -o output/ --verbose
 
-# 設定を検証するだけ（作らない）
+# 設定を検証するだけ（生成しない）
 python -m app.cli validate examples/job_minimal.yaml
 
-# 引数だけで手早く作る
+# 引数だけで簡易に生成する
 python -m app.cli quick -p P000001 -m ct_generic -s 3 -i 1,20,20 -o output/
 
-# 装置のプロファイルを重ねて作る
+# 装置プロファイルを重ねて生成する
 python -m app.cli quick -p P000001 -m ct_generic --profile dtg_synthetic_ct -s 1 -i 3 -o output/
 
-# 異常のデータを作る（none・mild・moderate・severe）
+# 異常のデータを生成する（none・mild・moderate・severe）
 python -m app.cli quick -p P000001 -m ct_generic -s 1 -i 5 -o output/ --abnormal-level mild
 
-# 読める装置のプロファイルの一覧
+# 読み込める装置プロファイルの一覧
 python -m app.cli profiles list
 
 # バージョン
 python -m app.cli version
 ```
 
-作る条件は Job YAML に書きます。`examples/` に、最小の例とすべての項目を書いた例が
-あります。引数の詳細は各サブコマンドの `--help` を見てください
+生成の条件は Job YAML に書きます。`examples/` に、最小の例とすべての項目を書いた
+例があります。引数の詳細は各サブコマンドの `--help` を見てください
 （[docs/spec/04](docs/spec/04_cli.md)）。
 
 ### Job YAML の例
@@ -202,13 +202,13 @@ python -m app.web --config config/app_config.yaml
 ```
 
 ブラウザで <http://127.0.0.1:8080/> を開きます。既定ではループバック（127.0.0.1）
-だけで待ち受け、認証はありません。Node も Tailwind CSS の実行ファイルも要りません
-（作った CSS と htmx を `app/web/static/` に置いてあります）。
+だけで待ち受け、認証はありません。Node も Tailwind CSS の実行ファイルも不要です
+（生成済みの CSS と htmx を `app/web/static/` に置いてあります）。
 
 ### ネットワークに公開するとき
 
 `web.bind_address` をループバック以外（`0.0.0.0` など）にするときは、HTTP Basic
-認証が必須です。パスワードを1行だけ書いたファイルを作り、環境変数で指定します。
+認証が必須です。パスワードを1行だけ書いたファイルを作成し、環境変数で指定します。
 ファイルが無いか空のときは起動しません（終了コード 2）。ユーザー名は `dtg` です。
 
 ```bash
@@ -226,7 +226,7 @@ DTG_WEB_PASSWORD_FILE=/path/to/password.txt python -m app.web
 ```bash
 python -m app.cli echo --to PACS_TEST
 python -m app.cli worklist query --json
-python -m app.cli exam --from-worklist <鍵> -s 2 -i 1,20 --send
+python -m app.cli exam --from-worklist <キー> -s 2 -i 1,20 --send
 python -m app.cli exam --emergency --patient-id E0001 --patient-name "KINKYU^TARO"
 python -m app.cli queue list --status failed
 python -m app.cli queue retry --all
@@ -259,10 +259,10 @@ modality:
 
 - Web 画面（`python -m app.web`）は待ち受けを起動し、送信に成功した画像の
   保管確認をすぐに要求します。PACS の画面の送信キューの「保管の確認」の列に、
-  確認待ち・確認済・確認の失敗・確認の時間切れのどれかが出ます
+  確認待ち・確認済・確認の失敗・確認の時間切れのどれかが表示されます
 - CLI では自動で要求しません。送信の後に `commit` で要求し、結果を待ちます。
   確認済なら終了コード 0、それ以外は 5 です。Web 画面が同じポートで待ち受けて
-  いるときは待ち受けを起動できないので、終了コード 2 で止まります
+  いるときは待ち受けを起動できないので、終了コード 2 で停止します
 
 ```bash
 python -m app.cli exam --emergency --patient-id E0001 --patient-name "KINKYU^TARO" --send
@@ -273,48 +273,48 @@ python -m app.cli commit --job 1 --wait 60
 - 結果は、相手が別の Association で返すことを前提にしています。同じ Association
   でしか返さない相手のときだけ、`commitment_wait_seconds` に秒数を設定します
 
-#### Orthanc で保管確認を試す
+#### Orthanc で保管確認をテストする
 
-この手順は、まだ Orthanc を相手に通して確かめていません
+この手順は、まだ Orthanc を相手に実行して確認していません
 （[docs/roadmap.md](docs/roadmap.md)）。
 
 Orthanc（1.6.0 以降）は保管確認を受け付け、結果を別の Association で返します。
-結果を返す先として、DTG を Orthanc の設定の `DicomModalities` に登録します。
+結果の返送先として、DTG を Orthanc の設定の `DicomModalities` に登録します。
 
-1. Orthanc の設定に、DTG の AE タイトル・IP アドレス・待ち受けのポートを足します
+1. Orthanc の設定に、DTG の AE タイトル・IP アドレス・待ち受けのポートを追加します
    （例：`"DicomModalities": { "dtg": [ "DTG_CT01", "127.0.0.1", 11113 ] }`）。
-   Orthanc をコンテナで動かすときは、コンテナから届く IP アドレスを書き、DTG の
+   Orthanc をコンテナで動かすときは、コンテナから到達できる IP アドレスを書き、DTG の
    `listen.bind_address` もそのアドレスで待ち受けるようにします（既定の 127.0.0.1
-   にはコンテナから届きません）
-2. DTG の送り先を Orthanc の AE タイトル・IP アドレス・DICOM のポートにし、
+   にはコンテナから到達できません）
+2. DTG の送信先を Orthanc の AE タイトル・IP アドレス・DICOM のポートにし、
    `storage_commitment: true` にします
 3. `python -m app.web` を起動し、撮影の画面で [撮影して送る] を押します
 4. PACS の画面の送信キューで、そのジョブの「保管の確認」が「確認済」になることを
-   確かめます。CLI では、Web 画面を止めてから
-   `python -m app.cli commit --job <ID>` を流し、`confirmed` と終了コード 0 が
-   返ることを確かめます
+   確認します。CLI では、Web 画面を停止してから
+   `python -m app.cli commit --job <ID>` を実行し、`confirmed` と終了コード 0 が
+   返ることを確認します
 
 #### MPPS
 
 ```yaml
 modality:
   worklist:
-    use_mpps: true              # MPPS を送る
-  mpps:                         # 省略したときはワークリストの相手へ送る
+    use_mpps: true              # MPPS を送信する
+  mpps:                         # 省略したときはワークリストの取得先へ送信する
     ae_title: "MPPS_TEST"
     host: "127.0.0.1"
     port: 4243
     timeout_seconds: 30
 ```
 
-- 撮影の開始で N-CREATE（IN PROGRESS）、画像を作り終えたら N-SET（COMPLETED）を
-  送ります。作る途中で止まったときは N-SET（DISCONTINUED）を送ります
-- MPPS を送れなくても、撮影と画像の送信は止めません。撮影の画面と CLI
-  （`[WARN] MPPS ...`）に出し、通知をキューに残します。`retry.max_attempts` の
-  回数だけすぐに再送し、残りは `mpps retry` で送ります
-- `exam --mpps`・`--no-mpps` で、その撮影だけ設定を上書きできます。装置の
-  プロファイルが `services.mpps: false` なら送りません
-- Orthanc は MPPS を受け付けません。MPPS を受け付ける試験用の相手（RIS など）を
+- 撮影の開始で N-CREATE（IN PROGRESS）、画像を生成し終えたら N-SET（COMPLETED）を
+  送信します。生成の途中で停止したときは N-SET（DISCONTINUED）を送信します
+- MPPS を送信できなくても、撮影と画像の送信は止めません。撮影の画面と CLI
+  （`[WARN] MPPS ...`）に表示し、通知をキューに残します。`retry.max_attempts` の
+  回数だけすぐに再送し、残りは `mpps retry` で送信します
+- `exam --mpps`・`--no-mpps` で、その撮影だけ設定を上書きできます。装置
+  プロファイルが `services.mpps: false` なら送信しません
+- Orthanc は MPPS を受け付けません。MPPS を受け付けるテスト用の相手（RIS など）を
   使ってください
 
 ```bash
@@ -328,9 +328,9 @@ python -m app.cli mpps retry
 
 - [docs/project_charter.md](docs/project_charter.md)：目的、範囲、規格の前提
 - [docs/architecture.md](docs/architecture.md)：構成と層
-- [docs/spec/](docs/spec/)：今どう動くか
-- [docs/decisions/](docs/decisions/README.md)：なぜそう決めたか（ADR）
-- [docs/development.md](docs/development.md)：環境、試験、変更の進め方
+- [docs/spec/](docs/spec/)：現在の動作
+- [docs/decisions/](docs/decisions/README.md)：設計の判断と理由（ADR）
+- [docs/development.md](docs/development.md)：開発環境、テスト、変更の手順
 
 Issue と Pull Request を受け付けています。
 

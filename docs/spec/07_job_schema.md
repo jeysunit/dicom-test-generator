@@ -175,7 +175,7 @@ character_set:
 | `series_list` | list | ○ | 1〜100 件 | - |
 | `modality_template` | string | ○ | `templates/modality/` のテンプレート名 | - |
 | `hospital_template` | string | - | `templates/hospital/` のテンプレート名 | null |
-| `device_profile` | string | - | 装置のプロファイル名（`--profile` で上書き。[13_device_profiles.md](13_device_profiles.md)） | null |
+| `device_profile` | string | - | 装置プロファイル名（`--profile` で上書き。[13_device_profiles.md](13_device_profiles.md)） | null |
 | `uid_method` | string | - | `uuid_2_25` / `custom_root` | "uuid_2_25" |
 | `uid_custom_root` | string | - | `custom_root` のときの UID の根 | null |
 | `pixel_spec` | object | ○ | 下記 | - |
@@ -254,8 +254,8 @@ pixel_spec:
   bits_stored: 12     # 12-16（CT。PS3.3 C.8.2.1.1.5）
 ```
 
-`bits_stored` の下限は 12。8〜11 は検証の誤り（終了コード 4）になるので、
-古い Job YAML は 12 以上に直す。
+`bits_stored` の下限は 12。8〜11 は検証エラー（終了コード 4）になるので、
+古い Job YAML は 12 以上に修正する。
 
 ### transfer_syntax（必須）
 
@@ -316,7 +316,7 @@ character_set:
 
 | フィールド | 型 | 必須 | 説明 | デフォルト |
 |-----------|-----|------|------|----------|
-| `level` | string | - | 異常レベル（none/mild/moderate/severe）。画像に当たる（[02](02_core_engine.md)）。`generate --abnormal-level` で上書きできる。ほかの値は検証で止まる | "none" |
+| `level` | string | - | 異常レベル（none/mild/moderate/severe）。画像に適用される（[02](02_core_engine.md)）。`generate --abnormal-level` で上書きできる。ほかの値は検証エラーになる | "none" |
 | `allow_invalid_sop_uid` | bool | - | SOP UID 0始まり不正を許可 | false |
 | `invalid_sop_uid_probability` | float | - | 不正UID生成確率（0.0〜1.0） | 0.1 |
 
@@ -392,7 +392,7 @@ python -m app.cli generate job.yaml --verbose
 python -m app.cli generate job.yaml --output custom_output/
 ```
 
-### 装置のプロファイル上書き
+### 装置プロファイルの上書き
 
 ```bash
 python -m app.cli generate job.yaml --profile dtg_synthetic_ct
@@ -402,7 +402,7 @@ python -m app.cli generate job.yaml --profile dtg_synthetic_ct
 
 ## テストケース例
 
-以下は、試験やローカルでの確認に使える Job YAML の例である（リポジトリには置いていない）。
+以下は、テストやローカルでの確認に使える Job YAML の例である（リポジトリには置いていない）。
 
 ### normal_ct_japanese.yaml
 

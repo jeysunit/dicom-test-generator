@@ -6,9 +6,10 @@
 ## 概要
 
 コマンドラインインターフェース（CLI）は、Job YAMLファイルからDICOMデータを生成し、
-モダリティエミュレーター（spec/12）の操作を行う。入口は `python -m app.cli` の1本で、
-引数の詳細は各コマンドの `--help` を正本とする。この文書は、
-`generate`・`validate`・`quick` の仕様と、全コマンドに共通する決まり（終了コード・ログ）を定める。
+モダリティエミュレーター（spec/12）の操作を行う。エントリポイントは
+`python -m app.cli` の1つで、引数の詳細は各コマンドの `--help` を正本とする。
+この文書は、`generate`・`validate`・`quick` の仕様と、全コマンドに共通する規則
+（終了コード・ログ）を定める。
 
 **依存**: Core Engine（`app/core/`）、Service Layer（`app/services/`）
 
@@ -28,14 +29,14 @@ python -m app.cli <command> [options]
 | `validate` | Job YAML検証のみ |
 | `quick` | 簡易生成（1コマンド） |
 | `version` | バージョン表示 |
-| `profiles list` | 読める装置のプロファイルの一覧（spec/13） |
+| `profiles list` | 読み込める装置プロファイルの一覧（spec/13） |
 | `echo` | C-ECHO |
-| `worklist query`・`worklist show` | ワークリストを取得する・1件を出す |
-| `exam` | 予約（または緊急の患者）で撮る |
-| `send` | 出力のフォルダの画像を送る |
-| `queue list`・`queue retry` | 送信キューと履歴・失敗の再送 |
-| `commit` | 送った検査の保管確認（Storage Commitment）を求めて待つ |
-| `mpps list`・`mpps retry` | MPPS の通知のキューを出す・失敗を再送する |
+| `worklist query`・`worklist show` | ワークリストを取得する・1件を出力する |
+| `exam` | 予約（または緊急の患者）で撮影する |
+| `send` | 出力フォルダの画像を送信する |
+| `queue list`・`queue retry` | 送信キューと履歴・失敗した送信の再送 |
+| `commit` | 送信した検査の保管確認（Storage Commitment）を要求して待つ |
+| `mpps list`・`mpps retry` | MPPS の通知のキューを出力する・失敗した通知を再送する |
 
 `generate`・`validate`・`quick` 以外のコマンド（`echo`・`worklist`・`exam`・`send`・
 `queue`・`commit`・`mpps`）の引数・出力・終了コードは、
@@ -67,7 +68,7 @@ python -m app.cli generate <job_file> [options]
 | `--quiet` | `-q` | エラー以外非表示 | false |
 | `--log-file FILE` | | ログファイルパス | logs/dicom_generator.log |
 | `--dry-run` | | 実行せず検証のみ | false |
-| `--profile NAME` | | 装置のプロファイル（Job YAML の `device_profile` を上書き。spec/13） | Job YAMLの設定 |
+| `--profile NAME` | | 装置プロファイル（Job YAML の `device_profile` を上書き。spec/13） | Job YAMLの設定 |
 | `--abnormal-level L` | | 異常のデータのレベル（`none` / `mild` / `moderate` / `severe`。Job YAML の `abnormal.level` を上書き。[02](02_core_engine.md)） | Job YAMLの設定（無ければ none） |
 
 `--verbose` と `--quiet` は同時に指定できない。
@@ -205,7 +206,7 @@ python -m app.cli quick [options]
 | `--accession-number ACC` | Accession Number | ACC000001 |
 | `--study-date DATE` | 検査日（YYYYMMDD） | 今日 |
 | `--hospital NAME` | 病院テンプレート | なし |
-| `--profile NAME` | 装置のプロファイル（spec/13）。Transfer Syntax はプロファイルの最初の形 | なし |
+| `--profile NAME` | 装置プロファイル（spec/13）。Transfer Syntax はプロファイルの最初のもの | なし |
 | `--pixel-mode MODE` | ピクセルモード（`simple_text` / `ct_realistic`） | ct_realistic |
 | `--abnormal-level L` | 異常のデータのレベル（`none` / `mild` / `moderate` / `severe`。[02](02_core_engine.md)） | none |
 
@@ -268,10 +269,10 @@ Python と PyDicom の行は、実行した環境のバージョンになる。
 |-------|------|
 | 0 | 成功 |
 | 1 | 一般エラー（生成失敗） |
-| 2 | 設定エラー（Job YAML不正・modality の設定の誤り） |
+| 2 | 設定エラー（Job YAML不正・modality の設定のエラー） |
 | 3 | ファイルI/Oエラー |
-| 4 | バリデーションエラー（予約の値が写せない・表せない字を含む） |
-| 5 | 通信エラー（Association を張れない・相手が Failure を返した・時間切れ。モダリティエミュレーターのコマンド。[12a_web_screens_and_cli.md](12a_web_screens_and_cli.md) 11.6） |
+| 4 | バリデーションエラー（予約の値を転記できない・表現できない文字を含む） |
+| 5 | 通信エラー（Association を確立できない・相手が Failure を返した・タイムアウト。モダリティエミュレーターのコマンド。[12a_web_screens_and_cli.md](12a_web_screens_and_cli.md) 11.6） |
 
 例外から終了コードへの対応は `app/cli/main.py` の `_map_exception_to_exit_code` が持つ。
 例外の階層は [08_error_handling.md](08_error_handling.md) が決める。
@@ -307,9 +308,9 @@ fi
 
 ## エラー表示
 
-`app/cli/main.py` の `main()` は、コマンドが投げた例外を1か所で受け、
-`[ERROR] <メッセージ>` を標準エラー出力に出して、上の終了コードで終わる。
-メッセージは端末に出す前に制御文字を見える形に直す
+`app/cli/main.py` の `main()` は、コマンドが送出した例外を1か所で捕捉し、
+`[ERROR] <メッセージ>` を標準エラー出力に出して、上の終了コードで終了する。
+メッセージは端末に出力する前に制御文字を可視化する
 （`app/cli/terminal.py` の `sanitize_for_terminal`。
 理由は [12a_web_screens_and_cli.md](12a_web_screens_and_cli.md) 11.7）。
 
@@ -340,7 +341,7 @@ logs/
 ```text
 app/cli/
 ├── __init__.py
-├── __main__.py            # python -m app.cli の入口
+├── __main__.py            # python -m app.cli のエントリポイント
 ├── main.py                # argparse の定義・ログの設定・終了コードの対応
 ├── commands.py            # generate・validate・quick・profiles list・version
 ├── modality_commands.py   # echo・worklist・exam・send・queue・commit・mpps
@@ -352,7 +353,7 @@ app/cli/
 
 ## テスト
 
-試験は `tests/cli/` にある。
+テストは `tests/cli/` にある。
 
 | ファイル | 対象 |
 |---------|------|
@@ -381,4 +382,4 @@ def test_generate_command_success(tmp_path):
 
 - [09_logging.md](09_logging.md): ログの仕組み
 - [12a_web_screens_and_cli.md](12a_web_screens_and_cli.md): モダリティエミュレーターのコマンド
-- [13_device_profiles.md](13_device_profiles.md): 装置のプロファイル
+- [13_device_profiles.md](13_device_profiles.md): 装置プロファイル

@@ -32,12 +32,12 @@
 「Core のそのほかのモジュール」にまとめる。
 
 **`AbnormalGenerator` の接続**: `StudyGeneratorService.generate` は、
-`abnormal.level` で作った `AbnormalGenerator` を、Dataset を組み終えた後
-（テンプレート・予約・装置のプロファイルを当てた後）に、画像1枚ごとに当てる。
-`generate` を通る経路（`generate`・`quick`・モダリティエミュレーターの撮影・GUI）は
-すべてこれを通る。`level` が `none`（既定）のときは何も変えない。
+`abnormal.level` で生成した `AbnormalGenerator` を、Dataset を組み立てた後
+（テンプレート・予約・装置プロファイルを適用した後）に、画像1枚ごとに適用する。
+`generate` を経由する経路（`generate`・`quick`・モダリティエミュレーターの撮影・
+GUI）はすべてこの処理を経由する。`level` が `none`（既定）のときは何も変えない。
 `abnormal.allow_invalid_sop_uid`（SOP Instance UID の 0 始まり）は `level` とは
-別の設定で、`level` に関わらず効く。
+別の設定で、`level` に関わらず有効。
 レベルの指定は、Job YAML の `abnormal.level`、`generate` / `quick` の
 `--abnormal-level`（`generate` では CLI が Job YAML より優先）、
 モダリティエミュレーターの `exam --abnormal-level` と画面の「異常のデータ」。
@@ -148,16 +148,15 @@ study_uid = uid_gen.generate_study_uid()
 - **UUID 2.25**: `uuid.uuid4().int` を10進数変換
 - **カスタムRoot**: `{root}.{counter}` で連番管理。`run_scoped=True` なら
   `{root}.{run_id}.{counter}`。`run_id` は生成器ごとの 64 ビットの乱数で、
-  連番が生成のたびに 1 に戻っても、前の生成の UID と重なる見込みは
-  無視できる（UID は世界で一意。PS3.5 9。一意は 2.25 と同じく確率による）
-- **根の形**（PS3.5 9.1）：数字と `.` だけ、2 成分以上、最初の成分は 0・1・2
-  （0・1 なら 2 番目は 0〜39）、成分の先頭に 0 を置かない（`0` だけの成分は
-  可）、64 字まで。`run_scoped=True`
-  なら、番号と連番をつないでも 64 字に収まるよう、根は
-  `CUSTOM_ROOT_MAX_LENGTH`（35 字）まで
-- 作った UID が 64 字を超えるときは `UIDGenerationError`
+  連番が生成のたびに 1 に戻っても、前の生成の UID と重複する確率は
+  無視できる（UID は世界で一意。PS3.5 9。一意性は 2.25 と同じく確率による）
+- **ルートの形式**（PS3.5 9.1）：数字と `.` だけ、2 成分以上、最初の成分は
+  0・1・2（0・1 なら 2 番目は 0〜39）、成分の先頭に 0 を置かない（`0` だけの
+  成分は可）、64 文字まで。`run_scoped=True` なら、番号と連番を連結しても
+  64 文字に収まるよう、ルートは `CUSTOM_ROOT_MAX_LENGTH`（35 文字）まで
+- 生成した UID が 64 文字を超えるときは `UIDGenerationError`
 - **0始まり不正**: ランダムな位置でドットの直後に0を置く
-- 方式が不正、`custom_root` が空または OID の形でないときは
+- 方式が不正、`custom_root` が空または OID の形式でないときは
   `UIDGenerationError`
 
 ---
@@ -452,7 +451,7 @@ class DICOMBuilder:
 ```
 
 `DICOMBuilder` は患者・スタディ・シリーズ・画像・空間座標・ピクセルの各タグを
-置くだけで、テンプレートの属性・予約の値・装置のプロファイルは重ねない。
+設定するだけで、テンプレートの属性・予約の値・装置プロファイルは重ねない。
 重ねる順序は `StudyGeneratorService` が持つ（[architecture.md](../architecture.md)
 の「生成の流れ」）。異常値の注入も `DICOMBuilder` は行わない。
 
@@ -483,14 +482,14 @@ ds.save_as("output.dcm", write_like_original=False)
 1. File Meta を Dataset に設定
 2. Patient Module タグ設定（Patient's Age は生年月日と検査日から算出）
 3. General Study Module タグ設定（Referring Physician's Name は Type 2 なので、
-   Job に無ければ空の値で出す。PS3.3 C.7.2.1）
+   Job に無ければ空の値で出力する。PS3.3 C.7.2.1）
 4. General Series Module タグ設定（Patient Position の既定値 `HFS` を含む）
 5. Frame of Reference Module タグ設定（Position Reference Indicator は空）
 6. General Image Module・CT Image Module タグ設定（Image Type の既定値
    `ORIGINAL\PRIMARY\AXIAL` を含む。spec/06 の「CT Image の必須の属性」）
 7. SOP Common Module タグ設定
-8. 空間座標タグ設定（DS は 16 字以内。spec/06 の「DS の書き方」）
-9. Pixel Data設定（画素が Bits Stored の範囲に収まるかを確かめる）
+8. 空間座標タグ設定（DS は 16 文字以内。spec/06 の「DS の書き方」）
+9. Pixel Data設定（画素が Bits Stored の範囲に収まるかを検証する）
 10. Transfer Syntax に合わせた設定
 11. Dataset返却
 
@@ -567,11 +566,11 @@ patient_id = abnormal_gen.apply_abnormal_value(
 | **moderate** | Type 1,2タグをNone返却（欠落）、UID 0始まり |
 | **severe** | File Meta破損、Pixel Data欠落 |
 
-### Dataset への当て方
+### Dataset への適用
 
 `apply_abnormal_to_dataset(dataset, generator)`（`abnormal_generator.py`）が、
-次の表のタグのうち Dataset にあるものに `apply_abnormal_value` を当てる。
-表に無いタグは壊さない。壊した値が `None` ならタグを消す。
+次の表のタグのうち Dataset にあるものに `apply_abnormal_value` を適用する。
+表に無いタグは壊さない。壊した値が `None` ならタグを削除する。
 
 | タグ | VR | Type | 最大長 |
 |------|----|------|--------|
@@ -590,41 +589,41 @@ patient_id = abnormal_gen.apply_abnormal_value(
 | SOPClassUID | UI | 1 | — |
 | SOPInstanceUID | UI | 1 | — |
 
-- `severe` は、この表の処理に加えて Pixel Data を消す。
-- **File Meta の破損は、いまは実装していない。** File Meta の値は壊さず、
-  Dataset 側の SOP Instance UID だけが File Meta と食い違いうる。
-- IS・DS の不正な文字列は、pydicom の検証を通らないので、生の値として入れる。
-- Study Instance UID を消した画像でも撮影の結果を返せるよう、画像から Study UID を
-  読む処理は、タグが無ければ空にする。
-- 壊し方の一部は乱数で決まる（`random`）。同じレベルでも画像ごとに値が違う。
-- **約束の範囲**：異常のデータが作る規格の違反は、上の表のタグの壊し方・
+- `severe` は、この表の処理に加えて Pixel Data を削除する。
+- **File Meta の破損は、現在は実装していない。** File Meta の値は壊さず、
+  Dataset 側の SOP Instance UID だけが File Meta と食い違うことがある。
+- IS・DS の不正な文字列は、pydicom の検証を通過しないので、生の値として入れる。
+- Study Instance UID を削除した画像でも撮影の結果を返せるよう、画像から Study UID
+  を読み取る処理は、タグが無ければ空にする。
+- 壊し方の一部は乱数で決まる（`random`）。同じレベルでも画像ごとに値が異なる。
+- **定義の範囲**：異常のデータで生成する規格の違反は、上の表のタグの壊し方・
   Pixel Data の削除・`allow_invalid_sop_uid` の SOP Instance UID の 0 始まり
-  だけ。Transfer Syntax・画素の値・File Meta は約束に入らない（廃止の Explicit VR
-  Big Endian は異常のデータでも作らない）。ふつうの経路の規格の確かめは、
-  この約束の壊し方を狭めない（spec/06 の「ふつうの経路と異常のデータの経路」、
-  [ADR-0014](../decisions/0014-separate-normal-and-abnormal-paths.md)）
+  だけ。Transfer Syntax・画素値・File Meta は定義に含まれない（廃止された
+  Explicit VR Big Endian は異常のデータでも生成しない）。通常の経路の規格の
+  チェックは、この定義の壊し方を妨げない（spec/06 の「通常の経路と異常のデータの
+  経路」、[ADR-0014](../decisions/0014-separate-normal-and-abnormal-paths.md)）
 
 ---
 
 ## Core のそのほかのモジュール
 
-モダリティエミュレーター（[12_modality_emulator.md](12_modality_emulator.md)）と装置の
-プロファイル（[13_device_profiles.md](13_device_profiles.md)）のために、Core に
-Pure な処理が加わった。どれも通信・ファイル・ログを使わない。ここでは役割だけを
-書き、決めごとは各仕様を正本とする。
+モダリティエミュレーター（[12_modality_emulator.md](12_modality_emulator.md)）と
+装置プロファイル（[13_device_profiles.md](13_device_profiles.md)）のために、Core に
+Pure な処理が追加された。どれも通信・ファイル・ログを使わない。ここでは役割だけを
+書き、詳細は各仕様を正本とする。
 
 | モジュール | 役割 | 仕様 |
 |-----------|------|------|
 | `models.py` | データモデル（Pydantic）。予約の値の `WorklistItem`・`ScheduledPatient`・`ScheduledContext` を含む | [03](03_data_models.md) |
 | `exceptions.py` | 例外の階層。`ModalityError`・`ProfileError` の系統を含む | [08](08_error_handling.md) |
-| `device_profile.py` | 装置のプロファイルのモデルと、Dataset への重ね方（`DeviceProfile`、`apply_device_profile`） | [13](13_device_profiles.md) |
-| `worklist_mapping.py` | ワークリストの応答から `WorklistItem` を作り、予約（または予約なし）の値を画像へ写す。予約の鍵の計算、モダリティの一致の確認を含む | [12](12_modality_emulator.md) の 5〜6 章 |
-| `worklist_charset.py` | 画像の Specific Character Set の決め方と、その文字コードで表せない字の確認 | [12](12_modality_emulator.md) の 7 章 |
-| `path_safety.py` | 信用できない値から、ファイル・フォルダの名前を安全に作る。出力のフォルダの外に書かないことの確認 | [12](12_modality_emulator.md) の 6 章 |
-| `uid_format.py` | 相手から来る UID の形の確認（`is_valid_uid`） | [12](12_modality_emulator.md) の 6 章 |
-| `person_name.py` | 手で入れた氏名を PN の形にする | [12a](12a_web_screens_and_cli.md) |
-| `text_safety.py` | 相手から来る値の制御文字を、見える形にする | [12a](12a_web_screens_and_cli.md) |
-| `validation_text.py` | Pydantic の検証の誤りを、値を出さずに文にする | [12](12_modality_emulator.md) の 12 章 |
+| `device_profile.py` | 装置プロファイルのモデルと、Dataset への重ね方（`DeviceProfile`、`apply_device_profile`） | [13](13_device_profiles.md) |
+| `worklist_mapping.py` | ワークリストの応答から `WorklistItem` を作成し、予約（または予約なし）の値を画像へ転記する。予約のキーの計算、モダリティの一致の検証を含む | [12](12_modality_emulator.md) の 5〜6 章 |
+| `worklist_charset.py` | 画像の Specific Character Set の決定と、その文字コードで表現できない文字の検証 | [12](12_modality_emulator.md) の 7 章 |
+| `path_safety.py` | 信用できない値から、ファイル・フォルダの名前を安全に作る。出力フォルダの外に書き出さないことの検証 | [12](12_modality_emulator.md) の 6 章 |
+| `uid_format.py` | 相手から来る UID の形式の検証（`is_valid_uid`） | [12](12_modality_emulator.md) の 6 章 |
+| `person_name.py` | 手入力した氏名を PN の形式にする | [12a](12a_web_screens_and_cli.md) |
+| `text_safety.py` | 相手から来る値の制御文字を可視化する | [12a](12a_web_screens_and_cli.md) |
+| `validation_text.py` | Pydantic の検証エラーを、値を出さずにメッセージにする | [12](12_modality_emulator.md) の 12 章 |
 
 ---
 
@@ -690,12 +689,12 @@ def test_generate_sop_uid_with_invalid():
     assert 5 <= invalid_count <= 15  # 約10%
 ```
 
-### Dataset 構築の試験
+### Dataset 構築のテスト
 
 `DICOMBuilder` は `tests/core/test_dicom_builder.py` で、構築した Dataset の
-タグを確かめる。Service を含めた生成は `tests/services/test_study_generator.py`、
-予約から送信までの流れは `tests/integration/test_modality_flow.py` で確かめる。
-試験の構成は [development.md](../development.md) の「試験」を参照。
+タグを確認する。Service を含めた生成は `tests/services/test_study_generator.py`、
+予約から送信までの流れは `tests/integration/test_modality_flow.py` で確認する。
+テストの構成は [development.md](../development.md) の「テスト」を参照。
 
 ---
 

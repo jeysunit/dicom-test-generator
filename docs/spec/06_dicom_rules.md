@@ -5,46 +5,45 @@
 
 ## 概要
 
-この文書は、DTG が作る DICOM の詳細を定める。
+この文書は、DTG が生成する DICOM の詳細を定める。
 
 **重要**: DTG は DICOM と HL7（v2・FHIR）の規格に違反しないことを開発の前提と
 する。この仕様の値・Type・長さ・文字コードは、原典（dicom.nema.org の PS3.x。
-IHE の Technical Framework）で確かめ、規格の節番号を書く。仕様を変えるときも
+IHE の Technical Framework）で確認し、規格の節番号を書く。仕様を変えるときも
 原典に合わせる。
 
-### ふつうの経路と異常のデータの経路
+### 通常の経路と異常のデータの経路
 
-DTG は、あえて DICOM の規格に違反したデータを作る機能（異常のデータ）を持つ。
-規格に違反しない前提は、ふつうの経路だけに掛かる
+DTG は、あえて DICOM の規格に違反したデータを生成する機能（異常のデータ）を
+持つ。規格に違反しないという前提は、通常の経路にだけ適用する
 （[ADR-0014](../decisions/0014-separate-normal-and-abnormal-paths.md)）。
 
-- **ふつうの経路**：異常のデータのレベルが `none` で、
+- **通常の経路**：異常のデータのレベルが `none` で、
   `abnormal.allow_invalid_sop_uid` を使わない生成。Job・テンプレート・
-  装置のプロファイル・予約・画面と CLI の入力は、規格に合う値だけを受け、
-  合わない値は生成の前に断る。作る画像は規格どおりにする
+  装置プロファイル・予約・画面と CLI の入力は、規格に合う値だけを受け付け、
+  合わない値は生成の前に拒否する。生成する画像は規格どおりにする
 - **異常のデータの経路**：`abnormal.level` が `mild`・`moderate`・`severe`
-  のときと、`abnormal.allow_invalid_sop_uid`。規格に違反した値を作ること
-  そのものが目的で、規格の前提の対象外。何を壊すかの約束は
+  のときと、`abnormal.allow_invalid_sop_uid`。規格に違反した値を生成すること
+  そのものが目的で、規格の前提の対象外。何を壊すかの定義は
   [spec/02 の AbnormalGenerator](02_core_engine.md)（壊すタグの表・
-  Pixel Data の削除・SOP Instance UID の 0 始まり）で、この約束にある
-  壊し方は、ふつうの経路の確かめで狭めない
-- 異常のデータは、組み終えた Dataset に最後に当てる（spec/02）。
-  ふつうの経路の確かめ（Type 1 の属性・画素の範囲・DS の長さ・UID の形・
-  文字コード・入力の `\`）は、その前の値か、約束に無い入力に掛かるので、
-  約束の壊し方とぶつからない
-- 約束に無い違反（例：廃止の Transfer Syntax の Explicit VR Big Endian）は、
-  異常のデータの経路でも作らない。作れるようにするときは、先に spec/02 の
-  約束に足す
+  Pixel Data の削除・SOP Instance UID の 0 始まり）にあり、定義した
+  壊し方を、通常の経路のチェックで妨げない
+- 異常のデータは、組み立てた Dataset に最後に適用する（spec/02）。
+  通常の経路のチェック（Type 1 の属性・画素値の範囲・DS の長さ・UID の形式・
+  文字コード・入力の `\`）は、適用前の値か、定義に無い入力にかかるので、
+  定義した壊し方と衝突しない
+- 定義に無い違反（例：廃止された Transfer Syntax の Explicit VR Big Endian）は、
+  異常のデータの経路でも生成しない。生成できるようにするときは、先に spec/02 の
+  定義に追加する
 
-### 装置のコンフォーマンスステートメントからの擬態
+### 装置のコンフォーマンスステートメントからの再現
 
-特定の装置の DICOM の出し方（製造者・型名・ソフトウェアの版・
-文字コードの組・必ず出す属性・空で出す属性・プライベートタグ・Transfer
+特定の装置の DICOM の出力方法（製造者・型名・ソフトウェアの版・文字コードの
+組み合わせ・必ず出力する属性・空で出力する属性・プライベートタグ・Transfer
 Syntax）は、その装置のコンフォーマンスステートメント（DICOM PS3.2）を読んで
-**装置のプロファイル**に写し、モダリティのテンプレートの上に重ねて
-擬態する。形・写す手順・置き場は
-[spec/13_device_profiles.md](13_device_profiles.md)。実在の装置の
-プロファイルは公開のリポジトリに置かない（ADR-0012）。
+**装置プロファイル**に転記し、モダリティテンプレートの上に重ねて再現する。
+形式・転記の手順・配置場所は [spec/13_device_profiles.md](13_device_profiles.md)
+にある。実在の装置のプロファイルは公開のリポジトリに置かない（ADR-0012）。
 
 ---
 
@@ -157,13 +156,13 @@ def generate_uid_uuid():
 **形式**: `{custom_root}.{生成ごとの番号}.{連番}`
 
 - UID は世界で一意でなければならない（PS3.5 9）。連番は生成のたびに 1 に
-  戻るので、生成ごとの番号（64 ビットの乱数、20 桁まで）を根の後ろに
-  つなぎ、前の生成の UID と重なる見込みを無視できるほど小さくする
-  （2.25 の UUID と同じく、確率による一意）
-- 根は PS3.5 9.1 の形：数字と `.` だけ、2 成分以上、最初の成分は 0・1・2
+  戻るので、生成ごとの番号（64 ビットの乱数、20 桁まで）をルートの後ろに
+  連結し、前の生成の UID と重複する確率を無視できるほど小さくする
+  （2.25 の UUID と同じく、確率による一意性）
+- ルートは PS3.5 9.1 の形式：数字と `.` だけ、2 成分以上、最初の成分は 0・1・2
   （0・1 なら 2 番目は 0〜39。ITU-T X.660）、成分の先頭に 0 を置かない
-  （`0` だけの成分は可）。UID は 64 字までなので、根は 35 字まで
-- 根は自分の組織に割り当てられたものを使う。他の組織の根を借りない
+  （`0` だけの成分は可）。UID は 64 文字までなので、ルートは 35 文字まで
+- ルートは自分の組織に割り当てられたものを使う。他の組織のルートを使わない
 
 #### SOP Instance UIDの不正パターン生成
 
@@ -235,7 +234,7 @@ Pillow で 8 ビットの画像に描き、`DICOMBuilder` が 0〜255 を 0〜20
 - **サイズ**: 512×512ピクセル（デフォルト）
 - **Photometric Interpretation**: MONOCHROME2
 - **Bits Allocated**: 16
-- **Bits Stored**: 12-16（Job の `pixel_spec.bits_stored`。12 未満は誤り。
+- **Bits Stored**: 12-16（Job の `pixel_spec.bits_stored`。12 未満はエラー。
   PS3.3 C.8.2.1.1.5）
 - **High Bit**: 11-15
 - **Pixel Representation**: 1 (signed, 2's complement)
@@ -257,14 +256,14 @@ HU = Pixel Value × Rescale Slope + Rescale Intercept
 - Pixel Value = 1024 → HU = 1024 × 1 + (-1024) = 0 (Water)
 - Pixel Value = 2024 → HU = 2024 × 1 + (-1024) = 1000 (Bone)
 
-**画素の値の範囲**（PS3.3 C.7.6.3 の Pixel Representation、PS3.5 8）:
+**画素値の範囲**（PS3.3 C.7.6.3 の Pixel Representation、PS3.5 8）:
 
 Pixel Representation 1 の画素は、Bits Stored のビット数の 2 の補数で
 表す。値は −2^(Bits Stored − 1) 〜 2^(Bits Stored − 1) − 1 に収める。
 12 ビットなら −2048〜2047 で、DTG は 0〜2047（HU −1024〜1023）を
-使う。範囲を超える値は、読む側が High Bit で符号を広げるため別の値に
-化ける（12 ビットの 2048 は −2048）。`DICOMBuilder` は範囲を超える
-画素を `DICOMBuildError` で止める。
+使う。範囲を超える値は、読み込む側が High Bit で符号拡張するため別の値に
+変わる（12 ビットの 2048 は −2048）。`DICOMBuilder` は範囲を超える
+画素を `DICOMBuildError` で拒否する。
 
 **生成パターン**:
 
@@ -295,8 +294,8 @@ Pixel Representation 1 の画素は、Bits Stored のビット数の 2 の補数
 ## CT Image の必須の属性
 
 CT Image IOD（PS3.3 A.3）の Type 1・2・2C の属性のうち、Job・テンプレート・
-予約から値が来ないものは、`DICOMBuilder` が次の既定値で必ず出す。
-装置のプロファイルの `attributes.set` で変えられ、`omit` では消せない。
+予約から値が来ないものは、`DICOMBuilder` が次の既定値で必ず出力する。
+装置プロファイルの `attributes.set` で変更でき、`omit` では削除できない。
 Type 1 の Image Type は `empty` と空の `set` でも空にできない
 （spec/13 の 3.3）。
 
@@ -308,7 +307,7 @@ Type 1 の Image Type は `empty` と空の `set` でも空にできない
 
 CT の Image Type の値 3 の Defined Terms は `AXIAL` と `LOCALIZER`
 （C.8.2.1.1.1。`AXIAL` は断層の画像を指し、横断に限らない）。DTG は
-断層の画像を作るので、既定を `AXIAL` にする。
+断層の画像を生成するので、既定を `AXIAL` にする。
 
 ---
 
@@ -363,14 +362,14 @@ def calculate_spatial_coords(slice_index, slice_thickness, slice_spacing, start_
 ### DS の書き方
 
 DS（Decimal String）は 16 バイトまで（PS3.5 6.2 の表 6.2-1）。
-`str(float)` は浮動小数の誤差で 16 字を超える（間隔 0.1 の 4 枚目は
+`str(float)` は浮動小数点の誤差で 16 文字を超える（間隔 0.1 の 4 枚目は
 `0.30000000000000004`、身長 165.7 cm は `1.6569999999999998` m）。
-DTG が数から作る DS（Image Position (Patient)・Image Orientation
+DTG が数値から生成する DS（Image Position (Patient)・Image Orientation
 (Patient)・Slice Location・Slice Thickness・Pixel Spacing・Patient's
 Weight・Patient's Size）は、有効 12 桁で丸めてから
-`pydicom.valuerep.format_number_as_ds` で 16 字以内にする
+`pydicom.valuerep.format_number_as_ds` で 16 文字以内にする
 （`app/core/generator.py` の `format_ds`）。上の例は `0.3`・`1.657` になる。
-小さい値は 0 にせず、指数の形で残す（`1e-07`。DS は指数の形を許す）。
+小さい値は 0 にせず、指数表記で残す（`1e-07`。DS は指数表記を許す）。
 
 ### テンプレート設定
 
@@ -476,20 +475,21 @@ ds2.PatientName = "YAMADA^TARO"
 ds2.save_as("output2.dcm")
 ```
 
-### 表せない字
+### 表現できない文字
 
-Specific Character Set は、既定の文字セット（ASCII）に無い字を使う
+Specific Character Set は、デフォルトの文字セット（ASCII）に無い文字を使う
 ときに必須（PS3.3 C.12.1 の Type 1C、PS3.5 6.1）。宣言した文字コードで
-表せない字を書くと、pydicom は `?` に置き換えるか、宣言の無いバイトの
-まま書く。DTG は、画像を 1 枚書く前にその画像のすべての文字の属性を
-確かめ、表せない字があればその画像を書かずに止める（それより前に書いた
-画像は残る。[ADR-0018](../decisions/0018-stop-on-unrepresentable-characters.md)）。
-予約の撮影は `WorklistMappingError`（spec/12 の 7.2）、
+表現できない文字を書き出すと、pydicom は `?` に置き換えるか、宣言に無い
+バイト列のまま書き出す。DTG は、画像を 1 枚書き出す前にその画像のすべての
+文字列の属性を検証し、表現できない文字があればその画像を書き出さずに停止する
+（それより前に書き出した画像は残る。
+[ADR-0018](../decisions/0018-stop-on-unrepresentable-characters.md)）。
+予約からの撮影は `WorklistMappingError`（spec/12 の 7.2）、
 Job の生成は `DICOMValidationError`（どちらも CLI の終了コード 4。
-spec/04）。Job の生成の誤りの文とログには、属性の名前と文字コードだけを
-出し、表せない字そのもの（氏名の一部など）は出さない。
+spec/04）。Job の生成のエラーメッセージとログには、属性の名前と文字コード
+だけを出し、表現できない文字そのもの（氏名の一部など）は出さない。
 例：文字コードが空の病院テンプレート（`hospital_b`）で、Job の紹介医名や
-検査の説明に漢字・`é` があれば止める。
+検査の説明に漢字・`é` があれば停止する。
 
 ## PatientAge (0010,1010)
 
@@ -543,24 +543,24 @@ def _age_reached_date(birth: date, n: int) -> date:
 | **Implicit VR Little Endian** | 1.2.840.10008.1.2 | Implicit | Little |
 | **Explicit VR Little Endian** | 1.2.840.10008.1.2.1 | Explicit | Little |
 
-この 2 つが `app/core/generator.py` の `DICOMBuilder` が受ける Transfer
+この 2 つが `app/core/generator.py` の `DICOMBuilder` が受け付ける Transfer
 Syntax で、ほかの UID は `DICOMBuildError` になる。
 
-Explicit VR Big Endian（1.2.840.10008.1.2.2）は規格で廃止された形
-（PS3.5 A.3）なので作らない
+Explicit VR Big Endian（1.2.840.10008.1.2.2）は規格で廃止された形式
+（PS3.5 A.3）なので生成しない
 （[ADR-0015](../decisions/0015-no-explicit-vr-big-endian.md)）。Job で
-指定すると、出力のフォルダを作る前に止める：
+指定すると、出力フォルダを作成する前に停止する：
 
-- 装置のプロファイルを選んでいれば、先にプロファイルと合うかを確かめる。
+- 装置プロファイルを選択していれば、先にプロファイルと合うかを検証する。
   プロファイルが Big Endian を持たなければ `ProfileMismatchError`
   （CLI の終了コード 2）
-- それを通った Big Endian の指定は `DICOMValidationError`（終了コード 4）
-- 装置のプロファイルの最初の Transfer Syntax が Big Endian で、その形を使う
+- その検証を通過した Big Endian の指定は `DICOMValidationError`（終了コード 4）
+- 装置プロファイルの最初の Transfer Syntax が Big Endian で、それを使う
   経路（`quick --profile` とモダリティエミュレーターの撮影で、プロファイルから
   Transfer Syntax を決めるとき）は `ProfileMismatchError`（終了コード 2）
 
-異常のデータの約束（spec/02）にも無いので、異常のデータのレベルに関わらず
-作らない（上の「ふつうの経路と異常のデータの経路」）。
+異常のデータの定義（spec/02）にも含まれないので、異常のデータのレベルに関わらず
+生成しない（上の「通常の経路と異常のデータの経路」）。
 
 ### PyDicom実装
 
@@ -624,6 +624,6 @@ def save_with_transfer_syntax(ds, filepath, transfer_syntax_uid):
 2. **PyDicom Documentation**: <https://pydicom.github.io/>
 3. **IHE Japan**: <https://www.ihe-j.org/> (OID取得情報)
 4. **RFC 3061**: UUID Based OID (2.25系)
-5. **装置のコンフォーマンスステートメント**（DICOM PS3.2 Annex N の形）：
-   擬態する装置ごとに読む。どの文書のどの版を写したかは、外の置き場の
-   プロファイルの `source` に書く（spec/13）
+5. **装置のコンフォーマンスステートメント**（DICOM PS3.2 Annex N の形式）：
+   再現する装置ごとに参照する。どの文書のどの版から転記したかは、外部の
+   配置場所のプロファイルの `source` に書く（spec/13）
