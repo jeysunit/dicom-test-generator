@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from pydantic import ValidationError
 
-from app.core.device_profile import OMIT_FORBIDDEN_KEYWORDS
+from app.core.device_profile import OMIT_FORBIDDEN_KEYWORDS, DeviceProfile
 from app.core.dicom_writer import FileMetaBuilder, SpatialCalculator
 from app.core.exceptions import DICOMBuildError
-from app.core.generator import DICOMBuilder
+from app.core.generator import DICOMBuilder, format_ds
 from app.core.models import (
     InstanceConfig,
     Patient,
@@ -114,6 +115,54 @@ def test_new_required_attributes_cannot_be_omitted_by_profile(keyword: str) -> N
     assert keyword in OMIT_FORBIDDEN_KEYWORDS
 
 
+def _profile(attributes: dict) -> dict:
+    return {
+        "schema_version": 1,
+        "name": "test_ct",
+        "device": {
+            "modality": "CT",
+            "manufacturer": "DTG Test",
+            "manufacturers_model_name": "DTG Test CT",
+        },
+        "storage": {
+            "sop_classes": ["1.2.840.10008.5.1.4.1.1.2"],
+            "transfer_syntaxes": ["1.2.840.10008.1.2"],
+        },
+        "attributes": attributes,
+    }
+
+
+@pytest.mark.parametrize(
+    "attributes",
+    [
+        {"empty": ["ImageType"]},
+        {"set": {"ImageType": ""}},
+        {"set": {"ImageType": []}},
+        {"set": {"ImageType": ["", ""]}},
+        {"empty": ["Modality"]},
+        {"empty": ["PixelSpacing"]},
+        {"set": {"RescaleSlope": " "}},
+    ],
+)
+def test_profile_cannot_empty_type1_attributes(attributes: dict) -> None:
+    # Type 1 は空の値を許さない（PS3.3 C.8.2.1・C.7.3.1・C.7.6.2）
+    with pytest.raises(ValidationError, match="Type 1"):
+        DeviceProfile.model_validate(_profile(attributes))
+
+
+@pytest.mark.parametrize(
+    "attributes",
+    [
+        {"set": {"ImageType": ["DERIVED", "SECONDARY", "AXIAL"]}},
+        {"set": {"PatientPosition": "FFS"}},
+        {"empty": ["PatientPosition", "PositionReferenceIndicator"]},
+    ],
+)
+def test_profile_can_change_or_empty_type2_attributes(attributes: dict) -> None:
+    # Image Type は別の値にでき、Type 2・2C は空にできる
+    DeviceProfile.model_validate(_profile(attributes))
+
+
 # 違反 5：DS は 16 バイトまで（PS3.5 6.2）
 
 
@@ -133,6 +182,31 @@ def test_patient_size_and_weight_fit_sixteen_bytes() -> None:
 
     assert str(ds.PatientSize) == "1.657"
     assert str(ds.PatientWeight) == "62.3"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (0.30000000000000004, "0.3"),
+        (1.6569999999999998, "1.657"),
+        (1e-7, "1e-07"),
+        (-1e-7, "-1e-07"),
+        (0.0, "0.0"),
+        (-1024.0, "-1024.0"),
+        (1e20, "1e+20"),
+        (123456789.12345679, "123456789.123"),
+    ],
+)
+def test_format_ds_keeps_value_within_sixteen_bytes(value: float, expected: str) -> None:
+    # 小さい値を 0 に丸めず、指数の形で残す
+    assert format_ds(value) == expected
+
+
+def test_format_ds_long_value_fits_sixteen_bytes() -> None:
+    formatted = format_ds(-1.2345678901234567e-300)
+
+    assert len(formatted) <= DS_MAX_LENGTH
+    assert float(formatted) == pytest.approx(-1.2345678901234567e-300, rel=1e-8)
 
 
 def test_every_decimal_string_in_dataset_fits_sixteen_bytes() -> None:

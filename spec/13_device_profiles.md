@@ -180,8 +180,12 @@ services:
   Spacing・Slice Thickness・KVP・Rescale Intercept/Slope・Image Type・
   Patient Position・Position Reference Indicator・Instance Creator UID）
   を消せない（Patient Position は 2C で CT Image Storage では必須。
-  PS3.3 C.7.3.1。spec/06 の「CT Image の必須の属性」）。必須の属性を欠いた画像は、異常の
-  データ（`abnormal`）の仕事にする
+  PS3.3 C.7.3.1。spec/06 の「CT Image の必須の属性」）。必須の属性を
+  欠いた画像は、異常のデータ（`abnormal`）の仕事にする
+- `empty` と空の `set`（空の文字・空の文字だけの並び）では、この道具が
+  CT Image で出す Type 1 の属性（Modality・Image Type・Image
+  Position/Orientation (Patient)・Pixel Spacing・Rescale
+  Intercept/Slope）を空にできない（PS3.3 C.7.3.1・C.7.6.2・C.8.2.1）
 - `attributes.set` と `private_tags` の値は、読み込みのときに VR に
   合うかを確かめる（型・数の範囲・文字の長さと字。pydicom の
   `validate_value`）。文字の VR（DS・IS など）に書いた数は文字にして入れる

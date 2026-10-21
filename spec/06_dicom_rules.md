@@ -246,7 +246,8 @@ Pixel Representation 1 の画素は、Bits Stored のビット数の 2 の補数
 
 CT Image IOD（PS3.3 A.3）の Type 1・2・2C の属性のうち、Job・テンプレート・
 予約から値が来ないものは、`DICOMBuilder` が次の既定値で必ず出す。
-装置のプロファイルの `attributes.set` で変えられ、`omit` では消せない
+装置のプロファイルの `attributes.set` で変えられ、`omit` では消せない。
+Type 1 の Image Type は `empty` と空の `set` でも空にできない
 （spec/13 の 3.3）。
 
 | Tag | Attribute Name | Module | Type | 既定値 | 規格の節 |
@@ -255,8 +256,9 @@ CT Image IOD（PS3.3 A.3）の Type 1・2・2C の属性のうち、Job・テン
 | (0018,5100) | Patient Position | General Series | 2C（CT Image Storage では必須） | `HFS` | PS3.3 C.7.3.1、C.7.3.1.1.2 |
 | (0020,1040) | Position Reference Indicator | Frame of Reference | 2 | 空 | PS3.3 C.7.4.1、C.7.4.1.1.2 |
 
-Image Type の値 3 は、CT では `AXIAL` か `LOCALIZER`（C.8.2.1.1.1）。
-この道具は軸位断の画像を作るので `AXIAL` にする。
+CT の Image Type の値 3 の Defined Terms は `AXIAL` と `LOCALIZER`
+（C.8.2.1.1.1。`AXIAL` は断層の画像を指し、横断に限らない）。この道具は
+断層の画像を作るので、既定を `AXIAL` にする。
 
 ---
 
@@ -315,9 +317,10 @@ DS（Decimal String）は 16 バイトまで（PS3.5 6.2 の表 6.2-1）。
 `0.30000000000000004`、身長 165.7 cm は `1.6569999999999998` m）。
 この道具が数から作る DS（Image Position (Patient)・Image Orientation
 (Patient)・Slice Location・Slice Thickness・Pixel Spacing・Patient's
-Weight・Patient's Size）は、小数 6 桁で丸めてから
+Weight・Patient's Size）は、有効 12 桁で丸めてから
 `pydicom.valuerep.format_number_as_ds` で 16 字以内にする
 （`app/core/generator.py` の `format_ds`）。上の例は `0.3`・`1.657` になる。
+小さい値は 0 にせず、指数の形で残す（`1e-07`。DS は指数の形を許す）。
 
 ### テンプレート設定
 

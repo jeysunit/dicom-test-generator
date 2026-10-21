@@ -27,17 +27,19 @@ DEFAULT_IMAGE_TYPE = ("ORIGINAL", "PRIMARY", "AXIAL")  # PS3.3 C.8.2.1.1.1
 DEFAULT_PATIENT_POSITION = "HFS"  # PS3.3 C.7.3.1.1.2
 DEFAULT_POSITION_REFERENCE_INDICATOR = ""  # PS3.3 C.7.4.1.1.2（Type 2）
 
-# DS（PS3.5 6.2、16 バイトまで）に書く前に丸める小数の桁。mm で 1 nm まで残す
-DS_DECIMAL_PLACES = 6
+# DS（PS3.5 6.2、16 バイトまで）に書く前に丸める有効桁の数。
+# float の誤差（16〜17 桁目）を落とし、小さい値も指数で残す
+DS_SIGNIFICANT_DIGITS = 12
 
 
 def format_ds(value: float) -> str:
     """数を 16 バイト以内の DS の文字にする（PS3.5 6.2）.
 
-    浮動小数の誤差（0.1 * 3 = 0.30000000000000004）を丸めてから、
-    なお長ければ pydicom で 16 字に収める。
+    浮動小数の誤差（0.1 * 3 = 0.30000000000000004）を有効 12 桁で丸めてから、
+    なお長ければ pydicom で 16 字に収める（指数の形を含む）。
     """
-    return format_number_as_ds(round(float(value), DS_DECIMAL_PLACES))
+    rounded = float(f"{float(value):.{DS_SIGNIFICANT_DIGITS}g}")
+    return format_number_as_ds(rounded)
 
 
 class DICOMBuilder:
