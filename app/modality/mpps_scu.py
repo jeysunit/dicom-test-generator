@@ -416,12 +416,18 @@ def _performed_series(files: Sequence[str], skip_unreadable: bool = False) -> li
     series: dict[str, Dataset] = {}
     skipped = 0
     for path in files:
+        # 値の変換（pydicom は読むときに遅れて変換する）も含めて、1 枚から使う値を
+        # すべてここで取り出す
         try:
             image = dcmread(path, stop_before_pixels=True)
             uid = str(image.SeriesInstanceUID)
             reference = Dataset()
             reference.ReferencedSOPClassUID = str(image.SOPClassUID)
             reference.ReferencedSOPInstanceUID = str(image.SOPInstanceUID)
+            series_description = str(image.get("SeriesDescription", "") or "")
+            protocol_name = str(
+                image.get("ProtocolName", "") or series_description or DEFAULT_PROTOCOL_NAME
+            )
         except IMAGE_READ_ERRORS:
             if not skip_unreadable:
                 raise
@@ -429,14 +435,7 @@ def _performed_series(files: Sequence[str], skip_unreadable: bool = False) -> li
             continue
         item = series.get(uid)
         if item is None:
-            item = _series_item(
-                uid,
-                str(
-                    image.get("ProtocolName", "") or image.get("SeriesDescription", "")
-                    or DEFAULT_PROTOCOL_NAME
-                ),
-                str(image.get("SeriesDescription", "") or ""),
-            )
+            item = _series_item(uid, protocol_name, series_description)
             series[uid] = item
         item.ReferencedImageSequence.append(reference)
     if skipped:

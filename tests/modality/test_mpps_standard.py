@@ -115,6 +115,31 @@ def test_discontinued_reports_readable_images_among_broken_ones(tmp_path: Path) 
     assert [r.ReferencedSOPInstanceUID for r in series.ReferencedImageSequence] == ["2.25.11"]
 
 
+class _BrokenDescription(pydicom.Dataset):
+    """Series Description を読むと pydicom の変換の誤りを上げる画像."""
+
+    def get(self, key, default=None):
+        if key in ("SeriesDescription", "ProtocolName"):
+            raise ValueError("cannot convert the value")
+        return super().get(key, default)
+
+
+def test_discontinued_skips_image_whose_values_fail_to_convert(monkeypatch) -> None:
+    image = _BrokenDescription()
+    image.SOPClassUID = "1.2.840.10008.5.1.4.1.1.2"
+    image.SOPInstanceUID = "2.25.21"
+    image.SeriesInstanceUID = "2.25.22"
+    monkeypatch.setattr("app.modality.mpps_scu.dcmread", lambda *_a, **_k: image)
+
+    modification = build_n_set(
+        STATE_DISCONTINUED, ["broken.dcm"], datetime(2026, 10, 21, 10, 0, 0), []
+    )
+
+    (series,) = modification.PerformedSeriesSequence
+    assert series.SeriesInstanceUID != "2.25.22"
+    assert list(series.ReferencedImageSequence) == []
+
+
 def test_completed_with_unreadable_image_raises(tmp_path: Path) -> None:
     broken = tmp_path / "broken.dcm"
     broken.write_bytes(b"not a dicom file")
