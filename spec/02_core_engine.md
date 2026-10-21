@@ -594,6 +594,11 @@ patient_id = abnormal_gen.apply_abnormal_value(
 - Study Instance UID を消した画像でも撮影の結果を返せるよう、画像から Study UID を
   読む処理は、タグが無ければ空にする。
 - 壊し方の一部は乱数で決まる（`random`）。同じレベルでも画像ごとに値が違う。
+- **約束の範囲**：異常のデータが作る規格の違反は、上の表のタグの壊し方・
+  Pixel Data の削除・`allow_invalid_sop_uid` の SOP Instance UID の 0 始まり
+  だけ。転送の形・画素の値・File Meta は約束に入らない（廃止の Explicit VR
+  Big Endian は異常のデータでも作らない）。ふつうの経路の規格の確かめは、
+  この約束の壊し方を狭めない（spec/06 の「ふつうの経路と異常のデータの経路」）
 
 ---
 
