@@ -95,9 +95,12 @@ class StudyGeneratorService:
         )
 
         try:
+            # custom_root は生成ごとの番号を根の後ろにつなぎ、前の生成の UID と
+            # 重ならないようにする（PS3.5 9。spec/06 の「カスタム Root 方式」）
             uid_generator = UIDGenerator(
                 method=config.uid_method,
                 custom_root=config.uid_custom_root or "",
+                run_scoped=True,
             )
             study_uid = (
                 scheduled.study_instance_uid

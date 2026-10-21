@@ -81,8 +81,8 @@ class DICOMBuilder:
             ds.AccessionNumber = study_config.accession_number
             if study_config.study_description is not None:
                 ds.StudyDescription = study_config.study_description
-            if study_config.referring_physician_name is not None:
-                ds.ReferringPhysicianName = study_config.referring_physician_name
+            # Type 2（PS3.3 C.7.2.1）。紹介医が無ければ空の値で出す
+            ds.ReferringPhysicianName = study_config.referring_physician_name or ""
             ds.StudyID = ""
 
             # General Series Module
