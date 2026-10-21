@@ -1,8 +1,5 @@
 # 目的と範囲
 
-- 作成日：2026-02-22
-- 最終更新日：2026-10-22
-
 ## 1. 目的
 
 DICOM Test Data Generator（リポジトリ名 `dicom-test-generator`。以下 DTG）は、
@@ -44,10 +41,12 @@ hl7.org、IHE の Technical Framework）で確認し、spec か ADR に規格の
 
 | 機能 | 内容 | spec |
 |------|------|------|
-| DICOM ファイルの生成 | 病院・モダリティ別のテンプレート、患者マスターの情報、1 スタディに複数のシリーズと画像、日本語とローマ字の切り替え、CT のリアルモードのピクセル | [02](spec/02_core_engine.md)・[06](spec/06_dicom_rules.md)・[07](spec/07_job_schema.md) |
-| 異常のデータの生成 | レベル（none・mild・moderate・severe）別 | [02](spec/02_core_engine.md)・[06](spec/06_dicom_rules.md) |
-| モダリティエミュレーター | ワークリスト（MWL）の取得、予約からの撮影、C-STORE での送信、送信失敗時の再送、保管確認（Storage Commitment）、MPPS | [12](spec/12_modality_emulator.md) |
-| 装置プロファイル | ある装置の DICOM の出力（製造元・機種・属性・プライベートタグ）をテンプレートに重ねる | [13](spec/13_device_profiles.md) |
+| DICOM ファイルの生成 | Study・Series・Instance の階層、UID（2.25 の形式）、マルチスライスの空間座標、Transfer Syntax の選択。病院・モダリティ別のテンプレート、患者マスターの情報、YAML の Job による設定 | [02](spec/02_core_engine.md)・[06](spec/06_dicom_rules.md)・[07](spec/07_job_schema.md) |
+| 日本語の患者名 | Specific Character Set と、PN の英字・漢字・かなの表記 | [06](spec/06_dicom_rules.md) |
+| ピクセルの生成 | 簡易モード（UID の文字列を描画する）と CT モード（16 ビットの HU 値）。どちらも実際の画像ではない | [02](spec/02_core_engine.md)・[06](spec/06_dicom_rules.md) |
+| 異常のデータの生成 | 必須タグの欠落、VR の違反、文字数の超過、不正な UID、Pixel Data の欠落。レベル（none・mild・moderate・severe）で選ぶ | [02](spec/02_core_engine.md)・[06](spec/06_dicom_rules.md) |
+| モダリティエミュレーター | ワークリスト（MWL）の取得、予約からの撮影、予約の無い緊急の患者の入力、C-STORE での送信、疎通確認（C-ECHO）、送信失敗時のキューと再送、保管確認（Storage Commitment）、MPPS | [12](spec/12_modality_emulator.md) |
+| 装置プロファイル | 装置のコンフォーマンスステートメントの内容を転記し、その装置の DICOM の出力（製造元・機種・属性・プライベートタグ）をテンプレートに重ねて再現する | [13](spec/13_device_profiles.md) |
 | CLI | 生成・検証・簡易生成と、モダリティエミュレーターの操作 | [04](spec/04_cli.md)・[12a](spec/12a_web_screens_and_cli.md) |
 | Web 画面 | ワークリスト・撮影・PACS・設定の画面（FastAPI・Jinja2・HTMX） | [12a](spec/12a_web_screens_and_cli.md) |
 | デスクトップ画面 | PySide6 の基本の生成機能だけ。機能は追加しない | [05](spec/05_gui.md) |
@@ -76,8 +75,7 @@ CT 以外のモダリティ（MR・CR・DX・US など）はまだ実装して�
 
 ## 6. 開発の方針
 
-- **仕様を先に決めてから実装する。** 現在の動作は [spec/](spec/)、判断の理由は
-  [decisions/](decisions/README.md) に書く
+- **仕様を先に決めてから実装する。** 手順は [README.md](README.md) の「書き方」
 - **機能は追加するより減らす。** テストの相手として不要な機能は追加しない
 - **層を分ける。** UI は Service を経由して Core を使う。依存は上から下への一方向
   （[architecture.md](architecture.md)）

@@ -1,8 +1,5 @@
 # 09. ログ
 
-- 作成日：2026-02-22
-- 最終更新日：2026-10-22
-
 ## 概要
 
 ログは Python 標準の `logging` で出力する。**Core はログを出力しない**。
@@ -86,7 +83,7 @@ logger の名前は、各モジュールの `logging.getLogger(__name__)` であ
 
 ### 出力しない値
 
-患者の氏名・生年月日はログに出力しない（[development.md](../development.md) の 3.4）。
+患者の氏名・生年月日はログに出力しない（[README.md](../README.md) の「書き方」）。
 出力するのは、患者ID・予約のキー・受付番号・SOP Instance UID まで。
 
 ---

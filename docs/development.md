@@ -1,7 +1,7 @@
 # 開発
 
-- 作成日：2026-02-22
-- 最終更新日：2026-10-22
+開発環境、テスト、CI と、変更を確認するコマンドをまとめる。規則（変更の手順・
+コーディング規約・Git・文書の書き方）は [README.md](README.md) の「書き方」にある。
 
 ## 1. 環境
 
@@ -14,89 +14,38 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-## 2. 変更の手順
+## 2. 確認のコマンド
 
-作業は `main` から作成したブランチで行い、PR でマージする。`main` に直接 commit・
-push しない。1つの PR には1つの目的だけを入れる。
+PR を作成する前に、次を実行する。
 
-動作を変えるときは、次の順に更新する。
+```bash
+# テスト（ディスプレイの無い環境では QT_QPA_PLATFORM=offscreen を付ける）
+QT_QPA_PLATFORM=offscreen pytest
 
-1. spec を更新する。spec は現在の動作を書く文書なので、コードと同じ PR で更新し、
-   常に現在の動作に合わせておく。規格に従う箇所には、規格の節番号を書く
-   （[project_charter.md](project_charter.md) の 2 章）
-2. 設計の判断（方式の選択、規格が許す形式のどれを選ぶか）を伴うなら、ADR を作成
-   する。書き方は [decisions/README.md](decisions/README.md) にある
-3. テストを先に書き、コードを変更する。バグを修正するときは、再発を防ぐテストを
-   先に書く
-4. 使い方が変わるなら、ルートの README を更新する
+# Markdown
+npx markdownlint-cli2 "**/*.md" "#.venv" "#.pytest_cache"
 
-spec に無い機能は追加しない。仕様の不明な点を推測で補って実装しない。既存の
-テストに合格させるために仕様を変えない（実装を修正する）。
+# ADR の最終更新日の記入漏れ
+python scripts/check_doc_dates.py origin/main..HEAD
+```
 
-## 3. コーディング規約
+## 3. CI
 
-### 3.1 層
+`.github/workflows/ci.yml` が、PR と `main` への push で次を実行する。
 
-層の構造は [architecture.md](architecture.md) の 2 章のとおり。
-
-- UI から Core Engine を直接呼ばない
-- Core Engine は UI・ログ・設定ファイルに依存しない
-- `app/modality/` は Service Layer の一部で、`app/services/`・`app/core/` だけを
-  import する
-
-### 3.2 Python
-
-- Python 3.10 以上で動作させる。型ヒントを付ける
-- PEP 8 に従う。ruff は、設定ファイルが無く、現在のコードに指摘が残っているため、
-  CI にはまだ入れていない
-- データモデルは Pydantic v2
-- 命名は snake_case（関数・変数）、PascalCase（クラス）、UPPER_CASE（定数）。
-  マジックナンバーは定数にする
-- 1ファイル 800 行以下、1関数 50 行以下を目安にする。既存のオブジェクトを
-  変更せず、新しく生成するほうを選ぶ
-- 依存は `requirements.txt` で管理する。標準ライブラリで済むなら外部の
-  パッケージを追加しない
-
-### 3.3 例外
-
-[spec/08](spec/08_error_handling.md) の例外の階層に従う。
-
-- 基底の例外は `DICOMGeneratorError`。汎用の `Exception` や `ValueError` を
-  直接 raise しない
-- Core Engine は例外を raise する（ログは出力しない）。Service Layer は捕捉して
-  ログに出力し、必要なら再送出する。UI Layer は捕捉して利用者に表示する
-- `except Exception:` で例外を握りつぶさない。エラーを隠して成功として扱わない
-- エラーメッセージには、原因と文脈（入力の ID、処理の段階）を含める
-
-### 3.4 ログ
-
-[spec/09](spec/09_logging.md) に従う。
-
-- `print()` ではなく `logging` を使う。例外は CLI が利用者に表示する結果と
-  エラーで、標準出力と標準エラー出力に出す
-- Core Engine はログを出力しない。Service Layer 以上で出力する
-- ロガーの名前は `logging.getLogger(__name__)`
-- 患者の氏名・生年月日などの個人情報と秘密情報をログに出力しない
-- DEBUG のログは `logger.debug("msg: %s", obj)` の形で書き、文字列の組み立てを
-  遅延させる
-
-### 3.5 CLI
-
-[spec/04](spec/04_cli.md) に従う。
-
-- エントリポイントは `python -m app.cli`
-- 終了コードは 0=成功、1=一般エラー、2=設定エラー、3=I/O エラー、
-  4=バリデーションエラー、5=通信エラー
-  （[spec/12a](spec/12a_web_screens_and_cli.md) の 11.6）
-- 結果は標準出力、エラーは標準エラー出力に出す
-- `--help` で必須の引数と使用例を示す
+- pytest（Python 3.10・3.12）。GUI のテストは Qt の offscreen で実行し、X の
+  サーバーを起動しない
+- markdownlint（設定は `.markdownlint-cli2.yaml`）
+- ADR の最終更新日の検証（PR のときだけ）
+- 画面の CSS：`scripts/build_css.sh` で生成し直し、commit した
+  `app/web/static/app.css` と差分が無いことを確認する
+- Docker イメージ：`Dockerfile` からイメージをビルドし（push しない）、CLI が
+  root 以外のユーザーで動くこと、Web 画面が `0.0.0.0` で起動して HTTP Basic 認証を
+  求めること、パスワードのファイルが無ければ起動しないことを確認する
 
 ## 4. テスト
 
 ```bash
-# すべて
-pytest
-
 # 層ごと
 pytest tests/core/ -v
 pytest tests/services/ -v
@@ -108,13 +57,7 @@ pytest tests/web/ -v
 
 # カバレッジ
 pytest --cov=app --cov-report=term-missing
-
-# ディスプレイの無い環境で GUI のテストを実行する（CI と同じ）
-QT_QPA_PLATFORM=offscreen pytest
 ```
-
-新しい機能には、正常系と異常系のテストを追加する。カバレッジは 80% 以上を目標に
-する。Core Engine のテストでは、ファイルやネットワークを使わない。
 
 ### 4.1 テストの構成
 
@@ -158,51 +101,7 @@ DTG の機能ではない。スタブは `tests/modality_peers.py` にある。
 | Web | `tests/web/` | ページが表示される、HTMX の部分応答、ループバック以外で待ち受けて認証が無ければ起動しない、`Origin` と CSRF トークンの検証、相手から来る値（`<script>`・制御文字）のエスケープ、画面から「取得→選択→撮影→送信」の一連の流れ、CSS の `@theme` の値が [spec/12a](spec/12a_web_screens_and_cli.md) の 10.2 の表と一致すること（`tests/web/test_theme_tokens.py`） |
 | 装置プロファイル | `tests/core/test_device_profile.py` ほか | [spec/13](spec/13_device_profiles.md) の 10 章 |
 
-## 5. CI
-
-`.github/workflows/ci.yml` が、PR と `main` への push で次を実行する。
-
-- pytest（Python 3.10・3.12）。GUI のテストは Qt の offscreen で実行し、X の
-  サーバーを起動しない
-- markdownlint（設定は `.markdownlint-cli2.yaml`）
-- 文書の最終更新日の検証（PR のときだけ。6 章）
-- 画面の CSS：`scripts/build_css.sh` で生成し直し、commit した
-  `app/web/static/app.css` と差分が無いことを確認する
-- Docker イメージ：`Dockerfile` からイメージをビルドし（push しない）、CLI が
-  root 以外のユーザーで動くこと、Web 画面が `0.0.0.0` で起動して HTTP Basic 認証を
-  求めること、パスワードのファイルが無ければ起動しないことを確認する
-
-## 6. 文書
-
-文書の書き方（役割の分け方、作成日と最終更新日の行、言葉の選び方）は
-[docs/README.md](README.md) の「書き方」にある。ここには検証の方法だけを書く。
-
-```bash
-# 最終更新日の記入漏れを検出する
-python scripts/check_doc_dates.py origin/main..HEAD
-
-# markdownlint
-npx markdownlint-cli2 "**/*.md" "#.venv" "#.pytest_cache"
-```
-
-## 7. Git
-
-ブランチ名は `<type>/<topic>` にする。
-
-```text
-feature/<機能名>
-fix/<修正内容>
-refactor/<対象>
-docs/<対象>
-test/<対象>
-```
-
-commit メッセージは Conventional Commits の形式（`feat:`・`fix:`・`refactor:`・
-`test:`・`docs:`・`chore:`）にする。説明は日本語でよい。1つの commit には1つの
-論理的な変更だけを入れる。秘密情報（API キー・パスワードなど）は commit しない。
-PR には、目的・変更点・確認方法・影響範囲を書く。
-
-## 8. Web 画面の静的ファイル
+## 5. Web 画面の静的ファイル
 
 Web 画面の htmx・アイコン・CSS は、バージョンを固定して `app/web/static/` に置き、
 commit している。利用者がこれらを用意する必要は無い。

@@ -1,4 +1,4 @@
-"""文書の最終更新日の確かめ（scripts/check_doc_dates.py。docs/development.md の 6.2）の試験."""
+"""ADR の最終更新日の確認（scripts/check_doc_dates.py。docs/decisions/README.md の書き方）のテスト."""
 
 from __future__ import annotations
 
@@ -60,37 +60,43 @@ def _commit(repo: Path, files: dict[str, str], date: str) -> None:
 @pytest.fixture()
 def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     _git(tmp_path, "init", "-q", "-b", "main")
-    _commit(tmp_path, {"README.md": _doc("2026-01-01")}, "2026-01-01")
+    _commit(tmp_path, {ADR_PATH: _doc("2026-01-01")}, "2026-01-01")
     _git(tmp_path, "tag", "base")
     monkeypatch.chdir(tmp_path)
     return tmp_path
 
 
-def test_up_to_date_documents_pass(repo: Path) -> None:
-    _commit(repo, {"docs/spec/01.md": _doc("2026-10-22")}, "2026-10-22")
+ADR_PATH = "docs/decisions/0001-x.md"
+
+
+def test_up_to_date_adr_passes(repo: Path) -> None:
+    _commit(repo, {"docs/decisions/0002-y.md": _doc("2026-10-22")}, "2026-10-22")
     assert check_doc_dates.check("base..HEAD") == []
 
 
 def test_stale_date_is_reported(repo: Path) -> None:
-    _commit(repo, {"README.md": _doc("2026-01-01", "直した本文")}, "2026-10-22")
+    _commit(repo, {ADR_PATH: _doc("2026-01-01", "直した本文")}, "2026-10-22")
     problems = check_doc_dates.check("base..HEAD")
     assert len(problems) == 1
-    assert "README.md" in problems[0]
+    assert ADR_PATH in problems[0]
     assert "2026-01-01" in problems[0]
 
 
 def test_missing_date_line_is_reported(repo: Path) -> None:
-    _commit(repo, {"docs/architecture.md": _doc(None)}, "2026-10-22")
+    _commit(repo, {"docs/decisions/0003-z.md": _doc(None)}, "2026-10-22")
     problems = check_doc_dates.check("base..HEAD")
     assert len(problems) == 1
-    assert "docs/architecture.md" in problems[0]
+    assert "docs/decisions/0003-z.md" in problems[0]
 
 
-def test_adr_and_other_files_are_skipped(repo: Path) -> None:
+def test_documents_other_than_adr_are_skipped(repo: Path) -> None:
     _commit(
         repo,
         {
-            "docs/decisions/0001-x.md": _doc(None),
+            "README.md": _doc(None),
+            "docs/README.md": _doc(None),
+            "docs/spec/01.md": _doc(None),
+            "docs/decisions/README.md": _doc(None),
             "docs/decisions/template.md": _doc(None),
             "AGENTS.md": _doc(None),
             "app/x.py": "x = 1\n",
@@ -98,11 +104,6 @@ def test_adr_and_other_files_are_skipped(repo: Path) -> None:
         "2026-10-22",
     )
     assert check_doc_dates.check("base..HEAD") == []
-
-
-def test_decisions_index_is_checked(repo: Path) -> None:
-    _commit(repo, {"docs/decisions/README.md": _doc(None)}, "2026-10-22")
-    assert len(check_doc_dates.check("base..HEAD")) == 1
 
 
 def test_bad_range_exits_with_2(repo: Path) -> None:

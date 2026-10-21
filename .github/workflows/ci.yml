@@ -67,7 +67,7 @@ jobs:
         run: npx --yes markdownlint-cli2@0.18.1 "**/*.md"
 
   doc-dates:
-    name: document last-updated dates
+    name: ADR last-updated dates
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -79,8 +79,8 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Changed documents must carry the commit date
-        # 決まりは docs/development.md の 6.2
+      - name: Changed ADRs must carry the commit date
+        # 規則は docs/decisions/README.md の「書き方」
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: python3 scripts/check_doc_dates.py "$BASE_SHA..HEAD"
@@ -96,7 +96,7 @@ jobs:
           persist-credentials: false
 
       - name: Rebuild the CSS with the pinned Tailwind CSS standalone binary
-        # 版と sha256 は scripts/build_css.sh に固定してある（docs/development.md の 8 章）
+        # 版と sha256 は scripts/build_css.sh に固定してある（docs/development.md の 5 章）
         run: bash scripts/build_css.sh
 
       - name: Committed CSS must match the rebuilt CSS

@@ -1,8 +1,5 @@
 # 13. 装置プロファイル（Device Profile）
 
-- 作成日：2026-10-18
-- 最終更新日：2026-10-22
-
 ## 要約
 
 **装置プロファイルは、ある装置のコンフォーマンスステートメント（DICOM PS3.2）を
@@ -59,7 +56,7 @@ PACS・RIS・ビューアのテストで、**特定の装置が出力する形�
 
 | 用語 | 意味 |
 |------|------|
-| プロファイル | 1台の装置（1つの型名・ソフトウェアの版の組み合わせ）の出力方法を転記した YAML |
+| プロファイル | 1台の装置（1つの型名・ソフトウェアバージョンの組み合わせ）の出力方法を転記した YAML |
 | テンプレート | `templates/modality/` のモダリティの既定値（撮影の値・空間・ウィンドウ） |
 | 配置場所 | プロファイルを探すフォルダ（「6. 配置場所」） |
 | 転記 | コンフォーマンスステートメントの表の値を、プロファイルのフィールドに書くこと |
@@ -79,7 +76,7 @@ PACS・RIS・ビューアのテストで、**特定の装置が出力する形�
 | `schema_version` | 現在は `1` だけ | — | 実装済み |
 | `name` | プロファイルの名前。ファイル名（拡張子を除く）と同じ | — | 実装済み |
 | `description` | 説明 | — | 実装済み |
-| `source` | 転記元のコンフォーマンスステートメントの題・版・日付・入手先の URL・文書番号・メモ（不明なら空） | 表紙（N.0） | 実装済み |
+| `source` | 転記元のコンフォーマンスステートメントのタイトル・版・日付・入手先の URL・文書番号・メモ（不明なら空） | 表紙（N.0） | 実装済み |
 | `device.modality` | Modality (0008,0060)。テンプレートの `info.modality` と同じであること | Table N.9-3 | 実装済み |
 | `device.manufacturer` | Manufacturer (0008,0070) | Table N.9-5 | 実装済み |
 | `device.manufacturers_model_name` | Manufacturer's Model Name (0008,1090) | Table N.9-5 | 実装済み |
@@ -97,7 +94,7 @@ PACS・RIS・ビューアのテストで、**特定の装置が出力する形�
 | `private_tags` | プライベートタグ（グループ・Private Creator・要素・VR・値） | Table N.9-20・N.9-21（Private Module） | 実装済み |
 | `services` | MWL・MPPS・保管確認の対応の有無 | Table N.1-5・N.1.3.5-1〜N.1.3.7-1 | 実装済み。`mpps`・`storage_commitment` は MPPS・保管確認に反映される。`modality_worklist` は値を持つだけで、まだ反映されない |
 | `uid` | UID の形式（ルートの後ろの並び）。ルートは合成のルートだけ | Table N.9-12・N.7 | 未実装 |
-| `pixel` | 行列・Bits Allocated/Stored・High Bit・Pixel Representation・Photometric Interpretation | Table N.9-8 | 未実装 |
+| `pixel` | マトリクス・Bits Allocated/Stored・High Bit・Pixel Representation・Photometric Interpretation | Table N.9-8 | 未実装 |
 | `series` | シリーズ・画像の並び方（番号の振り方・Instance Number の開始値） | Table N.9-3・N.9-7 | 未実装 |
 | `worklist` | ワークリストから転記する項目の違い（転記しない・別の属性へ転記する） | Table N.5-2・N.5-3 | 未実装 |
 
@@ -256,7 +253,7 @@ services:
 PS3.2 の Annex N（Conformance Statement Template）の形式の文書を前提にする。
 古い形式（Annex A。2022d まで）の文書は、同じ名前の表を探す。
 
-1. **表紙（N.0）**：題・版・日付・文書番号を `source` に転記する。入手先の URL も
+1. **表紙（N.0）**：タイトル・版・日付・文書番号を `source` に転記する。入手先の URL も
    転記する（不明なら空）
 2. **Table N.1-1 Storage SOP Classes**：「Create」の列に印のある SOP Class を
    `storage.sop_classes` に転記する。装置が主に作成する画像を最初に置く
@@ -280,7 +277,7 @@ PS3.2 の Annex N（Conformance Statement Template）の形式の文書を前提
    | Source が GENERATED・MWL・USER・QUERY・SCANNED | 転記しない（DTG が生成するか、予約から転記する） |
    | テンプレートが出力するが、装置の表に無い Type 3 | `attributes.omit` |
 
-   General Equipment（Table N.9-5）の Manufacturer・型名・ソフトウェアの版・
+   General Equipment（Table N.9-5）の Manufacturer・型名・ソフトウェアバージョン・
    装置番号・Station Name は `device` に転記する
 7. **Table N.9-20・N.9-21（Private Module）**：Private Creator・グループ・要素・
    VR・値を `private_tags` に転記する。値が装置ごとに変わるもの（番号・日時）は、
@@ -440,7 +437,7 @@ Device profile not found: abc (searched=/a, /b, /repo/profiles/examples)
 |----------|------|
 | `tests/core/test_device_profile.py` | モデルの検証（未知のフィールド・名前・UID・グループ・offset・VR・扱えない属性・重複）。Dataset に適用した結果（装置の値・属性・プライベートタグ） |
 | `tests/services/test_profile_loader.py` | 外部のフォルダから読み込める・検索の順序・同じ名前のエラー・存在しないフォルダのエラー・壊れた YAML のエラー・リポジトリに例しか無いこと |
-| `tests/services/test_study_generator_profile.py` | 架空のプロファイルで生成した画像に、製造者・型名・ソフトウェアの版・プライベートタグ・文字コード（IR 13＋IR 87 の漢字の氏名をデコードする）が入ること。合わないときに停止すること |
+| `tests/services/test_study_generator_profile.py` | 架空のプロファイルで生成した画像に、製造者・型名・ソフトウェアバージョン・プライベートタグ・文字コード（IR 13＋IR 87 の漢字の氏名をデコードする）が入ること。合わないときに停止すること |
 | `tests/cli/test_profile_commands.py` | `--profile`・`profiles list`・エラーの終了コード 2・古い名前の案内 |
 
 ---
