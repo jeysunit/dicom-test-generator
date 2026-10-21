@@ -6,10 +6,10 @@
 使う。** 依存は上から下への一方向で、逆向きの import はしない。モダリティ
 エミュレーターの通信と手順（`app/modality/`）は Service Layer の一部として扱う。
 
-次の図は、DTG の内部の処理の流れと、外部のシステム（ワークリストの取得先、PACS）
-との接続を示す。Web 画面と CLI は同じ Service を呼ぶ。ワークリストの取得先から予約を
-取得し、予約の値でテスト用の画像を生成して、PACS へ送信する。送信後の保管確認と
-MPPS は、設定で有効にしたときだけ行う。
+次の図は、DTG の内部と外部のシステム（ワークリストの取得先、PACS）の間で、
+データが流れる向きを示す。Web 画面と CLI は同じ Service を呼ぶ。ワークリストの
+取得先から予約を受け取り、予約の値でテスト用の画像を生成して、PACS へ送信する。
+送信後の保管確認と MPPS は、設定で有効にしたときだけ行う。
 
 ```mermaid
 flowchart LR
@@ -27,20 +27,20 @@ flowchart LR
   RIS["ワークリストの取得先<br/>RIS・PACS のワークリスト"]:::box
   PACS[("PACS")]:::box
 
-  UI --> SVC
-  SVC --> MWL
-  SVC --> MAKE
-  SVC --> QUEUE
-  MWL -->|"予約を取得"| RIS
+  UI -->|"操作"| SVC
+  SVC -->|"操作"| FLOW
+  RIS -->|"予約"| MWL
+  MWL -->|"予約の値"| MAKE
   MAKE -->|"画像"| QUEUE
-  QUEUE -->|"DICOM で画像を送信"| PACS
-  QUEUE --> COMMIT
-  COMMIT -->|"保管確認"| PACS
-  COMMIT -->|"MPPS（既定の送信先）"| RIS
+  QUEUE -->|"画像（DICOM）"| PACS
+  QUEUE -->|"送信した画像の一覧"| COMMIT
+  COMMIT -->|"保管確認の要求"| PACS
+  PACS -->|"保管確認の結果"| COMMIT
+  COMMIT -->|"MPPS（撮影の開始・終了）"| RIS
 ```
 
 テストでは、DTG が PACS へ画像を送信し、ビューアなどのテスト対象がその PACS から
-画像を取得する。PACS は利用者が用意する（Orthanc など）。
+検査と画像を受け取る。PACS は利用者が用意する（Orthanc など）。
 
 ```mermaid
 flowchart LR
@@ -50,8 +50,8 @@ flowchart LR
   PACS[("PACS<br/>Orthanc など（テスト用）")]:::box
   TARGET["テスト対象<br/>ビューア・取り込みシステムなど"]:::box
 
-  DTG -->|"DICOM で画像を送信"| PACS
-  TARGET -->|"検査を検索し、画像を取得"| PACS
+  DTG -->|"画像（DICOM）"| PACS
+  PACS -->|"検査・画像"| TARGET
 ```
 
 ## 2. 層

@@ -9,9 +9,9 @@ DICOM Test Data Generator（DTG）は、架空の患者の DICOM 画像を生成
 
 ```mermaid
 flowchart LR
-  RIS["RIS<br/>（ワークリスト）"] -->|"予約を取得"| DTG["DTG<br/>画像を生成"]
-  DTG -->|"DICOM で送信"| PACS[("PACS")]
-  VIEWER["テスト対象<br/>ビューアなど"] -->|"画像を取得"| PACS
+  RIS["RIS"] -->|"予約（ワークリスト）"| DTG["DTG<br/>画像を生成"]
+  DTG -->|"画像（DICOM）"| PACS[("PACS")]
+  PACS -->|"画像"| VIEWER["テスト対象<br/>ビューアなど"]
 ```
 
 ## 注意
