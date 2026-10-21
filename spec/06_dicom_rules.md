@@ -205,13 +205,23 @@ HU = Pixel Value × Rescale Slope + Rescale Intercept
 
 - Pixel Value = 0 → HU = 0 × 1 + (-1024) = -1024 (Air)
 - Pixel Value = 1024 → HU = 1024 × 1 + (-1024) = 0 (Water)
-- Pixel Value = 2048 → HU = 2048 × 1 + (-1024) = 1024 (Bone)
+- Pixel Value = 2024 → HU = 2024 × 1 + (-1024) = 1000 (Bone)
+
+**画素の値の範囲**（PS3.3 C.7.6.3 の Pixel Representation、PS3.5 8）:
+
+Pixel Representation 1 の画素は、Bits Stored のビット数の 2 の補数で
+表す。値は −2^(Bits Stored − 1) 〜 2^(Bits Stored − 1) − 1 に収める。
+12 ビットなら −2048〜2047 で、この道具は 0〜2047（HU −1024〜1023）を
+使う。範囲を超える値は、読む側が High Bit で符号を広げるため別の値に
+化ける（12 ビットの 2048 は −2048）。`DICOMBuilder` は範囲を超える
+画素を `DICOMBuildError` で止める。
 
 **生成パターン**:
 
-1. **gradient**: 左から右へHU値が増加
-2. **circle**: 中心に高HU値の円（ボーン）、周辺に低HU値（ソフトティッシュ）
-3. **noise**: ランダムノイズを加えてリアル感を演出
+1. **gradient**: 左から右へHU値が増加（12 ビットで HU −1024〜1023）
+2. **circle**: 中心に高HU値の円（ボーン、HU 1000）、周辺に低HU値
+   （ソフトティッシュ、HU 40）。Bits Stored の上限を超えるときは上限に収める
+3. **noise**: 0 から Bits Stored の上限までの一様な乱数
 
 **対応するDICOMタグ**:
 
@@ -229,6 +239,24 @@ HU = Pixel Value × Rescale Slope + Rescale Intercept
 | (0028,1053) | Rescale Slope | 1 |
 | (0028,1050) | Window Center | [40, 400] |
 | (0028,1051) | Window Width | [400, 1500] |
+
+---
+
+## CT Image の必須の属性
+
+CT Image IOD（PS3.3 A.3）の Type 1・2・2C の属性のうち、Job・テンプレート・
+予約から値が来ないものは、`DICOMBuilder` が次の既定値で必ず出す。
+装置のプロファイルの `attributes.set` で変えられ、`omit` では消せない
+（spec/13 の 3.3）。
+
+| Tag | Attribute Name | Module | Type | 既定値 | 規格の節 |
+|-----|----------------|--------|------|--------|----------|
+| (0008,0008) | Image Type | CT Image | 1 | `ORIGINAL\PRIMARY\AXIAL` | PS3.3 C.8.2.1.1.1 |
+| (0018,5100) | Patient Position | General Series | 2C（CT Image Storage では必須） | `HFS` | PS3.3 C.7.3.1、C.7.3.1.1.2 |
+| (0020,1040) | Position Reference Indicator | Frame of Reference | 2 | 空 | PS3.3 C.7.4.1、C.7.4.1.1.2 |
+
+Image Type の値 3 は、CT では `AXIAL` か `LOCALIZER`（C.8.2.1.1.1）。
+この道具は軸位断の画像を作るので `AXIAL` にする。
 
 ---
 
@@ -279,6 +307,17 @@ def calculate_spatial_coords(slice_index, slice_thickness, slice_spacing, start_
 | 2 | 3 | [0, 0, 10] | 10 |
 | ... | ... | ... | ... |
 | 19 | 20 | [0, 0, 95] | 95 |
+
+### DS の書き方
+
+DS（Decimal String）は 16 バイトまで（PS3.5 6.2 の表 6.2-1）。
+`str(float)` は浮動小数の誤差で 16 字を超える（間隔 0.1 の 4 枚目は
+`0.30000000000000004`、身長 165.7 cm は `1.6569999999999998` m）。
+この道具が数から作る DS（Image Position (Patient)・Image Orientation
+(Patient)・Slice Location・Slice Thickness・Pixel Spacing・Patient's
+Weight・Patient's Size）は、小数 6 桁で丸めてから
+`pydicom.valuerep.format_number_as_ds` で 16 字以内にする
+（`app/core/generator.py` の `format_ds`）。上の例は `0.3`・`1.657` になる。
 
 ### テンプレート設定
 
@@ -484,7 +523,7 @@ def save_with_transfer_syntax(ds, filepath, transfer_syntax_uid):
 | AS | Age String | 年齢 | "040Y" |
 | CS | Code String | コード文字列 | "M" |
 | DA | Date | 日付 | "20240115" |
-| DS | Decimal String | 10進数文字列 | "12.5" |
+| DS | Decimal String | 10進数文字列（16バイト） | "12.5" |
 | IS | Integer String | 整数文字列 | "100" |
 | LO | Long String | 長い文字列（64文字） | "CT CHEST" |
 | LT | Long Text | 長いテキスト（10240文字） | コメント等 |

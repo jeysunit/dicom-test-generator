@@ -178,7 +178,9 @@ services:
   Name・Study ID・Series Number・Instance Number・Acquisition Number・
   Content Date/Time・Image Position/Orientation (Patient)・Pixel
   Spacing・Slice Thickness・KVP・Rescale Intercept/Slope・Image Type・
-  Instance Creator UID）を消せない。必須の属性を欠いた画像は、異常の
+  Patient Position・Position Reference Indicator・Instance Creator UID）
+  を消せない（Patient Position は 2C で CT Image Storage では必須。
+  PS3.3 C.7.3.1。spec/06 の「CT Image の必須の属性」）。必須の属性を欠いた画像は、異常の
   データ（`abnormal`）の仕事にする
 - `attributes.set` と `private_tags` の値は、読み込みのときに VR に
   合うかを確かめる（型・数の範囲・文字の長さと字。pydicom の

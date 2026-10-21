@@ -9,6 +9,10 @@ from PIL import Image, ImageDraw, ImageFont
 
 from .exceptions import PixelGenerationError
 
+# ct_realistic の circle の値（Rescale Intercept -1024 で HU 40 と HU 1000）
+SOFT_TISSUE_PIXEL_VALUE = 1064
+BONE_PIXEL_VALUE = 2024
+
 
 class PixelGenerator:
     """ピクセルデータ生成器."""
@@ -67,16 +71,18 @@ class PixelGenerator:
         Rescale Intercept = -1024, Rescale Slope = 1
         Pixel Value 0 -> HU -1024 (Air)
         Pixel Value 1024 -> HU 0 (Water)
-        Pixel Value 2048 -> HU 1024 (Bone)
+        Pixel Value 2024 -> HU 1000 (Bone)
+
+        値は Bits Stored の符号ありの範囲（Pixel Representation 1 は 2 の補数。
+        PS3.3 C.7.6.3・PS3.5 8）に収める。12 ビットなら 0〜2047（HU -1024〜1023）。
 
         Returns: shape=(height, width), dtype=int16
         """
         try:
-            max_val = min((1 << bits_stored) - 1, np.iinfo(np.int16).max)
+            max_val = (1 << (bits_stored - 1)) - 1
 
             if pattern == "gradient":
                 row = np.linspace(0, max_val, width, dtype=np.float64)
-                row = np.clip(row, 0, np.iinfo(np.int16).max)
                 pixels = np.tile(row, (height, 1)).astype(np.int16)
 
             elif pattern == "circle":
@@ -85,8 +91,8 @@ class PixelGenerator:
                 radius = min(width, height) // 4
                 dist = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
 
-                soft_tissue_pv = 1064
-                bone_pv = 2048
+                soft_tissue_pv = min(SOFT_TISSUE_PIXEL_VALUE, max_val)
+                bone_pv = min(BONE_PIXEL_VALUE, max_val)
 
                 pixels = np.full((height, width), soft_tissue_pv, dtype=np.int16)
                 mask = dist <= radius
@@ -96,7 +102,7 @@ class PixelGenerator:
                 rng = np.random.default_rng()
                 pixels = rng.integers(
                     0,
-                    min(max_val + 1, 32768),
+                    max_val + 1,
                     size=(height, width),
                     dtype=np.int16,
                 )

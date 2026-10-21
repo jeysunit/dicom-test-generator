@@ -82,6 +82,8 @@ OMIT_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
         "RescaleIntercept",
         "RescaleSlope",
         "ImageType",
+        "PatientPosition",
+        "PositionReferenceIndicator",
         "InstanceCreatorUID",
     }
 )
