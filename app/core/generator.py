@@ -168,11 +168,11 @@ class DICOMBuilder:
         ds.PhotometricInterpretation = "MONOCHROME2"
 
         if pixel_data.dtype == np.uint8:
-            ds.BitsAllocated = 8
-            ds.BitsStored = 8
-            ds.HighBit = 7
-            ds.PixelRepresentation = 0
-        elif pixel_data.dtype == np.int16:
+            # CT Image は Bits Allocated 16・Bits Stored 12〜16 で、Rescale が
+            # Type 1（PS3.3 C.8.2.1.1.4・C.8.2.1.1.5）。8 ビットの文字の画像は
+            # 0〜255 を 0〜Bits Stored の上限に広げ、CT の画素として書く
+            pixel_data = self._text_image_to_ct(pixel_data, bits_stored)
+        if pixel_data.dtype == np.int16:
             self._check_signed_range(pixel_data, bits_stored)
             ds.BitsAllocated = 16
             ds.BitsStored = bits_stored
@@ -189,6 +189,13 @@ class DICOMBuilder:
             )
 
         ds.PixelData = pixel_data.tobytes()
+
+    @staticmethod
+    def _text_image_to_ct(pixel_data: np.ndarray, bits_stored: int) -> np.ndarray:
+        """uint8 の画像（0〜255）を、符号ありの Bits Stored の 0〜上限にする."""
+        upper = (1 << (bits_stored - 1)) - 1
+        scaled = np.rint(pixel_data.astype(np.float64) * upper / np.iinfo(np.uint8).max)
+        return scaled.astype(np.int16)
 
     @staticmethod
     def _check_signed_range(pixel_data: np.ndarray, bits_stored: int) -> None:

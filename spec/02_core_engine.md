@@ -61,12 +61,16 @@ class UIDGenerator:
     def __init__(
         self,
         method: Literal["uuid_2_25", "custom_root"] = "uuid_2_25",
-        custom_root: str = ""
+        custom_root: str = "",
+        run_scoped: bool = False,
     ):
         """
         Args:
             method: UID生成方式
-            custom_root: カスタムRoot使用時のOID（例: "1.2.392.200036.9999"）
+            custom_root: カスタムRoot使用時のOID（自分の組織に割り当てられた根。
+                例の "1.2.3.4.5" は架空）
+            run_scoped: True なら根の後ろに生成ごとの番号（64 ビットの乱数）を
+                つなぐ。`StudyGeneratorService` は True で使う
         """
         pass
     
@@ -124,19 +128,28 @@ uid_gen = UIDGenerator(method="uuid_2_25")
 study_uid = uid_gen.generate_study_uid()
 # => "2.25.113059749145936325402354257176981405696"
 
-# カスタムRoot方式
+# カスタムRoot方式（根は架空の例）
 uid_gen = UIDGenerator(
     method="custom_root",
-    custom_root="1.2.392.200036.9999"
+    custom_root="1.2.3.4.5",
+    run_scoped=True,
 )
 study_uid = uid_gen.generate_study_uid()
-# => "1.2.392.200036.9999.1"
+# => "1.2.3.4.5.{生成ごとの番号}.1"
 ```
 
 ### 実装詳細
 
 - **UUID 2.25**: `uuid.uuid4().int` を10進数変換
-- **カスタムRoot**: `{root}.{counter}` で連番管理
+- **カスタムRoot**: `{root}.{counter}` で連番管理。`run_scoped=True` なら
+  `{root}.{run_id}.{counter}`。`run_id` は生成器ごとの 64 ビットの乱数で、
+  連番が生成のたびに 1 に戻っても、前の生成の UID と重ならない
+  （UID は世界で一意。PS3.5 9）
+- **根の形**（PS3.5 9.1）：数字と `.` だけ、最初の成分は 0・1・2、成分の
+  先頭に 0 を置かない（`0` だけの成分は可）、64 字まで。`run_scoped=True`
+  なら、番号と連番をつないでも 64 字に収まるよう、根は
+  `CUSTOM_ROOT_MAX_LENGTH`（35 字）まで
+- 作った UID が 64 字を超えるときは `UIDGenerationError`
 - **0始まり不正**: ランダムな位置でドットの直後に0を置く
 - 方式が不正、`custom_root` が空または OID の形でないときは
   `UIDGenerationError`
@@ -191,7 +204,7 @@ class PixelGenerator:
             width: 画像幅
             height: 画像高さ
             pattern: パターン種類
-            bits_stored: Bits Stored（12 or 16）
+            bits_stored: Bits Stored（12〜16。PS3.3 C.8.2.1.1.5）
         
         Returns:
             np.ndarray: shape=(height, width), dtype=int16
@@ -463,7 +476,8 @@ ds.save_as("output.dcm", write_like_original=False)
 
 1. File Meta を Dataset に設定
 2. Patient Module タグ設定（Patient's Age は生年月日と検査日から算出）
-3. General Study Module タグ設定
+3. General Study Module タグ設定（Referring Physician's Name は Type 2 なので、
+   Job に無ければ空の値で出す。PS3.3 C.7.2.1）
 4. General Series Module タグ設定（Patient Position の既定値 `HFS` を含む）
 5. Frame of Reference Module タグ設定（Position Reference Indicator は空）
 6. General Image Module・CT Image Module タグ設定（Image Type の既定値

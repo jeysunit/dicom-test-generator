@@ -248,7 +248,7 @@ pixel_spec:
   width: 512          # オプション、デフォルト512（64〜4096）
   height: 512         # オプション、デフォルト512（64〜4096）
   pattern: "gradient" # gradient, circle, noise
-  bits_stored: 12     # 8-16
+  bits_stored: 12     # 12-16（CT。PS3.3 C.8.2.1.1.5）
 ```
 
 ### transfer_syntax（必須）

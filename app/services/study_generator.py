@@ -58,6 +58,9 @@ CT_IMAGE_TAG_MAP = {
     "convolution_kernel": "ConvolutionKernel",
 }
 
+# simple_text の画像の Bits Stored（CT Image は 12〜16。PS3.3 C.8.2.1.1.5）
+SIMPLE_TEXT_BITS_STORED = 12
+
 
 class StudyGeneratorService:
     """DICOMスタディ生成を担うService Layer."""
@@ -386,7 +389,8 @@ class StudyGeneratorService:
             width=config.pixel_spec.width,
             height=config.pixel_spec.height,
         )
-        return pixels, 8
+        # 文字の画像も CT の 16 ビットで書く（PS3.3 C.8.2.1.1.5。DICOMBuilder が広げる）
+        return pixels, SIMPLE_TEXT_BITS_STORED
 
     @staticmethod
     def _sequence_width(total_images: int) -> int:
