@@ -39,20 +39,8 @@ flowchart LR
   COMMIT -->|"MPPS（撮影の開始・終了）"| RIS
 ```
 
-テストでは、DTG が PACS へ画像を送信し、ビューアなどのテスト対象がその PACS から
-検査と画像を受け取る。PACS は利用者が用意する（Orthanc など）。
-
-```mermaid
-flowchart LR
-  classDef box fill:#ffffff,stroke:#0969da,stroke-width:2px,color:#1f2328
-
-  DTG["DTG<br/>架空の患者の画像を生成して送信"]:::box
-  PACS[("PACS<br/>Orthanc など（テスト用）")]:::box
-  TARGET["テスト対象<br/>ビューア・取り込みシステムなど"]:::box
-
-  DTG -->|"画像（DICOM）"| PACS
-  PACS -->|"検査・画像"| TARGET
-```
+送信先の PACS とワークリストの取得先の RIS は、利用者がテスト用に用意する
+（Orthanc など）。
 
 ## 2. 層
 

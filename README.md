@@ -17,13 +17,11 @@ flowchart LR
   subgraph TARGET["テスト対象"]
     PACS[("PACS")]
     RIS["RIS"]
-    VIEWER["ビューア"]
   end
 
   DTG -->|"DICOM 画像"| FILES
   DTG -.->|"DICOM 画像（送信）"| PACS
   RIS -.->|"予約（ワークリスト）"| DTG
-  PACS -->|"画像"| VIEWER
 ```
 
 ## 注意
