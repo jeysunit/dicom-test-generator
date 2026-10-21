@@ -1,4 +1,7 @@
-# 13. 装置のプロファイル（Device Profile）仕様
+# 13. 装置のプロファイル（Device Profile）
+
+- 作成日：2026-10-18
+- 最終更新日：2026-10-22
 
 ## 要約
 
@@ -13,18 +16,15 @@
 2. 実在の装置のプロファイルは、リポジトリの外のフォルダに置き、
    設定（`DTG_PROFILE_DIRS`・`profiles.search_paths`）で指して読む
 
-**状態**: 実装済み（段 P1 と、3a・3c の一部）。未実装は `uid`・`pixel`・
-`series`・`worklist` の欄と、CT 以外の SOP Class（「11. 段」）。
-2026-10-18 に承認者が案 A を選んだ。
+**状態**: 実装済み。未実装は `uid`・`pixel`・`series`・`worklist` の欄と、
+CT 以外の SOP Class（「11. 実装の状況」）。
 
-**Phase**: 段 P1・P2・3a・3c（「11. 段」）
+**設計の判断**: [ADR-0012](../decisions/0012-device-profiles.md)・
+[ADR-0016](../decisions/0016-generic-template-names.md)（テンプレートの名前）
 
-**設計判断**: [ADR-0012](../adr/0012-device-profiles.md)
-
-**関係**: `spec/06_dicom_rules.md`（DICOM の決まり）・
-`spec/07_job_schema.md`（Job YAML の `device_profile`）・
-`spec/12_modality_emulator.md`（撮るときにプロファイルを選ぶ）・
-`spec/12b_decisions_and_limits.md`（17 章：テンプレートの名前）
+**関係**: [06_dicom_rules.md](06_dicom_rules.md)（DICOM の規則）・
+[07_job_schema.md](07_job_schema.md)（Job YAML の `device_profile`）・
+[12_modality_emulator.md](12_modality_emulator.md)（撮るときにプロファイルを選ぶ）
 
 **実装**: `app/core/device_profile.py`（モデルと Dataset への当て方）・
 `app/services/profile_loader.py`（置き場と読み込み）・
@@ -38,7 +38,7 @@
 
 PACS・RIS・ビューアの試験で、**特定の装置が出す形の DICOM** を、
 本物の装置を使わずに作る。装置ごとの癖（文字コードの組・必ず出す属性・
-空で出す属性・プライベートタグ・転送の形）は、試験の相手の不具合が
+空で出す属性・プライベートタグ・Transfer Syntax）は、試験の相手の不具合が
 出やすい所で、ここを写せることに価値がある。
 
 ### 範囲に入れるもの
@@ -65,7 +65,7 @@ PACS・RIS・ビューアの試験で、**特定の装置が出す形の DICOM**
 | テンプレート | `templates/modality/` のモダリティの既定の値（撮影の値・空間・窓） |
 | 置き場 | プロファイルを探すフォルダ（「6. 置き場」） |
 | 写す | コンフォーマンスステートメントの表の値を、プロファイルの欄に書くこと |
-| 合成の根 | この道具の UID の根。`2.25.` で始まる（ADR-0004） |
+| 合成の根 | DTG の UID の根。`2.25.` で始まる（ADR-0004） |
 
 ---
 
@@ -73,36 +73,35 @@ PACS・RIS・ビューアの試験で、**特定の装置が出す形の DICOM**
 
 ### 3.1 欄の一覧
 
-「段」は、その欄が生成に効き始める段（「11. 段」）。P1 より後の欄
-（`uid`・`pixel`・`series`・`worklist`）は、モデルに欄が無く、書くと
-検証の誤りになる（黙って無視しない。`extra="forbid"`）。
+「状態」が未実装の欄（`uid`・`pixel`・`series`・`worklist`）は、モデルに欄が
+無く、書くと検証の誤りになる（黙って無視しない。`extra="forbid"`）。
 
-| 欄 | 中身 | 写す元（PS3.2 Annex N） | 段 |
+| 欄 | 中身 | 写す元（PS3.2 Annex N） | 状態 |
 |----|------|------------------------|----|
-| `schema_version` | いまは `1` だけ | — | P1 |
-| `name` | プロファイルの名前。ファイルの名前（拡張子を除く）と同じ | — | P1 |
-| `description` | 説明 | — | P1 |
-| `source` | 元になったコンフォーマンスステートメントの題・版・日付・入手先の URL・文書の番号・メモ（分からなければ空） | 表紙（N.0） | P1 |
-| `device.modality` | Modality (0008,0060)。テンプレートの `info.modality` と同じであること | Table N.9-3 | P1 |
-| `device.manufacturer` | Manufacturer (0008,0070) | Table N.9-5 | P1 |
-| `device.manufacturers_model_name` | Manufacturer's Model Name (0008,1090) | Table N.9-5 | P1 |
-| `device.software_versions` | Software Versions (0018,1020)。複数の値は配列 | Table N.9-5 | P1 |
-| `device.device_serial_number` | Device Serial Number (0018,1000)。装置の番号の**形**を写した合成の値（実機の番号を書かない） | Table N.9-5 | P1 |
-| `device.station_name` | Station Name (0008,1010) の既定。病院テンプレートが決めればそちら | Table N.9-5・N.6-1 | P1 |
-| `device.implementation_version_name` | File Meta の Implementation Version Name (0002,0013) | N.7（Association の表）・N.1 | P1 |
-| `storage.sop_classes` | 装置が作る（Create）Storage の SOP Class。最初の1つで作る | Table N.1-1 | P1 |
-| `storage.transfer_syntaxes` | 装置が送れる転送の形。並びは装置の好みの順 | Table N.1-2・N.7-5 | P1 |
-| `character_set.default` | 装置が既定で出す Specific Character Set (0008,0005) | Table N.1-15・N.5-165 | P1 |
-| `character_set.supported` | 装置が出せる文字コードの組。空なら確かめない | Table N.1-15 | P1 |
-| `attributes.set` | 装置が必ず出す属性と値（Presence が ALWAYS・Source が FIXED・CONFIGURATION のもの） | Table N.9-1〜N.9-12・IOD ごとの表 | P1 |
-| `attributes.empty` | 長さ0で出す属性（Presence・Source が EMPTY） | 同上 | P1 |
-| `attributes.omit` | 出さない属性（装置の表に無い Type 3） | 同上 | P1 |
-| `private_tags` | プライベートタグ（群・Private Creator・要素・VR・値） | Table N.9-20・N.9-21（Private Module） | P1 |
-| `services` | MWL・MPPS・保管の確認の対応の有無 | Table N.1-5・N.1.3.5-1〜N.1.3.7-1 | P1（値を持つ）。`mpps`・`storage_commitment` は 3c で効く。`modality_worklist` は値を持つだけで、まだ効かない |
-| `uid` | UID の形（根の後ろの並び）。根は合成の根だけ | Table N.9-12・N.7 | P2（未実装） |
-| `pixel` | 行列・Bits Allocated/Stored・High Bit・Pixel Representation・Photometric Interpretation | Table N.9-8 | P2（未実装） |
-| `series` | シリーズ・画像の並び方（番号の振り方・Instance Number の始まり） | Table N.9-3・N.9-7 | P2（未実装） |
-| `worklist` | ワークリストから写す項目の違い（写さない・別の属性へ写す） | Table N.5-2・N.5-3 | 3a（未実装） |
+| `schema_version` | いまは `1` だけ | — | 実装済み |
+| `name` | プロファイルの名前。ファイルの名前（拡張子を除く）と同じ | — | 実装済み |
+| `description` | 説明 | — | 実装済み |
+| `source` | 元になったコンフォーマンスステートメントの題・版・日付・入手先の URL・文書の番号・メモ（分からなければ空） | 表紙（N.0） | 実装済み |
+| `device.modality` | Modality (0008,0060)。テンプレートの `info.modality` と同じであること | Table N.9-3 | 実装済み |
+| `device.manufacturer` | Manufacturer (0008,0070) | Table N.9-5 | 実装済み |
+| `device.manufacturers_model_name` | Manufacturer's Model Name (0008,1090) | Table N.9-5 | 実装済み |
+| `device.software_versions` | Software Versions (0018,1020)。複数の値は配列 | Table N.9-5 | 実装済み |
+| `device.device_serial_number` | Device Serial Number (0018,1000)。装置の番号の**形**を写した合成の値（実機の番号を書かない） | Table N.9-5 | 実装済み |
+| `device.station_name` | Station Name (0008,1010) の既定。病院テンプレートが決めればそちら | Table N.9-5・N.6-1 | 実装済み |
+| `device.implementation_version_name` | File Meta の Implementation Version Name (0002,0013) | N.7（Association の表）・N.1 | 実装済み |
+| `storage.sop_classes` | 装置が作る（Create）Storage の SOP Class。最初の1つで作る | Table N.1-1 | 実装済み |
+| `storage.transfer_syntaxes` | 装置が送れる Transfer Syntax。並びは装置の優先順 | Table N.1-2・N.7-5 | 実装済み |
+| `character_set.default` | 装置が既定で出す Specific Character Set (0008,0005) | Table N.1-15・N.5-165 | 実装済み |
+| `character_set.supported` | 装置が出せる文字コードの組。空なら確かめない | Table N.1-15 | 実装済み |
+| `attributes.set` | 装置が必ず出す属性と値（Presence が ALWAYS・Source が FIXED・CONFIGURATION のもの） | Table N.9-1〜N.9-12・IOD ごとの表 | 実装済み |
+| `attributes.empty` | 長さ0で出す属性（Presence・Source が EMPTY） | 同上 | 実装済み |
+| `attributes.omit` | 出さない属性（装置の表に無い Type 3） | 同上 | 実装済み |
+| `private_tags` | プライベートタグ（群・Private Creator・要素・VR・値） | Table N.9-20・N.9-21（Private Module） | 実装済み |
+| `services` | MWL・MPPS・保管確認の対応の有無 | Table N.1-5・N.1.3.5-1〜N.1.3.7-1 | 実装済み。`mpps`・`storage_commitment` は MPPS・保管確認に効く。`modality_worklist` は値を持つだけで、まだ効かない |
+| `uid` | UID の形（根の後ろの並び）。根は合成の根だけ | Table N.9-12・N.7 | 未実装 |
+| `pixel` | 行列・Bits Allocated/Stored・High Bit・Pixel Representation・Photometric Interpretation | Table N.9-8 | 未実装 |
+| `series` | シリーズ・画像の並び方（番号の振り方・Instance Number の始まり） | Table N.9-3・N.9-7 | 未実装 |
+| `worklist` | ワークリストから写す項目の違い（写さない・別の属性へ写す） | Table N.5-2・N.5-3 | 未実装 |
 
 ### 3.2 例（架空の装置）
 
@@ -163,7 +162,7 @@ services:
 - `storage.sop_classes`・`storage.transfer_syntaxes` は1つ以上
 - `character_set.default` は `supported` が空でなければ、その中にあること
 - `attributes` の名前は DICOM の辞書の Keyword（pydicom の辞書で
-  確かめる）。Sequence（SQ）は P1 では書けない
+  確かめる）。Sequence（SQ）は書けない
 - `attributes` で次の属性は触れない（ほかの欄・ほかの仕組みが決める）：
   患者の値（Patient's Name・Patient ID・生年月日・性別・年齢・体重・
   身長）、UID（SOP Class・SOP Instance・Study・Series・Frame of
@@ -173,7 +172,7 @@ services:
   決める属性（Manufacturer・Manufacturer's Model Name・Software
   Versions・Device Serial Number・Station Name）
 - 1つの属性を `set`・`empty`・`omit` の2つ以上に書けば誤り
-- `omit` では、この道具が CT Image で出す Type 1・Type 2 の属性
+- `omit` では、DTG が CT Image で出す Type 1・Type 2 の属性
   （Modality・Study Date/Time・Accession Number・Referring Physician's
   Name・Study ID・Series Number・Instance Number・Acquisition Number・
   Content Date/Time・Image Position/Orientation (Patient)・Pixel
@@ -182,7 +181,7 @@ services:
   を消せない（Patient Position は 2C で CT Image Storage では必須。
   PS3.3 C.7.3.1。spec/06 の「CT Image の必須の属性」）。必須の属性を
   欠いた画像は、異常のデータ（`abnormal`）の仕事にする
-- `empty` と空の `set`（空の文字・空の文字だけの並び）では、この道具が
+- `empty` と空の `set`（空の文字列・空の文字列だけの並び）では、DTG が
   CT Image で出す Type 1 の属性（Modality・Image Type・Image
   Position/Orientation (Patient)・Pixel Spacing・Rescale
   Intercept/Slope）を空にできない（PS3.3 C.7.3.1・C.7.6.2・C.8.2.1）
@@ -195,7 +194,7 @@ services:
   1つの Creator に同じ `offset` を2回書かない。Creator は 64 文字以内
 - `private_tags` の VR は文字と数の VR（AE・AS・CS・DA・DS・DT・IS・
   LO・LT・SH・ST・TM・UC・UI・UR・UT・US・UL・SS・SL・FL・FD）だけ。
-  OB・OW・SQ は P1 では書けない
+  OB・OW・SQ は書けない
 
 ---
 
@@ -249,12 +248,12 @@ services:
   （`quick` はプロファイルの最初の形を使う）
 - 重ねた後の文字コードが `character_set.supported` に無い
   （`supported` が空なら確かめない）
-- `storage.sop_classes` の最初の SOP Class を、この道具がまだ作れない
-  （P1 で作れるのは CT Image Storage だけ）
+- `storage.sop_classes` の最初の SOP Class を、DTG がまだ作れない
+  （今作れるのは CT Image Storage だけ）
 
 文字コードの比べ方：値を `\` で分け、前後の空白を除く。値 1 が空なら
 `ISO 2022 IR 6` とみなす（PS3.3 C.12.1.1.2）。値が無い（空・属性なし）
-ときは既定の字の集まり `ISO_IR 6` とみなす。
+ときは既定の文字セット `ISO_IR 6` とみなす。
 
 ---
 
@@ -267,13 +266,13 @@ PS3.2 の Annex N（Conformance Statement Template）の形の文書を前提に
    入手先の URL も写す（分からなければ空）
 2. **Table N.1-1 Storage SOP Classes**：「Create」の列に印のある SOP
    Class を `storage.sop_classes` に写す。装置が主に作る画像を最初に置く
-3. **Table N.1-2 Supported Transfer Syntaxes と Table N.7-5（転送の形の
-   好みの順）**：送る役（SCU）の転送の形を、好みの順に
+3. **Table N.1-2 Supported Transfer Syntaxes と Table N.7-5（Transfer
+   Syntax の優先順）**：送る役（SCU）の Transfer Syntax を、優先順に
    `storage.transfer_syntaxes` に写す
 4. **Table N.1-15 Supported Specific Character Sets**：出せる組を
    `character_set.supported` に写す。装置が既定で出す組（N.6-1 の設定の
    表や N.5-165 の注に書いてあることが多い）を `default` に写す
-5. **Table N.1-5・N.1.3.5-1・N.1.3.6-1・N.1.3.7-1**：MWL・保管の確認・
+5. **Table N.1-5・N.1.3.5-1・N.1.3.6-1・N.1.3.7-1**：MWL・保管確認・
    MPPS の対応の有無を `services` に写す
 6. **N.9 IOD の表（Table N.9-1〜N.9-12、IOD ごとの表）**：
    Presence と Source の列で分ける
@@ -283,7 +282,7 @@ PS3.2 の Annex N（Conformance Statement Template）の形の文書を前提に
    | Presence が ALWAYS、Source が FIXED | `attributes.set` に値を写す |
    | Presence が ALWAYS、Source が CONFIGURATION | `attributes.set` に、合成の値で形を写す |
    | Presence か Source が EMPTY | `attributes.empty` |
-   | Source が GENERATED・MWL・USER・QUERY・SCANNED | 写さない（この道具が作るか、予約から写す） |
+   | Source が GENERATED・MWL・USER・QUERY・SCANNED | 写さない（DTG が作るか、予約から写す） |
    | テンプレートが出すが、装置の表に無い Type 3 | `attributes.omit` |
 
    General Equipment（Table N.9-5）の Manufacturer・型名・
@@ -291,9 +290,9 @@ PS3.2 の Annex N（Conformance Statement Template）の形の文書を前提に
 7. **Table N.9-20・N.9-21（Private Module）**：Private Creator・群・
    要素・VR・値を `private_tags` に写す。値が装置ごとに変わるもの
    （番号・日時）は、形だけを写した合成の値にする
-8. **Table N.9-8 Image Pixel・Table N.9-12 SOP Common**：P2 の欄
-   （`pixel`・`uid`）のために書き留める。P1 では写さない
-9. **Table N.5-2・N.5-3（MWL の問い合わせと返す値）**：3a の欄
+8. **Table N.9-8 Image Pixel・Table N.9-12 SOP Common**：未実装の欄
+   （`pixel`・`uid`）のために書き留める。今は写さない
+9. **Table N.5-2・N.5-3（MWL の問い合わせと返す値）**：未実装の欄
    （`worklist`）のために書き留める
 
 写した後、`python -m app.cli profiles list` で読めることを確かめ、
@@ -304,7 +303,7 @@ PS3.2 の Annex N（Conformance Statement Template）の形の文書を前提に
 例外を含めて3つの決まりがある。
 
 1. **実在の会社の UID の根を使わない。** 装置の UID の形（根の後ろの
-   並び）は P2 の `uid` で、合成の根（`2.25.` で始まる）の後ろに作る
+   並び）は未実装の `uid` の欄で、合成の根（`2.25.` で始まる）の後ろに作る
 2. **実機の番号（装置の番号・施設の名前・AE タイトル）を写さない。**
    形（桁の数・文字の種類）だけを写した合成の値にする
 3. **患者の値を写さない。** 例に出ている値も写さない
@@ -331,7 +330,7 @@ profiles:
 ```
 
 - 各フォルダの直下の `*.yaml` を読む（下のフォルダは探さない）
-- `~` は家のフォルダに広げる
+- `~` はホームディレクトリに展開する
 - 指したフォルダが無ければ誤り（`ProfileError`）。綴りの誤りで、
   黙って例のプロファイルに落ちないため。確かめるのはプロファイルを
   使うとき・一覧を出すときだけ（プロファイルを使わない生成は止めない）
@@ -354,9 +353,10 @@ profiles:
 
 ### 6.3 テンプレートの名前の決まりとの関係
 
-`spec/12b_decisions_and_limits.md` の 17 章の決まり（公開のテンプレートに
-商用の製品の名前を使わない）は、公開の置き場の**例のプロファイル**にも当てる。外の置き場の
-プロファイルには当てない（名前・中身に実在の装置の名前を書いてよい）。
+公開のテンプレートに商用の製品の名前を使わない決まり
+（[ADR-0016](../decisions/0016-generic-template-names.md)）は、公開の置き場の
+**例のプロファイル**にも当てる。外の置き場のプロファイルには当てない
+（名前・中身に実在の装置の名前を書いてよい）。
 
 ---
 
@@ -386,20 +386,19 @@ python -m app.cli profiles list
 - `profiles list` は、壊れたプロファイルがあっても止まらずに一覧を
   出し、壊れたものは理由を添えて標準エラーに出す。終了コードは、
   1つでも壊れていれば 2（設定のエラー）
-- 終了コードは `spec/04_cli.md` のとおり。プロファイルの誤りは 2
+- 終了コードは [04_cli.md](04_cli.md) のとおり。プロファイルの誤りは 2
 
 ### 7.3 古い名前のテンプレート
 
-PR #5 で名前を変えた、実在の装置の名前のテンプレートを `-m`・
-`modality_template` で読みに来たら、`TemplateNotFoundError` に
-「装置ごとの写しはプロファイルになった。外の置き場に置き、
-`--profile` で選ぶ」という案内（`hint`）を添える。古い名前は、
-いまと同じく名前そのものでなく SHA-256 の値でコードに持つ
-（`app/services/template_loader.py`）。
+以前の、実在の装置の名前のテンプレートを `-m`・`modality_template` で
+読みに来たら、`TemplateNotFoundError` に「装置ごとの写しはプロファイルに
+なった。外の置き場に置き、`--profile` で選ぶ」という案内（`hint`）を添える。
+古い名前は、名前そのものでなく SHA-256 の値でコードに持つ
+（`app/services/template_loader.py`。ADR-0016）。
 
 ---
 
-## 8. モダリティのダミー（spec/12）との関係
+## 8. モダリティエミュレーター（spec/12）との関係
 
 - 撮るときにプロファイルを選べる：設定 `modality.default_profile`
   （既定は無し）、撮影の画面の「装置」、CLI `exam --profile`
@@ -407,9 +406,9 @@ PR #5 で名前を変えた、実在の装置の名前のテンプレートを `
   テンプレートと同じく撮影の画面で止める
   （[12a_web_screens_and_cli.md](12a_web_screens_and_cli.md) の 10.5）
 - `services.mpps`・`services.storage_commitment` が `false` の
-  プロファイルでは、設定で選んでも MPPS・保管の確認を送らない
-  （装置が対応しない動きを作らない。3c で実装済み。
-  `app/modality/service.py` の `_profile_supports`・`_profile_allows`）
+  プロファイルでは、設定で選んでも MPPS・保管確認を送らない
+  （装置が対応しない動きを作らない。`app/modality/service.py` の
+  `_profile_supports`・`_profile_allows`）
 - `worklist` の欄（予約から写す項目の違いを、
   [12_modality_emulator.md](12_modality_emulator.md) の 6 章の表の上に重ねる）は
   **未実装**。いまの写し方は 6 章の表のまま、プロファイルでは変えられない
@@ -418,7 +417,7 @@ PR #5 で名前を変えた、実在の装置の名前のテンプレートを `
 
 ## 9. 誤り
 
-`app/core/exceptions.py` にあり、`spec/08_error_handling.md` の階層に載せてある。
+`app/core/exceptions.py` にあり、[08_error_handling.md](08_error_handling.md) の階層に載せてある。
 どれも `ConfigurationError` の下で、CLI の終了コードは 2。
 
 ```text
@@ -451,18 +450,17 @@ Device profile not found: abc (searched=/a, /b, /repo/profiles/examples)
 
 ---
 
-## 11. 段
+## 11. 実装の状況
 
-段の進み具合の一覧は WORKFLOW.md が持つ。この表は、プロファイルの機能が
-どの段に属し、コードにあるかを示す。
+| 機能 | 状態 |
+|------|------|
+| モデル・読み込み・検証・重ね方（装置の値・Transfer Syntax・文字コード・属性・プライベートタグ）・CLI | 実装済み（10 章の試験） |
+| `exam --profile`・`modality.default_profile`・撮影の画面の「装置」 | 実装済み |
+| `services.mpps`・`services.storage_commitment` を MPPS・保管確認に反映する（[12_modality_emulator.md](12_modality_emulator.md) の 8.3.3・8.4.1） | 実装済み。`services.modality_worklist` は反映しない |
+| `uid`・`pixel`・`series` の欄。CT 以外の SOP Class | 未実装。モデルに欄が無く、作れる SOP Class は CT Image Storage だけ |
+| `worklist` の欄 | 未実装 |
 
-| 段 | 中身 | 状態 |
-|----|------|------|
-| **P1** | ADR-0012・モデル・読み込み・検証・重ね方（装置の値・転送の形・文字コード・属性・プライベートタグ）・CLI | 実装済み（10 章の試験） |
-| **P2** | `uid`・`pixel`・`series` の欄。CT 以外の SOP Class | 未実装。モデルに欄が無く、作れる SOP Class は CT Image Storage だけ |
-| **3a** | `exam --profile`・`modality.default_profile`・撮影の画面の「装置」 | 実装済み |
-| **3a** | `worklist` の欄 | 未実装 |
-| **3c** | `services.mpps`・`services.storage_commitment` を MPPS・保管の確認に効かせる（[12_modality_emulator.md](12_modality_emulator.md) の 8.3.3・8.4.1） | 実装済み。`services.modality_worklist` は効かせていない |
+未実装のものは [roadmap.md](../roadmap.md) にもある。
 
 ---
 

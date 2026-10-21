@@ -1,4 +1,7 @@
-# 08. エラーハンドリング仕様
+# 08. エラーハンドリング
+
+- 作成日：2026-02-22
+- 最終更新日：2026-10-22
 
 ## 概要
 
@@ -39,14 +42,14 @@ DICOMGeneratorError (Base)
 │   ├── JobValidationError
 │   └── DICOMValidationError
 │
-└── ModalityError（モダリティのダミー。spec/12）
+└── ModalityError（モダリティエミュレーター。spec/12）
     ├── ModalityConfigError      # modality: の節の誤り
     ├── AssociationError         # Association を張れない・断られた・切れた
     ├── WorklistQueryError       # C-FIND の失敗・時間切れ
     ├── WorklistMappingError     # 予約の値が写せない（文字・長さ・モダリティ）
     ├── StoreError               # C-STORE の失敗
-    ├── StorageCommitmentError   # 保管の確認の失敗・時間切れ（Phase 3c）
-    └── MPPSError                # N-CREATE・N-SET の失敗（Phase 3c）
+    ├── StorageCommitmentError   # 保管確認の失敗・時間切れ
+    └── MPPSError                # N-CREATE・N-SET の失敗
 ```
 
 `ModalityError` は `ConfigurationError` などとは別の系統にする

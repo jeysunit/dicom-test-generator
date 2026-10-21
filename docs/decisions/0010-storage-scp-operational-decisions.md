@@ -1,10 +1,8 @@
 # ADR-0010: Storage SCP の運用仕様（重複処理・停止・テスト）を固定
 
-## ステータス
-
-**Superseded** by [ADR-0013](0013-remove-storage-scp.md) - 2026-10-20
-（元は Accepted - 2026-02-23。Storage SCP を外したため、この決定の対象が
-無くなった。以下は当時の記録）
+- 状態：置き換え済み（[ADR-0013](0013-remove-storage-scp.md)）
+- 日付：2026-10-20
+- 作成日：2026-02-23
 
 ## 背景
 
@@ -50,4 +48,4 @@ Phase 1.5 の Storage SCP は概略仕様が存在したが、実装に必要な
 
 ## 関連する決定
 
-- [ADR-0009: Phase 1.5（Storage SCP）の推奨実装順序を明確化](0009-phase-1_5-ordering.md)
+- [ADR-0009: Phase 1.5（Storage SCP）の推奨実装順序を明確化](0009-phase-1-5-ordering.md)

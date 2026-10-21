@@ -1,4 +1,4 @@
-"""装置のプロファイルの読み込みの試験（spec/13 の 6）."""
+"""装置のプロファイルの読み込みの試験（docs/spec/13 の 6）."""
 
 from __future__ import annotations
 
@@ -267,7 +267,7 @@ def test_missing_config_file_uses_env_and_examples_only(tmp_path) -> None:
 
 
 def test_repository_profiles_contain_only_fictional_examples() -> None:
-    """公開のリポジトリの profiles/ には架空の例だけを置く（spec/13 の 6.2）.
+    """公開のリポジトリの profiles/ には架空の例だけを置く（docs/spec/13 の 6.2）.
 
     追跡しているファイルと、まだ追跡していないが .gitignore で外れていない
     ファイル（＝commit に入りうるもの）を見る。

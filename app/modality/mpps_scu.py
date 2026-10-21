@@ -1,4 +1,4 @@
-"""MPPS（Modality Performed Procedure Step）の SCU（spec/12 の 6.4・8.4）.
+"""MPPS（Modality Performed Procedure Step）の SCU（docs/spec/12 の 6.4・8.4）.
 
 送る値を組み立てる関数（外の資源を使わない）と、N-CREATE・N-SET を送る関数。
 MPPS そのものの SOP Class・Instance UID は DIMSE のコマンドの欄で送り、

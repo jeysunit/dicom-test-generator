@@ -1,4 +1,4 @@
-"""FastAPI のアプリ（spec/12a_web_screens_and_cli.md 10 章）."""
+"""FastAPI のアプリ（docs/spec/12a_web_screens_and_cli.md 10 章）."""
 
 from __future__ import annotations
 
@@ -57,7 +57,7 @@ def create_app(
     """画面のアプリを作る。`password` があれば HTTP Basic を付ける（10.9）.
 
     起動のときに保管の確認の待ち受けを立て、止めるときに止める（使う送り先が
-    あるときだけ。spec/12 の 8.3.3）。画面のプロセスは「送れた」で自動に求める。
+    あるときだけ。docs/spec/12 の 8.3.3）。画面のプロセスは「送れた」で自動に求める。
     """
 
     @asynccontextmanager

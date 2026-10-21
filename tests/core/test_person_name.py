@@ -1,4 +1,4 @@
-"""氏名の欄の空白を ^ に置き換える（spec/12a の 10.5）."""
+"""氏名の欄の空白を ^ に置き換える（docs/spec/12a の 10.5）."""
 
 from __future__ import annotations
 

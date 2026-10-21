@@ -1,4 +1,4 @@
-"""モダリティのダミーの手順をまとめる（spec/12_modality_emulator.md 3・5・6・8 章）.
+"""モダリティのダミーの手順をまとめる（docs/spec/12_modality_emulator.md 3・5・6・8 章）.
 
 CLI（Phase 3a）とウェブの画面（Phase 3b）は、ここだけを呼ぶ。
 """
@@ -94,7 +94,7 @@ def _reject_value_delimiter(fields: tuple[tuple[str, str], ...]) -> None:
     """手で入れた値に `\\` があれば断る（ValidationError）."""
     for label, value in fields:
         if VALUE_DELIMITER in value:
-            # 誤りの文に入れた値を出さない（spec/12 の 12 章）
+            # 誤りの文に入れた値を出さない（docs/spec/12 の 12 章）
             raise ValidationError(f"{label}に「\\」は使えません（DICOM の値の区切り）")
 
 
@@ -221,7 +221,7 @@ class ModalityService:
         self._mpps_queue: MppsQueue | None = None
         # 「送れた」になったらすぐに保管の確認を求める（画面のプロセス。8.3.3）
         self._auto_commitment = auto_commitment
-        # 同時に走る撮影は1つ（画面のプロセスの中。spec/12a の 10.5）
+        # 同時に走る撮影は1つ（画面のプロセスの中。docs/spec/12a の 10.5）
         self._exam_lock = threading.Lock()
         # 送信ジョブの一覧に出す患者・検査の値（元のファイルから読み、ジョブの番号で覚える）
         self._job_summaries: dict[int, tuple[str, str, str]] = {}
@@ -320,7 +320,7 @@ class ModalityService:
             )
 
     def _profile_allows(self, folder: str, service: str) -> bool:
-        """撮影に使った装置のプロファイルが、その働きに対応するか（spec/13 の 8）."""
+        """撮影に使った装置のプロファイルが、その働きに対応するか（docs/spec/13 の 8）."""
         profile_name = self.queue.exam_profile(folder)
         return profile_name is None or self._profile_supports(profile_name, service)
 
@@ -402,7 +402,7 @@ class ModalityService:
             data = json.loads(path.read_text(encoding="utf-8"))
             return WorklistState.model_validate(data)
         except PydanticValidationError as exc:
-            # 値（氏名など）を出さず、項目の名前と原因だけにする（spec/12 の 12 章）
+            # 値（氏名など）を出さず、項目の名前と原因だけにする（docs/spec/12 の 12 章）
             raise FileReadError(str(path), describe_validation_error(exc)) from exc
         except (OSError, ValueError) as exc:
             raise FileReadError(str(path), str(exc)) from exc
@@ -446,7 +446,7 @@ class ModalityService:
 
     @staticmethod
     def emergency_person_name(alphabetic: str, ideographic: str, phonetic: str) -> str:
-        """手で入れた3つの氏名の欄を PN にする。空白は `^` にする（spec/12a の 10.5）.
+        """手で入れた3つの氏名の欄を PN にする。空白は `^` にする（docs/spec/12a の 10.5）.
 
         画面のスクリプトの置き換えは補助で、ここで必ず同じ置き換えをする。
         """
@@ -466,7 +466,7 @@ class ModalityService:
         return self._template_loader.list_modality_templates()
 
     def available_profiles(self) -> tuple[list[ProfileInfo], list[ProfileError]]:
-        """読める装置のプロファイルと、読めなかった物の誤り（spec/13 の 7.2）."""
+        """読める装置のプロファイルと、読めなかった物の誤り（docs/spec/13 の 7.2）."""
         entries, errors = self._profile_loader.list_profiles()
         infos = [
             ProfileInfo(
@@ -480,7 +480,7 @@ class ModalityService:
         return infos, errors
 
     def check_profile_modality(self, profile_name: str | None, modality: str) -> None:
-        """プロファイルのモダリティが予約・テンプレートと違えば止める（spec/13 の 8）."""
+        """プロファイルのモダリティが予約・テンプレートと違えば止める（docs/spec/13 の 8）."""
         if not profile_name:
             return
         profile = self._profile_loader.load(profile_name)
@@ -553,7 +553,7 @@ class ModalityService:
             if emergency_patient is None:
                 raise ConfigurationError("emergency_patient is required for an emergency exam")
             if not emergency_patient.patient_name.split(GROUP_SEPARATOR, 1)[0].strip():
-                # 緊急の患者の氏名（英字）は必須（spec/12a の 10.5）。画面と CLI の両方に効く
+                # 緊急の患者の氏名（英字）は必須（docs/spec/12a の 10.5）。画面と CLI の両方に効く
                 raise ValidationError(
                     "緊急の患者の氏名（英字）は必須です",
                     {"patient_id": emergency_patient.patient_id},

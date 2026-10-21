@@ -1,8 +1,8 @@
 # ADR-0001: Core Library First
 
-## ステータス
-
-**Accepted** - 2025-02-21
+- 状態：採用
+- 日付：2025-02-21
+- 作成日：2026-02-22
 
 ## 背景
 
@@ -102,4 +102,4 @@ Phase 2: GUI
 ## 参考資料
 
 - [02_core_engine.md](../spec/02_core_engine.md)
-- [01_architecture.md](../spec/01_architecture.md)
+- [architecture.md](../architecture.md)

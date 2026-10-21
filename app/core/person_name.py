@@ -1,4 +1,4 @@
-"""手で入れた氏名を PN（DICOM の Person Name）の形にする（spec/12a_web_screens_and_cli.md 10.5）.
+"""手で入れた氏名を PN（DICOM の Person Name）の形にする（docs/spec/12a_web_screens_and_cli.md 10.5）.
 
 人は姓と名の区切りの `^` を打たないので、空白を `^` に置き換える。Pure な処理。
 """
@@ -23,7 +23,7 @@ def normalize_name_group(value: str) -> str:
     `=`（群の区切り）と制御文字は断る（`ValidationError`）。空白だけなら空を返す。
     """
     if GROUP_SEPARATOR in value:
-        # 誤りの文に入れた値を出さない（spec/12 の 12 章）
+        # 誤りの文に入れた値を出さない（docs/spec/12 の 12 章）
         raise ValidationError("氏名に「=」は使えません（英字・漢字・かなは別の欄に入れてください）")
     if any(is_unsafe_char(char) for char in value):
         raise ValidationError("氏名に制御文字は使えません")

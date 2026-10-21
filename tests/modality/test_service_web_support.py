@@ -1,4 +1,4 @@
-"""ModalityService の、画面（Phase 3b）から使う道の試験（spec/12a の 10 章・spec/13 の 8 章）."""
+"""ModalityService の、画面（Phase 3b）から使う道の試験（docs/spec/12a の 10 章・docs/spec/13 の 8 章）."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def test_last_worklist_state_keeps_response_character_set(tmp_path, worklist_scp
 
 
 def test_exam_with_profile_overlays_device_values(tmp_path, worklist_scp) -> None:
-    """撮影の画面の「装置」：プロファイルを重ね、最初の転送の形を使う（spec/13 の 4.3・8）."""
+    """撮影の画面の「装置」：プロファイルを重ね、最初の転送の形を使う（docs/spec/13 の 4.3・8）."""
     service = _service(tmp_path, worklist_scp.port)
     item = service.query_worklist(WorklistQuery(accession_number="A0001")).items[0]
 
@@ -104,7 +104,7 @@ def test_available_templates_and_profiles(tmp_path, worklist_scp) -> None:
 
 
 def test_send_exam_output_refuses_folders_outside_output_root(tmp_path, worklist_scp) -> None:
-    """画面から来るフォルダは信用しない。出力の根の外は送らない（spec/12 の 6.5）."""
+    """画面から来るフォルダは信用しない。出力の根の外は送らない（docs/spec/12 の 6.5）."""
     service = _service(tmp_path, worklist_scp.port)
     outside = tmp_path / "elsewhere"
     outside.mkdir()
@@ -152,7 +152,7 @@ def test_emergency_person_name_is_normalized_on_the_server(tmp_path, worklist_sc
 
 @pytest.mark.parametrize("name", ["", "=緊急^太郎", "  "])
 def test_emergency_exam_requires_alphabetic_name(tmp_path, worklist_scp, name) -> None:
-    """緊急の患者の氏名（英字）は必須。CLI からも同じ（spec/12a の 10.5・11.4）."""
+    """緊急の患者の氏名（英字）は必須。CLI からも同じ（docs/spec/12a の 10.5・11.4）."""
     service = _service(tmp_path, worklist_scp.port)
     patient = ScheduledPatient(patient_id="E0001", patient_name=name)
     with pytest.raises(ValidationError):
@@ -161,7 +161,7 @@ def test_emergency_exam_requires_alphabetic_name(tmp_path, worklist_scp, name) -
 
 
 def test_image_character_set_for_the_band(tmp_path, worklist_scp) -> None:
-    """画面の帯の「ワークリスト → 画像」の文字コード（spec/12 の 7.1）."""
+    """画面の帯の「ワークリスト → 画像」の文字コード（docs/spec/12 の 7.1）."""
     service = _service(tmp_path, worklist_scp.port)
 
     assert service.image_character_set(["ISO_IR 192"]) == ["ISO_IR 192"]

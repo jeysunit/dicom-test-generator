@@ -1,10 +1,8 @@
 # ADR-0009: Phase 1.5（Storage SCP）の推奨実装順序を明確化
 
-## ステータス
-
-**Superseded** by [ADR-0013](0013-remove-storage-scp.md) - 2026-10-20
-（元は Accepted - 2026-02-23。Phase 1.5 の Storage SCP を外したため、この
-実装順序の決定は歴史的な記録になった。以下は当時の記録）
+- 状態：置き換え済み（[ADR-0013](0013-remove-storage-scp.md)）
+- 日付：2026-10-20
+- 作成日：2026-02-23
 
 ## 背景
 

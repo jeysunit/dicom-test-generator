@@ -1,4 +1,4 @@
-"""装置のプロファイルを重ねた生成の試験（spec/13 の 4）."""
+"""装置のプロファイルを重ねた生成の試験（docs/spec/13 の 4）."""
 
 from __future__ import annotations
 

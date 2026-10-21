@@ -1,4 +1,4 @@
-"""異常のデータ（abnormal.level）が生成の道に届くことの試験（spec/02）."""
+"""異常のデータ（abnormal.level）が生成の道に届くことの試験（docs/spec/02）."""
 
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ def test_mild_writes_in_every_transfer_syntax(tmp_path, uid, name, implicit, lit
 
 @pytest.mark.parametrize("level", ["mild", "moderate", "severe"])
 def test_abnormal_does_not_write_retired_big_endian(tmp_path, level) -> None:
-    # 廃止の Explicit VR Big Endian（PS3.5 A.3）は、異常のデータの約束（spec/02 の
+    # 廃止の Explicit VR Big Endian（PS3.5 A.3）は、異常のデータの約束（docs/spec/02 の
     # AbnormalGenerator）に無いので、異常のデータでも作らない（札 Q-2026-10-21-02）
     from app.core import DICOMValidationError, TransferSyntaxConfig
 

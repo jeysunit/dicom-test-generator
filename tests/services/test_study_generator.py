@@ -238,7 +238,7 @@ def test_generate_with_scheduled_context_stops_on_unrepresentable_char(tmp_path)
 def test_generate_keeps_files_inside_output_dir_for_untrusted_patient_id(
     tmp_path, patient_id
 ) -> None:
-    """予約・Job の Patient ID をそのままファイルの名前に使わない（spec/12 の 6.5）."""
+    """予約・Job の Patient ID をそのままファイルの名前に使わない（docs/spec/12 の 6.5）."""
     service = StudyGeneratorService()
     config = _make_config(tmp_path=tmp_path, num_series=1, images_per_series=[1])
     # ModalityService は予約の Patient ID を仮の Patient にも入れる
@@ -279,7 +279,7 @@ def _escaped_patient_config(tmp_path):
 
 
 def test_generation_logs_patient_id_with_repr(tmp_path, caplog) -> None:
-    """ワークリストから来る Patient ID の制御文字をログに生で出さない（spec/12a の 11.7）."""
+    """ワークリストから来る Patient ID の制御文字をログに生で出さない（docs/spec/12a の 11.7）."""
     caplog.set_level("INFO", logger="app.services.study_generator")
 
     StudyGeneratorService().generate(config=_escaped_patient_config(tmp_path))

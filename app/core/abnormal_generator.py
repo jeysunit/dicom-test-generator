@@ -159,7 +159,7 @@ _NUMERIC_STRING_VRS = frozenset({"IS", "DS"})
 
 
 def apply_abnormal_to_dataset(dataset: Dataset, generator: AbnormalGenerator) -> None:
-    """Dataset のタグに異常を当てる（spec/02 の AbnormalGenerator）.
+    """Dataset のタグに異常を当てる（docs/spec/02 の AbnormalGenerator）.
 
     ``ABNORMAL_TARGET_TAGS`` のうち Dataset にあるタグを ``generator`` の
     レベルで壊す。壊した値が ``None`` ならタグを消す。``none`` では何も変えない。

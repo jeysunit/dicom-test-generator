@@ -1,4 +1,7 @@
-# 03. データモデル定義
+# 03. データモデル
+
+- 作成日：2026-02-22
+- 最終更新日：2026-10-22
 
 ## 概要
 
@@ -72,7 +75,7 @@ class Patient(BaseModel):
 ```
 
 `size` は cm で持ち、DICOM に書くときに m へ換算する
-（[ADR-0007](../adr/0007-patient-size-in-centimeters.md)）。
+（[ADR-0007](../decisions/0007-patient-size-in-centimeters.md)）。
 
 ---
 
@@ -258,7 +261,7 @@ class GenerationConfig(BaseModel):
 
 ---
 
-## モダリティのダミーのモデル
+## モダリティエミュレーターのモデル
 
 [12_modality_emulator.md](12_modality_emulator.md) の 5・6 章の値を持つ。
 `app/core/models.py` に置き、どれも frozen にする。
@@ -305,7 +308,7 @@ class ScheduledContext(BaseModel):
     """画像に写す予約の値（予約あり・予約なしの両方）."""
     scheduled: bool                   # False は緊急の患者（予約なし）
     patient: ScheduledPatient
-    study_instance_uid: str | None = None  # None ならこの道具が作る
+    study_instance_uid: str | None = None  # None なら DTG が作る
     accession_number: str = ""        # 予約なしは空（長さ0）
     referring_physician_name: str = ""
     study_id: str = ""
@@ -423,7 +426,7 @@ config = GenerationConfig(**job_dict)
 ## ファイル配置
 
 `app/core/models.py` にすべてのデータモデルを置く。装置のプロファイルのモデルは
-`app/core/device_profile.py`、モダリティのダミーの設定のモデルは
+`app/core/device_profile.py`、モダリティエミュレーターの設定のモデルは
 `app/modality/config.py` に置く。
 
 ---

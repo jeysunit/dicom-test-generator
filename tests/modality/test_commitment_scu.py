@@ -1,4 +1,4 @@
-"""保管の確認（Storage Commitment）の試験（spec/12 の 8.3、spec/12b の 14 章。Phase 3c）.
+"""保管の確認（Storage Commitment）の試験（docs/spec/12 の 8.3、docs/development.md の 4 章。Phase 3c）.
 
 手元の偽の PACS（tests/modality_peers.py の CommitmentPACS）を相手に、
 要求→結果→待ち行列の状態の一巡りを流す。実の PACS にはつながない。
@@ -463,7 +463,7 @@ def test_listener_port_in_use_is_config_error(tmp_path, commitment_pacs, listen_
 def test_profile_without_commitment_service_is_not_requested(
     tmp_path, monkeypatch, commitment_pacs, listen_port
 ) -> None:
-    """装置のプロファイルが保管の確認に対応しなければ求めない（spec/13 の 8）."""
+    """装置のプロファイルが保管の確認に対応しなければ求めない（docs/spec/13 の 8）."""
     write_service_profile(
         tmp_path / "profiles", "dtg_no_services", mpps=False, storage_commitment=False
     )
@@ -492,7 +492,7 @@ def test_profile_without_commitment_service_is_not_requested(
     ],
 )
 def test_commitment_settings_out_of_range_are_refused(tmp_path, field, value) -> None:
-    """設定の範囲（spec/12 の 12 章）。同じ Association で長く待たせない."""
+    """設定の範囲（docs/spec/12 の 12 章）。同じ Association で長く待たせない."""
     data = _config(tmp_path, free_port(), free_port()).model_dump()
     data["destinations"][0][field] = value
     with pytest.raises(PydanticValidationError):

@@ -1,4 +1,4 @@
-"""画面の Phase 3c：PACS の頁の保管の確認の状態・撮影の頁の MPPS の状態（spec/12a の 10.5・10.6）."""
+"""画面の Phase 3c：PACS の頁の保管の確認の状態・撮影の頁の MPPS の状態（docs/spec/12a の 10.5・10.6）."""
 
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 # Modality Template: ct_generic
-# 一般の CT のテンプレート。装置の名前は架空（spec/12b_decisions_and_limits.md の 17）
+# 一般の CT のテンプレート。装置の名前は架空（docs/decisions/0016-generic-template-names.md）
 
 info:
   name: "ct_generic"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 画面の CSS（app/web/static/app.css）を Tailwind CSS の standalone の実行ファイルで作る
-# （spec/12a_web_screens_and_cli.md 10.1）。Node は要らない。作った CSS は commit する。
+# （docs/spec/12a_web_screens_and_cli.md 10.1）。Node は要らない。作った CSS は commit する。
 # CI はこれを流し、commit された CSS と差が無いことを確かめる。
 #
 # 使い方: bash scripts/build_css.sh

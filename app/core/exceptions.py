@@ -54,7 +54,7 @@ class TemplateParseError(TemplateError):
 
 
 class ProfileError(ConfigurationError):
-    """装置のプロファイルの誤り（spec/13 の 9）."""
+    """装置のプロファイルの誤り（docs/spec/13 の 9）."""
 
     pass
 
@@ -84,7 +84,7 @@ class DuplicateProfileError(ProfileError):
 
 
 class ProfileMismatchError(ProfileError):
-    """プロファイルがテンプレート・Job と合わない（spec/13 の 4.3）."""
+    """プロファイルがテンプレート・Job と合わない（docs/spec/13 の 4.3）."""
 
     pass
 
@@ -170,7 +170,7 @@ class DICOMValidationError(ValidationError):
 
 
 class ModalityError(DICOMGeneratorError):
-    """モダリティのダミーの例外の基底（spec/12_modality_emulator.md 9.5）."""
+    """モダリティのダミーの例外の基底（docs/spec/12_modality_emulator.md 9.5）."""
 
 
 class ModalityConfigError(ModalityError):

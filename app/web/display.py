@@ -1,4 +1,4 @@
-"""画面に出す値の形（spec/12a_web_screens_and_cli.md 10.3）.
+"""画面に出す値の形（docs/spec/12a_web_screens_and_cli.md 10.3）.
 
 値は文字列のまま返し、エスケープは Jinja2 に任せる（ここで HTML を作らない）。
 """

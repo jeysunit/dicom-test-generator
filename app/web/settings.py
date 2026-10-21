@@ -1,4 +1,4 @@
-"""画面の設定（config/app_config.yaml の `web:` の節。spec/12 の 12 章）."""
+"""画面の設定（config/app_config.yaml の `web:` の節。docs/spec/12 の 12 章）."""
 
 from __future__ import annotations
 

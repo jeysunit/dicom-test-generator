@@ -111,7 +111,7 @@ def test_position_reference_indicator_is_present_and_empty() -> None:
 
 @pytest.mark.parametrize("keyword", ["PatientPosition", "PositionReferenceIndicator"])
 def test_new_required_attributes_cannot_be_omitted_by_profile(keyword: str) -> None:
-    # 装置のプロファイルの omit で必須の属性を消せない（spec/13 の 3.3）
+    # 装置のプロファイルの omit で必須の属性を消せない（docs/spec/13 の 3.3）
     assert keyword in OMIT_FORBIDDEN_KEYWORDS
 
 

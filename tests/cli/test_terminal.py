@@ -1,4 +1,4 @@
-"""端末への制御文字の注入を防ぐ（spec/12a の 11.7）の試験."""
+"""端末への制御文字の注入を防ぐ（docs/spec/12a の 11.7）の試験."""
 
 from __future__ import annotations
 
@@ -68,7 +68,7 @@ def restore_root_logging():
 def test_console_log_neutralizes_control_chars_but_keeps_newlines(
     tmp_path, capsys, restore_root_logging
 ) -> None:
-    """端末に出すログを行ごとに sanitize_for_terminal に通す（spec/12a の 11.7）."""
+    """端末に出すログを行ごとに sanitize_for_terminal に通す（docs/spec/12a の 11.7）."""
     log_file = tmp_path / "cli.log"
     setup_logging(verbose=False, quiet=False, log_file=str(log_file))
     logger = logging.getLogger("tests.terminal")

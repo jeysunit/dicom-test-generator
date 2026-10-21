@@ -1,4 +1,4 @@
-"""Device profile loading service (spec/13 の 6).
+"""Device profile loading service (docs/spec/13 の 6).
 
 探す順は、環境の変数 DTG_PROFILE_DIRS → 設定のファイルの profiles.search_paths →
 リポジトリの profiles/examples/。同じ名前が2か所以上にあれば誤りにする。
@@ -31,7 +31,7 @@ DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "app_config.yaml"
 PROFILE_DIRS_ENV = "DTG_PROFILE_DIRS"
 PROFILE_SUFFIX = ".yaml"
 
-# 装置のプロファイルを選んだときに使える転送の形（spec/06 の Transfer Syntax）。
+# 装置のプロファイルを選んだときに使える転送の形（docs/spec/06 の Transfer Syntax）。
 # 廃止の Explicit VR Big Endian（PS3.5 A.3）は作らない
 GENERATABLE_TRANSFER_SYNTAXES = {
     "1.2.840.10008.1.2": ("Implicit VR Little Endian", True, True),
@@ -49,7 +49,7 @@ class ProfileEntry:
 
 
 def profile_transfer_syntax(profile: DeviceProfile) -> TransferSyntaxConfig:
-    """プロファイルの最初の転送の形（装置の好み）を使う（spec/13 の 4.3）.
+    """プロファイルの最初の転送の形（装置の好み）を使う（docs/spec/13 の 4.3）.
 
     最初の形をこの道具が作れなければ止める（黙って次の形に替えない）。
     """
@@ -96,7 +96,7 @@ class ProfileLoaderService:
         return EXAMPLES_DIR
 
     def search_paths(self) -> list[Path]:
-        """探すフォルダを順に返す。無いフォルダは誤り（spec/13 の 6.1）."""
+        """探すフォルダを順に返す。無いフォルダは誤り（docs/spec/13 の 6.1）."""
         paths: list[Path] = []
         raw_env = self._environ.get(PROFILE_DIRS_ENV, "")
         for item in raw_env.split(os.pathsep):

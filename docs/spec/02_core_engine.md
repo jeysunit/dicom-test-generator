@@ -1,4 +1,7 @@
-# 02. Core Engine仕様
+# 02. Core Engine
+
+- 作成日：2026-02-22
+- 最終更新日：2026-10-22
 
 ## 概要
 
@@ -31,13 +34,13 @@
 **`AbnormalGenerator` の接続**: `StudyGeneratorService.generate` は、
 `abnormal.level` で作った `AbnormalGenerator` を、Dataset を組み終えた後
 （テンプレート・予約・装置のプロファイルを当てた後）に、画像1枚ごとに当てる。
-`generate` を通る道（`generate`・`quick`・モダリティのダミーの撮影・GUI）は
+`generate` を通る経路（`generate`・`quick`・モダリティエミュレーターの撮影・GUI）は
 すべてこれを通る。`level` が `none`（既定）のときは何も変えない。
 `abnormal.allow_invalid_sop_uid`（SOP Instance UID の 0 始まり）は `level` とは
 別の設定で、`level` に関わらず効く。
 レベルの指定は、Job YAML の `abnormal.level`、`generate` / `quick` の
 `--abnormal-level`（`generate` では CLI が Job YAML より優先）、
-モダリティのダミーの `exam --abnormal-level` と画面の「異常のデータ」。
+モダリティエミュレーターの `exam --abnormal-level` と画面の「異常のデータ」。
 
 ---
 
@@ -450,8 +453,8 @@ class DICOMBuilder:
 
 `DICOMBuilder` は患者・スタディ・シリーズ・画像・空間座標・ピクセルの各タグを
 置くだけで、テンプレートの属性・予約の値・装置のプロファイルは重ねない。
-重ねる順序は `StudyGeneratorService` が持つ（[01_architecture.md](01_architecture.md)
-の生成フロー）。異常値の注入も `DICOMBuilder` は行わない。
+重ねる順序は `StudyGeneratorService` が持つ（[architecture.md](../architecture.md)
+の「生成の流れ」）。異常値の注入も `DICOMBuilder` は行わない。
 
 ### 使用例
 
@@ -596,15 +599,16 @@ patient_id = abnormal_gen.apply_abnormal_value(
 - 壊し方の一部は乱数で決まる（`random`）。同じレベルでも画像ごとに値が違う。
 - **約束の範囲**：異常のデータが作る規格の違反は、上の表のタグの壊し方・
   Pixel Data の削除・`allow_invalid_sop_uid` の SOP Instance UID の 0 始まり
-  だけ。転送の形・画素の値・File Meta は約束に入らない（廃止の Explicit VR
+  だけ。Transfer Syntax・画素の値・File Meta は約束に入らない（廃止の Explicit VR
   Big Endian は異常のデータでも作らない）。ふつうの経路の規格の確かめは、
-  この約束の壊し方を狭めない（spec/06 の「ふつうの経路と異常のデータの経路」）
+  この約束の壊し方を狭めない（spec/06 の「ふつうの経路と異常のデータの経路」、
+  [ADR-0014](../decisions/0014-separate-normal-and-abnormal-paths.md)）
 
 ---
 
 ## Core のそのほかのモジュール
 
-モダリティのダミー（[12_modality_emulator.md](12_modality_emulator.md)）と装置の
+モダリティエミュレーター（[12_modality_emulator.md](12_modality_emulator.md)）と装置の
 プロファイル（[13_device_profiles.md](13_device_profiles.md)）のために、Core に
 Pure な処理が加わった。どれも通信・ファイル・ログを使わない。ここでは役割だけを
 書き、決めごとは各仕様を正本とする。
@@ -691,7 +695,7 @@ def test_generate_sop_uid_with_invalid():
 `DICOMBuilder` は `tests/core/test_dicom_builder.py` で、構築した Dataset の
 タグを確かめる。Service を含めた生成は `tests/services/test_study_generator.py`、
 予約から送信までの流れは `tests/integration/test_modality_flow.py` で確かめる。
-試験の構成は [01_architecture.md](01_architecture.md) の「試験の構成」を参照。
+試験の構成は [development.md](../development.md) の「試験」を参照。
 
 ---
 
@@ -710,4 +714,4 @@ def test_generate_sop_uid_with_invalid():
 ## 関連する文書
 
 - [03_data_models.md](03_data_models.md)：データモデル
-- [01_architecture.md](01_architecture.md)：Core を使う Service Layer の手順
+- [architecture.md](../architecture.md)：Core を使う Service Layer の手順

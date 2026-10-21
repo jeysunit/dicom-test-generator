@@ -1,8 +1,8 @@
 # ADR-0013: 受信の機能（Storage SCP）を外す
 
-## ステータス
-
-**Accepted** - 2026-10-20（承認者の指示）
+- 状態：採用
+- 日付：2026-10-20
+- 作成日：2026-10-20
 
 ADR-0009 と ADR-0010 が決めた Storage SCP（手元で画像を受け取る側）を外す。
 両 ADR は歴史的な記録として残し、状態を Superseded にした。
@@ -26,7 +26,7 @@ Storage SCP は Phase 1.5 で、生成した画像を手元で受け取って保
 ## 決定
 
 1. **受信の機能を外す。** 理由：受信は PACS の役目で、モダリティの擬態という
-   目的の外にある。試験の相手は使う側（tsunagi-dicom など）が自分で用意する
+   目的の外にある。試験の相手は使う側が自分で用意する
 2. 原則は「機能は足すより削る」（spec/12a の 10 章の冒頭と同じ向き）
 3. 外すもの：
    - `app/scp/`（`server.py`・`handler.py`・`models.py`）
@@ -68,6 +68,6 @@ Storage SCP は Phase 1.5 で、生成した画像を手元で受け取って保
 
 ## 関連する決定
 
-- [ADR-0009: Phase 1.5（Storage SCP）の推奨実装順序を明確化](0009-phase-1_5-ordering.md)
+- [ADR-0009: Phase 1.5（Storage SCP）の推奨実装順序を明確化](0009-phase-1-5-ordering.md)
 - [ADR-0010: Storage SCP の運用仕様を固定](0010-storage-scp-operational-decisions.md)
 - [ADR-0011: モダリティのダミーにする](0011-modality-emulator.md)

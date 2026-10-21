@@ -160,7 +160,7 @@ def quick_command(args: argparse.Namespace) -> int:
 
 
 def profiles_list_command(args: argparse.Namespace) -> int:
-    """読める装置のプロファイルを一覧にする（spec/13 の 7.2）.
+    """読める装置のプロファイルを一覧にする（docs/spec/13 の 7.2）.
 
     壊れたプロファイルがあっても一覧は出し、誤りは標準エラーに出して
     終了コード 2 を返す。
@@ -180,7 +180,7 @@ def profiles_list_command(args: argparse.Namespace) -> int:
 
 
 def _profile_transfer_syntax(profile_name: str) -> TransferSyntaxConfig:
-    """プロファイルの最初の転送の形（装置の好み）を使う（spec/13 の 4.3）."""
+    """プロファイルの最初の転送の形（装置の好み）を使う（docs/spec/13 の 4.3）."""
     return profile_transfer_syntax(ProfileLoaderService().load(profile_name))
 
 

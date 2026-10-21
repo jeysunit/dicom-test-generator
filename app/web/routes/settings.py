@@ -1,4 +1,4 @@
-"""設定の画面（spec/12a_web_screens_and_cli.md 10.7）。読むだけ."""
+"""設定の画面（docs/spec/12a_web_screens_and_cli.md 10.7）。読むだけ."""
 
 from __future__ import annotations
 

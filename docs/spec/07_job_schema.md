@@ -1,4 +1,7 @@
-# 07. Job YAMLスキーマ
+# 07. Job YAML スキーマ
+
+- 作成日：2026-02-22
+- 最終更新日：2026-10-22
 
 ## 概要
 
@@ -251,8 +254,8 @@ pixel_spec:
   bits_stored: 12     # 12-16（CT。PS3.3 C.8.2.1.1.5）
 ```
 
-2026-10-21 から `bits_stored` の下限は 12。前に受けていた 8〜11 は検証の
-誤り（終了コード 4）になるので、古い Job YAML は 12 以上に直す。
+`bits_stored` の下限は 12。8〜11 は検証の誤り（終了コード 4）になるので、
+古い Job YAML は 12 以上に直す。
 
 ### transfer_syntax（必須）
 
@@ -399,7 +402,7 @@ python -m app.cli generate job.yaml --profile dtg_synthetic_ct
 
 ## テストケース例
 
-以下は、試験や手元の確認に使える Job YAML の例である（リポジトリには置いていない）。
+以下は、試験やローカルでの確認に使える Job YAML の例である（リポジトリには置いていない）。
 
 ### normal_ct_japanese.yaml
 

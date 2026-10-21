@@ -1,4 +1,4 @@
-"""装置のプロファイルのモデルと Dataset への当て方の試験（spec/13）."""
+"""装置のプロファイルのモデルと Dataset への当て方の試験（docs/spec/13）."""
 
 from __future__ import annotations
 

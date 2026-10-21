@@ -1,19 +1,22 @@
-# 06. DICOM医療仕様
+# 06. DICOM の規則
+
+- 作成日：2026-02-22
+- 最終更新日：2026-10-22
 
 ## 概要
 
-このドキュメントでは、医療DICOMの詳細仕様を定義する。
+この文書は、DTG が作る DICOM の詳細を定める。
 
-**重要**: この道具は DICOM と HL7（v2・FHIR）の規格に違反しないことを
-開発の前提とする。この仕様の値・Type・長さ・文字コードは、原典
-（dicom.nema.org の PS3.x。IHE の Technical Framework）で確かめ、
-規格の節番号を書く。仕様を変えるときも原典に合わせる。
+**重要**: DTG は DICOM と HL7（v2・FHIR）の規格に違反しないことを開発の前提と
+する。この仕様の値・Type・長さ・文字コードは、原典（dicom.nema.org の PS3.x。
+IHE の Technical Framework）で確かめ、規格の節番号を書く。仕様を変えるときも
+原典に合わせる。
 
 ### ふつうの経路と異常のデータの経路
 
-この道具は、あえて DICOM の規格に違反したデータを作る機能（異常のデータ）を
-持つ。規格に違反しない前提は、ふつうの経路だけに掛かる（2026-10-21 に
-承認者が決めた）。
+DTG は、あえて DICOM の規格に違反したデータを作る機能（異常のデータ）を持つ。
+規格に違反しない前提は、ふつうの経路だけに掛かる
+（[ADR-0014](../decisions/0014-separate-normal-and-abnormal-paths.md)）。
 
 - **ふつうの経路**：異常のデータのレベルが `none` で、
   `abnormal.allow_invalid_sop_uid` を使わない生成。Job・テンプレート・
@@ -29,15 +32,15 @@
   ふつうの経路の確かめ（Type 1 の属性・画素の範囲・DS の長さ・UID の形・
   文字コード・入力の `\`）は、その前の値か、約束に無い入力に掛かるので、
   約束の壊し方とぶつからない
-- 約束に無い違反（例：廃止の転送の形 Explicit VR Big Endian）は、
+- 約束に無い違反（例：廃止の Transfer Syntax の Explicit VR Big Endian）は、
   異常のデータの経路でも作らない。作れるようにするときは、先に spec/02 の
   約束に足す
 
 ### 装置のコンフォーマンスステートメントからの擬態
 
 特定の装置の DICOM の出し方（製造者・型名・ソフトウェアの版・
-文字コードの組・必ず出す属性・空で出す属性・プライベートタグ・転送の
-形）は、その装置のコンフォーマンスステートメント（DICOM PS3.2）を読んで
+文字コードの組・必ず出す属性・空で出す属性・プライベートタグ・Transfer
+Syntax）は、その装置のコンフォーマンスステートメント（DICOM PS3.2）を読んで
 **装置のプロファイル**に写し、モダリティのテンプレートの上に重ねて
 擬態する。形・写す手順・置き場は
 [spec/13_device_profiles.md](13_device_profiles.md)。実在の装置の
@@ -61,7 +64,7 @@
 | (0002,0002) | Media Storage SOP Class UID | 1 | テンプレートから（例: CT Image Storage） |
 | (0002,0003) | Media Storage SOP Instance UID | 1 | 画像のSOP Instance UIDと同一 |
 | (0002,0010) | Transfer Syntax UID | 1 | 選択されたTransfer Syntax |
-| (0002,0012) | Implementation Class UID | 1 | この道具の固定の UID（`IMPLEMENTATION_CLASS_UID`。同じ実装は同じ UID。PS3.7 D.3.3.2、PS3.10 7.1） |
+| (0002,0012) | Implementation Class UID | 1 | DTG の固定の UID（`IMPLEMENTATION_CLASS_UID`。同じ実装は同じ UID。PS3.7 D.3.3.2、PS3.10 7.1） |
 | (0002,0013) | Implementation Version Name | 3 | 例: "DICOM_GEN_1.1" |
 
 ### テンプレート定義例
@@ -258,7 +261,7 @@ HU = Pixel Value × Rescale Slope + Rescale Intercept
 
 Pixel Representation 1 の画素は、Bits Stored のビット数の 2 の補数で
 表す。値は −2^(Bits Stored − 1) 〜 2^(Bits Stored − 1) − 1 に収める。
-12 ビットなら −2048〜2047 で、この道具は 0〜2047（HU −1024〜1023）を
+12 ビットなら −2048〜2047 で、DTG は 0〜2047（HU −1024〜1023）を
 使う。範囲を超える値は、読む側が High Bit で符号を広げるため別の値に
 化ける（12 ビットの 2048 は −2048）。`DICOMBuilder` は範囲を超える
 画素を `DICOMBuildError` で止める。
@@ -304,7 +307,7 @@ Type 1 の Image Type は `empty` と空の `set` でも空にできない
 | (0020,1040) | Position Reference Indicator | Frame of Reference | 2 | 空 | PS3.3 C.7.4.1、C.7.4.1.1.2 |
 
 CT の Image Type の値 3 の Defined Terms は `AXIAL` と `LOCALIZER`
-（C.8.2.1.1.1。`AXIAL` は断層の画像を指し、横断に限らない）。この道具は
+（C.8.2.1.1.1。`AXIAL` は断層の画像を指し、横断に限らない）。DTG は
 断層の画像を作るので、既定を `AXIAL` にする。
 
 ---
@@ -362,7 +365,7 @@ def calculate_spatial_coords(slice_index, slice_thickness, slice_spacing, start_
 DS（Decimal String）は 16 バイトまで（PS3.5 6.2 の表 6.2-1）。
 `str(float)` は浮動小数の誤差で 16 字を超える（間隔 0.1 の 4 枚目は
 `0.30000000000000004`、身長 165.7 cm は `1.6569999999999998` m）。
-この道具が数から作る DS（Image Position (Patient)・Image Orientation
+DTG が数から作る DS（Image Position (Patient)・Image Orientation
 (Patient)・Slice Location・Slice Thickness・Pixel Spacing・Patient's
 Weight・Patient's Size）は、有効 12 桁で丸めてから
 `pydicom.valuerep.format_number_as_ds` で 16 字以内にする
@@ -475,12 +478,13 @@ ds2.save_as("output2.dcm")
 
 ### 表せない字
 
-Specific Character Set は、既定の字の集まり（ASCII）に無い字を使う
+Specific Character Set は、既定の文字セット（ASCII）に無い字を使う
 ときに必須（PS3.3 C.12.1 の Type 1C、PS3.5 6.1）。宣言した文字コードで
 表せない字を書くと、pydicom は `?` に置き換えるか、宣言の無いバイトの
-まま書く。この道具は、画像を 1 枚書く前にその画像のすべての文字の属性を
+まま書く。DTG は、画像を 1 枚書く前にその画像のすべての文字の属性を
 確かめ、表せない字があればその画像を書かずに止める（それより前に書いた
-画像は残る）。予約の撮影は `WorklistMappingError`（spec/12 の 7.2）、
+画像は残る。[ADR-0018](../decisions/0018-stop-on-unrepresentable-characters.md)）。
+予約の撮影は `WorklistMappingError`（spec/12 の 7.2）、
 Job の生成は `DICOMValidationError`（どちらも CLI の終了コード 4。
 spec/04）。Job の生成の誤りの文とログには、属性の名前と文字コードだけを
 出し、表せない字そのもの（氏名の一部など）は出さない。
@@ -539,21 +543,21 @@ def _age_reached_date(birth: date, n: int) -> date:
 | **Implicit VR Little Endian** | 1.2.840.10008.1.2 | Implicit | Little |
 | **Explicit VR Little Endian** | 1.2.840.10008.1.2.1 | Explicit | Little |
 
-この 2 つが `app/core/generator.py` の `DICOMBuilder` が受ける転送構文で、
-ほかの UID は `DICOMBuildError` になる。
+この 2 つが `app/core/generator.py` の `DICOMBuilder` が受ける Transfer
+Syntax で、ほかの UID は `DICOMBuildError` になる。
 
 Explicit VR Big Endian（1.2.840.10008.1.2.2）は規格で廃止された形
-（PS3.5 A.3）なので作らない。前は受けていたが、画素（OW）を Little
-Endian のバイト列のまま書いていて、読み戻すと値が入れ替わった
-（PS3.5 8）。Job で指定すると、出力のフォルダを作る前に止める：
+（PS3.5 A.3）なので作らない
+（[ADR-0015](../decisions/0015-no-explicit-vr-big-endian.md)）。Job で
+指定すると、出力のフォルダを作る前に止める：
 
 - 装置のプロファイルを選んでいれば、先にプロファイルと合うかを確かめる。
   プロファイルが Big Endian を持たなければ `ProfileMismatchError`
   （CLI の終了コード 2）
 - それを通った Big Endian の指定は `DICOMValidationError`（終了コード 4）
-- 装置のプロファイルの最初の転送の形が Big Endian で、その形を使う道
-  （`quick --profile` とモダリティのダミーの撮影で、プロファイルから
-  転送の形を決めるとき）は `ProfileMismatchError`（終了コード 2）
+- 装置のプロファイルの最初の Transfer Syntax が Big Endian で、その形を使う
+  経路（`quick --profile` とモダリティエミュレーターの撮影で、プロファイルから
+  Transfer Syntax を決めるとき）は `ProfileMismatchError`（終了コード 2）
 
 異常のデータの約束（spec/02）にも無いので、異常のデータのレベルに関わらず
 作らない（上の「ふつうの経路と異常のデータの経路」）。

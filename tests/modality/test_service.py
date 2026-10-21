@@ -1,4 +1,4 @@
-"""ModalityService の試験：信用できない予約の値でも出力の根の外に書かない（spec/12 の 6.5）."""
+"""ModalityService の試験：信用できない予約の値でも出力の根の外に書かない（docs/spec/12 の 6.5）."""
 
 from __future__ import annotations
 
@@ -66,7 +66,7 @@ def test_untrusted_worklist_values_stay_inside_output_root(
 
 
 def test_refresh_with_partial_response_is_query_error(tmp_path, worklist_scp) -> None:
-    """--refresh で時間の上限により途中までなら撮らずに 5 で止める（spec/12 の 5.4）."""
+    """--refresh で時間の上限により途中までなら撮らずに 5 で止める（docs/spec/12 の 5.4）."""
     service = _service(tmp_path, worklist_scp.port, timeout_seconds=0.5)
     item = service.query_worklist(WorklistQuery()).items[0]
     worklist_scp.endless_pending = True
@@ -79,7 +79,7 @@ def test_refresh_with_partial_response_is_query_error(tmp_path, worklist_scp) ->
 
 
 def test_failed_exam_removes_empty_output_folder(tmp_path, worklist_scp) -> None:
-    """撮影が止まったら、作った出力のフォルダが空なら消す（spec/12 の 7.2）."""
+    """撮影が止まったら、作った出力のフォルダが空なら消す（docs/spec/12 の 7.2）."""
     service = _service(tmp_path, worklist_scp.port)
     patient = ScheduledPatient(patient_id="E0001", patient_name="TAKAHASHI=髙橋")
 

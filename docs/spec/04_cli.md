@@ -1,9 +1,12 @@
-# 04. CLI仕様
+# 04. CLI
+
+- 作成日：2026-02-22
+- 最終更新日：2026-10-22
 
 ## 概要
 
 コマンドラインインターフェース（CLI）は、Job YAMLファイルからDICOMデータを生成し、
-モダリティのダミー（spec/12）の操作を行う。入口は `python -m app.cli` の1本で、
+モダリティエミュレーター（spec/12）の操作を行う。入口は `python -m app.cli` の1本で、
 引数の詳細は各コマンドの `--help` を正本とする。この文書は、
 `generate`・`validate`・`quick` の仕様と、全コマンドに共通する決まり（終了コード・ログ）を定める。
 
@@ -19,20 +22,20 @@ python -m app.cli <command> [options]
 
 ### サブコマンド
 
-| コマンド | 説明 | Phase |
-|---------|------|-------|
-| `generate` | Job YAMLから生成 | 1 |
-| `validate` | Job YAML検証のみ | 1 |
-| `quick` | 簡易生成（1コマンド） | 1 |
-| `version` | バージョン表示 | 1 |
-| `profiles list` | 読める装置のプロファイルの一覧（spec/13） | 3a |
-| `echo` | C-ECHO | 3a |
-| `worklist query`・`worklist show` | ワークリストを引く・1件を出す | 3a |
-| `exam` | 予約（または緊急の患者）で撮る | 3a |
-| `send` | 出力のフォルダの画像を送る | 3a |
-| `queue list`・`queue retry` | 待ち行列と履歴・失敗の再送 | 3a |
-| `commit` | 送った検査の保管の確認（Storage Commitment）を求めて待つ | 3c |
-| `mpps list`・`mpps retry` | MPPS の知らせの待ち行列を出す・失敗を再送する | 3c |
+| コマンド | 説明 |
+|---------|------|
+| `generate` | Job YAMLから生成 |
+| `validate` | Job YAML検証のみ |
+| `quick` | 簡易生成（1コマンド） |
+| `version` | バージョン表示 |
+| `profiles list` | 読める装置のプロファイルの一覧（spec/13） |
+| `echo` | C-ECHO |
+| `worklist query`・`worklist show` | ワークリストを取得する・1件を出す |
+| `exam` | 予約（または緊急の患者）で撮る |
+| `send` | 出力のフォルダの画像を送る |
+| `queue list`・`queue retry` | 送信キューと履歴・失敗の再送 |
+| `commit` | 送った検査の保管確認（Storage Commitment）を求めて待つ |
+| `mpps list`・`mpps retry` | MPPS の通知のキューを出す・失敗を再送する |
 
 `generate`・`validate`・`quick` 以外のコマンド（`echo`・`worklist`・`exam`・`send`・
 `queue`・`commit`・`mpps`）の引数・出力・終了コードは、
@@ -202,7 +205,7 @@ python -m app.cli quick [options]
 | `--accession-number ACC` | Accession Number | ACC000001 |
 | `--study-date DATE` | 検査日（YYYYMMDD） | 今日 |
 | `--hospital NAME` | 病院テンプレート | なし |
-| `--profile NAME` | 装置のプロファイル（spec/13）。転送の形はプロファイルの最初の形 | なし |
+| `--profile NAME` | 装置のプロファイル（spec/13）。Transfer Syntax はプロファイルの最初の形 | なし |
 | `--pixel-mode MODE` | ピクセルモード（`simple_text` / `ct_realistic`） | ct_realistic |
 | `--abnormal-level L` | 異常のデータのレベル（`none` / `mild` / `moderate` / `severe`。[02](02_core_engine.md)） | none |
 
@@ -268,7 +271,7 @@ Python と PyDicom の行は、実行した環境のバージョンになる。
 | 2 | 設定エラー（Job YAML不正・modality の設定の誤り） |
 | 3 | ファイルI/Oエラー |
 | 4 | バリデーションエラー（予約の値が写せない・表せない字を含む） |
-| 5 | 通信エラー（Association を張れない・相手が Failure を返した・時間切れ。モダリティのダミーのコマンド。[12a_web_screens_and_cli.md](12a_web_screens_and_cli.md) 11.6） |
+| 5 | 通信エラー（Association を張れない・相手が Failure を返した・時間切れ。モダリティエミュレーターのコマンド。[12a_web_screens_and_cli.md](12a_web_screens_and_cli.md) 11.6） |
 
 例外から終了コードへの対応は `app/cli/main.py` の `_map_exception_to_exit_code` が持つ。
 例外の階層は [08_error_handling.md](08_error_handling.md) が決める。
@@ -377,5 +380,5 @@ def test_generate_command_success(tmp_path):
 ## 関連文書
 
 - [09_logging.md](09_logging.md): ログの仕組み
-- [12a_web_screens_and_cli.md](12a_web_screens_and_cli.md): モダリティのダミーのコマンド
+- [12a_web_screens_and_cli.md](12a_web_screens_and_cli.md): モダリティエミュレーターのコマンド
 - [13_device_profiles.md](13_device_profiles.md): 装置のプロファイル

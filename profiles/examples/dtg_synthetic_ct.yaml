@@ -1,5 +1,5 @@
 # Device Profile: dtg_synthetic_ct
-# 架空の CT の装置のプロファイル（仕組みの例。spec/13_device_profiles.md）。
+# 架空の CT の装置のプロファイル（仕組みの例。docs/spec/13_device_profiles.md）。
 # 実在の装置の写しではない。実在の装置のプロファイルはリポジトリの外に置く。
 
 schema_version: 1

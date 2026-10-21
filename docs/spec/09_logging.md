@@ -1,11 +1,14 @@
-# 09. ログ仕様
+# 09. ログ
+
+- 作成日：2026-02-22
+- 最終更新日：2026-10-22
 
 ## 概要
 
 ログは Python 標準の `logging` で出す。**Core はログを出さない**。
-ログを出すのは Service Layer（`app/services/`・`app/modality/`）と、CLI・ウェブの画面の入口である。
+ログを出すのは Service Layer（`app/services/`・`app/modality/`）と、CLI・Web 画面の入口である。
 ログの設定は設定ファイルでなく、入口のコードに固定してある。
-CLI は `app/cli/main.py` の `setup_logging`、ウェブの画面は `app/web/__main__.py` が設定する。
+CLI は `app/cli/main.py` の `setup_logging`、Web 画面は `app/web/__main__.py` が設定する。
 
 ---
 
@@ -35,11 +38,11 @@ CLI は `app/cli/main.py` の `setup_logging`、ウェブの画面は `app/web/_
 | 書式 | `[%(levelname)s] %(asctime)s - %(message)s` |
 | 端末への出力 | `TerminalSafeFormatter`（`app/cli/terminal.py`）が通す。相手から来た値に含まれる制御文字を見える形（`\x1b` など）に直し、端末の表示や題を書き換えられないようにする |
 
-`--log-file` と `--verbose` は、`generate` のほか、モダリティのダミーのコマンドにもある。
+`--log-file` と `--verbose` は、`generate` のほか、モダリティエミュレーターのコマンドにもある。
 `--quiet` は `generate` だけが持つ。
 `--verbose` のとき、pynetdicom のログも DEBUG にする。既定は WARNING 以上だけを通す。
 
-### ウェブの画面
+### Web 画面
 
 `python -m app.web` は `logging.basicConfig` で INFO を標準エラー出力に出す
 （書式は `時刻 レベル 名前 メッセージ`）。ファイルには書かない。
@@ -74,15 +77,15 @@ logger の名前は、各モジュールの `logging.getLogger(__name__)` であ
 | 完了 | INFO | `Generation completed: patient_id=... generated=... output_dir=...` |
 | 失敗 | ERROR | `Generation failed: ...`（Traceback つき） |
 
-### モダリティのダミー（`app/modality/`）
+### モダリティエミュレーター（`app/modality/`）
 
 通信の開始・終わり・相手の Status の値・件数を INFO で残す（C-ECHO・C-FIND・C-STORE・
-保管の確認・MPPS・送信の待ち行列）。相手の応答が不正なとき、再送や拒否のときは WARNING。
+保管確認・MPPS・送信キュー）。相手の応答が不正なとき、再送や拒否のときは WARNING。
 詳細は [12_modality_emulator.md](12_modality_emulator.md) の 13 章が決める。
 
 ### 出さない値
 
-患者の氏名・生年月日はログに出さない（`AI_DEVELOPMENT_RULES.md` 5）。
+患者の氏名・生年月日はログに出さない（[development.md](../development.md) の 3.4）。
 出すのは、患者ID・予約の鍵・受付番号・SOP Instance UID まで。
 
 ---

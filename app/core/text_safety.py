@@ -1,4 +1,4 @@
-"""相手から来る値の制御文字を見える形にする（spec/12a_web_screens_and_cli.md 10.8・11.7）.
+"""相手から来る値の制御文字を見える形にする（docs/spec/12a_web_screens_and_cli.md 10.8・11.7）.
 
 端末（CLI）と画面（ウェブ）の両方が使う Pure な処理。
 """

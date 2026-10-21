@@ -1,4 +1,4 @@
-"""モダリティのダミーの試験の道具：手元に MWL と Storage の SCP を立てる（spec/12b の 14 章）.
+"""モダリティのダミーの試験の道具：手元に MWL と Storage の SCP を立てる（docs/development.md の 4 章）.
 
 実の PACS・RIS にはつながない。どの SCP も 127.0.0.1 の空いているポートで立てる。
 """
@@ -49,7 +49,7 @@ EXAMPLE_PROFILE = Path(__file__).resolve().parent.parent / "profiles" / "example
 def write_service_profile(
     directory: Path, name: str, *, mpps: bool, storage_commitment: bool
 ) -> None:
-    """例のプロファイルを写し、`services` の MPPS・保管の確認だけを替えて置く（spec/13 の 8）."""
+    """例のプロファイルを写し、`services` の MPPS・保管の確認だけを替えて置く（docs/spec/13 の 8）."""
     data = yaml.safe_load(EXAMPLE_PROFILE.read_text(encoding="utf-8"))
     data["name"] = name
     data["services"] = {
@@ -225,7 +225,7 @@ class StorageRecorder:
 
 @dataclass
 class CommitmentPACS(StorageRecorder):
-    """試験の PACS：C-STORE を受け、保管の確認（N-ACTION）に答える偽の相手（spec/12 の 8.4.2）.
+    """試験の PACS：C-STORE を受け、保管の確認（N-ACTION）に答える偽の相手（docs/spec/12 の 8.4.2）.
 
     `report_path` で結果の道を選ぶ：`separate`（この相手が新しい Association を
     張って、この道具の待ち受けへ送る）・`same`（N-ACTION の Association で送る）・

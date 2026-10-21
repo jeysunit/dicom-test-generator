@@ -190,7 +190,7 @@ class GenerationConfig(BaseModel):
     series_list: list[SeriesConfig] = Field(..., min_length=1, max_length=100)
     modality_template: str = Field(..., description="モダリティテンプレート名")
     hospital_template: str | None = Field(None, description="病院テンプレート名")
-    device_profile: str | None = Field(None, description="装置のプロファイル名（spec/13）")
+    device_profile: str | None = Field(None, description="装置のプロファイル名（docs/spec/13）")
     uid_method: Literal["uuid_2_25", "custom_root"] = "uuid_2_25"
     uid_custom_root: str | None = Field(None, description="カスタムRoot")
     pixel_spec: PixelSpecSimple | PixelSpecCTRealistic
@@ -219,7 +219,7 @@ class GenerationConfig(BaseModel):
         return self
 
 
-# --- モダリティのダミー（spec/12_modality_emulator.md・spec/03_data_models.md）---
+# --- モダリティのダミー（docs/spec/12_modality_emulator.md・docs/spec/03_data_models.md）---
 
 PATIENT_ID_MAX_LENGTH = 16
 DicomJsonSequences = dict[str, list[dict]]
