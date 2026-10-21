@@ -74,7 +74,6 @@ def test_severe_drops_pixel_data_and_required_tags(tmp_path) -> None:
     [
         ("1.2.840.10008.1.2", "Implicit VR Little Endian", True, True),
         ("1.2.840.10008.1.2.1", "Explicit VR Little Endian", False, True),
-        ("1.2.840.10008.1.2.2", "Explicit VR Big Endian", False, False),
     ],
 )
 def test_mild_writes_in_every_transfer_syntax(tmp_path, uid, name, implicit, little) -> None:
@@ -96,6 +95,29 @@ def test_mild_writes_in_every_transfer_syntax(tmp_path, uid, name, implicit, lit
     ds = pydicom.dcmread(path, force=True)
     assert ds.StudyDate == "INVALID_DATE"
     assert str(ds.InstanceNumber) == "NOT_A_NUMBER"
+
+
+@pytest.mark.parametrize("level", ["mild", "moderate", "severe"])
+def test_abnormal_does_not_write_retired_big_endian(tmp_path, level) -> None:
+    # 廃止の Explicit VR Big Endian（PS3.5 A.3）は、異常のデータの約束（spec/02 の
+    # AbnormalGenerator）に無いので、異常のデータでも作らない（札 Q-2026-10-21-02）
+    from app.core import DICOMValidationError, TransferSyntaxConfig
+
+    config = _make_config(tmp_path=tmp_path).model_copy(
+        update={
+            "abnormal": AbnormalConfig(level=level),
+            "transfer_syntax": TransferSyntaxConfig(
+                uid="1.2.840.10008.1.2.2",
+                name="Explicit VR Big Endian",
+                is_implicit_vr=False,
+                is_little_endian=False,
+            ),
+        }
+    )
+
+    with pytest.raises(DICOMValidationError, match="retired"):
+        StudyGeneratorService().generate(config=config)
+    assert not (tmp_path / "output").exists()
 
 
 def test_read_study_uid_tolerates_missing_tag(tmp_path) -> None:

@@ -31,11 +31,11 @@ DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "app_config.yaml"
 PROFILE_DIRS_ENV = "DTG_PROFILE_DIRS"
 PROFILE_SUFFIX = ".yaml"
 
-# 装置のプロファイルを選んだときに使える転送の形（spec/06 の Transfer Syntax）
+# 装置のプロファイルを選んだときに使える転送の形（spec/06 の Transfer Syntax）。
+# 廃止の Explicit VR Big Endian（PS3.5 A.3）は作らない
 GENERATABLE_TRANSFER_SYNTAXES = {
     "1.2.840.10008.1.2": ("Implicit VR Little Endian", True, True),
     "1.2.840.10008.1.2.1": ("Explicit VR Little Endian", False, True),
-    "1.2.840.10008.1.2.2": ("Explicit VR Big Endian", False, False),
 }
 
 

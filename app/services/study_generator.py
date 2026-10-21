@@ -33,6 +33,8 @@ from app.core import (
     apply_device_profile,
     normalize_character_set,
 )
+from app.core.exceptions import DICOMValidationError
+from app.core.generator import RETIRED_TRANSFER_SYNTAXES
 from app.core.path_safety import ensure_within, safe_path_component
 from app.core.worklist_charset import ensure_dataset_encodable
 from app.core.worklist_mapping import apply_scheduled_context
@@ -158,6 +160,7 @@ class StudyGeneratorService:
                     implementation_version_name = (
                         profile.device.implementation_version_name
                     )
+            self._reject_retired_transfer_syntax(config.transfer_syntax.uid)
             sequence_width = self._sequence_width(total_images)
 
             output_dir = Path(config.output_dir)
@@ -274,6 +277,23 @@ class StudyGeneratorService:
                 exc_info=True,
             )
             raise GenerationError(f"Unexpected generation error: {exc}") from exc
+
+    @staticmethod
+    def _reject_retired_transfer_syntax(transfer_syntax_uid: str) -> None:
+        """廃止の転送の形を、出力のフォルダを作る前に断る（PS3.5 A.3）.
+
+        Explicit VR Big Endian は異常のデータの約束（spec/02）にも無いので、
+        異常のデータのレベルに関わらず作らない（spec/06 の「ふつうの経路と
+        異常のデータの経路」）。
+        """
+        name = RETIRED_TRANSFER_SYNTAXES.get(transfer_syntax_uid)
+        if name is not None:
+            raise DICOMValidationError(
+                f"{name} ({transfer_syntax_uid}) is retired and is not generated "
+                "(PS3.5 A.3). Use Implicit VR Little Endian (1.2.840.10008.1.2) or "
+                "Explicit VR Little Endian (1.2.840.10008.1.2.1)",
+                {"transfer_syntax": transfer_syntax_uid},
+            )
 
     def _hospital_overrides(self, hospital_name: str | None) -> dict:
         if hospital_name is None:

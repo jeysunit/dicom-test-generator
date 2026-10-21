@@ -9,6 +9,30 @@
 （dicom.nema.org の PS3.x。IHE の Technical Framework）で確かめ、
 規格の節番号を書く。仕様を変えるときも原典に合わせる。
 
+### ふつうの経路と異常のデータの経路
+
+この道具は、あえて DICOM の規格に違反したデータを作る機能（異常のデータ）を
+持つ。規格に違反しない前提は、ふつうの経路だけに掛かる（2026-10-21 に
+承認者が決めた）。
+
+- **ふつうの経路**：異常のデータのレベルが `none` で、
+  `abnormal.allow_invalid_sop_uid` を使わない生成。Job・テンプレート・
+  装置のプロファイル・予約・画面と CLI の入力は、規格に合う値だけを受け、
+  合わない値は生成の前に断る。作る画像は規格どおりにする
+- **異常のデータの経路**：`abnormal.level` が `mild`・`moderate`・`severe`
+  のときと、`abnormal.allow_invalid_sop_uid`。規格に違反した値を作ること
+  そのものが目的で、規格の前提の対象外。何を壊すかの約束は
+  [spec/02 の AbnormalGenerator](02_core_engine.md)（壊すタグの表・
+  Pixel Data の削除・SOP Instance UID の 0 始まり）で、この約束にある
+  壊し方は、ふつうの経路の確かめで狭めない
+- 異常のデータは、組み終えた Dataset に最後に当てる（spec/02）。
+  ふつうの経路の確かめ（Type 1 の属性・画素の範囲・DS の長さ・UID の形・
+  文字コード・入力の `\`）は、その前の値か、約束に無い入力に掛かるので、
+  約束の壊し方とぶつからない
+- 約束に無い違反（例：廃止の転送の形 Explicit VR Big Endian）は、
+  異常のデータの経路でも作らない。作れるようにするときは、先に spec/02 の
+  約束に足す
+
 ### 装置のコンフォーマンスステートメントからの擬態
 
 特定の装置の DICOM の出し方（製造者・型名・ソフトウェアの版・
@@ -500,10 +524,18 @@ def _age_reached_date(birth: date, n: int) -> date:
 |----------------|-----|-----|--------|
 | **Implicit VR Little Endian** | 1.2.840.10008.1.2 | Implicit | Little |
 | **Explicit VR Little Endian** | 1.2.840.10008.1.2.1 | Explicit | Little |
-| Explicit VR Big Endian | 1.2.840.10008.1.2.2 | Explicit | Big |
 
-この3つが `app/core/generator.py` の `DICOMBuilder` が受ける転送構文で、
+この 2 つが `app/core/generator.py` の `DICOMBuilder` が受ける転送構文で、
 ほかの UID は `DICOMBuildError` になる。
+
+Explicit VR Big Endian（1.2.840.10008.1.2.2）は規格で廃止された形
+（PS3.5 A.3）なので作らない。前は受けていたが、画素（OW）を Little
+Endian のバイト列のまま書いていて、読み戻すと値が入れ替わった
+（PS3.5 8）。Job や装置のプロファイルで指定すると、出力のフォルダを
+作る前に `DICOMValidationError`（CLI の終了コード 4）で止める。装置の
+プロファイルの最初の転送の形が Big Endian なら `ProfileMismatchError`。
+異常のデータの約束（spec/02）にも無いので、異常のデータのレベルに関わらず
+作らない（上の「ふつうの経路と異常のデータの経路」）。
 
 ### PyDicom実装
 
