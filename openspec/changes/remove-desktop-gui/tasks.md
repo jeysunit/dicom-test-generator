@@ -14,14 +14,14 @@
 
 ## 3. ADR
 
-- [ ] 3.1 `docs/decisions/0022-remove-desktop-gui.md` を template.md から作成して `docs/decisions/README.md` の一覧に追加し、`python scripts/check_doc_dates.py origin/main..HEAD` が合格することを確認する
-- [ ] 3.2 ADR-0003・ADR-0006 の状態の行を「置き換え済み（ADR-0022）」に、ADR-0011 の状態の行に ADR-0022 が「既存の PySide6 の GUI の扱い」を置き換えたことを書き、最終更新日と一覧の状態を合わせ、本文が変わっていないことを `git diff` で確認する
+- [x] 3.1 `docs/decisions/0022-remove-desktop-gui.md` を template.md から作成して `docs/decisions/README.md` の一覧に追加し、`python scripts/check_doc_dates.py origin/main..HEAD` が合格することを確認する
+- [x] 3.2 ADR-0003・ADR-0006 の状態の行を「置き換え済み（ADR-0022）」に、ADR-0011 の状態の行に ADR-0022 が「既存の PySide6 の GUI の扱い」を置き換えたことを書き、最終更新日と一覧の状態を合わせ、本文が変わっていないことを `git diff` で確認する
 
 ## 4. ドキュメント
 
-- [ ] 4.1 `docs/spec/05_gui.md` を欠番の文書にし、`docs/README.md` の spec の表と `docs/spec/10_unused.md` を合わせ、リンクの検査で切れたリンクが無いことを確認する
-- [ ] 4.2 README・usage・architecture・development・project_charter・spec の 07・08・09・12 から、デスクトップ画面・PySide6・pytest-qt・`QT_QPA_PLATFORM` の記述を削除し、`grep -rn "PySide6\|pytest-qt\|QT_QPA\|app/gui\|デスクトップ画面" README.md AGENTS.md docs` の結果が ADR と欠番の文書だけであることを確認する
-- [ ] 4.3 `docs/roadmap.md` の「次に行うもの」からデスクトップ画面の削除を削除し、「未実装」に Web 画面のファイルの作成の画面を追加し、markdownlint が合格することを確認する
+- [x] 4.1 `docs/spec/05_gui.md` を欠番の文書にし、`docs/README.md` の spec の表と `docs/spec/10_unused.md` を合わせ、リンクの検査で切れたリンクが無いことを確認する
+- [x] 4.2 README・usage・architecture・development・project_charter・spec の 02・07・08・09・12 から、デスクトップ画面・PySide6・pytest-qt・`QT_QPA_PLATFORM` の記述を削除し、`grep -rn "PySide6\|pytest-qt\|QT_QPA\|app/gui\|デスクトップ画面" README.md AGENTS.md docs` の結果が ADR と欠番の文書だけであることを確認する
+- [x] 4.3 `docs/roadmap.md` の「次に行うもの」からデスクトップ画面の削除を削除し、「未実装」に Web 画面のファイルの作成の画面を追加し、markdownlint が合格することを確認する
 
 ## Workflow follow-up
 
