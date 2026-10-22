@@ -21,4 +21,4 @@
 ## Workflow follow-up
 
 - PR のレビューの後に、この change を archive する
-- 最初の公開（タグの push）は、承認の後に影武者が行う
+- 最初の公開（タグの push）は、承認の後に別に行う
