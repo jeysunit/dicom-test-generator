@@ -117,6 +117,8 @@ def worklist_refresh(request: Request, key: FormStr = "") -> HTMLResponse:
         request, state, state.partial, selected=key, notice="" if error else "取得し直しました"
     )
     results["error"] = error
+    # 開いている詳細も、取得し直した一覧の値に差し替える
+    results["detail_item"] = next((item for item in state.items if item.key == key), None)
     return render(request, "_worklist_results.html", oob_band=True, results=results)
 
 
@@ -149,6 +151,9 @@ def _results(
         "zero_message": ZERO_ITEMS_MESSAGE,
         "non_ascii_hint": NON_ASCII_HINT if non_ascii and not rows else "",
         "selected": selected,
+        # 「取得し直す」は、選んだ行が一覧にあるときだけ押せる（10.4）
+        "has_selection": any(item.key == selected for item, _marks in rows),
+        "detail_item": None,
         "notice": notice,
         "error": "",
     }

@@ -46,6 +46,7 @@
     }
     input.form.querySelectorAll("button[data-needs-selection]").forEach(function (button) {
       button.disabled = false;
+      button.removeAttribute("title");
     });
   });
 

@@ -25,7 +25,7 @@ ITEM_NOT_FOUND_MESSAGE = (
     "この予約は最後に取得した一覧にありません。「ワークリストを取得」からやり直してください"
 )
 ITEM_GONE_MESSAGE = (
-    "この予約はワークリストにもうありません（受付番号 {accession}）。"
+    "この予約はワークリストにもうありません{accession}。"
     "RIS で取り消されたか、変更された可能性があります"
 )
 REFRESH_TIMEOUT_MESSAGE = "取得し直す途中で時間切れになりました（{seconds} 秒）。もう一度押してください"
@@ -81,7 +81,9 @@ def worklist_error_text(exc: DICOMGeneratorError | ValidationError) -> str:
     if isinstance(exc, WorklistItemNotFoundError):
         return ITEM_NOT_FOUND_MESSAGE
     if isinstance(exc, WorklistItemGoneError):
-        return ITEM_GONE_MESSAGE.format(accession=exc.details.get("accession_number") or "なし")
+        # 受付番号は、あるときだけ括弧で添える（緊急の予約などで空のことがある）
+        accession = exc.details.get("accession_number")
+        return ITEM_GONE_MESSAGE.format(accession=f"（受付番号 {accession}）" if accession else "")
     if isinstance(exc, WorklistRefreshTimeoutError):
         seconds = exc.details.get("timeout_seconds", "")
         if isinstance(seconds, float) and seconds.is_integer():
