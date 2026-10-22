@@ -9,8 +9,8 @@
 
 ## 2. CI と Docker
 
-- [ ] 2.1 `.github/workflows/ci.yml` の pytest のジョブから `QT_QPA_PLATFORM` と Qt のシステムライブラリのインストールを、Docker のジョブから PySide6 が無いことの確認を削除し、PR の CI がすべて合格することを確認する
-- [ ] 2.2 `Dockerfile` の依存の除外から PySide6・pytest-qt を削除してコメントを直し、CI の Docker のジョブが合格することを確認する
+- [x] 2.1 `.github/workflows/ci.yml` の pytest のジョブから `QT_QPA_PLATFORM` と Qt のシステムライブラリのインストールを、Docker のジョブから PySide6 が無いことの確認を削除し、PR の CI がすべて合格することを確認する
+- [x] 2.2 `Dockerfile` の依存の除外から PySide6・pytest-qt を削除してコメントを直し、CI の Docker のジョブが合格することを確認する
 
 ## 3. ADR
 
