@@ -2,9 +2,16 @@
 
 ## 1. 全体の構成
 
-**UI（Web 画面・CLI・デスクトップ画面）は Service を呼び、Service は Core を
-使う。** 依存は上から下への一方向で、逆向きの import はしない。モダリティ
-エミュレーターの通信と手順（`app/modality/`）は Service Layer の一部として扱う。
+DTG のコードは3つの層に分かれる。
+
+| 層 | ディレクトリ | 役割 |
+|----|--------------|------|
+| UI | `app/web/`・`app/cli/`・`app/gui/` | 利用者の操作を受け、結果を表示する |
+| Service | `app/services/`・`app/modality/` | 生成と通信の手順を実行する。ログを出力する |
+| Core | `app/core/` | DICOM の生成の計算。通信・ファイルの読み書き・ログを持たない |
+
+UI は Service を呼び、Service は Core を使う。依存は上から下への一方向で、逆向きの
+import はしない。
 
 次の図は、DTG の内部と外部のシステム（ワークリストの取得先、PACS）の間で、
 データが流れる向きを示す。Web 画面と CLI は同じ Service を呼ぶ。ワークリストの
@@ -42,7 +49,7 @@ flowchart LR
 送信先の PACS とワークリストの取得先の RIS は、利用者がテスト用に用意する
 （Orthanc など）。
 
-## 2. 層
+## 2. 層の依存
 
 ```text
 Web (app/web/) ─┐
@@ -51,14 +58,13 @@ CLI (app/cli/) ─┤→ Modality (app/modality/) → Service (app/services/)
 GUI (app/gui/) ─┴→ Service (app/services/) ──→ Core (app/core/)
 ```
 
-- UI は Core を直接操作しない。正しくは `CLI → Service Layer → Core Engine`
-  で、`CLI → Core Engine` のように Service Layer を経由しない呼び出しはしない。
-  これにより、Core は UI に依存せず単体でテストでき、CLI・Web 画面・デスクトップ
-  画面が同じ手順を使える
+- UI は Core を直接呼ばない。`CLI → Service → Core` の順に呼び、
+  `CLI → Core` のように Service を経由しない呼び出しはしない。これにより、Core は
+  UI に依存せず単体でテストでき、CLI・Web 画面・デスクトップ画面が同じ手順を使える
 - `app/modality/` は `app/services/` と `app/core/` だけを import する。
   `app/cli/`・`app/web/`・`app/gui/` は import しない
-- Core は Pure に保ち、通信・ファイル・ログ・永続化を持たない。予約から生成の
-  設定への転記も、通信が不要なので Core に置く
+- Core は通信・ファイルの読み書き・ログ・永続化を持たない。予約から生成の設定への
+  転記も、通信が不要なので Core に置く
 - デスクトップ画面（`app/gui/`）はモダリティエミュレーターを呼ばない
   （[spec/05](spec/05_gui.md)）
 
@@ -71,20 +77,20 @@ GUI (app/gui/) ─┴→ Service (app/services/) ──→ Core (app/core/)
 
 | ディレクトリ | 層 | 役割 | spec |
 |--------------|----|------|------|
-| `app/core/` | Core | Pure な処理。データモデル、UID の生成、ピクセルデータ、File Meta、空間座標、DICOM Dataset の構築、異常値、装置プロファイルの適用、予約の値の転記、文字コード、パスの安全性、例外 | [02](spec/02_core_engine.md)・[03](spec/03_data_models.md)・[08](spec/08_error_handling.md) |
+| `app/core/` | Core | データモデル、UID の生成、ピクセルデータ、File Meta、空間座標、DICOM Dataset の構築、異常のデータ、装置プロファイルの適用、予約の値の転記、文字コード、ファイル名とパスの検証、例外 | [02](spec/02_core_engine.md)・[03](spec/03_data_models.md)・[08](spec/08_error_handling.md) |
 | `app/services/` | Service | 生成の手順（`StudyGeneratorService`）と、テンプレート・患者マスター・装置プロファイルの読み込み | [02](spec/02_core_engine.md)・[13](spec/13_device_profiles.md) |
-| `app/modality/` | Service | モダリティエミュレーターの通信と手順。ワークリストの取得、C-STORE・C-ECHO、保管確認、MPPS、送信キューと履歴（sqlite3）、手順をまとめる `ModalityService` | [12](spec/12_modality_emulator.md) |
+| `app/modality/` | Service | モダリティエミュレーターの通信と手順。ワークリストの取得、C-STORE・C-ECHO、保管確認、MPPS、送信キューと履歴（sqlite3）。これらを呼び出す `ModalityService` | [12](spec/12_modality_emulator.md) |
 | `app/cli/` | UI | `python -m app.cli` のエントリポイント。生成・検証・簡易生成と、モダリティエミュレーターの操作 | [04](spec/04_cli.md)・[12a](spec/12a_web_screens_and_cli.md) |
 | `app/web/` | UI | `python -m app.web` の Web 画面。FastAPI、ルート（`routes/`）、Jinja2 のテンプレート、静的ファイル | [12a](spec/12a_web_screens_and_cli.md) |
-| `app/gui/` | UI | PySide6 のデスクトップ画面。機能は追加しない | [05](spec/05_gui.md) |
+| `app/gui/` | UI | PySide6 のデスクトップ画面 | [05](spec/05_gui.md) |
 | `templates/` | データ | モダリティと病院のテンプレート（YAML） | [07](spec/07_job_schema.md) |
 | `profiles/` | データ | 装置プロファイルの例。実在の装置のプロファイルはリポジトリの外に置く | [13](spec/13_device_profiles.md) |
 | `config/` | 設定 | `app_config.yaml`（モダリティエミュレーターと Web 画面の設定） | [12](spec/12_modality_emulator.md) の 12 章 |
 | `data/` | データ | 患者マスター（架空の患者） | [03](spec/03_data_models.md) |
 | `examples/` | 例 | Job YAML の例 | [07](spec/07_job_schema.md) |
-| `scripts/` | スクリプト | Web 画面の CSS と静的ファイルを用意するスクリプト、文書の日付を検証するスクリプト | [development.md](development.md) |
+| `scripts/` | スクリプト | Web 画面の CSS と静的ファイルを用意するスクリプト、ADR の日付を検証するスクリプト | [development.md](development.md) |
 | `tests/` | テスト | 層ごとのテスト | [development.md](development.md) |
-| `docs/` | 文書 | この文書と spec・ADR | [README](README.md) |
+| `docs/` | ドキュメント | このドキュメントと spec・ADR | [README](README.md) |
 
 ## 4. 生成の流れ
 
@@ -106,26 +112,26 @@ GUI (app/gui/) ─┴→ Service (app/services/) ──→ Core (app/core/)
    6. 画像の文字コードで表現できない文字が無いかを検証する（予約からの撮影は
       `WorklistMappingError`、Job の生成は `DICOMValidationError` で停止する。
       PS3.3 C.12.1・PS3.5 6.1）
-   7. 出力フォルダの中にファイルを書き出す（ファイル名は `path_safety` で安全な
-      形にする）
+   7. 出力フォルダの中にファイルを書き出す（ファイル名は `path_safety` で使える
+      文字だけにする）
 4. 完了のログを出力する
 
 ## 5. エラーの扱い
 
 ```text
-Core Engine:
+Core:
   ↓ 例外を送出する（DICOMGeneratorError の下）
-Service Layer:
+Service:
   ↓ 捕捉してログに出力し、再送出する
-UI Layer（CLI・Web 画面・デスクトップ画面）:
+UI（CLI・Web 画面・デスクトップ画面）:
   ↓ 捕捉して表示し、終了する（CLI は終了コードで返す）
 ```
 
 例外の階層と終了コードは [spec/08](spec/08_error_handling.md) にある。
 
-## 6. 依存
+## 6. 依存パッケージ
 
-依存の正本は `requirements.txt` である。
+依存パッケージは `requirements.txt` で管理する。
 
 | 区分 | パッケージ |
 |------|-----------|
@@ -139,8 +145,8 @@ UI Layer（CLI・Web 画面・デスクトップ画面）:
 | テスト | pytest・pytest-qt・httpx |
 
 HTMX と、Tailwind CSS で生成する CSS は、バージョンを固定して `scripts/` の
-スクリプトで用意する（Python の依存ではない）。Python は 3.10 以上で、CI は 3.10 と
-3.12 で実行する。
+スクリプトで用意する（Python のパッケージではない）。Python は 3.10 以上で、CI は
+3.10 と 3.12 で実行する。
 
 ## 7. セキュリティ
 

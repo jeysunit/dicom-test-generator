@@ -14,10 +14,16 @@
   簡易モードのピクセル 10ms 未満、CT モードのピクセル 50ms 未満、Dataset の構築
   50ms 未満）に置いていたが、測定していない
 
-## 2. 未実装のもの
+## 2. 次に行うもの
 
-| 項目 | 現在の状態 | 関係する文書 |
-|------|------------|--------------|
+- **デスクトップ画面（PySide6）を削除する。** 削除することを決めた。次の PR で
+  `app/gui/`・PySide6・pytest-qt と画面のテストを削除し、ファイルの生成は CLI に
+  任せる。あわせて ADR を作成する
+
+## 3. 未実装のもの
+
+| 項目 | 現在の状態 | 関係するドキュメント |
+|------|------------|----------------------|
 | CT 以外のモダリティ（MR・CR・DX・US など） | 生成できる SOP Class は CT Image Storage だけ | [spec/13](spec/13_device_profiles.md) の 4.3 |
 | 装置プロファイルの `uid`・`pixel`・`series` フィールド | モデルにフィールドが無く、書くと検証エラーになる | [spec/13](spec/13_device_profiles.md) の 3.1・11 章 |
 | 装置プロファイルの `worklist` フィールド | 予約の値の転記方法はプロファイルで変えられない | [spec/13](spec/13_device_profiles.md) の 8 章 |
@@ -27,14 +33,9 @@
 | Job とテンプレートの、受け付けるが生成に使わない項目（`pixel_spec.background_color`・`text_color`・`font_size`、`abnormal.invalid_sop_uid_probability`、`transfer_syntax` の `uid` 以外、`patient.age`・`patient_comments`、`study.num_series`、テンプレートの `spatial`・`ct_image.rescale_*`・`window_presets`・`file_meta.transfer_syntax_uid`、病院テンプレートの `use_alphabetic`） | 検証はするが、画像には反映しない | [spec/03](spec/03_data_models.md)・[spec/06](spec/06_dicom_rules.md)・[spec/07](spec/07_job_schema.md) |
 | 例外 `JobSchemaError`・`JobValidationError` | 定義だけで、送出する箇所が無い | [spec/08](spec/08_error_handling.md) |
 
-## 3. 未決定のもの
+## 4. 未決定のもの
 
-- **デスクトップ画面（PySide6）を削除するか。** Web 画面が、現在のデスクトップ
-  画面でできる生成をすべて持てたら、別の PR で `app/gui/`・PySide6・pytest-qt を
-  削除する（[ADR-0011](decisions/0011-modality-emulator.md) の案 B）。Web 画面は
-  予約と緊急の患者からの撮影を持つが、Job YAML や `quick` に相当する自由な生成は
-  持たないので、まだ削除しない。削除する前に、Web 画面で同じことができることを
-  確認するテストを追加する
-- **ダークテーマで、プライマリカラーを文字（リンクなど）に使うときの色。** `#1f6feb` は
-  ダークテーマの背景の上では文字に使えない（[spec/12a](spec/12a_web_screens_and_cli.md)
-  の 10.2）。使うときに明るい色を別に決める
+- **ダークテーマで、プライマリカラーを文字（リンクなど）に使うときの色。**
+  `#1f6feb` はダークテーマの背景の上では文字に使えない
+  （[spec/12a](spec/12a_web_screens_and_cli.md) の 10.2）。使うときに明るい色を
+  別に決める

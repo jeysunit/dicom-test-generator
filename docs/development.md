@@ -174,3 +174,20 @@ spec に無い機能は追加しない。仕様の不明な点を推測で補っ
   には1つの論理的な変更だけを入れる
 - 秘密情報（API キー・パスワードなど）はコミットしない
 - PR には、目的・変更点・確認方法・影響範囲を書く
+
+## 9. Web 画面のキャプチャを撮り直す
+
+usage.md の画面のキャプチャは `scripts/capture_screens.py` で撮る。架空の患者の
+予約を返すワークリストの取得先と、テスト用の PACS につないだ Web 画面を起動して
+おき、次を実行する。`docs/images/` に、ワークリスト・撮影・PACS・設定の画面を
+幅 1280 の PNG で保存する。
+
+```bash
+pip install playwright
+playwright install chromium
+DTG_URL=http://127.0.0.1:8080 DTG_WEB_PASSWORD_FILE=/path/to/password.txt \
+  python scripts/capture_screens.py
+```
+
+認証の無い画面なら `DTG_WEB_PASSWORD_FILE` は不要。保存した画像に、架空の患者の
+値だけが写っていることを確認してからコミットする。
