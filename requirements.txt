@@ -19,9 +19,6 @@ numpy>=1.24.0
 # CLI progress bar (Phase 1)
 tqdm>=4.0.0
 
-# GUI framework (Phase 2)
-PySide6>=6.5.0
-
 # Web UI of the modality emulator (Phase 3b, docs/spec/12a 10.1. Approved 2026-10-18)
 fastapi>=0.110
 uvicorn>=0.29
@@ -30,7 +27,6 @@ python-multipart>=0.0.9
 
 # Testing
 pytest>=7.0
-pytest-qt>=4.0.0
 httpx>=0.27  # FastAPI の TestClient（Phase 3b）
 
 # Documentation (optional)

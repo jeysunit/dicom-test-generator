@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # dicom-test-generator のイメージ（モダリティエミュレーターの CLI と Web 画面）。
 #
-# - ベースイメージは Python の公式イメージ（slim）。GUI（PySide6）とテスト用パッケージは入れない
+# - ベースイメージは Python の公式イメージ（slim）。テスト用のパッケージは入れない
 # - root 以外のユーザー（dtg、uid 10001）で動かす。コードの所有者は root のまま（dtg は読み取りだけ）
 # - 設定は外から /app/config/app_config.yaml に mount する（イメージの中の設定は例）
 # - Web 画面はコンテナの中で 0.0.0.0 に bind するので、設定の web.bind_address を
@@ -23,9 +23,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# 依存は requirements.txt から入れる。GUI（PySide6・pytest-qt）と試験（pytest・httpx）の行だけを外す
+# 依存は requirements.txt から入れる。テスト用（pytest・httpx）の行だけを除外する
 COPY requirements.txt ./
-RUN grep -viE '^(pyside6|pytest|pytest-qt|httpx)([<>=!~ ;#]|$)' requirements.txt > /tmp/requirements-runtime.txt \
+RUN grep -viE '^(pytest|httpx)([<>=!~ ;#]|$)' requirements.txt > /tmp/requirements-runtime.txt \
   && pip install -r /tmp/requirements-runtime.txt \
   && rm /tmp/requirements-runtime.txt \
   && pip list --format=freeze

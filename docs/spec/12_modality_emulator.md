@@ -70,17 +70,8 @@ RIS（ワークリスト）→ モダリティ → PACS
 - Query/Retrieve（C-MOVE・C-GET）の SCU
 - HL7 の受信・送信
 - 本番の PACS への接続を前提にした機能（認証の強化・監査ログなど）
-- PySide6 のデスクトップ画面（[05_gui.md](05_gui.md)）の作り直し。
-  扱いは [roadmap.md](../roadmap.md) の 3 章
-
-### デスクトップ画面（spec/05）との関係
-
-- [05_gui.md](05_gui.md) は、作成のための PySide6 の画面の仕様で、この文書の
-  画面とは別のもの
-- モダリティの画面はこの文書と 12a で定め、Web 画面にする
-  （ADR-0011。ADR-0003 をモダリティの画面については置き換える）
-- DICOM 画像の作成（テンプレート・異常のデータ・ピクセル）は共通で、どちらの
-  画面も Service レイヤーを経由して使う
+- Web 画面でのファイルの作成（Job YAML や `quick` に相当する画面）。ファイルの
+  作成は CLI で行う（[ADR-0022](../decisions/0022-remove-desktop-gui.md)）
 
 ---
 

@@ -13,8 +13,7 @@ CLI だけでできることは 6・7 章にまとめる。コマンドのオプ
 
 ### 1.1 Docker で起動する
 
-`Dockerfile` で、CLI と Web 画面のイメージをビルドできる（デスクトップ画面は
-含まない）。コンテナは root 以外のユーザー（uid 10001）で動作する。
+`Dockerfile` で、CLI と Web 画面のイメージをビルドできる。コンテナは root 以外のユーザー（uid 10001）で動作する。
 
 ```bash
 docker build -t dicom-test-generator .
