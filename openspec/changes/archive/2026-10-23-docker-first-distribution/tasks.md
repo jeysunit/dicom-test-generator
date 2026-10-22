@@ -4,12 +4,12 @@
 
 - [x] 1.1 `Dockerfile` で、イメージの中の `config/app_config.yaml` の `web.bind_address` を `0.0.0.0` に書き換え（書き換えられなければビルドを失敗させる）、`logs`・`modality_state`・`output` を `1777` にし、`docker build` が成功することを確認する
 - [x] 1.2 ビルドしたイメージで、パスワード無しの起動が終了コード 2 になること、パスワードを渡すと認証の無い要求に 401・認証つきの要求に 200 を返すこと、`--user "$(id -u):$(id -g)"` で `quick` を実行するとマウントした出力フォルダに DICOM ファイルが3つ、ホストの利用者の所有で書き出されることを手元で確認する
-- [ ] 1.3 `.github/workflows/ci.yml` の Docker のジョブを、設定ファイルをマウントせずに Web 画面を確認し、`--user` で出力フォルダに書き出せることを確認する形にし、PR の CI が合格することを確認する
+- [x] 1.3 `.github/workflows/ci.yml` の Docker のジョブを、設定ファイルをマウントせずに Web 画面を確認し、`--user` で出力フォルダに書き出せることを確認する形にし、PR の CI が合格することを確認する
 
 ## 2. 公開の workflow
 
 - [x] 2.1 `.github/workflows/publish.yml` を追加し（`v*` のタグの push だけで動く、権限は `contents: read`・`packages: write`、actions は SHA で固定）、`actionlint` か YAML の構文の確認で誤りが無いことを確認する
-- [ ] 2.2 PR と `main` への push で publish.yml が動かないことを、PR の checks に publish のジョブが出ないことで確認する
+- [x] 2.2 PR と `main` への push で publish.yml が動かないことを、PR の checks に publish のジョブが出ないことで確認する
 
 ## 3. ドキュメント
 
