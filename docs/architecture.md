@@ -13,7 +13,8 @@ DTG の主な機能は、架空の患者の架空の検査の DICOM 画像を作
 （`StudyGeneratorService.generate`）、撮影を exam（`ModalityService.exam`）と呼ぶ。
 
 次の図は、DTG の主なモジュールと、モジュールの間でデータが流れる向きを示す。
-実線は主な機能、点線はモダリティの機能である。
+実線は主な機能、点線はモダリティの機能である。図の C-FIND・C-STORE・MPPS は、
+図の後の表で説明する。
 
 ```mermaid
 flowchart LR
@@ -69,7 +70,7 @@ flowchart LR
 | ModalityService | モダリティの機能をまとめるクラス。UI レイヤーから撮影と送信の依頼を受け、下の4つを使い、画像の作成は `StudyGeneratorService` に任せる | `app/modality/service.py` | [12](spec/12_modality_emulator.md) |
 | ワークリストの取得 | RIS のワークリストを MWL（Modality Worklist。DICOM の C-FIND で予約を問い合わせるサービス）で取得し、応答を予約（`WorklistItem`）の一覧にする。撮影のときは、`ModalityService.exam` が選んだ予約を予約の値（`ScheduledContext`）にする。予約の値を作る処理と画像の属性にする処理は `app/core/worklist_mapping.py` | `app/modality/worklist_scu.py` | [12](spec/12_modality_emulator.md) の 5・6 章 |
 | 送信キュー | DICOM ファイルを C-STORE（DICOM の画像の送信）で PACS へ送信する。状態は SQLite に記録し、失敗した送信は、利用者が再送を指示したとき（CLI の `queue retry`、Web 画面の再送）に送り直す | `app/modality/queue.py`・`store_scu.py` | [12](spec/12_modality_emulator.md) の 8 章 |
-| 保管確認 | 保管確認（Storage Commitment）。送信した画像を PACS が保管したかを問い合わせる。Web 画面では送信の成功の後に自動で求め、CLI では `commit` のコマンドで求める | `app/modality/commitment_scu.py` | [12](spec/12_modality_emulator.md) の 8 章 |
+| 保管確認 | 保管確認（Storage Commitment）。送信した画像を PACS が保管したかを問い合わせる。Web 画面では送信の成功の後に自動で求め、CLI では `commit` のコマンドで求める。結果は PACS から届くので、受け取るための待ち受け（`CommitmentListener`）も持つ | `app/modality/commitment_scu.py` | [12](spec/12_modality_emulator.md) の 8 章 |
 | MPPS | MPPS（Modality Performed Procedure Step）。`ModalityService.exam` が、画像の作成の前に撮影の開始を、後に終了を RIS に通知する。状態は送信キューと同じ SQLite のファイルに、別のキューとして記録し、失敗した通知は `mpps retry` で送り直す | `app/modality/mpps_scu.py`・`mpps_queue.py` | [12](spec/12_modality_emulator.md) の 8 章 |
 | RIS・PACS | テストの相手。DTG に含まれず、利用者が用意する（Orthanc など） | — | [usage.md](usage.md) の 4 章 |
 
@@ -103,9 +104,9 @@ UI レイヤー ─（データモデル・例外・定数・表示用の関数�
   `app/core/` のデータモデル（`GenerationConfig` など）・例外・定数
   （`ABNORMAL_LEVELS` など）・表示用の関数（`text_safety.py` の制御文字の可視化
   など）は直接 import してよい
-- UI レイヤーのうち `app/services/` を直接使うのは CLI だけである。Job YAML と
-  患者マスターからの作成（`generate`・`quick`）は CLI にしか無く、Web 画面は
-  撮影だけを行うため
+- Web 画面は `app/services/` を直接使わない（使うのは CLI と、削除予定の
+  `app/gui/`）。Job YAML と患者マスターからの作成（`generate`・`quick`）は CLI に
+  しか無く、Web 画面は撮影だけを行うため
 - `app/modality/` は UI レイヤーを import しない。CLI と Web 画面の両方から同じ
   通信の手順を使い、循環 import を避けるため
 - `app/core/` は通信・ファイルの読み書き・ログを持たない。ネットワークやファイルを
@@ -177,7 +178,7 @@ Python のパッケージは `requirements.txt` で管理する。Python は 3.1
 | 用途 | パッケージ |
 |------|-----------|
 | DICOM の読み書き | pydicom |
-| DICOM の通信 | pynetdicom。MWL・C-STORE・C-ECHO（疎通確認）・保管確認・MPPS の要求側（SCU） |
+| DICOM の通信 | pynetdicom。MWL・C-STORE・C-ECHO（疎通確認）・保管確認・MPPS の SCU（要求を送る側）と、保管確認の結果の待ち受け |
 | 設定とデータモデル | PyYAML・pydantic（v2） |
 | 画像 | Pillow・numpy |
 | CLI | tqdm |
