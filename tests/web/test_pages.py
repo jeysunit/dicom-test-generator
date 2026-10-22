@@ -127,7 +127,9 @@ def test_exam_check_partial_follows_profile_choice(client) -> None:
 def test_unknown_worklist_key_on_exam_page(client) -> None:
     html = client.get("/exam?key=0000000000").text
     assert 'role="alert"' in html
-    assert "0000000000" in html
+    # 内部の予約の鍵は出さず、次の操作を日本語で知らせる（docs/spec/12a の 10.4）
+    assert "0000000000" not in html
+    assert "「ワークリストを取得」からやり直してください" in html
 
 
 def test_emergency_form_validation_error_is_shown(client) -> None:
@@ -162,6 +164,102 @@ def test_template_name_from_the_form_is_not_a_path(client) -> None:
     html = client.get("/exam/check", params={"template": "../../config/app_config"}).text
     assert "disabled" in html
     assert "app_config.yaml" not in html
+
+
+REFRESH_BUTTON = 'hx-post="/worklist/refresh"'
+
+
+def _refresh_button(html: str) -> str:
+    start = html.rfind("<button", 0, html.index(REFRESH_BUTTON))
+    return html[start : html.index(">", html.index(REFRESH_BUTTON))]
+
+
+def test_refresh_button_waits_for_a_selected_row(client, worklist_scp) -> None:
+    """行を選ぶまで「取得し直す」は押せない（docs/spec/12a の 10.4）."""
+    html = _query(client)
+    assert "disabled" in _refresh_button(html)
+
+    key = _key_for(html, "A0001")
+    token = csrf_token(client)
+    refreshed = client.post("/worklist/refresh", data={"key": key}, headers=post_headers(token))
+    # 取得し直した後は、選んだ行に印があるので押せる
+    assert "disabled" not in _refresh_button(refreshed.text)
+
+
+def test_refresh_without_a_key_does_not_query(client, worklist_scp) -> None:
+    _query(client)
+    queries = len(worklist_scp.queries)
+    token = csrf_token(client)
+
+    html = client.post("/worklist/refresh", data={}, headers=post_headers(token)).text
+
+    assert len(worklist_scp.queries) == queries
+    assert "予約を選んでから「取得し直す」を押してください" in html
+    assert "worklist_key" not in html and "worklist query" not in html
+    assert "A0001" in html  # 一覧は残す
+
+
+def test_refresh_of_an_unknown_key_is_told_in_japanese(client) -> None:
+    _query(client)
+    token = csrf_token(client)
+
+    html = client.post(
+        "/worklist/refresh", data={"key": "0000000000"}, headers=post_headers(token)
+    ).text
+
+    assert (
+        "この予約は最後に取得した一覧にありません。「ワークリストを取得」からやり直してください"
+        in html
+    )
+    assert "worklist_key" not in html and "worklist query" not in html
+
+
+def test_refresh_of_a_removed_item_keeps_the_row(client, worklist_scp) -> None:
+    key = _key_for(_query(client), "A0001")
+    worklist_scp.items = []
+    token = csrf_token(client)
+
+    html = client.post("/worklist/refresh", data={"key": key}, headers=post_headers(token)).text
+
+    assert (
+        "この予約はワークリストにもうありません（受付番号 A0001）。"
+        "RIS で取り消されたか、変更された可能性があります"
+    ) in html
+    assert html.count("A0001") >= 2  # 知らせと、残した一覧の行
+    assert "worklist_key" not in html
+
+
+def test_refresh_time_limit_is_told_in_japanese(client, monkeypatch) -> None:
+    from app.core.exceptions import WorklistRefreshTimeoutError
+
+    key = _key_for(_query(client), "A0001")
+    service = client.app.state.service
+
+    def time_out(worklist_key: str):
+        raise WorklistRefreshTimeoutError(
+            "Worklist refresh was cut off by the time limit: x",
+            {"worklist_key": worklist_key, "timeout_seconds": 30.0},
+        )
+
+    monkeypatch.setattr(service, "refresh_item", time_out)
+    token = csrf_token(client)
+
+    html = client.post("/worklist/refresh", data={"key": key}, headers=post_headers(token)).text
+
+    assert "取得し直す途中で時間切れになりました（30 秒）。もう一度押してください" in html
+    assert "worklist_key" not in html
+
+
+def test_exam_page_with_an_unknown_key_is_told_in_japanese(client) -> None:
+    _query(client)
+
+    html = client.get("/exam", params={"key": "0000000000"}).text
+
+    assert "この予約は最後に取得した一覧にありません" in html
+    assert "worklist_key" not in html and "worklist query" not in html
+
+    check = client.get("/exam/check", params={"key": "0000000000"}).text
+    assert "この予約は最後に取得した一覧にありません" in check
 
 
 def test_failed_refresh_keeps_the_list(client) -> None:

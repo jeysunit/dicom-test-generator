@@ -14,7 +14,7 @@ from app.modality.service import WorklistState
 from app.modality.worklist_scu import WorklistQuery, parse_date_option
 
 from ..display import item_marks
-from ..rendering import error_text, render, render_error, service_of
+from ..rendering import render, render_error, service_of, worklist_error_text
 
 router = APIRouter()
 
@@ -31,6 +31,7 @@ NON_ASCII_HINT = (
     "日本語の条件は相手の文字コードの扱いに左右されます。患者 ID か受付番号でも取得してください"
 )
 PARTIAL_MESSAGE = "途中まで（相手が返し続けたため C-CANCEL を送った）"
+NO_SELECTION_MESSAGE = "予約を選んでから「取得し直す」を押してください"
 FormStr = Annotated[str, Form()]
 
 
@@ -98,11 +99,16 @@ def worklist_query(
 def worklist_refresh(request: Request, key: FormStr = "") -> HTMLResponse:
     service = service_of(request)
     error = ""
-    try:
-        service.refresh_item(key)
-    except DICOMGeneratorError as exc:
-        # 取得し直せなくても一覧は消さず、上に理由を出す（10.3 の知らせ）
-        error = error_text(exc)
+    key = key.strip()
+    if not key:
+        # 行を選ばずに届いた要求は、問い合わせずに知らせる（10.4）
+        error = NO_SELECTION_MESSAGE
+    else:
+        try:
+            service.refresh_item(key)
+        except DICOMGeneratorError as exc:
+            # 取得し直せなくても一覧は消さず、上に理由を出す（10.3 の知らせ）
+            error = worklist_error_text(exc)
     try:
         state = service.last_worklist_state()
     except DICOMGeneratorError as exc:
@@ -119,7 +125,7 @@ def worklist_item(request: Request, key: str) -> HTMLResponse:
     try:
         item = service_of(request).find_item(key)
     except DICOMGeneratorError as exc:
-        return render_error(request, exc)
+        return render(request, "_notice.html", error=worklist_error_text(exc))
     return render(request, "_worklist_detail.html", item=item)
 
 

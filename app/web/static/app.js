@@ -37,6 +37,18 @@
     input.value = input.value.trim().replace(/\s*\^\s*/g, "^").replace(/\s+/g, "^");
   });
 
+  // ワークリストの一覧：行を選んだら「取得し直す」を押せるようにする（docs/spec/12a の
+  // 10.4）。行を選ばずに届いた要求は、サーバーの側でも問い合わせずに断る。
+  document.addEventListener("change", function (event) {
+    var input = event.target;
+    if (!(input instanceof HTMLInputElement) || input.name !== "key" || !input.form) {
+      return;
+    }
+    input.form.querySelectorAll("button[data-needs-selection]").forEach(function (button) {
+      button.disabled = false;
+    });
+  });
+
   // 撮影の画面：シリーズ数を変えたら、枚数をシリーズごとに同じ数で埋める（CLI の
   // `-i` を省いたときと同じ）。枚数を手で直した後は上書きしない。
   var MAX_SERIES = 99;

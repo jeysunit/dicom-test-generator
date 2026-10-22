@@ -29,7 +29,9 @@ from app.core.exceptions import (
     ProfileError,
     ProfileMismatchError,
     ValidationError,
-    WorklistQueryError,
+    WorklistItemGoneError,
+    WorklistItemNotFoundError,
+    WorklistRefreshTimeoutError,
 )
 from app.core.models import (
     AbnormalConfig,
@@ -411,7 +413,7 @@ class ModalityService:
         for item in self.last_worklist():
             if item.key == key:
                 return item
-        raise ModalityError(
+        raise WorklistItemNotFoundError(
             f"Worklist item not found in the last query: {key}",
             {"worklist_key": key, "hint": "run 'worklist query' first"},
         )
@@ -429,7 +431,7 @@ class ModalityService:
         )
         if result.partial:
             # 途中までの応答で撮ると、引き直した値が古いまま・欠けたままになりうる（5.4）
-            raise WorklistQueryError(
+            raise WorklistRefreshTimeoutError(
                 f"Worklist refresh was cut off by the time limit: {key}",
                 {"worklist_key": key, "timeout_seconds": self.config.worklist.timeout_seconds},
             )
@@ -437,7 +439,7 @@ class ModalityService:
             if item.key == key:
                 self._replace_item(item)
                 return item
-        raise ModalityError(
+        raise WorklistItemGoneError(
             f"Worklist item no longer found on the worklist: {key}",
             {"worklist_key": key, "accession_number": current.accession_number},
         )
