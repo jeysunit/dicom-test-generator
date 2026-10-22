@@ -17,7 +17,13 @@ IHE の Append Case では、追加の画像の Study Date・Study Time・Study 
 
 - 予約で撮影を終えたら、その予約を「撮影済み」として状態の保存先に記録する。
   撮影済みの予約では「撮影」「撮影して送る」を押せなくし、サーバーも断る
-- 撮影済みの予約には「追加撮影」のボタンを出す。追加撮影は IHE の Append Case
+- 撮り直しの扱いを、設定 `modality.retake_mode` で選べるようにする。`append`
+  （既定・推奨）は IHE の Append Case。`new_order` は施設のローカルルールで、撮り
+  直しを別の検査として扱い、受付番号から Study Instance UID まで変わる
+- `new_order` では「追加撮影」のボタンを出さず、撮影済みの予約に「撮り直しの
+  予約が要ります（RIS で新しい予約を作ってください）」と表示する。DTG は受付番号も
+  Study Instance UID も作らず、RIS が作った新しい予約をワークリストで取得し直して撮る
+- `append` では、撮影済みの予約に「追加撮影」のボタンを出す。追加撮影は IHE の Append Case
   （IHE RAD TF-2 4.6.4.1.2.3.3、RAD TF-2x Table A.1-3）に従い、同じ Study Instance
   UID・受付番号・元の予約の値で、新しいシリーズと新しい MPPS を作る
 - 追加撮影の画像の Study Date・Study Time・Study Description は、その予約の最初の
@@ -25,10 +31,11 @@ IHE の Append Case では、追加の画像の Study Date・Study Time・Study 
 - ワークリストの一覧で、撮影済みの予約に「撮影済み」の印を付ける
 - 撮影が止まった（MPPS を DISCONTINUED にした）ときは撮影済みにせず、同じ予約から
   もう一度「撮影」できる
-- 別の検査として撮り直すときは、RIS で新しい予約を作ってワークリストから選ぶ。
-  DTG は、予約に Study Instance UID がある予約で、新しい Study Instance UID を
-  作らない（IHE RAD TF-2 4.8.4.1.1.1）
+- どちらの設定でも、DTG は予約に Study Instance UID がある予約で新しい Study
+  Instance UID を作らず（IHE RAD TF-2 4.8.4.1.1.1）、受付番号も作らない（受付番号は
+  RIS が発番する）
 - CLI の `exam --from-worklist` も同じ決まりにし、追加撮影は `--append` で行う
+  （`new_order` のときは `--append` を断る）
 
 ## Capabilities
 
@@ -43,6 +50,8 @@ IHE の Append Case では、追加の画像の Study Date・Study Time・Study 
 
 ## Impact
 
+- 設定：`app/modality/config.py` の `retake_mode`（`append`・`new_order`。既定
+  `append`）、`config/app_config.yaml` の例
 - サービス：`app/modality/service.py`（撮影済みの判定・追加撮影の依頼・Study の値の
   使い回し・Series Number の続き）、`app/modality/queue.py`（予約ごとの撮影の記録。
   今の `generated_study_uids` を広げる）
@@ -52,6 +61,8 @@ IHE の Append Case では、追加の画像の Study Date・Study Time・Study 
   一覧の印（`app/web/display.py` の `item_marks`）
 - CLI：`exam --append`
 - spec：12 の 6.2・6.3・8.4、12a の 10.4・10.5・10.8・11.4
-- ADR：撮影済みの扱いと追加撮影の決定（Append Case を選び、撮り直しを DTG で新しい
-  Study にしない理由）
-- 利用者：同じ予約で「撮影」を2回押す使い方はできなくなり、「追加撮影」を使う
+- ADR：撮影済みの扱いと撮り直しの2つの形の決定（既定を `append` にし、どちらの形でも
+  DTG が新しい Study・受付番号を作らない理由）
+- 利用者：同じ予約で「撮影」を2回押す使い方はできなくなる。`append` では「追加撮影」を、
+  `new_order` では RIS の新しい予約を使う。`new_order` は RIS が撮り直しの予約を作れる
+  ことが前提（RIS の側の機能は DTG の範囲外）
