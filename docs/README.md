@@ -23,7 +23,7 @@ DTG（dicom-test-generator）の使い方・設計・仕様・開発の手順を
 | [02_core_engine.md](spec/02_core_engine.md) | Core レイヤー：UID、ピクセル、File Meta、空間座標、Dataset の構築、異常のデータ |
 | [03_data_models.md](spec/03_data_models.md) | データモデル（Pydantic） |
 | [04_cli.md](spec/04_cli.md) | DICOM 画像を作成する CLI（`generate`・`validate`・`quick` など）と終了コード |
-| [05_gui.md](spec/05_gui.md) | PySide6 のデスクトップ画面（機能は追加しない） |
+| [05_gui.md](spec/05_gui.md) | 欠番 |
 | [06_dicom_rules.md](spec/06_dicom_rules.md) | DICOM の規則：通常の経路と異常のデータの経路、File Meta、UID、Pixel Data、文字コード、Transfer Syntax |
 | [07_job_schema.md](spec/07_job_schema.md) | Job YAML のスキーマ |
 | [08_error_handling.md](spec/08_error_handling.md) | 例外の階層と終了コード |

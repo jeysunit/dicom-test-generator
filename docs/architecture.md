@@ -60,7 +60,7 @@ flowchart LR
 |--------|------|------------------------|------|
 | Job YAML | 患者・検査・シリーズ・ピクセルなどの作成の設定を書くファイル。CLI の `generate` が読み込み、`GenerationConfig` にする | `examples/`（例） | [07](spec/07_job_schema.md) |
 | 患者マスター | 架空の患者の一覧。CLI の `quick` が `PatientLoaderService` で読み込む | `data/`・`app/services/patient_loader.py` | [03](spec/03_data_models.md) |
-| UI レイヤー | 利用者の操作を受け、結果を表示する。CLI と Web 画面のほかに PySide6 のデスクトップ画面（`app/gui/`）があるが、削除予定（[roadmap.md](roadmap.md) の 2 章） | 下の2行 | — |
+| UI レイヤー | 利用者の操作を受け、結果を表示する。CLI と Web 画面の2つ | 下の2行 | — |
 | CLI | `python -m app.cli`。引数の解析は `main.py`、`generate`・`quick` などは `commands.py`、モダリティの機能のコマンド（`exam` など）は `modality_commands.py` | `app/cli/` | [04](spec/04_cli.md)・[12a](spec/12a_web_screens_and_cli.md) の 11 章 |
 | Web 画面 | `python -m app.web`。アプリは `app.py`、画面ごとの処理は `routes/`（撮影は `exam.py`）。画像の作成は `ModalityService` だけを経由する | `app/web/` | [12a](spec/12a_web_screens_and_cli.md) の 10 章 |
 | テンプレート | モダリティの種類（CT など）と病院ごとの属性の既定値。`TemplateLoaderService` が読み込む | `templates/`・`app/services/template_loader.py` | [07](spec/07_job_schema.md) |
@@ -85,7 +85,7 @@ flowchart LR
 
 | レイヤー | ディレクトリ |
 |----------|--------------|
-| UI レイヤー | `app/cli/`・`app/web/`・`app/gui/`（削除予定） |
+| UI レイヤー | `app/cli/`・`app/web/` |
 | Service レイヤー | `app/modality/`・`app/services/`。`app/modality/` が `app/services/` を使い、逆は無い |
 | Core レイヤー | `app/core/` |
 
@@ -104,9 +104,9 @@ UI レイヤー ─（データモデル・例外・定数・表示用の関数�
   `app/core/` のデータモデル（`GenerationConfig` など）・例外・定数
   （`ABNORMAL_LEVELS` など）・表示用の関数（`text_safety.py` の制御文字の可視化
   など）は直接 import してよい
-- Web 画面は `app/services/` を直接使わない（使うのは CLI と、削除予定の
-  `app/gui/`）。Job YAML と患者マスターからの作成（`generate`・`quick`）は CLI に
-  しか無く、Web 画面は撮影だけを行うため
+- UI レイヤーのうち `app/services/` を直接使うのは CLI だけである。Job YAML と
+  患者マスターからの作成（`generate`・`quick`）は CLI にしか無く、Web 画面は
+  撮影だけを行うため
 - `app/modality/` は UI レイヤーを import しない。CLI と Web 画面の両方から同じ
   通信の手順を使い、循環 import を避けるため
 - `app/core/` は通信・ファイルの読み書き・ログを持たない。ネットワークやファイルを
@@ -183,8 +183,7 @@ Python のパッケージは `requirements.txt` で管理する。Python は 3.1
 | 画像 | Pillow・numpy |
 | CLI | tqdm |
 | Web 画面 | fastapi・uvicorn・jinja2・python-multipart |
-| デスクトップ画面（削除予定） | PySide6 |
-| テスト | pytest・httpx・pytest-qt（デスクトップ画面のテスト用。画面と一緒に削除予定） |
+| テスト | pytest・httpx |
 
 Web 画面の JavaScript（htmx）と CSS（Tailwind CSS で作成）は Python の
 パッケージではない。バージョンを固定して `scripts/` のスクリプトで用意する

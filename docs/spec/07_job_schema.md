@@ -7,7 +7,6 @@ Job YAML の形式を定める。Job YAML は 1 回の DICOM の作成の設定�
 
 - 実体は `app/core/models.py` の `GenerationConfig`（Pydantic）で、この文書と
   食い違えば models.py が正本
-- PySide6 の画面（spec/05）は Job YAML の読み込み・保存を持たない
 - 実例は `examples/` にある（`job_minimal.yaml`・`job_full.yaml`・
   `job_acc000003.yaml`）
 - 作成される DICOM の値の規則は [06_dicom_rules.md](06_dicom_rules.md) にある

@@ -359,7 +359,7 @@ def apply_abnormal_to_dataset(
 `StudyGeneratorService.generate` は、`abnormal.level` で作成した
 `AbnormalGenerator` を、Dataset を組み立てた後（テンプレート・予約・
 装置プロファイルを適用した後）に、画像1枚ごとに適用する。`generate` を経由する
-経路（`generate`・`quick`・モダリティエミュレーターの撮影・GUI）はすべてこの
+経路（`generate`・`quick`・モダリティエミュレーターの撮影）はすべてこの
 処理を経由する。`level` が `none`（既定）のときは何も変えない。
 
 `abnormal.allow_invalid_sop_uid`（SOP Instance UID の 0 始まり）は `level` とは

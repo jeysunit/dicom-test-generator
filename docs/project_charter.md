@@ -10,8 +10,8 @@ DICOM Test Data Generator（リポジトリ名 `dicom-test-generator`。以下 D
    メタデータを持つ画像を作成でき、規格どおりのデータと、あえて規格に違反した
    データ（異常のデータ）の両方を作成できる
 2. **補助の機能**：モダリティのように振る舞う。RIS からワークリストを取得して予約の
-   内容で画像を作成し、PACS へ送信する。保管確認（Storage Commitment）と MPPS も使える。操作は CLI の
-   ほか、Web 画面と GUI からも行える
+   内容で画像を作成し、PACS へ送信する。保管確認（Storage Commitment）と MPPS も使える。操作は CLI と
+   Web 画面で行う
 
 DTG は診療のためではなく、システムのテストに使う。機能はテストに必要な分だけに
 する。
@@ -49,7 +49,6 @@ hl7.org、IHE の Technical Framework）で確認し、spec か ADR に規格の
 | 装置プロファイル | 装置のコンフォーマンスステートメントの内容を転記し、その装置の DICOM の出力（製造元・機種・属性・プライベートタグ）をテンプレートに重ねて再現する | [13](spec/13_device_profiles.md) |
 | CLI | 作成・検証・簡易作成と、モダリティエミュレーターの操作 | [04](spec/04_cli.md)・[12a](spec/12a_web_screens_and_cli.md) |
 | Web 画面 | ワークリスト・撮影・PACS・設定の画面（FastAPI・Jinja2・HTMX） | [12a](spec/12a_web_screens_and_cli.md) |
-| デスクトップ画面 | PySide6 の基本の作成機能だけ。機能は追加しない | [05](spec/05_gui.md) |
 
 ## 4. 範囲に入れないもの
 

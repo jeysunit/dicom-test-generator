@@ -2,10 +2,10 @@
 
 ## 1. コードと依存の削除
 
-- [ ] 1.1 `app/gui/` と `tests/gui/` を削除し、`grep -rn "app.gui\|app/gui\|PySide6\|pytestqt\|qtbot" app tests` が何も返さないことを確認する
-- [ ] 1.2 `requirements.txt` から PySide6 と pytest-qt の行を削除し、新しい venv に `pip install -r requirements.txt` で入れて PySide6 が入らないことを確認する
-- [ ] 1.3 `QT_QPA_PLATFORM` を設定せずに `python -m pytest -q` を実行し、すべて合格することを確認する
-- [ ] 1.4 `python -m app.gui` がモジュールの無いエラーで終了し、`python -m app.cli quick -p P000001 -m ct_generic -s 1 -i 3 -o <一時フォルダ>` で DICOM ファイルが 3 つ書き出されることを確認する
+- [x] 1.1 `app/gui/` と `tests/gui/` を削除し、`grep -rn "app.gui\|app/gui\|PySide6\|pytestqt\|qtbot" app tests` が何も返さないことを確認する
+- [x] 1.2 `requirements.txt` から PySide6 と pytest-qt の行を削除し、新しい venv に `pip install -r requirements.txt` で入れて PySide6 が入らないことを確認する
+- [x] 1.3 `QT_QPA_PLATFORM` を設定せずに `python -m pytest -q` を実行し、すべて合格することを確認する
+- [x] 1.4 `python -m app.gui` がモジュールの無いエラーで終了し、`python -m app.cli quick -p P000001 -m ct_generic -s 1 -i 3 -o <一時フォルダ>` で DICOM ファイルが 3 つ書き出されることを確認する
 
 ## 2. CI と Docker
 

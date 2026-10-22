@@ -5,7 +5,7 @@
 
 ## 1. 環境
 
-Python 3.10 以上が必要。テストの依存（pytest・pytest-qt・httpx）も
+Python 3.10 以上が必要。テストの依存（pytest・httpx）も
 `requirements.txt` に含まれている。
 
 ```bash
@@ -19,8 +19,8 @@ pip install -r requirements.txt
 PR を作成する前に、次を実行する。
 
 ```bash
-# テスト（ディスプレイの無い環境では QT_QPA_PLATFORM=offscreen を付ける）
-QT_QPA_PLATFORM=offscreen pytest
+# テスト
+pytest
 
 # Markdown の形式（設定は .markdownlint-cli2.yaml）
 npx markdownlint-cli2 "**/*.md" "#.venv" "#.pytest_cache"
@@ -36,8 +36,7 @@ python scripts/check_doc_dates.py origin/main..HEAD
 
 `.github/workflows/ci.yml` が、PR と `main` への push で次を実行する。
 
-- pytest（Python 3.10・3.12）。GUI のテストは Qt の offscreen で実行し、X の
-  サーバーを起動しない
+- pytest（Python 3.10・3.12）
 - markdownlint（設定は `.markdownlint-cli2.yaml`）
 - ADR の最終更新日の検証（PR のときだけ）
 - 画面の CSS：`scripts/build_css.sh` で作成し直し、commit した
@@ -55,7 +54,6 @@ pytest tests/services/ -v
 pytest tests/cli/ -v
 pytest tests/modality/ -v
 pytest tests/integration/ -v
-pytest tests/gui/ -v
 pytest tests/web/ -v
 
 # カバレッジ
@@ -73,7 +71,6 @@ pytest --cov=app --cov-report=term-missing
 | `tests/cli/` | CLI のサブコマンドの終了コードと `--json` の形式 |
 | `tests/modality/` | `app/modality/`。MWL の C-FIND、C-STORE・C-ECHO、保管確認（Storage Commitment）、MPPS |
 | `tests/web/` | Web 画面（FastAPI の TestClient） |
-| `tests/gui/` | デスクトップ画面（Qt の offscreen） |
 | `tests/integration/` | モジュールをまたぐ流れ（予約から送信まで） |
 | `tests/scripts/` | `scripts/` のスクリプト |
 

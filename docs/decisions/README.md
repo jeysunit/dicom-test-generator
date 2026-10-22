@@ -9,15 +9,15 @@ ADR の一覧と、ADR に固有の書き方です。ドキュメントに共通
 |------|----|------|
 | [0001](0001-core-library-first.md) | Core Library First | 採用 |
 | [0002](0002-yaml-job-configuration.md) | YAML Job Configuration | 採用 |
-| [0003](0003-pyside6-gui.md) | PySide6 GUI（モダリティの画面は ADR-0011 が置き換えた） | 採用 |
+| [0003](0003-pyside6-gui.md) | PySide6 GUI | 置き換え済み（ADR-0022） |
 | [0004](0004-uuid-2-25-uid.md) | UUID 2.25 UID | 採用 |
 | [0005](0005-pixel-modes.md) | Pixel Modes | 採用 |
-| [0006](0006-threading-model.md) | Threading Model | 採用 |
+| [0006](0006-threading-model.md) | Threading Model | 置き換え済み（ADR-0022） |
 | [0007](0007-patient-size-in-centimeters.md) | Patient Size（身長）の単位を cm に変更 | 採用 |
 | [0008](0008-patient-age-derived-from-dates.md) | PatientAge を birth_date / study_date から算出する | 採用 |
 | [0009](0009-phase-1-5-ordering.md) | Phase 1.5（Storage SCP）の推奨実装順序を明確化 | 置き換え済み（ADR-0013） |
 | [0010](0010-storage-scp-operational-decisions.md) | Storage SCP の運用仕様（重複処理・停止・テスト）を固定 | 置き換え済み（ADR-0013） |
-| [0011](0011-modality-emulator.md) | モダリティエミュレーターにする（SCU・Web 画面） | 採用 |
+| [0011](0011-modality-emulator.md) | モダリティエミュレーターにする（SCU・Web 画面。既存の PySide6 の GUI の扱いは ADR-0022 が置き換えた） | 採用 |
 | [0012](0012-device-profiles.md) | 装置プロファイルで装置の出力を再現する（仕組みは公開・実在の装置のプロファイルは非公開） | 採用 |
 | [0013](0013-remove-storage-scp.md) | 受信の機能（Storage SCP）を削除する | 採用 |
 | [0014](0014-separate-normal-and-abnormal-paths.md) | 通常の経路は規格どおりに生成し、規格の違反は異常のデータの経路で定めたものだけを生成する | 採用 |
@@ -28,6 +28,7 @@ ADR の一覧と、ADR に固有の書き方です。ドキュメントに共通
 | [0019](0019-storage-commitment-result-path.md) | 保管確認の結果は別の Association で受けることを既定にし、CLI では自動で要求しない | 採用 |
 | [0020](0020-mpps-optional-with-retry-queue.md) | MPPS を送信できなくても撮影を止めず、未送信の通知はキューに残して再送する | 採用 |
 | [0021](0021-test-only-commitment-and-mpps-peers.md) | 保管確認と MPPS の SCP は、テストの中だけで起動する | 採用 |
+| [0022](0022-remove-desktop-gui.md) | PySide6 のデスクトップ画面を削除し、ファイルの作成は CLI に任せる | 採用 |
 
 0001〜0013 は、この形式を決める前に書いたものです。冒頭の行をこの形式に
 そろえ、本文は語の置き換えだけにとどめています。

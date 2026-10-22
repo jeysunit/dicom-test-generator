@@ -6,7 +6,7 @@ DTG が出力するログの設定と内容を定める。
 
 - ログは Python 標準の `logging` で出力する
 - **Core（`app/core/`）はログを出力しない**。ログを出力するのは Service レイヤー
-  （`app/services/`・`app/modality/`）と、CLI・PySide6 の画面・Web 画面である
+  （`app/services/`・`app/modality/`）と、CLI・Web 画面である
 - ログの設定は設定ファイルではなく、エントリポイントのコードに固定してある。
   CLI は `app/cli/main.py` の `setup_logging`、Web 画面は
   `app/web/__main__.py` が設定する
@@ -78,20 +78,14 @@ logs/
 `job_name` と `patient_id` は `repr()` の形（引用符つき）で出力する。画像ごとの
 ログは出力しない。
 
-### 5.2 PySide6 の画面
-
-`GeneratorWorker` は、作成の例外を ERROR で記録する
-（`Generation error: ...`・`Unexpected error: ...`。Traceback つき。spec/08 の
-2.3）。
-
-### 5.3 モダリティエミュレーター（`app/modality/`）
+### 5.2 モダリティエミュレーター（`app/modality/`）
 
 通信の開始・終了・相手の Status の値・件数を INFO で記録する（C-ECHO・C-FIND・
 C-STORE・保管確認（Storage Commitment）・MPPS・送信キュー）。相手の応答が不正なとき、再送や拒否の
 ときは WARNING。詳細は [12_modality_emulator.md](12_modality_emulator.md) の
 13 章にある。
 
-### 5.4 出力しない値
+### 5.3 出力しない値
 
 患者の氏名・生年月日はログに出力しない（[development.md](../development.md) の
 7 章）。出力するのは、患者 ID・予約のキー・受付番号・

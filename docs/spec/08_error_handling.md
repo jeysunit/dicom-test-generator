@@ -106,15 +106,7 @@ reason=Permission denied)`
 `[ERROR] <メッセージ>` を標準エラー出力に出す（対応は 3 章の表）。
 メッセージは端末に出す前に制御文字を可視化する。
 
-### 2.3 PySide6 の画面（spec/05）
-
-`MainWindow` は設定を集める段階の例外を警告のダイアログで出す。
-作成中の例外は `GeneratorWorker` が受け、ERROR のログを出力してから、
-`DICOMGeneratorError` は「生成エラー」、それ以外は「予期しないエラー」の
-メッセージにして `generation_finished(False, ...)` で UI スレッドへ渡す。
-キャンセルの扱いは [05_gui.md](05_gui.md) の「非同期処理」の節にある。
-
-### 2.4 Web 画面の起動
+### 2.3 Web 画面の起動
 
 `python -m app.web` は、設定ファイルの読み込みとパスワードの確認で
 `ConfigurationError`・`ModalityConfigError` が出れば、`[ERROR] <メッセージ>`

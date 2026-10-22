@@ -21,10 +21,6 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.12"]
-    env:
-      # GUI（PySide6）の試験は表示の無い環境で動かす。Qt の offscreen の
-      # 描き先を使い、X のサーバーは立てない。
-      QT_QPA_PLATFORM: offscreen
     steps:
       # actions/checkout v7.0.1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -37,12 +33,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
           cache-dependency-path: requirements.txt
-
-      - name: Install system libraries for Qt offscreen
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
 
       - name: Install Python dependencies
         run: |
@@ -115,13 +105,11 @@ jobs:
       - name: Build the image
         run: docker build -t dicom-test-generator:ci .
 
-      - name: CLI runs without the GUI packages and as a non-root user
+      - name: CLI runs as a non-root user
         run: |
           set -eu
           docker run --rm dicom-test-generator:ci python -m app.cli version
           test "$(docker run --rm dicom-test-generator:ci id -u)" != 0
-          docker run --rm dicom-test-generator:ci python -c \
-            'import importlib.util, sys; sys.exit(importlib.util.find_spec("PySide6") is not None)'
           docker run --rm dicom-test-generator:ci python -m app.cli exam --emergency \
             --patient-id DOCKER0001 --patient-name "DOCKER^TEST" -s 1 -i 2 --json > exam.json
           python3 -c 'import json; d = json.load(open("exam.json")); assert len(d["files"]) == 2, d'
