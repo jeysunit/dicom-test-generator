@@ -190,18 +190,19 @@ Web 画面に無い、細かい条件での作成は CLI で行う。Web 画面�
 `output/` に書き出す。
 
 ```bash
+mkdir -p output
 IMAGE=ghcr.io/jeysunit/dicom-test-generator:latest
-RUN="docker run --rm --user $(id -u):$(id -g) -v $PWD/output:/app/output"
+dtg() { docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/output:/app/output" "$@"; }
 
 # 引数だけで作成する
-$RUN $IMAGE python -m app.cli quick -p P000001 -m ct_generic -s 3 -i 1,20,20 -o /app/output
+dtg "$IMAGE" python -m app.cli quick -p P000001 -m ct_generic -s 3 -i 1,20,20 -o /app/output
 
 # イメージの中の Job YAML の例を検証する（作成しない）・例から作成する
-$RUN $IMAGE python -m app.cli validate examples/job_minimal.yaml
-$RUN $IMAGE python -m app.cli generate examples/job_full.yaml -o /app/output
+dtg "$IMAGE" python -m app.cli validate examples/job_minimal.yaml
+dtg "$IMAGE" python -m app.cli generate examples/job_full.yaml -o /app/output
 
 # 手元の Job YAML から作成する
-$RUN -v "$PWD/job.yaml:/app/job.yaml:ro" $IMAGE python -m app.cli generate /app/job.yaml -o /app/output
+dtg -v "$PWD/job.yaml:/app/job.yaml:ro" "$IMAGE" python -m app.cli generate /app/job.yaml -o /app/output
 ```
 
 - Job YAML には、患者・検査・シリーズ・ピクセル・Transfer Syntax・文字コードを
