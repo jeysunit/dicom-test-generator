@@ -6,7 +6,7 @@ import pytest
 from modality_peers import free_port
 from web_helpers import csrf_token, make_client, post_headers
 
-# 画面に出さない言い方（承認者が避けると指摘した。2026-10-21）
+# 画面に出さない言い方（PACS の現場で使わない言葉。結果の表示に出ないことを確認する）
 AVOIDED = ("送れた", "待ち行列", "住所", "この道具", "ダミー", "模擬")
 
 

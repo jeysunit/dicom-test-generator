@@ -19,7 +19,7 @@ numpy>=1.24.0
 # CLI progress bar (Phase 1)
 tqdm>=4.0.0
 
-# Web UI of the modality emulator (Phase 3b, docs/spec/12a 10.1. Approved 2026-10-18)
+# Web UI of the modality emulator (Phase 3b, docs/spec/12a 10.1)
 fastapi>=0.110
 uvicorn>=0.29
 jinja2>=3.1
