@@ -2,161 +2,192 @@
 
 ## 1. 全体の構成
 
-DTG のコードは3つの層に分かれる。
+DTG の主な機能は、架空の患者の架空の検査の DICOM 画像を作成し、出力フォルダに
+ファイルとして書き出すことである。補助の機能として、撮影装置（モダリティ）の
+ように振る舞う機能（以下、モダリティの機能）を持つ。モダリティの機能は、RIS
+（検査の予約を管理するシステム）のワークリスト（撮影の予約の一覧）から予約を
+1件選び、予約の値（患者と検査の情報）で画像を作成して、PACS（画像を保管する
+システム）へ送信する。コードでは、画像の作成を generate と呼ぶ
+（`StudyGeneratorService.generate`）。
 
-| 層 | ディレクトリ | 役割 |
-|----|--------------|------|
-| UI | `app/web/`・`app/cli/`・`app/gui/` | 利用者の操作を受け、結果を表示する |
-| Service | `app/services/`・`app/modality/` | 生成と通信の手順を実行する。ログを出力する |
-| Core | `app/core/` | DICOM の生成の計算。通信・ファイルの読み書き・ログを持たない |
-
-UI は Service を呼び、Service は Core を使う。依存は上から下への一方向で、逆向きの
-import はしない。
-
-次の図は、DTG の内部と外部のシステム（ワークリストの取得先、PACS）の間で、
-データが流れる向きを示す。Web 画面と CLI は同じ Service を呼ぶ。ワークリストの
-取得先から予約を受け取り、予約の値でテスト用の画像を生成して、PACS へ送信する。
-送信後の保管確認と MPPS は、設定で有効にしたときだけ行う。
+次の図は、DTG の主なモジュールと、モジュールの間でデータが流れる向きを示す。
+実線は主な機能、点線はモダリティの機能である。
 
 ```mermaid
 flowchart LR
-  classDef box fill:#ffffff,stroke:#0969da,stroke-width:2px,color:#1f2328
-
-  UI["Web 画面・CLI"]:::box
-  SVC["Service"]:::box
-  subgraph FLOW["モダリティエミュレーター"]
-    direction TB
-    MWL["(a) ワークリスト（検査の予約の一覧）を取得"]:::box
-    MAKE["(b) 予約から画像を生成<br/>テンプレート・装置プロファイル"]:::box
-    QUEUE["(c) 送信キュー<br/>失敗したら再送できる"]:::box
-    COMMIT["(d) 保管確認・MPPS"]:::box
+  JOB["Job YAML"]
+  PAT["患者マスター"]
+  subgraph UI["UI レイヤー"]
+    CLI["CLI"]
+    WEB["Web 画面"]
   end
-  RIS["ワークリストの取得先<br/>RIS・PACS のワークリスト"]:::box
-  PACS[("PACS")]:::box
+  TPL["テンプレート"]
+  PROF["装置プロファイル"]
+  GEN["StudyGeneratorService<br/>DICOM 画像の作成"]
+  OUT@{ shape: docs, label: "出力フォルダ" }
+  subgraph MOD["ModalityService（モダリティの機能）"]
+    WL["ワークリストの取得"]
+    QUEUE["送信キュー"]
+    SC["保管確認・MPPS"]
+  end
+  RIS["RIS"]
+  PACS[("PACS")]
 
-  UI -->|"操作"| SVC
-  SVC -->|"操作"| FLOW
-  RIS -->|"予約"| MWL
-  MWL -->|"予約の値"| MAKE
-  MAKE -->|"画像"| QUEUE
-  QUEUE -->|"画像（DICOM）"| PACS
-  QUEUE -->|"送信した画像の一覧"| COMMIT
-  COMMIT -->|"保管確認の要求"| PACS
-  PACS -->|"保管確認の結果"| COMMIT
-  COMMIT -->|"MPPS（撮影の開始・終了）"| RIS
+  JOB -->|"作成の設定"| CLI
+  PAT -->|"患者"| CLI
+  CLI -->|"GenerationConfig"| GEN
+  TPL -->|"属性の既定値"| GEN
+  PROF -->|"装置の属性"| GEN
+  GEN -->|"DICOM ファイル"| OUT
+  WEB -.->|"撮影の依頼"| MOD
+  CLI -.->|"撮影の依頼"| MOD
+  RIS -.->|"予約（C-FIND の応答）"| WL
+  MOD -.->|"GenerationConfig と予約の値"| GEN
+  OUT -.->|"DICOM ファイル"| QUEUE
+  QUEUE -.->|"DICOM 画像（C-STORE）"| PACS
+  QUEUE -.->|"送信した画像の UID（設定で有効なとき）"| SC
+  PACS -.->|"保管確認の結果（設定で有効なとき）"| SC
+  SC -.->|"撮影の開始と終了（設定で有効なとき）"| RIS
 ```
 
-送信先の PACS とワークリストの取得先の RIS は、利用者がテスト用に用意する
-（Orthanc など）。
+図の箱と、それを置くディレクトリは次のとおり。
 
-## 2. 層の依存
+| 図の箱 | 役割 | ディレクトリ・ファイル | spec |
+|--------|------|------------------------|------|
+| Job YAML | 患者・検査・シリーズ・ピクセルなどの作成の設定を書くファイル。CLI の `generate` が読み込み、`GenerationConfig` にする | `examples/`（例） | [07](spec/07_job_schema.md) |
+| 患者マスター | 架空の患者の一覧。CLI の `quick` が `PatientLoaderService` で読み込む | `data/`・`app/services/patient_loader.py` | [03](spec/03_data_models.md) |
+| UI レイヤー | 利用者の操作を受け、結果を表示する。CLI と Web 画面のほかに PySide6 のデスクトップ画面（`app/gui/`）があるが、削除予定（[roadmap.md](roadmap.md) の 2 章） | 下の2行 | — |
+| CLI | `python -m app.cli`。引数の解析は `main.py`、`generate`・`quick` などは `commands.py`、モダリティの機能のコマンド（`exam` など）は `modality_commands.py` | `app/cli/` | [04](spec/04_cli.md)・[12a](spec/12a_web_screens_and_cli.md) の 11 章 |
+| Web 画面 | `python -m app.web`。アプリは `app.py`、画面ごとの処理は `routes/`（撮影は `exam.py`）。画像の作成は `ModalityService` だけを経由する | `app/web/` | [12a](spec/12a_web_screens_and_cli.md) の 10 章 |
+| テンプレート | モダリティの種類（CT など）と病院ごとの属性の既定値。`TemplateLoaderService` が読み込む | `templates/`・`app/services/template_loader.py` | [07](spec/07_job_schema.md) |
+| 装置プロファイル | 実在の装置の DICOM の出力を再現するための属性。`ProfileLoaderService` が読み込む。リポジトリには架空の例だけを置く | `profiles/`・`app/services/profile_loader.py` | [13](spec/13_device_profiles.md) |
+| StudyGeneratorService | `GenerationConfig`（作成の設定）と予約の値から DICOM 画像を作成し、出力フォルダに書き出す（3 章） | `app/services/study_generator.py`・`app/core/` | [02](spec/02_core_engine.md)・[06](spec/06_dicom_rules.md) |
+| 出力フォルダ | 作成した DICOM ファイルの書き出し先。CLI の `generate`・`quick` は引数で指定する。撮影では、設定ファイルの `output_dir`（CLI の `exam` は `-o` でも指定できる）の下に撮影ごとのフォルダを作る | — | [04](spec/04_cli.md)・[12](spec/12_modality_emulator.md) の 12 章 |
+| ModalityService | モダリティの機能をまとめるクラス。UI レイヤーから撮影の依頼を受け、下の3つを使い、画像の作成は `StudyGeneratorService` に任せる | `app/modality/service.py` | [12](spec/12_modality_emulator.md) |
+| ワークリストの取得 | RIS のワークリストを MWL（Modality Worklist。DICOM の C-FIND で予約を問い合わせるサービス）で取得し、選んだ予約を予約の値（`ScheduledContext`）にする。予約の値を画像の属性にする処理は `app/core/worklist_mapping.py` | `app/modality/worklist_scu.py` | [12](spec/12_modality_emulator.md) の 5・6 章 |
+| 送信キュー | DICOM ファイルを C-STORE（DICOM の画像の送信）で PACS へ送信し、失敗したら再送する。状態は SQLite に記録する | `app/modality/queue.py`・`store_scu.py` | [12](spec/12_modality_emulator.md) の 8 章 |
+| 保管確認・MPPS | 保管確認（Storage Commitment。送信した画像を PACS が保管したかを問い合わせる）と、MPPS（Modality Performed Procedure Step。撮影の開始と終了を RIS に通知する）。MPPS の状態は送信キューとは別に記録する | `app/modality/commitment_scu.py`・`mpps_scu.py`・`mpps_queue.py` | [12](spec/12_modality_emulator.md) の 8 章 |
+| RIS・PACS | テストの相手。DTG に含まれず、利用者が用意する（Orthanc など） | — | [usage.md](usage.md) の 4 章 |
+
+図に無いディレクトリは、設定（`config/`。モダリティの機能は `app/modality/config.py`、
+Web 画面は `app/web/settings.py` が読み込む）、テスト（`tests/`）、スクリプト
+（`scripts/`）、ドキュメント（`docs/`）である。
+
+## 2. モジュールの依存関係
+
+`app/` の下のディレクトリは、3つのレイヤーに分かれる。
+
+| レイヤー | ディレクトリ |
+|----------|--------------|
+| UI レイヤー | `app/cli/`・`app/web/`・`app/gui/`（削除予定） |
+| Service レイヤー | `app/modality/`・`app/services/`。`app/modality/` が `app/services/` を使い、逆は無い |
+| Core レイヤー | `app/core/` |
+
+依存関係は UI → Service → Core の一方向で、次の向きにだけ import する。
 
 ```text
-Web (app/web/) ─┐
-CLI (app/cli/) ─┤→ Modality (app/modality/) → Service (app/services/)
-                │                                   ↓
-GUI (app/gui/) ─┴→ Service (app/services/) ──→ Core (app/core/)
+app/web/ ──→ app/modality/ ──→ app/services/ ──→ app/core/
+app/cli/ ─┬→ app/modality/
+          └──────────────────→ app/services/
+UI レイヤー ─（データモデル・例外・定数・表示用の関数だけ）→ app/core/
 ```
 
-- UI は Core を直接呼ばない。`CLI → Service → Core` の順に呼び、
-  `CLI → Core` のように Service を経由しない呼び出しはしない。これにより、Core は
-  UI に依存せず単体でテストでき、CLI・Web 画面・デスクトップ画面が同じ手順を使える
-- `app/modality/` は `app/services/` と `app/core/` だけを import する。
-  `app/cli/`・`app/web/`・`app/gui/` は import しない
-- Core は通信・ファイルの読み書き・ログ・永続化を持たない。予約から生成の設定への
-  転記も、通信が不要なので Core に置く
-- デスクトップ画面（`app/gui/`）はモダリティエミュレーターを呼ばない
-  （[spec/05](spec/05_gui.md)）
+- UI レイヤーは、画像の作成を `StudyGeneratorService` か `ModalityService` に
+  任せ、`app/core/` の作成のクラス（`DICOMBuilder` など）を直接は呼ばない。
+  作成の手順を1か所に置き、CLI と Web 画面で同じ画像になるようにするため。
+  `app/core/` のデータモデル（`GenerationConfig` など）・例外・定数
+  （`ABNORMAL_LEVELS` など）・表示用の関数（`text_safety.py` の制御文字の可視化
+  など）は直接 import してよい
+- `app/services/` を直接使うのは CLI だけである。Job YAML と患者マスターからの
+  作成（`generate`・`quick`）は CLI にしか無く、Web 画面は撮影だけを行うため
+- `app/modality/` は UI レイヤーを import しない。CLI と Web 画面の両方から同じ
+  通信の手順を使い、循環 import を避けるため
+- `app/core/` は通信・ファイルの読み書き・ログを持たない。ネットワークやファイルを
+  用意せずに単体テストできるようにするため。予約の値を画像の属性にする処理も、
+  値の変換だけなので `app/core/` に置く
 
-`app/modality/` の依存の向き・配置・例外は
-[spec/12](spec/12_modality_emulator.md) の 9 章にある。
+`app/core/` のファイルは [spec/02](spec/02_core_engine.md) の 1・8 章、
+`app/modality/` のファイルは [spec/12](spec/12_modality_emulator.md) の 9.3 にある。
 
-## 3. ディレクトリ
+## 3. DICOM 画像の作成の流れ
 
-ファイル名の一覧は書かない。ファイルは増減するので、実際の構成は `ls` で確認する。
+CLI の `generate`・`quick` は、`GenerationConfig` を組み立てて
+`StudyGeneratorService.generate` を呼ぶ。撮影（Web 画面の撮影と CLI の `exam`）は
+`ModalityService.exam` を経由する。`ModalityService.exam` は、撮影の依頼から
+`GenerationConfig` を、予約から予約の値（`ScheduledContext`）を作り、MPPS が
+有効なら撮影の開始を通知してから、両方を `generate` に渡す。終わったら撮影の終了
+（失敗したときは中止）を通知する。送信は、Web 画面では「撮影して送る」のボタン、
+CLI では `exam --send` のときに行う（撮影の後に送信だけを行うこともできる）。
 
-| ディレクトリ | 層 | 役割 | spec |
-|--------------|----|------|------|
-| `app/core/` | Core | データモデル、UID の生成、ピクセルデータ、File Meta、空間座標、DICOM Dataset の構築、異常のデータ、装置プロファイルの適用、予約の値の転記、文字コード、ファイル名とパスの検証、例外 | [02](spec/02_core_engine.md)・[03](spec/03_data_models.md)・[08](spec/08_error_handling.md) |
-| `app/services/` | Service | 生成の手順（`StudyGeneratorService`）と、テンプレート・患者マスター・装置プロファイルの読み込み | [02](spec/02_core_engine.md)・[13](spec/13_device_profiles.md) |
-| `app/modality/` | Service | モダリティエミュレーターの通信と手順。ワークリストの取得、C-STORE・C-ECHO、保管確認、MPPS、送信キューと履歴（sqlite3）。これらを呼び出す `ModalityService` | [12](spec/12_modality_emulator.md) |
-| `app/cli/` | UI | `python -m app.cli` のエントリポイント。生成・検証・簡易生成と、モダリティエミュレーターの操作 | [04](spec/04_cli.md)・[12a](spec/12a_web_screens_and_cli.md) |
-| `app/web/` | UI | `python -m app.web` の Web 画面。FastAPI、ルート（`routes/`）、Jinja2 のテンプレート、静的ファイル | [12a](spec/12a_web_screens_and_cli.md) |
-| `app/gui/` | UI | PySide6 のデスクトップ画面 | [05](spec/05_gui.md) |
-| `templates/` | データ | モダリティと病院のテンプレート（YAML） | [07](spec/07_job_schema.md) |
-| `profiles/` | データ | 装置プロファイルの例。実在の装置のプロファイルはリポジトリの外に置く | [13](spec/13_device_profiles.md) |
-| `config/` | 設定 | `app_config.yaml`（モダリティエミュレーターと Web 画面の設定） | [12](spec/12_modality_emulator.md) の 12 章 |
-| `data/` | データ | 患者マスター（架空の患者） | [03](spec/03_data_models.md) |
-| `examples/` | 例 | Job YAML の例 | [07](spec/07_job_schema.md) |
-| `scripts/` | スクリプト | Web 画面の CSS と静的ファイルを用意するスクリプト、ADR の日付を検証するスクリプト | [development.md](development.md) |
-| `tests/` | テスト | 層ごとのテスト | [development.md](development.md) |
-| `docs/` | ドキュメント | このドキュメントと spec・ADR | [README](README.md) |
+`StudyGeneratorService.generate` は、次の順に処理する。UID・File Meta・Dataset・
+Transfer Syntax などの DICOM の規則は [spec/06](spec/06_dicom_rules.md) にある。
 
-## 4. 生成の流れ
+1. UID を用意する。Study Instance UID は、予約に UID があればそれを使う。
+   Frame of Reference UID などもここで決める
+2. テンプレートを読み込む。モダリティの種類のテンプレートに病院のテンプレートを
+   ディープマージ（入れ子の辞書もキーごとに統合する）で重ねる。最上位のキーごとに
+   置き換えると、病院のテンプレートが書いていない装置の情報（Manufacturer など）
+   まで消えるため。Manufacturer は値が空でも省けない属性（Type 2。PS3.3
+   C.7.5.1）である。装置プロファイルを指定していれば読み込み、テンプレート・
+   Transfer Syntax・文字コードと合うかを検証する。廃止された Transfer Syntax は
+   拒否する
+3. シリーズごとに Series Instance UID を作成し、画像ごとに次を行う
+   1. SOP Instance UID とピクセルデータを作成する（`app/core/uid_generator.py` の
+      `UIDGenerator`、`pixel_generator.py` の `PixelGenerator`）
+   2. File Meta（`dicom_writer.py` の `FileMetaBuilder`）と Dataset
+      （`generator.py` の `DICOMBuilder.build_ct_image`。CT の画像の形）を作成する
+   3. テンプレートの属性、予約の値（`worklist_mapping.py` の
+      `apply_scheduled_context`）、装置プロファイルの属性の順に重ねる
+   4. 異常のデータ（あえて規格に違反した値を入れる機能。`abnormal_generator.py`）
+      を適用する。3 で重ねた値も対象になる（レベルが `none` なら何も変えない）
+   5. 画像の文字コード（Specific Character Set）で表現できない文字が無いかを
+      検証し、あれば停止する。例外は、予約からの作成なら `WorklistMappingError`、
+      Job からの作成なら `DICOMValidationError` で、直す場所（RIS の予約か、
+      Job・テンプレートの文字コードか）を利用者に示すために分けている
+      （PS3.3 C.12.1・PS3.5 6.1）
+   6. 出力フォルダにファイルを書き出す。ファイル名は `path_safety.py` で決まった
+      文字だけにし、出力フォルダの外に書き出さないことを検証する
+4. 完了をログに出力する
 
-`StudyGeneratorService.generate` が次の順に処理する。CLI と画面で共通である。
+## 4. エラーの扱い
 
-1. UID を用意する。Study Instance UID（予約に UID があればそれを使う）、Frame of
-   Reference UID などを決める
-2. モダリティと病院のテンプレートを読み込んでマージする。病院の `overrides` は
-   節の中まで深くマージし、病院が指定しないキーはモダリティの値を残す（浅い
-   マージでは Type 2 の Manufacturer が消える。PS3.3 C.7.5.1）。装置プロファイルを
-   指定していれば読み込み、テンプレート・Transfer Syntax・文字コードと合うかを
-   検証する
-3. シリーズごとに Series Instance UID を生成し、画像ごとに次を行う
-   1. SOP Instance UID とピクセルデータを生成する
-   2. File Meta を生成する
-   3. `DICOMBuilder` で Dataset を生成する
-   4. テンプレートの属性、予約の値、装置プロファイルの順に重ねる
-   5. 異常のデータを適用する（レベルが `none` なら何も変えない）
-   6. 画像の文字コードで表現できない文字が無いかを検証する（予約からの撮影は
-      `WorklistMappingError`、Job の生成は `DICOMValidationError` で停止する。
-      PS3.3 C.12.1・PS3.5 6.1）
-   7. 出力フォルダの中にファイルを書き出す（ファイル名は `path_safety` で使える
-      文字だけにする）
-4. 完了のログを出力する
+- `app/core/` は例外（`DICOMGeneratorError` の下）を送出し、ログは出力しない
+- `StudyGeneratorService.generate` は、失敗をログに出力してから再送出する。
+  予期しない例外は `GenerationError` に包む
+- `app/modality/` は、通信の失敗などを警告のログに残し、例外は呼び出し側へ渡す。
+  撮影の途中で作成が失敗したら、MPPS で撮影の中止を通知してから再送出する
+- UI レイヤーは捕捉して利用者に表示する。CLI は終了コードでも返す
 
-## 5. エラーの扱い
+例外の階層と終了コードは [spec/08](spec/08_error_handling.md)、ログは
+[spec/09](spec/09_logging.md) にある。
 
-```text
-Core:
-  ↓ 例外を送出する（DICOMGeneratorError の下）
-Service:
-  ↓ 捕捉してログに出力し、再送出する
-UI（CLI・Web 画面・デスクトップ画面）:
-  ↓ 捕捉して表示し、終了する（CLI は終了コードで返す）
-```
+## 5. 依存するパッケージ
 
-例外の階層と終了コードは [spec/08](spec/08_error_handling.md) にある。
+Python のパッケージは `requirements.txt` で管理する。Python は 3.10 以上で動作する。
 
-## 6. 依存パッケージ
-
-依存パッケージは `requirements.txt` で管理する。
-
-| 区分 | パッケージ |
+| 用途 | パッケージ |
 |------|-----------|
 | DICOM の読み書き | pydicom |
-| DICOM の通信 | pynetdicom（MWL・C-STORE・C-ECHO・Storage Commitment・MPPS の SCU） |
+| DICOM の通信 | pynetdicom（MWL・C-STORE・C-ECHO・保管確認・MPPS の要求側（SCU）） |
 | 設定とデータモデル | PyYAML・pydantic（v2） |
 | 画像 | Pillow・numpy |
 | CLI | tqdm |
 | Web 画面 | fastapi・uvicorn・jinja2・python-multipart |
-| デスクトップ画面 | PySide6 |
-| テスト | pytest・pytest-qt・httpx |
+| デスクトップ画面（削除予定） | PySide6 |
+| テスト | pytest・httpx・pytest-qt（デスクトップ画面のテスト用。画面と一緒に削除予定） |
 
-HTMX と、Tailwind CSS で生成する CSS は、バージョンを固定して `scripts/` の
-スクリプトで用意する（Python のパッケージではない）。Python は 3.10 以上で、CI は
-3.10 と 3.12 で実行する。
+Web 画面の JavaScript（htmx）と CSS（Tailwind CSS で作成）は Python の
+パッケージではない。バージョンを固定して `scripts/` のスクリプトで用意する
+（[development.md](development.md) の 5 章）。
 
-## 7. セキュリティ
+## 6. セキュリティ
 
-- 入力の検証：Job YAML は Pydantic でスキーマを検証する。ワークリストの応答や UID
-  など、相手から来る値は、画像やパスに使う前に形式を検証する
+- 入力の検証：Job YAML は Pydantic でスキーマを検証する。ワークリストの応答の値や
+  UID など、相手から来る値は、画像やパスに使う前に形式を検証する
   （[spec/12](spec/12_modality_emulator.md) の 6.5）
-- ファイルの出力：パスに使う値は `path_safety` で決まった文字だけにし、出力フォルダ
-  の外に書き出せないことを検証する
-- Web 画面：既定はループバックだけで待ち受ける。それ以外のアドレスで待ち受ける
-  ときはパスワードのファイルが必要（[spec/12a](spec/12a_web_screens_and_cli.md)
-  の 10.9）
+- ファイルの出力：3 章の 6 のとおり、出力フォルダの外に書き出さない
+- Web 画面：既定はループバック（同じマシンからの接続）だけで待ち受ける。それ以外の
+  アドレスで待ち受けるときはパスワードのファイルが必要
+  （[spec/12a](spec/12a_web_screens_and_cli.md) の 10.9）
 - 患者のデータは架空で、機密性は無い。ログに Patient ID などが含まれるが、テスト
   環境での使用を前提とする

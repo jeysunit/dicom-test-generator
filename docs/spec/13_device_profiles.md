@@ -32,7 +32,7 @@ CT 以外の SOP Class（「11. 実装の状況」）。
 ### 目的
 
 PACS・RIS・ビューアのテストで、**特定の装置が出力する形の DICOM** を、本物の
-装置を使わずに生成する。装置ごとの特徴（文字コードの組み合わせ・必ず出力する属性・
+装置を使わずに作成する。装置ごとの特徴（文字コードの組み合わせ・必ず出力する属性・
 空で出力する属性・プライベートタグ・Transfer Syntax）は、テスト対象の不具合が
 出やすい部分で、ここを再現できることに価値がある。
 
@@ -84,7 +84,7 @@ PACS・RIS・ビューアのテストで、**特定の装置が出力する形�
 | `device.device_serial_number` | Device Serial Number (0018,1000)。装置番号の**形式**だけを転記した合成の値（実機の番号を書かない） | Table N.9-5 | 実装済み |
 | `device.station_name` | Station Name (0008,1010) の既定値。病院テンプレートが指定すればそちら | Table N.9-5・N.6-1 | 実装済み |
 | `device.implementation_version_name` | File Meta の Implementation Version Name (0002,0013) | N.7（Association の表）・N.1 | 実装済み |
-| `storage.sop_classes` | 装置が作成する（Create）Storage の SOP Class。最初の1つで生成する | Table N.1-1 | 実装済み |
+| `storage.sop_classes` | 装置が作成する（Create）Storage の SOP Class。最初の1つで作成する | Table N.1-1 | 実装済み |
 | `storage.transfer_syntaxes` | 装置が送信できる Transfer Syntax。並びは装置の優先順 | Table N.1-2・N.7-5 | 実装済み |
 | `character_set.default` | 装置がデフォルトで出力する Specific Character Set (0008,0005) | Table N.1-15・N.5-165 | 実装済み |
 | `character_set.supported` | 装置が出力できる文字コードの組み合わせ。空なら検証しない | Table N.1-15 | 実装済み |
@@ -92,7 +92,7 @@ PACS・RIS・ビューアのテストで、**特定の装置が出力する形�
 | `attributes.empty` | 長さ0で出力する属性（Presence・Source が EMPTY） | 同上 | 実装済み |
 | `attributes.omit` | 出力しない属性（装置の表に無い Type 3） | 同上 | 実装済み |
 | `private_tags` | プライベートタグ（グループ・Private Creator・要素・VR・値） | Table N.9-20・N.9-21（Private Module） | 実装済み |
-| `services` | MWL・MPPS・保管確認の対応の有無 | Table N.1-5・N.1.3.5-1〜N.1.3.7-1 | 実装済み。`mpps`・`storage_commitment` は MPPS・保管確認に反映される。`modality_worklist` は値を持つだけで、まだ反映されない |
+| `services` | MWL・MPPS・保管確認（Storage Commitment）の対応の有無 | Table N.1-5・N.1.3.5-1〜N.1.3.7-1 | 実装済み。`mpps`・`storage_commitment` は MPPS・保管確認に反映される。`modality_worklist` は値を持つだけで、まだ反映されない |
 | `uid` | UID の形式（ルートの後ろの並び）。ルートは合成のルートだけ | Table N.9-12・N.7 | 未実装 |
 | `pixel` | マトリクス・Bits Allocated/Stored・High Bit・Pixel Representation・Photometric Interpretation | Table N.9-8 | 未実装 |
 | `series` | シリーズ・画像の並び方（番号の振り方・Instance Number の開始値） | Table N.9-3・N.9-7 | 未実装 |
@@ -174,7 +174,7 @@ services:
   Patient Position・Position Reference Indicator・Instance Creator UID）
   を削除できない（Patient Position は 2C で CT Image Storage では必須。
   PS3.3 C.7.3.1。spec/06 の「CT Image の必須の属性」）。必須の属性を欠いた
-  画像は、異常のデータ（`abnormal`）で生成する
+  画像は、異常のデータ（`abnormal`）で作成する
 - `empty` と空の `set`（空文字列・空文字列だけの並び）では、DTG が CT Image で
   出力する Type 1 の属性（Modality・Image Type・Image Position/Orientation
   (Patient)・Pixel Spacing・Rescale Intercept/Slope）を空にできない
@@ -196,7 +196,7 @@ services:
 
 ### 4.1 規則
 
-**プロファイルはテンプレートの上に重ねる（置き換えない）。** 生成には従来どおり
+**プロファイルはテンプレートの上に重ねる（置き換えない）。** 作成には従来どおり
 テンプレート（`modality_template`）を選択し、プロファイル（`device_profile`）は
 選択したときだけ重ねる。
 
@@ -225,22 +225,22 @@ services:
 例外は2つある。
 
 1. **装置の値（Manufacturer・Manufacturer's Model Name・Software
-   Versions・Device Serial Number・Implementation Version Name・生成する
+   Versions・Device Serial Number・Implementation Version Name・作成する
    SOP Class）は、病院テンプレートでも変えない。** 施設は装置を変更できない
 2. **`attributes`（set・empty・omit）とプライベートタグは、最後に適用する。**
    装置の表のとおりに出力するため
 
 ### 4.3 合わないときは停止する
 
-次のときは生成を始めずに `ProfileMismatchError` で停止する（黙って修正しない）。
+次のときは作成を始めずに `ProfileMismatchError` で停止する（黙って修正しない）。
 
 - `device.modality` とテンプレートの `info.modality` が異なる
 - Job の `transfer_syntax.uid` が `storage.transfer_syntaxes` に無い
   （`quick` はプロファイルの最初の Transfer Syntax を使う）
 - 重ねた後の文字コードが `character_set.supported` に無い
   （`supported` が空なら検証しない）
-- `storage.sop_classes` の最初の SOP Class を、DTG がまだ生成できない
-  （現在生成できるのは CT Image Storage だけ）
+- `storage.sop_classes` の最初の SOP Class を、DTG がまだ作成できない
+  （現在作成できるのは CT Image Storage だけ）
 
 文字コードの比較方法：値を `\` で分け、前後の空白を除く。値 1 が空なら
 `ISO 2022 IR 6` とみなす（PS3.3 C.12.1.1.2）。値が無い（空・属性なし）ときは
@@ -274,7 +274,7 @@ PS3.2 の Annex N（Conformance Statement Template）の形式の文書を前提
    | Presence が ALWAYS、Source が FIXED | `attributes.set` に値を転記する |
    | Presence が ALWAYS、Source が CONFIGURATION | `attributes.set` に、形式だけを転記した合成の値を書く |
    | Presence か Source が EMPTY | `attributes.empty` |
-   | Source が GENERATED・MWL・USER・QUERY・SCANNED | 転記しない（DTG が生成するか、予約から転記する） |
+   | Source が GENERATED・MWL・USER・QUERY・SCANNED | 転記しない（DTG が作成するか、予約から転記する） |
    | テンプレートが出力するが、装置の表に無い Type 3 | `attributes.omit` |
 
    General Equipment（Table N.9-5）の Manufacturer・型名・ソフトウェアバージョン・
@@ -288,7 +288,7 @@ PS3.2 の Annex N（Conformance Statement Template）の形式の文書を前提
    （`worklist`）のために控えておく
 
 転記した後、`python -m app.cli profiles list` で読み込めることを確認し、
-`generate --profile` で生成した画像を、文書の表と並べて確認する。
+`generate --profile` で作成した画像を、文書の表と並べて確認する。
 
 ### 5.1 転記しないもの
 
@@ -326,13 +326,13 @@ profiles:
 - `~` はホームディレクトリに展開する
 - 指定したフォルダが無ければエラー（`ProfileError`）。綴りの誤りのせいで、黙って
   例のプロファイルが使われることを防ぐため。検証するのはプロファイルを使うとき・
-  一覧を出力するときだけ（プロファイルを使わない生成は止めない）
+  一覧を出力するときだけ（プロファイルを使わない作成は止めない）
 - 設定の `profiles` がマッピングでない、未知のキーがある、`search_paths` が
   文字列のリストでないときもエラー（黙って例の配置場所だけにしない）
 - プロファイルのファイルは UTF-8。読めなければ `ProfileParseError`
 - **同じ名前のプロファイルが2か所以上にあればエラー**
   （`DuplicateProfileError`。どちらのパスかを表示する）。上位の配置場所が黙って
-  下位を隠すと、どちらで生成したかが分からなくなるため
+  下位を隠すと、どちらで作成したかが分からなくなるため
 
 ### 6.2 誤って公開されないための仕組み
 
@@ -437,7 +437,7 @@ Device profile not found: abc (searched=/a, /b, /repo/profiles/examples)
 |----------|------|
 | `tests/core/test_device_profile.py` | モデルの検証（未知のフィールド・名前・UID・グループ・offset・VR・扱えない属性・重複）。Dataset に適用した結果（装置の値・属性・プライベートタグ） |
 | `tests/services/test_profile_loader.py` | 外部のフォルダから読み込める・検索の順序・同じ名前のエラー・存在しないフォルダのエラー・壊れた YAML のエラー・リポジトリに例しか無いこと |
-| `tests/services/test_study_generator_profile.py` | 架空のプロファイルで生成した画像に、製造者・型名・ソフトウェアバージョン・プライベートタグ・文字コード（IR 13＋IR 87 の漢字の氏名をデコードする）が入ること。合わないときに停止すること |
+| `tests/services/test_study_generator_profile.py` | 架空のプロファイルで作成した画像に、製造者・型名・ソフトウェアバージョン・プライベートタグ・文字コード（IR 13＋IR 87 の漢字の氏名をデコードする）が入ること。合わないときに停止すること |
 | `tests/cli/test_profile_commands.py` | `--profile`・`profiles list`・エラーの終了コード 2・古い名前の案内 |
 
 ---
@@ -449,7 +449,7 @@ Device profile not found: abc (searched=/a, /b, /repo/profiles/examples)
 | モデル・読み込み・検証・重ね方（装置の値・Transfer Syntax・文字コード・属性・プライベートタグ）・CLI | 実装済み（10 章のテスト） |
 | `exam --profile`・`modality.default_profile`・撮影の画面の「装置」 | 実装済み |
 | `services.mpps`・`services.storage_commitment` を MPPS・保管確認に反映する（[12_modality_emulator.md](12_modality_emulator.md) の 8.3.3・8.4.1） | 実装済み。`services.modality_worklist` は反映しない |
-| `uid`・`pixel`・`series` のフィールド。CT 以外の SOP Class | 未実装。モデルにフィールドが無く、生成できる SOP Class は CT Image Storage だけ |
+| `uid`・`pixel`・`series` のフィールド。CT 以外の SOP Class | 未実装。モデルにフィールドが無く、作成できる SOP Class は CT Image Storage だけ |
 | `worklist` フィールド | 未実装 |
 
 未実装のものは [roadmap.md](../roadmap.md) にもある。

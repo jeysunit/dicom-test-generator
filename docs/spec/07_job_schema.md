@@ -1,6 +1,6 @@
 # 07. Job YAML のスキーマ
 
-Job YAML の形式を定める。Job YAML は 1 回の DICOM の生成の設定を 1 つの
+Job YAML の形式を定める。Job YAML は 1 回の DICOM の作成の設定を 1 つの
 ファイルに書いたもので、CLI の `generate` と `validate` が読む（spec/04）。
 
 ## 1. 概要
@@ -10,7 +10,7 @@ Job YAML の形式を定める。Job YAML は 1 回の DICOM の生成の設定�
 - PySide6 の画面（spec/05）は Job YAML の読み込み・保存を持たない
 - 実例は `examples/` にある（`job_minimal.yaml`・`job_full.yaml`・
   `job_acc000003.yaml`）
-- 生成される DICOM の値の規則は [06_dicom_rules.md](06_dicom_rules.md) にある
+- 作成される DICOM の値の規則は [06_dicom_rules.md](06_dicom_rules.md) にある
 
 ## 2. 例
 
@@ -190,7 +190,7 @@ PN への組み立ては spec/06 の 7.2 にある。
 | `study_time` | string | ○ | 検査時刻（HHMMSS） |
 | `study_description` | string | - | 検査の説明（64 文字以内） |
 | `referring_physician_name` | string | - | 紹介医名（PN の形式） |
-| `num_series` | int | ○ | シリーズ数（1〜100）。`series_list` の件数とは照合しない。生成するシリーズは `series_list` で決まる |
+| `num_series` | int | ○ | シリーズ数（1〜100）。`series_list` の件数とは照合しない。作成するシリーズは `series_list` で決まる |
 
 ### 3.5 series_list
 
@@ -233,14 +233,14 @@ PN への組み立ては spec/06 の 7.2 にある。
 ### 3.7 transfer_syntax
 
 節そのものは必須で、中の項目はすべて省略できる（省略すると Implicit VR
-Little Endian）。生成できる UID は spec/06 の 9 章にある。
+Little Endian）。作成できる UID は spec/06 の 9 章にある。
 
 | フィールド | 型 | 必須 | 説明 | 既定値 |
 |-----------|-----|------|------|--------|
 | `uid` | string | - | Transfer Syntax UID | `1.2.840.10008.1.2` |
-| `name` | string | - | 名称。生成には使わない | `Implicit VR Little Endian` |
-| `is_implicit_vr` | bool | - | Implicit VR か。生成には使わない（UID から決まる） | true |
-| `is_little_endian` | bool | - | Little Endian か。生成には使わない（UID から決まる） | true |
+| `name` | string | - | 名称。作成には使わない | `Implicit VR Little Endian` |
+| `is_implicit_vr` | bool | - | Implicit VR か。作成には使わない（UID から決まる） | true |
+| `is_little_endian` | bool | - | Little Endian か。作成には使わない（UID から決まる） | true |
 
 ### 3.8 character_set
 
@@ -255,7 +255,7 @@ Little Endian）。生成できる UID は spec/06 の 9 章にある。
 
 ### 3.9 abnormal
 
-省略すると正常のデータを生成する。
+省略すると正常のデータを作成する。
 
 | フィールド | 型 | 必須 | 説明 | 既定値 |
 |-----------|-----|------|------|--------|
@@ -280,7 +280,7 @@ Little Endian）。生成できる UID は spec/06 の 9 章にある。
 
 - `modality` はモダリティテンプレートの `info.modality`（無ければ `CT`）
 - 各部分は、ファイル名に使える文字だけにしてから使う（spec/12 の 6.5）
-- 連番は 1 回の生成の中で、シリーズをまたいで 1 から数える
+- 連番は 1 回の作成の中で、シリーズをまたいで 1 から数える
 - 連番のゼロ埋めの桁数は `max(4, 総出力枚数の桁数)`。総出力枚数が 1〜9999
   なら 4 桁（`0001`〜`9999`）、10000〜99999 なら 5 桁、100000 以上なら 6 桁
   以上
@@ -293,5 +293,5 @@ Little Endian）。生成できる UID は spec/06 の 9 章にある。
 ## 6. 関連文書
 
 - [04_cli.md](04_cli.md)：Job YAML を読むコマンド
-- [06_dicom_rules.md](06_dicom_rules.md)：生成する DICOM の規則
+- [06_dicom_rules.md](06_dicom_rules.md)：作成する DICOM の規則
 - [13_device_profiles.md](13_device_profiles.md)：`device_profile`

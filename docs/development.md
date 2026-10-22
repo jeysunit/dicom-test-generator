@@ -40,7 +40,7 @@ python scripts/check_doc_dates.py origin/main..HEAD
   サーバーを起動しない
 - markdownlint（設定は `.markdownlint-cli2.yaml`）
 - ADR の最終更新日の検証（PR のときだけ）
-- 画面の CSS：`scripts/build_css.sh` で生成し直し、commit した
+- 画面の CSS：`scripts/build_css.sh` で作成し直し、commit した
   `app/web/static/app.css` と差分が無いことを確認する
 - Docker イメージ：`Dockerfile` からイメージをビルドし（push しない）、CLI が
   root 以外のユーザーで動くこと、Web 画面が `0.0.0.0` で起動して HTTP Basic 認証を
@@ -49,7 +49,7 @@ python scripts/check_doc_dates.py origin/main..HEAD
 ## 4. テスト
 
 ```bash
-# 層ごと
+# ディレクトリごと
 pytest tests/core/ -v
 pytest tests/services/ -v
 pytest tests/cli/ -v
@@ -64,17 +64,17 @@ pytest --cov=app --cov-report=term-missing
 
 ### 4.1 テストの構成
 
-テストは層に合わせてディレクトリを分ける。
+テストは `app/` のディレクトリに合わせて分ける。
 
 | ディレクトリ | 対象 |
 |--------------|------|
-| `tests/core/` | Core の各モジュール（単体）。予約の値の転記（[spec/12](spec/12_modality_emulator.md) の 6 章の表の行ごと）、4つの文字コードでのエンコードとデコード、装置プロファイルのモデル |
-| `tests/services/` | Service。テンプレート・患者・装置プロファイルの読み込みと生成 |
+| `tests/core/` | `app/core/` の各モジュール（単体）。予約の値の転記（[spec/12](spec/12_modality_emulator.md) の 6 章の表の行ごと）、4つの文字コードでのエンコードとデコード、装置プロファイルのモデル |
+| `tests/services/` | `app/services/`。テンプレート・患者・装置プロファイルの読み込みと、DICOM 画像の作成 |
 | `tests/cli/` | CLI のサブコマンドの終了コードと `--json` の形式 |
-| `tests/modality/` | `app/modality/`。MWL の C-FIND、C-STORE・C-ECHO、保管確認、MPPS |
+| `tests/modality/` | `app/modality/`。MWL の C-FIND、C-STORE・C-ECHO、保管確認（Storage Commitment）、MPPS |
 | `tests/web/` | Web 画面（FastAPI の TestClient） |
 | `tests/gui/` | デスクトップ画面（Qt の offscreen） |
-| `tests/integration/` | 層をまたぐ流れ（予約から送信まで） |
+| `tests/integration/` | モジュールをまたぐ流れ（予約から送信まで） |
 | `tests/scripts/` | `scripts/` のスクリプト |
 
 ### 4.2 通信のテスト
@@ -83,8 +83,8 @@ pytest --cov=app --cov-report=term-missing
 （`127.0.0.1`・空いているポート）に起動して実行する。この SCP はテスト用のスタブで、
 DTG の機能ではない。スタブは `tests/modality_peers.py` にある。
 
-- MWL の SCP のスタブは、予約を YAML（合成した患者だけ）から生成し、`EVT_C_FIND`
-  のハンドラーで返す。文字コードを変えた応答も生成できる
+- MWL の SCP のスタブは、予約を YAML（合成した患者だけ）から作成し、`EVT_C_FIND`
+  のハンドラーで返す。文字コードを変えた応答も作成できる
 - ポートはテストごとに空いているものを使う。固定のポートは使わない
 - 保管確認の SCP と MPPS の SCP のスタブは、結果を返す経路（同じ・別の
   Association）、返す Status、返す値をテストごとに変えられる
@@ -113,14 +113,14 @@ commit している。利用者がこれらを用意する必要は無い。
 |----------|------------|--------|--------|
 | htmx（`app/web/static/htmx.min.js`） | v2.0.9 | GitHub の bigskysoftware/htmx の releases | `57d9191515339922bd1356d7b2d80b1ee3b29f1b3a2c65a078bb8b2e8fd9ae5f` |
 | Lucide のアイコン（`app/web/static/icons/`。ISC License、同じ場所に `LICENSE`） | 1.48.0 | GitHub の lucide-icons/lucide の releases（`lucide-icons-1.48.0.zip`） | `e27a6b58bebc563581f89668a5a652782075a85a07568e4fd8051a17ce81dba6`（zip） |
-| Tailwind CSS の standalone の実行ファイル（CSS を生成するときだけ） | v4.3.3 | GitHub の tailwindlabs/tailwindcss の releases | `scripts/build_css.sh` に OS ごとに固定 |
+| Tailwind CSS の standalone の実行ファイル（CSS を作成するときだけ） | v4.3.3 | GitHub の tailwindlabs/tailwindcss の releases | `scripts/build_css.sh` に OS ごとに固定 |
 
 バージョンを上げるときは、スクリプトのバージョンと sha256 を変更して実行する。
 どちらのスクリプトも、sha256 が一致しなければ停止する。
 
 ```bash
 bash scripts/fetch_web_assets.sh   # htmx と Lucide のアイコン
-bash scripts/build_css.sh          # app/web/styles/input.css から app/web/static/app.css を生成する
+bash scripts/build_css.sh          # app/web/styles/input.css から app/web/static/app.css を作成する
 ```
 
 ## 6. 変更の手順
@@ -141,29 +141,29 @@ spec に無い機能は追加しない。仕様の不明な点を推測で補っ
 
 ## 7. コーディング規約
 
-- 層の構造は [architecture.md](architecture.md) の 2 章のとおり。UI から Core
-  Engine を直接呼ばない。Core Engine は UI・ログ・設定ファイルに依存しない
+- モジュールの依存関係は [architecture.md](architecture.md) の 2 章のとおり。
+  `app/core/` は通信・ファイルの読み書き・ログ・設定ファイルに依存しない
 - Python 3.10 以上で動作させ、型ヒントを付ける。PEP 8 に従う（ruff は、設定
   ファイルが無く、現在のコードに指摘が残っているため、CI にはまだ入れていない）
 - データモデルは Pydantic v2
 - 命名は snake_case（関数・変数）、PascalCase（クラス）、UPPER_CASE（定数）。
   マジックナンバーは定数にする
 - 1ファイル 800 行以下、1関数 50 行以下を目安にする。既存のオブジェクトを変更
-  せず、新しく生成するほうを選ぶ
+  せず、新しく作成するほうを選ぶ
 - 依存は `requirements.txt` で管理する。標準ライブラリで済むなら外部の
   パッケージを追加しない
 - 例外は [spec/08](spec/08_error_handling.md) の階層に従う。基底の例外は
   `DICOMGeneratorError` で、汎用の `Exception` や `ValueError` を直接 raise
-  しない。Core Engine は raise し、Service Layer は捕捉してログに出力し、UI Layer
-  は捕捉して利用者に表示する。`except Exception:` で握りつぶさない。エラー
-  メッセージには原因と文脈（入力の ID、処理の段階）を含める
+  しない。どのレイヤーが捕捉してログに出力するかは [architecture.md](architecture.md)
+  の 4 章のとおり。`except Exception:` で握りつぶさない。エラーメッセージには
+  原因と文脈（入力の ID、処理の名前）を含める
 - ログは [spec/09](spec/09_logging.md) に従う。`print()` ではなく `logging` を
-  使う（CLI が利用者に表示する結果とエラーを除く）。Core Engine はログを出力
+  使う（CLI が利用者に表示する結果とエラーを除く）。`app/core/` はログを出力
   しない。患者の氏名・生年月日などの個人情報と秘密情報をログに出力しない
 - CLI は [spec/04](spec/04_cli.md) に従う。結果は標準出力、エラーは標準エラー
   出力に出す。`--help` で必須の引数と使用例を示す
 - 新しい機能には、正常系と異常系のテストを追加する。カバレッジは 80% 以上を
-  目標にする。Core Engine のテストでは、ファイルやネットワークを使わない
+  目標にする。`app/core/` のテストでは、ファイルやネットワークを使わない
 
 ## 8. Git
 

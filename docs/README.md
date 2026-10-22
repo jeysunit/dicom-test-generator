@@ -7,9 +7,9 @@ DTG（dicom-test-generator）の使い方・設計・仕様・開発の手順を
 
 | ドキュメント | 内容 |
 |--------------|------|
-| [usage.md](usage.md) | 使い方：起動、Web 画面での撮影、送信の状態と再送、保管確認と MPPS、設定、CLI |
+| [usage.md](usage.md) | 使い方：起動、Web 画面での撮影、送信の状態と再送、保管確認（Storage Commitment）と MPPS、設定、CLI |
 | [project_charter.md](project_charter.md) | 目的、範囲（機能の一覧）、規格に違反しないという前提と異常のデータの扱い |
-| [architecture.md](architecture.md) | 全体の構成、層、ディレクトリ、生成の流れ |
+| [architecture.md](architecture.md) | 全体の構成、モジュールの依存関係、DICOM 画像の作成の流れ、エラーの扱い、依存するパッケージ、セキュリティ |
 | spec/（下の表） | 現在の動作 |
 | [decisions/README.md](decisions/README.md) | ADR の一覧と、ADR に固有の書き方 |
 | [roadmap.md](roadmap.md) | 未確認・未実装・未決定のもの |
@@ -20,9 +20,9 @@ DTG（dicom-test-generator）の使い方・設計・仕様・開発の手順を
 | ファイル | 内容 |
 |----------|------|
 | [01_unused.md](spec/01_unused.md) | 欠番 |
-| [02_core_engine.md](spec/02_core_engine.md) | Core Engine：UID、ピクセル、File Meta、空間座標、Dataset の構築、異常のデータ |
+| [02_core_engine.md](spec/02_core_engine.md) | Core レイヤー：UID、ピクセル、File Meta、空間座標、Dataset の構築、異常のデータ |
 | [03_data_models.md](spec/03_data_models.md) | データモデル（Pydantic） |
-| [04_cli.md](spec/04_cli.md) | 生成の CLI（`generate`・`validate`・`quick` など）と終了コード |
+| [04_cli.md](spec/04_cli.md) | DICOM 画像を作成する CLI（`generate`・`validate`・`quick` など）と終了コード |
 | [05_gui.md](spec/05_gui.md) | PySide6 のデスクトップ画面（機能は追加しない） |
 | [06_dicom_rules.md](spec/06_dicom_rules.md) | DICOM の規則：通常の経路と異常のデータの経路、File Meta、UID、Pixel Data、文字コード、Transfer Syntax |
 | [07_job_schema.md](spec/07_job_schema.md) | Job YAML のスキーマ |
@@ -30,7 +30,7 @@ DTG（dicom-test-generator）の使い方・設計・仕様・開発の手順を
 | [09_logging.md](spec/09_logging.md) | ログ |
 | [10_unused.md](spec/10_unused.md) | 欠番 |
 | [11_unused.md](spec/11_unused.md) | 欠番 |
-| [12_modality_emulator.md](spec/12_modality_emulator.md) | モダリティエミュレーター：通信、ワークリスト、予約の値の転記、文字コード、送信、保管確認、MPPS、層、設定、ログ、既知の制約、出典 |
+| [12_modality_emulator.md](spec/12_modality_emulator.md) | モダリティエミュレーター：通信、ワークリスト、予約の値の転記、文字コード、送信、保管確認、MPPS、モジュールと配置、設定、ログ、既知の制約、出典 |
 | [12a_web_screens_and_cli.md](spec/12a_web_screens_and_cli.md) | モダリティエミュレーターの Web 画面と CLI |
 | [13_device_profiles.md](spec/13_device_profiles.md) | 装置プロファイル |
 

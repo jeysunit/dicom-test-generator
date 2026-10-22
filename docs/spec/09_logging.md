@@ -5,7 +5,7 @@ DTG が出力するログの設定と内容を定める。
 ## 1. 概要
 
 - ログは Python 標準の `logging` で出力する
-- **Core（`app/core/`）はログを出力しない**。ログを出力するのは Service Layer
+- **Core（`app/core/`）はログを出力しない**。ログを出力するのは Service レイヤー
   （`app/services/`・`app/modality/`）と、CLI・PySide6 の画面・Web 画面である
 - ログの設定は設定ファイルではなく、エントリポイントのコードに固定してある。
   CLI は `app/cli/main.py` の `setup_logging`、Web 画面は
@@ -64,7 +64,7 @@ logs/
 
 ## 5. 出力するログ
 
-### 5.1 生成（`StudyGeneratorService`）
+### 5.1 作成（`StudyGeneratorService`）
 
 | 時点 | レベル | 内容 |
 |------|--------|------|
@@ -80,14 +80,14 @@ logs/
 
 ### 5.2 PySide6 の画面
 
-`GeneratorWorker` は、生成の例外を ERROR で記録する
+`GeneratorWorker` は、作成の例外を ERROR で記録する
 （`Generation error: ...`・`Unexpected error: ...`。Traceback つき。spec/08 の
 2.3）。
 
 ### 5.3 モダリティエミュレーター（`app/modality/`）
 
 通信の開始・終了・相手の Status の値・件数を INFO で記録する（C-ECHO・C-FIND・
-C-STORE・保管確認・MPPS・送信キュー）。相手の応答が不正なとき、再送や拒否の
+C-STORE・保管確認（Storage Commitment）・MPPS・送信キュー）。相手の応答が不正なとき、再送や拒否の
 ときは WARNING。詳細は [12_modality_emulator.md](12_modality_emulator.md) の
 13 章にある。
 
@@ -103,5 +103,5 @@ SOP Instance UID まで。表現できない文字で停止したときも、そ
 | テスト | 対象 |
 |--------|------|
 | `tests/cli/test_terminal.py` | 端末への出力の制御文字の処理、`setup_logging` |
-| `tests/services/test_study_generator.py` | 生成のログの内容 |
+| `tests/services/test_study_generator.py` | 作成のログの内容 |
 | `tests/services/test_study_generator_job_charset.py` | 表現できない文字をログに出さないこと |

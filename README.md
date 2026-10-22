@@ -45,7 +45,7 @@ python -m app.cli quick -p P000001 -m ct_generic -s 1 -i 3 -o output/
 ```
 
 2行目で Web 画面を起動し、<http://127.0.0.1:8080/> を開きます。3行目は、架空の
-患者の CT 画像を3枚 `output/` に生成します。
+患者の CT 画像を3枚 `output/` に作成します。
 
 ## ドキュメント
 

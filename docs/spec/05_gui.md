@@ -11,9 +11,9 @@ PySide6 のデスクトップ画面（`python -m app.gui`）の、実装済み�
 > 10 章で定める。コードは削除していない。
 
 PySide6 の画面は、Job YAML を書かずに、患者・シリーズ・出力先を選んで
-DICOM ファイルを生成するための画面である。生成の本体は Service Layer
+DICOM 画像を作成するための画面である。作成の本体は Service レイヤー
 （`StudyGeneratorService`）が持ち、画面は設定を集めて呼ぶだけにする。
-生成は別スレッド（QThread）で実行し、画面を止めない。
+作成は別スレッド（QThread）で実行し、画面を止めない。
 
 ## 2. 構成
 
@@ -24,7 +24,7 @@ app/gui/
 ├── __init__.py
 ├── __main__.py            # 起動（python -m app.gui）
 ├── main_window.py         # メインウィンドウ（MainWindow）
-├── worker_thread.py       # 生成のワーカー（GeneratorWorker、QThread）
+├── worker_thread.py       # 作成のワーカー（GeneratorWorker、QThread）
 └── widgets/
     ├── template_selector.py   # TemplateSelector
     ├── patient_form.py        # PatientForm
@@ -79,15 +79,15 @@ app/gui/
 
 - Accession Number は `MainWindow` の「検査情報」の入力欄（16 文字まで）で、
   空なら設定エラーにする
-- 検査日と検査時刻は、生成を開始した時刻から決める
+- 検査日と検査時刻は、作成を開始した時刻から決める
 - 体重と身長は画面から入力できない
 - ピクセルは `PixelSpecCTRealistic`、Transfer Syntax・文字セット・異常の設定は
   既定値で固定する。`device_profile`
   （[13_device_profiles.md](13_device_profiles.md)）は画面から選択できない
-- 出力ファイル名の規則は、CLI と同じく Service Layer が決める
+- 出力ファイル名の規則は、CLI と同じく Service レイヤーが決める
   （[03_data_models.md](03_data_models.md) の 5 章）
 
-### 2.4 生成の流れ
+### 2.4 作成の流れ
 
 1. 「生成開始」で `MainWindow._collect_config()` が各ウィジェットから
    `GenerationConfig` を作成する。作成できなければ「設定エラー」の警告の
@@ -100,7 +100,7 @@ app/gui/
 
 ## 3. 非同期処理
 
-生成は数百枚を超えることがあるので、`GeneratorWorker`（`QThread`）で実行する。
+作成は数百枚を超えることがあるので、`GeneratorWorker`（`QThread`）で実行する。
 この章の規則は GUI だけに適用する。CLI と Web 画面は別の仕組みで動作する。
 
 **規則**: ウィジェットの操作は UI スレッドだけで行い、ワーカーとの受け渡しは
@@ -133,11 +133,11 @@ MainWindow._on_generation_finished
 | 項目 | 内容 |
 |------|------|
 | 要求 | 「キャンセル」で `request_cancel()` を呼び、`cancel_requested` を設定する。ボタンは無効になり「キャンセル中...」と表示される |
-| 効果 | 要求の後は進捗のシグナルを送出しない。Service の生成は途中で止めず、`generate()` が戻った後に `cancel_requested` を確認して `generation_finished(False, "Cancelled by user")` を送出する |
-| 生成済みのファイル | 削除せず残す |
+| 効果 | 要求の後は進捗のシグナルを送出しない。Service の作成は途中で止めず、`generate()` が戻った後に `cancel_requested` を確認して `generation_finished(False, "Cancelled by user")` を送出する |
+| 作成済みのファイル | 削除せず残す |
 
-つまり、キャンセルは生成を中断せず、完了の通知を「キャンセルされた」に変える。
-枚数が多い生成を途中で止める機能は無い。
+つまり、キャンセルは作成を中断せず、完了の通知を「キャンセルされた」に変える。
+枚数が多い作成を途中で止める機能は無い。
 
 ### 3.3 終了時の後処理
 
@@ -151,7 +151,7 @@ MainWindow._on_generation_finished
 
 | ファイル | 対象 |
 |---------|------|
-| `test_main_window.py` | タイトル・サイズ・ボタンの状態・設定の収集・生成とキャンセルと終了の画面の変化 |
+| `test_main_window.py` | タイトル・サイズ・ボタンの状態・設定の収集・作成とキャンセルと終了の画面の変化 |
 | `test_widgets.py` | 各ウィジェットの値の取得 |
 | `test_worker_thread.py` | 進捗と終了のシグナル、キャンセル、例外の扱い |
 
@@ -169,4 +169,4 @@ QT_QPA_PLATFORM=offscreen pytest tests/gui/
 - ログビューア
 - スタイルシート（QSS）
 - 設定の永続化
-- 複数のワーカーによる並列生成
+- 複数のワーカーによる並列作成

@@ -1,18 +1,19 @@
-# 02. Core Engine
+# 02. Core レイヤー
 
-DICOM の生成の中核となる Core（`app/core/`）のクラスと、そのインターフェースを
-定める。Core は UI に依存せず、ログを出力しない。ログは Service Layer が出力する。
+DICOM 画像の作成の中核となる Core レイヤー（`app/core/`）のクラスと、その
+インターフェースを定める。Core レイヤーは UI レイヤーに依存せず、ログを出力
+しない。ログは Service レイヤーが出力する。
 
 ## 1. クラスの一覧
 
 | クラス名 | 責務 | モジュール |
 |---------|------|-----------|
 | `UIDGenerator` | UID の生成 | `uid_generator.py` |
-| `PixelGenerator` | ピクセルデータの生成 | `pixel_generator.py` |
+| `PixelGenerator` | ピクセルデータの作成 | `pixel_generator.py` |
 | `FileMetaBuilder` | File Meta Information の構築 | `dicom_writer.py` |
 | `SpatialCalculator` | 空間座標の計算 | `dicom_writer.py` |
 | `DICOMBuilder` | DICOM Dataset の構築 | `generator.py` |
-| `AbnormalGenerator` | 異常のデータの生成 | `abnormal_generator.py` |
+| `AbnormalGenerator` | 異常のデータの作成 | `abnormal_generator.py` |
 
 - 利用側は `from app.core import ...` で import する
 - データモデルは `models.py` にある（[03_data_models.md](03_data_models.md)）
@@ -52,7 +53,7 @@ class UIDGenerator:
 - `StudyGeneratorService` は `generate_instance_creator_uid` を使わない。
   Instance Creator UID と Implementation Class UID は、
   `app/services/study_generator.py` の定数（`INSTANCE_CREATOR_UID`・
-  `IMPLEMENTATION_CLASS_UID`）で、すべての生成で同じ値を使う
+  `IMPLEMENTATION_CLASS_UID`）で、すべての作成で同じ値を使う
   （PS3.7 D.3.3.2、PS3.10 7.1。[06_dicom_rules.md](06_dicom_rules.md)）
 
 ### 2.2 生成の規則
@@ -60,7 +61,7 @@ class UIDGenerator:
 - **UUID 2.25**：`2.25.` の後に `uuid.uuid4().int` の 10 進数を連結する
 - **カスタムの根**：`{root}.{counter}` の連番。`run_scoped=True` なら
   `{root}.{run_id}.{counter}`。`run_id` は生成器ごとの 64 ビットの乱数で、
-  連番が生成のたびに 1 に戻っても、前の生成の UID と重複する確率は
+  連番が作成のたびに 1 に戻っても、前の作成の UID と重複する確率は
   無視できる（UID は世界で一意。PS3.5 9。一意性は 2.25 と同じく確率による）
 - **根の形式**（PS3.5 9.1）：数字と `.` だけ、2 成分以上、最初の成分は
   0・1・2（0・1 なら 2 番目は 0〜39）、成分の先頭に 0 を置かない（`0` だけの
@@ -74,7 +75,7 @@ class UIDGenerator:
 
 ## 3. PixelGenerator
 
-ピクセルデータ（numpy の配列）を生成する。
+ピクセルデータ（numpy の配列）を作成する。
 
 ### 3.1 インターフェース
 
@@ -220,7 +221,7 @@ class DICOMBuilder:
 `DICOMBuilder` は患者・スタディ・シリーズ・画像・空間座標・ピクセルの各タグを
 設定するだけで、テンプレートの属性・予約の値・装置プロファイルは重ねない。
 重ねる順序は `StudyGeneratorService` が持つ（[architecture.md](../architecture.md)
-の「生成の流れ」）。異常値の注入も `DICOMBuilder` は行わない。
+の「作成の流れ」）。異常値の注入も `DICOMBuilder` は行わない。
 
 失敗はすべて `DICOMBuildError` として送出する。
 
@@ -250,7 +251,7 @@ class DICOMBuilder:
    Slice Location・Slice Thickness・Pixel Spacing。DS は 16 文字以内。
    [06_dicom_rules.md](06_dicom_rules.md) の「DS の書き方」）
 9. Pixel Data を設定する（6.3）
-10. Transfer Syntax を検証する。生成できるのは Implicit VR Little Endian と
+10. Transfer Syntax を検証する。作成できるのは Implicit VR Little Endian と
     Explicit VR Little Endian だけで、Explicit VR Big Endian（廃止。PS3.5 A.3）
     とそのほかの値はエラーにする
 
@@ -273,7 +274,7 @@ class DICOMBuilder:
 
 ## 7. AbnormalGenerator
 
-異常のデータ（不正な値）を生成する。
+異常のデータ（不正な値）を作成する。
 
 ### 7.1 インターフェース
 
@@ -345,17 +346,17 @@ def apply_abnormal_to_dataset(
   文字列の VR に入る整数は、文字列にして入れる
 - Study Instance UID を削除した画像でも撮影の結果を返せるよう、画像から Study UID
   を読み取る処理は、タグが無ければ空にする
-- **定義の範囲**：異常のデータで生成する規格の違反は、上の表のタグの壊し方・
+- **定義の範囲**：異常のデータで作成する規格の違反は、上の表のタグの壊し方・
   Pixel Data の削除・`allow_invalid_sop_uid` の SOP Instance UID の 0 始まり
   だけ。Transfer Syntax・画素値・File Meta は定義に含まれない（廃止された
-  Explicit VR Big Endian は異常のデータでも生成しない）。通常の経路の規格の
+  Explicit VR Big Endian は異常のデータでも作成しない）。通常の経路の規格の
   チェックは、この定義の壊し方を妨げない（[06_dicom_rules.md](06_dicom_rules.md)
   の「通常の経路と異常のデータの経路」、
   [ADR-0014](../decisions/0014-separate-normal-and-abnormal-paths.md)）
 
-### 7.4 生成への組み込み
+### 7.4 作成への組み込み
 
-`StudyGeneratorService.generate` は、`abnormal.level` で生成した
+`StudyGeneratorService.generate` は、`abnormal.level` で作成した
 `AbnormalGenerator` を、Dataset を組み立てた後（テンプレート・予約・
 装置プロファイルを適用した後）に、画像1枚ごとに適用する。`generate` を経由する
 経路（`generate`・`quick`・モダリティエミュレーターの撮影・GUI）はすべてこの
@@ -400,7 +401,7 @@ Pure な処理のモジュール。どれも通信・ファイル・ログを使
 | `tests/core/test_dicom_writer.py` | `FileMetaBuilder`・`SpatialCalculator` |
 | `tests/core/test_dicom_builder.py`・`test_ct_image_conformance.py` | `DICOMBuilder` が構築した Dataset のタグ |
 | `tests/core/test_abnormal_generator.py` | `AbnormalGenerator`・`apply_abnormal_to_dataset` |
-| `tests/services/test_study_generator.py` | Service を含めた生成 |
+| `tests/services/test_study_generator.py` | Service を含めた作成 |
 | `tests/integration/test_modality_flow.py` | 予約から送信までの流れ |
 
 テストの構成は [development.md](../development.md) の「テスト」を参照。
@@ -408,4 +409,4 @@ Pure な処理のモジュール。どれも通信・ファイル・ログを使
 ## 10. 関連する文書
 
 - [03_data_models.md](03_data_models.md)：データモデル
-- [architecture.md](../architecture.md)：Core を使う Service Layer の手順
+- [architecture.md](../architecture.md)：Core レイヤーを使う DICOM 画像の作成の流れ

@@ -53,7 +53,7 @@ class Patient(BaseModel):
 
 - `size` は cm で持ち、DICOM に書くときに `size_in_meters`（`size / 100`）で
   m へ換算する（[ADR-0007](../decisions/0007-patient-size-in-centimeters.md)）
-- `age` は入力を受け付けるだけで、生成には使わない。Patient's Age は生年月日と
+- `age` は入力を受け付けるだけで、作成には使わない。Patient's Age は生年月日と
   検査日から算出する（[02_core_engine.md](02_core_engine.md) の 6.2）
 - `patient_comments` は入力を受け付けるだけで、画像には書かない
 - `birth_date` のパターンは形（8 桁の数字）だけを検証する。暦として有効な日付か
@@ -73,7 +73,7 @@ class StudyConfig(BaseModel):
     num_series: int = Field(..., ge=1, le=100, description="シリーズ数")
 ```
 
-`num_series` は検証するだけで、生成するシリーズの数は
+`num_series` は検証するだけで、作成するシリーズの数は
 `GenerationConfig.series_list` の件数で決まる。
 
 ### 3.2 SeriesConfig
@@ -108,7 +108,7 @@ class UIDContext(BaseModel):
 ```
 
 Study 単位で共通の UID を持つ。Series Instance UID と SOP Instance UID は
-画像ごとに生成するので含めない。
+画像ごとに作成するので含めない。
 
 ### 3.5 SpatialCoordinates
 
@@ -126,7 +126,7 @@ class SpatialCoordinates(BaseModel):
 `SpatialCalculator` は `image_orientation_patient` と `pixel_spacing` を
 設定しないので、どちらも既定値になる。
 
-## 4. 生成の設定
+## 4. 作成の設定
 
 ### 4.1 PixelSpec
 
@@ -150,7 +150,7 @@ PixelSpec = PixelSpecSimple | PixelSpecCTRealistic
 ```
 
 - `PixelSpecSimple` の `background_color`・`text_color`・`font_size` は検証する
-  だけで、生成には使わない。Simple Text は黒の背景・白の文字・16 ポイントで
+  だけで、作成には使わない。Simple Text は黒の背景・白の文字・16 ポイントで
   描画する（[02_core_engine.md](02_core_engine.md) の 3.1）
 - Simple Text の画像は Bits Stored 12 で書く
 
@@ -164,7 +164,7 @@ class TransferSyntaxConfig(BaseModel):
     is_little_endian: bool = Field(True, description="Little Endian か")
 ```
 
-生成で使うのは `uid` だけ。生成できる値は [02_core_engine.md](02_core_engine.md)
+作成で使うのは `uid` だけ。作成できる値は [02_core_engine.md](02_core_engine.md)
 の 6.2 にある。
 
 ### 4.3 CharacterSetConfig
@@ -191,13 +191,13 @@ class AbnormalConfig(BaseModel):
     invalid_sop_uid_probability: float = Field(0.1, ge=0.0, le=1.0, description="不正UID生成確率")
 ```
 
-`invalid_sop_uid_probability` は検証するだけで、生成には使わない。
+`invalid_sop_uid_probability` は検証するだけで、作成には使わない。
 0 始まりの SOP Instance UID の確率は 10% に固定している
 （[02_core_engine.md](02_core_engine.md) の 2.1）。
 
 ### 4.5 GenerationConfig
 
-Job YAML から読み込む、生成の全体の設定。
+Job YAML から読み込む、作成の全体の設定。
 
 ```python
 class GenerationConfig(BaseModel):
@@ -236,11 +236,11 @@ Patient ID などの値を、禁止文字のある値として検証で拒否す
 ファイル名とフォルダ名に使うときに、Core の `path_safety` が決まった文字だけに
 置き換える（[02_core_engine.md](02_core_engine.md) の 8 章）。
 
-## 5. 生成の結果
+## 5. 作成の結果
 
-生成の結果を表すモデルは持たない。`StudyGeneratorService.generate` は、出力の
+作成の結果を表すモデルは持たない。`StudyGeneratorService.generate` は、出力の
 フォルダの `Path` を返し、失敗は例外（[08_error_handling.md](08_error_handling.md)）
-で伝える。進捗は `progress_callback(生成した枚数, 総枚数)` で渡す。
+で伝える。進捗は `progress_callback(作成した枚数, 総枚数)` で渡す。
 
 出力のファイル名は `<Patient ID>_<検査日>_<モダリティ>_<連番>.dcm` で、各部分は
 `path_safety` で安全な文字だけにする。連番のゼロ埋めの桁数は
@@ -311,7 +311,7 @@ class ScheduledContext(BaseModel):
   SOP Instance UID。画像の Referenced Performed Procedure Step Sequence に
   転記する（IHE RAD TF-2x A.1.3・A.2.2）
 - `GenerationConfig.patient`（`Patient`）は変えない。予約から撮影するとき
-  `ModalityService` は、生成のための仮の `Patient` を作成して
+  `ModalityService` は、作成のための仮の `Patient` を作成して
   `GenerationConfig` に入れ、画像の患者の値は `ScheduledContext` で
   上書きする（生年月日が空なら仮の生年月日は検査日にし、画像では
   空にして Patient's Age を出力しない）

@@ -10,9 +10,9 @@
 
 | コマンド | 説明 |
 |---------|------|
-| `generate` | Job YAML から生成する |
-| `validate` | Job YAML を検証する（生成しない） |
-| `quick` | Job YAML を使わず、引数だけで生成する |
+| `generate` | Job YAML から作成する |
+| `validate` | Job YAML を検証する（作成しない） |
+| `quick` | Job YAML を使わず、引数だけで作成する |
 | `version` | バージョンを表示する |
 | `profiles list` | 読み込める装置プロファイルの一覧 |
 | `echo` | C-ECHO |
@@ -45,7 +45,7 @@ python -m app.cli generate <job_file> [options]
 | `--verbose` | `-v` | コンソールに DEBUG 以上のログを出力する | false |
 | `--quiet` | `-q` | コンソールに ERROR 以上のログだけを出力し、進捗バーを出さない | false |
 | `--log-file FILE` | | ログファイルのパス | `logs/dicom_generator.log` |
-| `--dry-run` | | Job YAML を検証するだけで、生成しない | false |
+| `--dry-run` | | Job YAML を検証するだけで、作成しない | false |
 | `--profile NAME` | | 装置プロファイル（Job YAML の `device_profile` を上書き） | Job YAML の値 |
 | `--abnormal-level L` | | 異常のデータのレベル（`none`・`mild`・`moderate`・`severe`。Job YAML の `abnormal.level` を上書きし、`abnormal` のほかのキーは残す。[02](02_core_engine.md) の 7 章） | Job YAML の値（無ければ `none`） |
 
@@ -53,7 +53,7 @@ python -m app.cli generate <job_file> [options]
 
 ### 2.2 出力
 
-- 生成が完了したら、標準出力に `Generation completed: <出力フォルダ>` を出力する
+- 作成が完了したら、標準出力に `Generation completed: <出力フォルダ>` を出力する
 - ログはコンソール（標準エラー出力）とログファイルに出力する（9 章）
 - 出力ファイル名の規則は [03_data_models.md](03_data_models.md) の 5 章にある
 - `--dry-run` のときは、標準出力に次を出力して終了コード 0 で終わる
@@ -68,7 +68,7 @@ Total Images: 41
 
 ## 3. validate
 
-Job YAML を検証するだけで、DICOM は生成しない。
+Job YAML を検証するだけで、DICOM は作成しない。
 
 ```bash
 python -m app.cli validate <job_file>
@@ -89,7 +89,7 @@ Total Images: 41
 
 ## 4. quick
 
-Job YAML を使わず、コマンドラインの引数だけで生成する。
+Job YAML を使わず、コマンドラインの引数だけで作成する。
 
 ```bash
 python -m app.cli quick [options]
@@ -125,7 +125,7 @@ python -m app.cli quick [options]
   Transfer Syntax（`--profile` が無いとき）は既定値を使う
 - 進捗バーは出さない。`--verbose`・`--quiet`・`--log-file` は無く、ログは
   既定のログファイルとコンソール（INFO 以上）に出力する
-- 生成が完了したら、標準出力に `Generation completed: <出力フォルダ>` を出力する
+- 作成が完了したら、標準出力に `Generation completed: <出力フォルダ>` を出力する
 
 ## 5. version
 
@@ -147,7 +147,7 @@ Python と PyDicom の行は、実行した環境のバージョンになる。
 | コード | 意味 | 例外 |
 |-------|------|------|
 | 0 | 成功 | |
-| 1 | 一般エラー（生成の失敗） | 2〜5 の例外以外の `DICOMGeneratorError` とそのほかの例外 |
+| 1 | 一般エラー（作成の失敗） | 2〜5 の例外以外の `DICOMGeneratorError` とそのほかの例外 |
 | 2 | 設定エラー（Job YAML の構文エラー・テンプレート・装置プロファイル・患者マスターのエラー、modality の設定のエラー） | `ConfigurationError`・`ModalityConfigError` |
 | 3 | ファイル I/O のエラー（Job YAML が無いなど） | `IOError`（`app.core.exceptions`） |
 | 4 | バリデーションエラー（Job YAML の値の検証エラー・予約の値を転記できない・表現できない文字を含む） | `ValidationError`（Pydantic と `app.core.exceptions`）・`WorklistMappingError` |
@@ -158,7 +158,7 @@ Python と PyDicom の行は、実行した環境のバージョンになる。
 
 ## 7. 進捗の表示
 
-`generate` で画像を生成している間は、`app/cli/progress.py` が tqdm の進捗バーを
+`generate` で画像を作成している間は、`app/cli/progress.py` が tqdm の進捗バーを
 標準エラー出力に出す。`--quiet` のときは出さない。
 
 ```text

@@ -1,7 +1,7 @@
 # 12. モダリティエミュレーター
 
 この文書は、モダリティエミュレーターの通信・予約の値の転記・文字コード・送信・
-層と配置・設定・ログ・既知の制約を定める。Web 画面と CLI は
+モジュールと配置・設定・ログ・既知の制約を定める。Web 画面と CLI は
 [12a_web_screens_and_cli.md](12a_web_screens_and_cli.md) にある。
 
 | 文書 | 章 |
@@ -16,11 +16,11 @@
 ## 要約
 
 DTG は、本物のモダリティと同じ順序で動作する。ワークリストを取得し
-（C-FIND MWL の SCU）、予約の値を転記した画像を生成し、PACS へ送信する
+（C-FIND MWL の SCU）、予約の値を転記した画像を作成し、PACS へ送信する
 （C-STORE の SCU）。例外は3つある。
 
 1. 予約の無い「緊急の患者」は、値を手入力し、IHE の予約なしの形式に従う
-2. 保管確認（Storage Commitment の SCU）は選択できる形にする
+2. 保管確認（Storage Commitment）の SCU は選択できる形にする
 3. MPPS（N-CREATE・N-SET の SCU）は、相手が受け付けるときだけ使う
 
 画面は Web 画面（サーバー側で描画する。FastAPI・Jinja2・HTMX・Tailwind CSS）で
@@ -36,7 +36,7 @@ DTG は診療のためではなく、システムのテストでモダリティ�
 [ADR-0020](../decisions/0020-mpps-optional-with-retry-queue.md)・
 [ADR-0021](../decisions/0021-test-only-commitment-and-mpps-peers.md)
 
-> **Not for Diagnostic Use / 非医療機器。** 生成する画素は合成したもので、臨床に
+> **Not for Diagnostic Use / 非医療機器。** 作成する画素は合成したもので、臨床に
 > 使えない。本番の PACS への接続は範囲外。テスト用の PACS・RIS にだけ接続する。
 
 ---
@@ -75,12 +75,12 @@ RIS（ワークリスト）→ モダリティ → PACS
 
 ### デスクトップ画面（spec/05）との関係
 
-- [05_gui.md](05_gui.md) は、生成のための PySide6 の画面の仕様で、この文書の
+- [05_gui.md](05_gui.md) は、作成のための PySide6 の画面の仕様で、この文書の
   画面とは別のもの
 - モダリティの画面はこの文書と 12a で定め、Web 画面にする
   （ADR-0011。ADR-0003 をモダリティの画面については置き換える）
-- 生成の処理（テンプレート・異常のデータ・ピクセル）は共通で、どちらの画面も
-  Service Layer を経由して使う
+- DICOM 画像の作成（テンプレート・異常のデータ・ピクセル）は共通で、どちらの
+  画面も Service レイヤーを経由して使う
 
 ---
 
@@ -91,7 +91,7 @@ RIS（ワークリスト）→ モダリティ → PACS
 | 予約 | ワークリストの1件（Scheduled Procedure Step） |
 | ワークリストの取得先 | MWL の SCP（RIS・Orthanc の Worklists など） |
 | 送信先 | Storage の SCP（PACS） |
-| 撮影 | 予約の値で合成の画像を生成すること（DTG では生成） |
+| 撮影 | 予約の値で合成の画像を作成すること |
 | 緊急の患者 | 予約なしで撮影する患者（IHE の Unscheduled Case） |
 | 保管確認 | Storage Commitment。送信した画像を相手が保管したかを問い合わせる |
 | MPPS | 撮影の開始と終了を相手に通知する（N-CREATE・N-SET） |
@@ -117,8 +117,8 @@ Number）、検査、シリーズ、緊急、送信完了。
 3. 撮影の画面で、テンプレート・シリーズ数・画像数・異常のデータを選択する
    └ 予約の値は読み取り専用（書き換えない）
    └ MPPS を使うなら、撮影の開始で N-CREATE（IN PROGRESS）
-4. 「撮影」で画像を生成し、送信キューに入れる
-   └ MPPS を使うなら、生成の終了で N-SET（COMPLETED）
+4. 「撮影」で画像を作成し、送信キューに入れる
+   └ MPPS を使うなら、作成の終了で N-SET（COMPLETED）
 5. PACS へ送信する（撮影の画面の「撮影して送る」なら続けて送信する）
    └ 送信完了・送信失敗を確認する。失敗は再送
 6. 保管確認を使うなら、結果（確認済・確認の失敗）を確認する
@@ -267,14 +267,14 @@ Association を切断し、`WorklistQueryError`（終了コード 5）で停止�
 
 ### 6.1 規則
 
-**予約にある値は、そのまま転記する。** 予約に無い値は、DTG が生成するか空にする。
+**予約にある値は、そのまま転記する。** 予約に無い値は、DTG が作成するか空にする。
 出典は IHE RAD TF-2x Appendix A の Table A.1-1（予約どおりの形式）と Table A.1-2
 （予約なしの形式）。IHE は、モダリティが予約の値を画像のヘッダーに入れることを
 求める（RAD TF-2 4.8.1・4.8.4.1.2）。
 
 ### 6.2 表
 
-「転記」は予約の値をそのまま使う。「生成」は DTG が生成する。
+「転記」は予約の値をそのまま使う。「作成」は DTG が作成する。
 
 | 画像の属性 | Tag | 予約あり | 予約なし（緊急） | 出典 |
 |------------|-----|----------|------------------|------|
@@ -287,12 +287,12 @@ Association を切断し、`WorklistQueryError`（終了コード 5）で停止�
 | Patient's Weight | (0010,1030) | 転記（あれば。kg） | 出力しない（CLI では入力しない） | 同上 |
 | Patient's Size | (0010,1020) | 転記（あれば。DICOM の m の値をそのまま転記する。内部の `Patient.size`（cm）は経由しない） | 出力しない（CLI では入力しない） | 同上、ADR-0007 |
 | Patient's Age | (0010,1010) | 生年月日と検査日から算出。生年月日が空なら出力しない | 同じ | ADR-0008 |
-| Study Instance UID | (0020,000D) | **予約にあれば転記する。無ければ生成する**（2.25） | 生成 | RAD TF-2x Table A.1-1・A.1-2、RAD TF-2 4.8.4.1.1.1、ADR-0017 |
+| Study Instance UID | (0020,000D) | **予約にあれば転記する。無ければ生成する**（2.25） | 作成 | RAD TF-2x Table A.1-1・A.1-2、RAD TF-2 4.8.4.1.1.1、ADR-0017 |
 | Accession Number | (0008,0050) | 転記 | **空（長さ0）** | 同上（IHE-A.1.1） |
 | Issuer of Accession Number Sequence | (0008,0051) | 転記（あれば） | 空 | Table A.1-1 |
 | Referenced Study Sequence | (0008,1110) | 転記（あれば） | 出力しない | Table A.1-1 |
 | Referring Physician's Name | (0008,0090) | 転記 | 空 | RAD TF-2 Table 4.5-3 |
-| Study ID | (0020,0010) | Requested Procedure ID | 生成（連番。`E` と 6 桁。状態の保存先の SQLite で採番する） | Table A.1-1（IHE の推奨） |
+| Study ID | (0020,0010) | Requested Procedure ID | 作成（連番。`E` と 6 桁。状態の保存先の SQLite で採番する） | Table A.1-1（IHE の推奨） |
 | Study Description | (0008,1030) | Requested Procedure Description | 撮影の画面の入力 | この仕様の決定（慣習。IHE の表には無い） |
 | Study Date・Time | (0008,0020)・(0008,0030) | 撮影した日時 | 同じ | この仕様の決定 |
 | Procedure Code Sequence | (0008,1032) | Requested Procedure Code Sequence を転記 | 入れない | Table A.1-1 |
@@ -303,14 +303,14 @@ Association を切断し、`WorklistQueryError`（終了コード 5）で停止�
 | >Scheduled Procedure Step Description | (0040,0007) | 転記 | — | 同上 |
 | >Scheduled Protocol Code Sequence | (0040,0008) | 転記 | — | 同上 |
 | >Reason for the Requested Procedure | (0040,1002) | 転記（あれば） | — | 同上 |
-| Performed Procedure Step ID | (0040,0253) | 生成（連番。`PPS` と 6 桁） | 生成（同じ） | Table A.1-1（IHE-A.1.2） |
+| Performed Procedure Step ID | (0040,0253) | 作成（連番。`PPS` と 6 桁） | 作成（同じ） | Table A.1-1（IHE-A.1.2） |
 | Performed Procedure Step Start Date・Time | (0040,0244)・(0040,0245) | Study Date・Time と同じ | 同じ | Table A.1-1（IHE の推奨） |
 | Performed Procedure Step Description | (0040,0254) | Study Description と同じ | 同じ | 同上 |
 | Referenced Performed Procedure Step Sequence | (0008,1111) | MPPS を使うときだけ、その SOP Instance UID | 同じ | Table A.1-1（IHE-A.1.3） |
 | Modality | (0008,0060) | テンプレートの値。予約の値と異なれば撮影の画面で停止する | テンプレートの値 | この仕様の決定 |
 | Institution Name | (0008,0080) | 転記（あれば）。無ければ病院テンプレート | 病院テンプレート | Table A.1-1（Enterprise Identity Option のとき） |
 | Station Name | (0008,1010) | テンプレートの値 | 同じ | — |
-| Series Instance UID・Frame of Reference UID | (0020,000E)・(0020,0052) | Series Instance UID はシリーズごとに生成する。Frame of Reference UID は既存の生成のとおり検査ごとに1つ生成する | 同じ | RAD TF-2 4.8.4.1.1.1 |
+| Series Instance UID・Frame of Reference UID | (0020,000E)・(0020,0052) | Series Instance UID はシリーズごとに生成する。Frame of Reference UID は既存の作成のとおり検査ごとに1つ生成する | 同じ | RAD TF-2 4.8.4.1.1.1 |
 | Source Application Entity Title（File Meta） | (0002,0016) | 自分の AE タイトル | 同じ | PS3.10 |
 
 Scheduled Station AE Title (0040,0001) は画像に転記する属性ではない。検索条件に
@@ -321,14 +321,14 @@ Scheduled Station AE Title (0040,0001) は画像に転記する属性ではな�
 
 - **Study Instance UID は予約から転記する**
   （[ADR-0017](../decisions/0017-copy-study-instance-uid-from-worklist.md)）。
-  予約に無いときは生成し、撮影の画面に「予約に Study Instance UID が無いため、
+  予約に無いときは UID を生成し、撮影の画面に「予約に Study Instance UID が無いため、
   このツールが作りました」と表示する
 - **生年月日・性別が空の予約も撮影できる。** どちらもワークリストでは Type 2 で、
   空で返ることがある（PS3.4 Table K.6-1）。空なら画像にも空で転記し（Type 2）、
   Patient's Age は出力しない。撮影の画面に「生年月日が空です」と表示する。既存の
   `Patient` のモデル（[03_data_models.md](03_data_models.md)。生年月日 8 桁・
   性別 M/F/O が必須）は変えず、予約からの経路では空を許す別のモデル
-  （`ScheduledPatient`）を使う。生成の設定へ渡す処理は 03 に書いてある
+  （`ScheduledPatient`）を使う。作成の設定へ渡す処理は 03 に書いてある
 - 異常のデータ（`abnormal`）は、転記した値にも適用される。異常のレベルを上げると、
   転記した値が壊れることがある。画面の「異常のデータ」にその旨を表示する
 - 同じ予約で2回撮影すると、同じ Study に新しいシリーズを追加する（Study Instance
@@ -347,7 +347,7 @@ Sequence）、患者の値、Performed Procedure Step ID・Start Date・Start Ti
 Description、Modality、Performed Station AE Title（自分の AE タイトル）。
 
 N-SET（状態 `COMPLETED`・`DISCONTINUED`）で Performed Series Sequence
-（シリーズごとの Series Instance UID と、生成した画像の SOP Class・Instance UID）と
+（シリーズごとの Series Instance UID と、作成した画像の SOP Class・Instance UID）と
 End Date・Time を送信する。Performed Series Sequence はこの時点で空にしない
 （PS3.4 F.7.2 の表 F.7.2-1 の Note 2）。画像が 1 枚も無ければ、画像の無い
 シリーズの項目を 1 つ入れる（Series Instance UID は新しく生成し、Protocol Name は
@@ -373,7 +373,7 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID (0008,1155)
   追加する（`app/core/path_safety.py`）
 - 組み立てたパスは `resolve()` して、出力のルートフォルダの中にあることを確認する。
   外なら書き出さずに停止する（`FileWriteError`。終了コード 3）
-- Job YAML の Patient ID から作るファイル名（既存の生成）も同じ規則で作る
+- Job YAML の Patient ID から作るファイル名（既存の作成）も同じ規則で作る
 - 撮影の前に、転記する値の形式を検証する。外れたら撮影せずに
   `WorklistMappingError`（終了コード 4）で停止する
   - Patient ID は空でなく 16 文字まで（spec/03 の `Patient`・`ScheduledPatient`
@@ -442,7 +442,7 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID (0008,1155)
 
 | 状態（画面の表示） | 意味 | 次の操作 |
 |--------------------|------|----------|
-| 待機中 | 生成したが、まだ送信していない | 送信 |
+| 待機中 | 作成したが、まだ送信していない | 送信 |
 | 送信中 | Association を確立して送信している | — |
 | 送信完了 | C-STORE の応答が Success（0x0000）か Warning（0xB000 など） | 保管確認を要求 |
 | 送信失敗 | Association を確立できない、相手が Failure を返した、タイムアウト | 再送 |
@@ -562,7 +562,7 @@ N-EVENT-REPORT も受ける。
 
 - ワークリストの取得先（または別の MPPS の相手）ごとに、MPPS を使うかを選択する。
   既定は使わない（4.2 のとおり Orthanc は受け付けない）
-- 撮影の開始で N-CREATE（IN PROGRESS）、生成の終了で N-SET（COMPLETED）。
+- 撮影の開始で N-CREATE（IN PROGRESS）、作成の終了で N-SET（COMPLETED）。
   撮影が止まったら N-SET（DISCONTINUED）
 - MPPS が失敗しても撮影と送信は止めない。失敗は画面とログに出す
 
@@ -575,17 +575,17 @@ N-EVENT-REPORT も受ける。
 装置プロファイルが `services.mpps: false` なら、設定で選択していても送信しない
 （spec/13 の 8）。
 
-- 撮影の開始は、撮影の値の検証が終わり、画像の生成を始める直前（N-CREATE）。
-  生成の終了は画像を書き出し終えた直後（N-SET COMPLETED）
-- 撮影が止まったとき（N-CREATE を送信した後、画像の生成の途中のエラー・表現できない
+- 撮影の開始は、撮影の値の検証が終わり、画像の作成を始める直前（N-CREATE）。
+  作成の終了は画像を書き出し終えた直後（N-SET COMPLETED）
+- 撮影が止まったとき（N-CREATE を送信した後、画像の作成の途中のエラー・表現できない
   文字など）は、N-SET（DISCONTINUED）を送信する。画面と CLI には、撮影を取り消す
   操作は無い
 - 予約に Study Instance UID が無いときは、N-CREATE より前に DTG が UID を生成し、
-  その UID で画像も生成する（MPPS と画像の Study をそろえる）
+  その UID で画像も作成する（MPPS と画像の Study をそろえる）
 - MPPS の SOP Instance UID も N-CREATE で決まるので、画像の Referenced Performed
   Procedure Step Sequence にその UID を入れる（6.2 の表。IHE RAD TF-2x A.1.3・
   A.2.2）
-- 送信する値は 6.4 のとおり。Performed Series Sequence は生成した画像のヘッダー
+- 送信する値は 6.4 のとおり。Performed Series Sequence は作成した画像のヘッダー
   から組み立てる（シリーズごとに Series Instance UID・Series Description・
   Protocol Name と、画像の Referenced SOP Class・Instance UID）
 - DISCONTINUED では、停止する前に書き出せた画像も通知する（PS3.4 F.7.2.2.2）。
@@ -620,7 +620,7 @@ N-EVENT-REPORT も受ける。
   できた処理だけが送信し、終わったらロックを解放する。取得できなかった行は、その回
   は送信せずに残す（`mpps retry` の結果では未送信の件に数える）。画面の撮影・
   複数の CLI の間で有効
-- 画像を書き出せなかった（OSError）・生成した画像のヘッダーを読めないときも、
+- 画像を書き出せなかった（OSError）・作成した画像のヘッダーを読めないときも、
   N-CREATE を送信していれば DISCONTINUED を残す（開いたままにしない）
 - MPPS の SOP Instance UID は DTG が生成する（2.25 の UUID の形式）
 
@@ -637,41 +637,30 @@ N-EVENT-REPORT も受ける。
 
 ---
 
-## 9. 層と配置
+## 9. モジュールと配置
 
 ### 9.1 規則
 
-**モダリティの通信と手順は `app/modality/` に置き、Service Layer の一部として
-扱う。** UI（`app/cli/`・`app/web/`）からだけ呼ばれ、下の `app/services/` と
-`app/core/` を使う。例外は2つ。
+**モダリティの通信と手順は `app/modality/` に置き、Service レイヤーの一部として
+扱う。** モジュールの依存関係は [architecture.md](../architecture.md) の 2 章の
+とおり。例外は2つ。
 
-1. 予約から生成の設定への転記（6 章）は、通信が不要な Pure な処理なので
+1. 予約の値から作成の設定への転記（6 章）は、通信が不要な処理なので
    `app/core/worklist_mapping.py` に置く
 2. 保管確認の待ち受け（N-EVENT-REPORT を受ける）は SCP の機能だが、SCU の手順の
    一部なので `app/modality/` に置く
 
-### 9.2 依存の向き
+### 9.2 外部のパッケージ
 
-```text
-Web (app/web/) ─┐
-CLI (app/cli/) ─┤→ Modality (app/modality/) → Service (app/services/)
-                │                                   ↓
-GUI (app/gui/) ─┴→ Service (app/services/) ──→ Core (app/core/)
-```
-
-- `app/modality/` が import する**このプロジェクトの中の**層は `app/services/`・
-  `app/core/` だけ。`app/cli/`・`app/web/`・`app/gui/` を import しない。外部の
-  パッケージ（pynetdicom・pydicom・Pydantic・PyYAML）と標準ライブラリ
-  （`sqlite3` など）は使ってよい。通信と永続化を Core へ移さない（Core は Pure の
-  まま）
-- [architecture.md](../architecture.md) の層の図も同じ
+`app/modality/` は外部のパッケージ（pynetdicom・pydicom・Pydantic・PyYAML）と
+標準ライブラリ（`sqlite3` など）を使う。通信と永続化は `app/core/` へ移さない。
 
 ### 9.3 ファイルの配置
 
 ```text
 app/
 ├── core/
-│   ├── worklist_mapping.py   # 予約 → 生成の設定（Pure）
+│   ├── worklist_mapping.py   # 予約 → 作成の設定（Pure）
 │   ├── worklist_charset.py   # 画像の文字コードの決定・表現できない文字（Pure）
 │   └── models.py             # WorklistItem・ScheduledContext
 ├── modality/
@@ -692,7 +681,7 @@ app/
 │   ├── auth.py               # 待ち受けのアドレスと認証
 │   ├── routes/               # worklist・exam・pacs・settings
 │   ├── templates/            # Jinja2
-│   └── static/               # 生成した CSS・htmx・Lucide の SVG
+│   └── static/               # 作成した CSS・htmx・Lucide の SVG
 └── cli/
     ├── main.py               # サブコマンドの引数
     └── modality_commands.py  # worklist・exam・send・echo・queue・commit・mpps
@@ -701,10 +690,10 @@ app/
 この図は、モダリティエミュレーターのファイルだけを示す（`app/core/` のほかの
 モジュールは spec/02、`app/web/` の詳細は 12a）。
 
-### 9.4 Service Layer との関係
+### 9.4 `app/services/` との関係
 
 - `StudyGeneratorService.generate` は、外部から Study Instance UID と予約の値
-  （`ScheduledContext`）を受け取れる。渡さなければ、Job からの生成と同じ動作
+  （`ScheduledContext`）を受け取れる。渡さなければ、Job からの作成と同じ動作
 - 既存の `GenerationConfig` の制約（Patient ID 16 文字・Accession Number
   16 文字など）は予約の値にも適用する。予約の値が制約を超えたら撮影の画面で停止し、
   どの値かを表示する
@@ -828,7 +817,7 @@ REST でワークリストを作成し、C-FIND MWL（pynetdicom）で取得し�
 DTG への影響：
 
 - Orthanc の Worklists を相手にするとき、予約は UTF-8 で作成する。DTG は `auto` で
-  UTF-8 の画像を生成する。JIS の画像が必要なテストでは、撮影の画面か `--charset` で
+  UTF-8 の画像を作成する。JIS の画像が必要なテストでは、撮影の画面か `--charset` で
   `jis`・`jis_kana` を選択する
 - ワークリストの値が既に消えていても、DTG は気付けない（応答は正しい形式で来る）。
   漢字・かなの成分が空の予約を取得したときは、一覧に「漢字・かなが空」の印を

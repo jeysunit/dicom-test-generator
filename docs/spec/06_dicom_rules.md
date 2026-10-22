@@ -1,6 +1,6 @@
 # 06. DICOM の規則
 
-DTG が生成する DICOM ファイルの属性・値・符号化の規則を定める。値・Type・
+DTG が作成する DICOM ファイルの属性・値・符号化の規則を定める。値・Type・
 長さ・文字コードは原典（dicom.nema.org の PS3.x）で確認し、規格の節番号を
 書く。Type の定義は PS3.5 7.4、VR の定義は PS3.5 6.2 の表 6.2-1 による。
 
@@ -11,16 +11,16 @@ DTG は DICOM と HL7（v2・FHIR）の規格に違反しないことを開発�
 
 ### 1.1 通常の経路と異常のデータの経路
 
-DTG は、あえて DICOM の規格に違反したデータを生成する機能（異常のデータ）を
+DTG は、あえて DICOM の規格に違反したデータを作成する機能（異常のデータ）を
 持つ。規格に違反しないという前提は、通常の経路にだけ適用する
 （[ADR-0014](../decisions/0014-separate-normal-and-abnormal-paths.md)）。
 
 - **通常の経路**：異常のデータのレベルが `none` で、
-  `abnormal.allow_invalid_sop_uid` を使わない生成。Job・テンプレート・
+  `abnormal.allow_invalid_sop_uid` を使わない作成。Job・テンプレート・
   装置プロファイル・予約・画面と CLI の入力は、規格に合う値だけを受け付け、
-  合わない値は生成の前に拒否する。生成する画像は規格どおりにする
+  合わない値は作成の前に拒否する。作成する画像は規格どおりにする
 - **異常のデータの経路**：`abnormal.level` が `mild`・`moderate`・`severe`
-  のときと、`abnormal.allow_invalid_sop_uid`。規格に違反した値を生成すること
+  のときと、`abnormal.allow_invalid_sop_uid`。規格に違反した値を作成すること
   そのものが目的で、規格の前提の対象外。何を壊すかの定義は
   [spec/02 の AbnormalGenerator](02_core_engine.md)（壊すタグの表・
   Pixel Data の削除・SOP Instance UID の 0 始まり）にあり、定義した
@@ -30,7 +30,7 @@ DTG は、あえて DICOM の規格に違反したデータを生成する機能
   文字コード・入力の `\`）は、適用前の値か、定義に無い入力にかかるので、
   定義した壊し方と衝突しない
 - 定義に無い違反（例：廃止された Transfer Syntax の Explicit VR Big Endian）は、
-  異常のデータの経路でも生成しない。生成できるようにするときは、先に spec/02 の
+  異常のデータの経路でも作成しない。作成できるようにするときは、先に spec/02 の
   定義に追加する
 
 ### 1.2 装置のコンフォーマンスステートメントからの再現
@@ -68,11 +68,11 @@ File Meta Information（Group 0002）は `FileMetaBuilder`
 
 | UID | 範囲 | 生成する時点 | 備考 |
 |-----|------|--------------|------|
-| Study Instance UID | Study | 生成の開始時に 1 回 | 予約からの撮影で予約に値があれば、その値を使う（spec/12） |
+| Study Instance UID | Study | 作成の開始時に 1 回 | 予約からの撮影で予約に値があれば、その値を使う（spec/12） |
 | Series Instance UID | Series | シリーズごとに 1 回 | |
 | SOP Instance UID | Instance | 画像ごと | |
-| Frame of Reference UID | Study | 生成の開始時に 1 回 | 同じ Study のすべてのシリーズで共通（空間座標を共有するため） |
-| Instance Creator UID | 固定 | 定数（`INSTANCE_CREATOR_UID`） | DTG が生成するすべての画像で共通 |
+| Frame of Reference UID | Study | 作成の開始時に 1 回 | 同じ Study のすべてのシリーズで共通（空間座標を共有するため） |
+| Instance Creator UID | 固定 | 定数（`INSTANCE_CREATOR_UID`） | DTG が作成するすべての画像で共通 |
 
 生成の方式は Job の `uid_method` で選ぶ（`uuid_2_25` が既定）。生成は
 `UIDGenerator`（`app/core/uid_generator.py`）が行う。
@@ -86,14 +86,14 @@ File Meta Information（Group 0002）は `FileMetaBuilder`
 
 ### 3.3 カスタム Root 方式
 
-形式は `{custom_root}.{生成ごとの番号}.{連番}`。ルートは Job の
+形式は `{custom_root}.{作成ごとの番号}.{連番}`。ルートは Job の
 `uid_custom_root` で指定する。
 
-- UID は世界で一意でなければならない（PS3.5 9）。連番は生成のたびに 1 に
-  戻るので、生成ごとの番号（64 ビットの乱数、20 桁まで）をルートの後ろに
-  連結し、前の生成の UID と重複する確率を無視できるほど小さくする
+- UID は世界で一意でなければならない（PS3.5 9）。連番は作成のたびに 1 に
+  戻るので、作成ごとの番号（64 ビットの乱数、20 桁まで）をルートの後ろに
+  連結し、前の作成の UID と重複する確率を無視できるほど小さくする
   （2.25 の UUID と同じく、確率による一意性）
-- 連番は、1 回の生成の中で Study・Frame of Reference・Series・SOP Instance
+- 連番は、1 回の作成の中で Study・Frame of Reference・Series・SOP Instance
   の順に生成するたびに 1 ずつ増える
 - ルートは PS3.5 9.1 の形式：数字と `.` だけ、2 成分以上、最初の成分は 0・1・2
   （0・1 なら 2 番目は 0〜39。ITU-T X.660）、成分の先頭に 0 を置かない
@@ -110,7 +110,7 @@ Job の `abnormal.allow_invalid_sop_uid` が `true` のとき、SOP Instance UID
 | 方式 | 不正な値の形 |
 |------|--------------|
 | `uuid_2_25` | `2.25.0{UUID の整数の前半}.{後半}`（新しい UUID を任意の位置で 2 つに分ける） |
-| `custom_root` | `{custom_root}.{生成ごとの番号}.0{連番}` |
+| `custom_root` | `{custom_root}.{作成ごとの番号}.0{連番}` |
 
 ```text
 正常: 2.25.123456789012345678901234567890
@@ -209,7 +209,7 @@ Type 1 の Image Type は `empty` と空の `set` でも空にできない
 
 CT の Image Type の値 3 の Defined Terms は `AXIAL` と `LOCALIZER`
 （C.8.2.1.1.1。`AXIAL` は断層の画像を指し、横断に限らない）。DTG は
-断層の画像を生成するので、既定を `AXIAL` にする。
+断層の画像を作成するので、既定を `AXIAL` にする。
 
 ## 6. マルチスライスの空間座標
 
@@ -244,7 +244,7 @@ Type は PS3.3 C.7.6.1（General Image）と C.7.6.2（Image Plane）による�
 DS（Decimal String）は 16 バイトまで（PS3.5 6.2 の表 6.2-1）。
 `str(float)` は浮動小数点の誤差で 16 文字を超える（間隔 0.1 の 4 枚目は
 `0.30000000000000004`、身長 165.7 cm は `1.6569999999999998` m）。
-DTG が数値から生成する DS（Image Position (Patient)・Image Orientation
+DTG が数値から作成する DS（Image Position (Patient)・Image Orientation
 (Patient)・Slice Location・Slice Thickness・Pixel Spacing・Patient's
 Weight・Patient's Size）は、有効 12 桁で丸めてから
 `pydicom.valuerep.format_number_as_ds` で 16 文字以内にする
@@ -308,8 +308,8 @@ Specific Character Set は、デフォルトの文字セット（ASCII）に無�
 （それより前に書き出した画像は残る。
 [ADR-0018](../decisions/0018-stop-on-unrepresentable-characters.md)）。
 予約からの撮影は `WorklistMappingError`（spec/12 の 7.2）、
-Job の生成は `DICOMValidationError`（どちらも CLI の終了コード 4。
-spec/04）。Job の生成のエラーメッセージとログには、属性の名前と文字コード
+Job からの作成は `DICOMValidationError`（どちらも CLI の終了コード 4。
+spec/04）。Job からの作成のエラーメッセージとログには、属性の名前と文字コード
 だけを出し、表現できない文字そのもの（氏名の一部など）は出さない。
 例：文字コードが空の病院テンプレート（`hospital_b`）で、Job の紹介医名や
 検査の説明に漢字・`é` があれば停止する。
@@ -348,7 +348,7 @@ N 歳に達する日（加齢日）は、誕生日の前日の N 年後の同じ
 
 ## 9. Transfer Syntax
 
-### 9.1 生成する Transfer Syntax
+### 9.1 作成する Transfer Syntax
 
 | Transfer Syntax | UID | VR | Endian |
 |-----------------|-----|----|--------|
@@ -363,7 +363,7 @@ Syntax で、ほかの UID は `DICOMBuildError` になる。
 ### 9.2 Explicit VR Big Endian
 
 Explicit VR Big Endian（1.2.840.10008.1.2.2）は規格で廃止された形式
-（PS3.5 A.3）なので生成しない
+（PS3.5 A.3）なので作成しない
 （[ADR-0015](../decisions/0015-no-explicit-vr-big-endian.md)）。Job で
 指定すると、出力フォルダを作成する前に停止する。
 
@@ -376,7 +376,7 @@ Explicit VR Big Endian（1.2.840.10008.1.2.2）は規格で廃止された形式
   Transfer Syntax を決めるとき）は `ProfileMismatchError`（終了コード 2）
 
 異常のデータの定義（spec/02）にも含まれないので、異常のデータのレベルに関わらず
-生成しない（1.1 の「通常の経路と異常のデータの経路」）。
+作成しない（1.1 の「通常の経路と異常のデータの経路」）。
 
 ## 10. 参考資料
 

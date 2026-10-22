@@ -48,7 +48,7 @@ DICOMGeneratorError
     ├── WorklistQueryError       # C-FIND の失敗・タイムアウト
     ├── WorklistMappingError     # 予約の値を転記できない（文字・長さ・モダリティ）
     ├── StoreError               # C-STORE の失敗
-    ├── StorageCommitmentError   # 保管確認の失敗・タイムアウト
+    ├── StorageCommitmentError   # 保管確認（Storage Commitment）の失敗・タイムアウト
     └── MPPSError                # N-CREATE・N-SET の失敗
 ```
 
@@ -86,9 +86,9 @@ reason=Permission denied)`
 
 ## 2. 例外の扱い
 
-### 2.1 生成（`StudyGeneratorService`）
+### 2.1 作成（`StudyGeneratorService`）
 
-- 最初のエラーで生成を停止する。画像の単位で処理を続けることはしない。
+- 最初のエラーで作成を停止する。画像の単位で処理を続けることはしない。
   それより前に書き出した画像は残る
 - `DICOMGeneratorError` は、ERROR のログ（Traceback つき）を出力してから
   そのまま再送出する
@@ -109,7 +109,7 @@ reason=Permission denied)`
 ### 2.3 PySide6 の画面（spec/05）
 
 `MainWindow` は設定を集める段階の例外を警告のダイアログで出す。
-生成中の例外は `GeneratorWorker` が受け、ERROR のログを出力してから、
+作成中の例外は `GeneratorWorker` が受け、ERROR のログを出力してから、
 `DICOMGeneratorError` は「生成エラー」、それ以外は「予期しないエラー」の
 メッセージにして `generation_finished(False, ...)` で UI スレッドへ渡す。
 キャンセルの扱いは [05_gui.md](05_gui.md) の「非同期処理」の節にある。

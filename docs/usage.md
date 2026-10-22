@@ -59,7 +59,7 @@ python -m app.web
 
 ### 2.1 予約から撮影する
 
-1. ワークリストの画面で、予定日・モダリティ・AE を選び、「ワークリストを取得」を
+1. ワークリストの画面で、予定日・モダリティ・AE タイトルを選び、「ワークリストを取得」を
    押す
 2. 一覧から予約を選び、「選んで撮影へ」を押す
 3. 撮影の画面で、予約の値（読み取り専用）を確認し、テンプレート・シリーズ数・
@@ -88,12 +88,12 @@ PACS の画面の送信キューに、ジョブごとの状態（待機中・送
   失敗したジョブをまとめて再送する
 - 送信先の一覧の [C-ECHO] で、送信先との疎通を確認できる
 
-## 4. 保管確認と MPPS を使う
+## 4. 保管確認（Storage Commitment）と MPPS を使う
 
 どちらも既定では無効。設定の項目は [spec/12](spec/12_modality_emulator.md) の
 12 章、動作は 8.3・8.4 にある。
 
-### 4.1 保管確認（Storage Commitment）
+### 4.1 保管確認
 
 1. 送信先の `storage_commitment` を `true` にする。結果は相手が別の Association で
    返すことを前提にしている。同じ Association でしか返さない相手のときだけ、
@@ -177,24 +177,24 @@ Docker で動かしているときは、`docker exec dtg python -m app.cli ...` 
 
 ## 7. CLI だけでできること
 
-Web 画面に無い、細かい条件での生成は CLI で行う。
+Web 画面に無い、細かい条件での作成は CLI で行う。
 
 ```bash
-# Job YAML の設定を検証する（生成しない）
+# Job YAML の設定を検証する（作成しない）
 python -m app.cli validate examples/job_minimal.yaml
 
-# Job YAML から生成する
+# Job YAML から作成する
 python -m app.cli generate examples/job_full.yaml -o output/
 
-# 引数だけで生成する
+# 引数だけで作成する
 python -m app.cli quick -p P000001 -m ct_generic -s 3 -i 1,20,20 -o output/
 ```
 
 - Job YAML には、患者・検査・シリーズ・ピクセル・Transfer Syntax・文字コードを
   細かく書ける。`examples/` に、最小の例（`job_minimal.yaml`）とすべての項目を
   書いた例（`job_full.yaml`）がある
-- 異常のデータを生成する：`--abnormal-level mild`（`none`・`mild`・`moderate`・
-  `severe`）。指定しなければ規格どおりのデータを生成する
+- 異常のデータを作成する：`--abnormal-level mild`（`none`・`mild`・`moderate`・
+  `severe`）。指定しなければ規格どおりのデータを作成する
 - 装置プロファイルを重ねる：`--profile dtg_synthetic_ct`。読み込める装置
   プロファイルは `python -m app.cli profiles list` で確認する。実在の装置の
   プロファイルの作り方と配置場所は [spec/13](spec/13_device_profiles.md) にある
