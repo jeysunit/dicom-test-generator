@@ -36,16 +36,19 @@ flowchart LR
 
 ## クイックスタート
 
-Python 3.10 以上で、リポジトリのディレクトリで実行します。
+Docker で実行します。作業用のフォルダに、Web 画面のパスワードを1行だけ書いた
+ファイル `password.txt` を作ってから、次を実行します。
 
 ```bash
-pip install -r requirements.txt
-python -m app.web
-python -m app.cli quick -p P000001 -m ct_generic -s 1 -i 3 -o output/
+mkdir -p output
+docker run -d --name dtg --user "$(id -u):$(id -g)" -p 127.0.0.1:8080:8080 -v "$PWD/password.txt:/run/secrets/dtg_web_password:ro" -e DTG_WEB_PASSWORD_FILE=/run/secrets/dtg_web_password -v "$PWD/output:/app/output" ghcr.io/jeysunit/dicom-test-generator:latest
+docker exec dtg python -m app.cli quick -p P000001 -m ct_generic -s 1 -i 3 -o /app/output
 ```
 
-2行目で Web 画面を起動し、<http://127.0.0.1:8080/> を開きます。3行目は、架空の
-患者の CT 画像を3枚 `output/` に作成します。
+2行目でイメージを取得して Web 画面を起動します。<http://127.0.0.1:8080/> を開き、
+ユーザー名 `dtg` とパスワードでログインします。3行目は、架空の患者の CT 画像を3枚
+`output/` に作成します。送信先の設定と CLI の使い方は
+[docs/usage.md](docs/usage.md) にあります。
 
 ## ドキュメント
 

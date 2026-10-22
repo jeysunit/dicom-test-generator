@@ -114,27 +114,30 @@ jobs:
             --patient-id DOCKER0001 --patient-name "DOCKER^TEST" -s 1 -i 2 --json > exam.json
           python3 -c 'import json; d = json.load(open("exam.json")); assert len(d["files"]) == 2, d'
 
+      - name: CLI writes to a mounted folder as the host user
+        run: |
+          set -eu
+          out="$RUNNER_TEMP/dtg-output"
+          mkdir -p "$out"
+          docker run --rm --user "$(id -u):$(id -g)" -v "$out:/app/output" dicom-test-generator:ci \
+            python -m app.cli quick -p P000001 -m ct_generic -s 1 -i 3 -o /app/output
+          test "$(find "$out" -name '*.dcm' -user "$(id -u)" | wc -l)" = 3
+
       - name: Web UI listens on 0.0.0.0 and requires HTTP Basic
         run: |
           set -eu
           work="$RUNNER_TEMP/dtg"
           mkdir -p "$work"
-          # 設定の例の web: の節だけを 0.0.0.0 にする（コンテナの外から届くように）
-          awk '/^web:/ { web = 1 } web && /bind_address:/ { sub(/"127\.0\.0\.1"/, "\"0.0.0.0\"") } { print }' \
-            config/app_config.yaml > "$work/app_config.yaml"
-          grep -A2 '^web:' "$work/app_config.yaml" | grep -q 'bind_address: "0.0.0.0"'
           head -c 24 /dev/urandom | base64 | tr -d '/+=\n' > "$work/password"
           echo "::add-mask::$(cat "$work/password")"
-          chmod 0644 "$work/password" "$work/app_config.yaml"
+          chmod 0644 "$work/password"
 
-          # パスワードのファイルが無ければ起動しない（終了コード 2）
+          # イメージの中の設定のまま起動する。パスワードのファイルが無ければ起動しない（終了コード 2）
           status=0
-          docker run --rm -v "$work/app_config.yaml:/app/config/app_config.yaml:ro" \
-            dicom-test-generator:ci || status=$?
+          docker run --rm dicom-test-generator:ci || status=$?
           test "$status" = 2
 
           docker run -d --name dtg -p 127.0.0.1:18080:8080 \
-            -v "$work/app_config.yaml:/app/config/app_config.yaml:ro" \
             -v "$work/password:/run/secrets/dtg_web_password:ro" \
             -e DTG_WEB_PASSWORD_FILE=/run/secrets/dtg_web_password \
             dicom-test-generator:ci
