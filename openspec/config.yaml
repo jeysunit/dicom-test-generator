@@ -1,0 +1,37 @@
+schema: spec-driven
+
+context: |
+  成果物（proposal・specs・design・tasks）は日本語で書く。
+  DTG（DICOM Test Data Generator）は、架空の患者の架空の検査の DICOM 画像を作成し、フォルダに書き出すテスト用のツール。
+  補助の機能として、RIS からワークリストを取得して画像を作成し、PACS へ送信する（モダリティの機能）。
+
+# Project context (optional)
+# Add only constraints that should guide OpenSpec artifacts and workflows.
+# Include constraints an agent cannot infer by reading the code.
+# Keep general project documentation and discoverable codebase facts out.
+# Example:
+#   context: |
+#     Designs and tasks must cover Windows, macOS, and Linux
+#     Write all artifacts in Spanish
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing
