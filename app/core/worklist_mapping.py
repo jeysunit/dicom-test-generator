@@ -1,4 +1,4 @@
-"""予約（ワークリストの1件）から画像への値の写し方（spec/12_modality_emulator.md 5.4・6 章）.
+"""予約（ワークリストの1件）から画像への値の写し方（docs/spec/12_modality_emulator.md 5.4・6 章）.
 
 Core Engine の Pure な処理。通信・ファイル・ログを使わない。
 出典は IHE RAD TF-2x Appendix A の Table A.1-1（予約どおり）と
@@ -299,7 +299,7 @@ def ensure_modality_matches(item: WorklistItem, template_modality: str) -> None:
 
 
 def build_carrier_patient(patient: ScheduledPatient, study_date: str) -> Patient:
-    """GenerationConfig に入れる仮の Patient を作る（spec/03 のモダリティのモデル）.
+    """GenerationConfig に入れる仮の Patient を作る（docs/spec/03 のモダリティのモデル）.
 
     画像の患者の値は apply_scheduled_context で上書きする。生年月日が空なら
     仮の生年月日を検査日にし、性別が空なら O にする。

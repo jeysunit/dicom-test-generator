@@ -1,4 +1,4 @@
-"""撮影の画面（spec/12a_web_screens_and_cli.md 10.5・spec/13 の 8）."""
+"""撮影の画面（docs/spec/12a_web_screens_and_cli.md 10.5・docs/spec/13 の 8）."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ SEX_CHOICES = (("", "空"), ("M", "男"), ("F", "女"), ("O", "その他"))
 ACTION_EXAM = "exam"
 ACTION_EXAM_SEND = "exam_send"
 MODE_EMERGENCY = "emergency"
-# 画面から1回で作る量の上限（1つの要求でディスクを埋めない。spec/12a の 10.5）
+# 画面から1回で作る量の上限（1つの要求でディスクを埋めない。docs/spec/12a の 10.5）
 MAX_SERIES = 99
 MAX_IMAGES_PER_SERIES = 1000
 FormStr = Annotated[str, Form()]

@@ -1,4 +1,4 @@
-"""頁と HTMX の部分を描く（spec/12a_web_screens_and_cli.md 10.3）."""
+"""頁と HTMX の部分を描く（docs/spec/12a_web_screens_and_cli.md 10.3）."""
 
 from __future__ import annotations
 
@@ -53,7 +53,7 @@ def render_error(request: Request, exc: DICOMGeneratorError | ValidationError) -
 
 def error_text(exc: DICOMGeneratorError | ValidationError) -> str:
     if isinstance(exc, ValidationError):
-        # 項目の名前と原因だけ。入っていた値は出さない（spec/12 の 12 章）
+        # 項目の名前と原因だけ。入っていた値は出さない（docs/spec/12 の 12 章）
         return "入力の値が正しくありません：" + describe_validation_error(exc)
     return str(exc)
 

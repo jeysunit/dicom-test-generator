@@ -1,4 +1,4 @@
-"""C-FIND（Modality Worklist）の SCU（spec/12_modality_emulator.md 5 章）."""
+"""C-FIND（Modality Worklist）の SCU（docs/spec/12_modality_emulator.md 5 章）."""
 
 from __future__ import annotations
 

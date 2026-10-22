@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 画面の静的な物（htmx・Lucide のアイコン）を、版を固定して取り、sha256 を確かめて置く
-# （spec/12a_web_screens_and_cli.md 10.1）。置いた物は commit する。利用者はこれを流さなくてよい。
+# （docs/spec/12a_web_screens_and_cli.md 10.1）。置いた物は commit する。利用者はこれを流さなくてよい。
 #
 # 使い方: bash scripts/fetch_web_assets.sh
 set -euo pipefail

@@ -1,0 +1,390 @@
+# 06. DICOM の規則
+
+DTG が作成する DICOM ファイルの属性・値・符号化の規則を定める。値・Type・
+長さ・文字コードは原典（dicom.nema.org の PS3.x）で確認し、規格の節番号を
+書く。Type の定義は PS3.5 7.4、VR の定義は PS3.5 6.2 の表 6.2-1 による。
+
+## 1. 前提
+
+DTG は DICOM と HL7（v2・FHIR）の規格に違反しないことを開発の前提とする。
+仕様を変えるときも原典（PS3.x、IHE の Technical Framework）に合わせる。
+
+### 1.1 通常の経路と異常のデータの経路
+
+DTG は、あえて DICOM の規格に違反したデータを作成する機能（異常のデータ）を
+持つ。規格に違反しないという前提は、通常の経路にだけ適用する
+（[ADR-0014](../decisions/0014-separate-normal-and-abnormal-paths.md)）。
+
+- **通常の経路**：異常のデータのレベルが `none` で、
+  `abnormal.allow_invalid_sop_uid` を使わない作成。Job・テンプレート・
+  装置プロファイル・予約・画面と CLI の入力は、規格に合う値だけを受け付け、
+  合わない値は作成の前に拒否する。作成する画像は規格どおりにする
+- **異常のデータの経路**：`abnormal.level` が `mild`・`moderate`・`severe`
+  のときと、`abnormal.allow_invalid_sop_uid`。規格に違反した値を作成すること
+  そのものが目的で、規格の前提の対象外。何を壊すかの定義は
+  [spec/02 の AbnormalGenerator](02_core_engine.md)（壊すタグの表・
+  Pixel Data の削除・SOP Instance UID の 0 始まり）にあり、定義した
+  壊し方を、通常の経路のチェックで妨げない
+- 異常のデータは、組み立てた Dataset に最後に適用する（spec/02）。
+  通常の経路のチェック（Type 1 の属性・画素値の範囲・DS の長さ・UID の形式・
+  文字コード・入力の `\`）は、適用前の値か、定義に無い入力にかかるので、
+  定義した壊し方と衝突しない
+- 定義に無い違反（例：廃止された Transfer Syntax の Explicit VR Big Endian）は、
+  異常のデータの経路でも作成しない。作成できるようにするときは、先に spec/02 の
+  定義に追加する
+
+### 1.2 装置のコンフォーマンスステートメントからの再現
+
+特定の装置の DICOM の出力方法（製造者・型名・ソフトウェアバージョン・文字コードの
+組み合わせ・必ず出力する属性・空で出力する属性・プライベートタグ・Transfer
+Syntax）は、その装置のコンフォーマンスステートメント（DICOM PS3.2）を読んで
+**装置プロファイル**に転記し、モダリティテンプレートの上に重ねて再現する。
+形式・転記の手順・配置場所は [spec/13_device_profiles.md](13_device_profiles.md)
+にある。実在の装置のプロファイルは公開のリポジトリに置かない（ADR-0012）。
+
+## 2. File Meta Information
+
+File Meta Information（Group 0002）は `FileMetaBuilder`
+（`app/core/dicom_writer.py`）が組み立てる（PS3.10 7.1）。
+
+| Tag | Attribute Name | Type | 値 |
+|-----|----------------|------|----|
+| (0002,0001) | File Meta Information Version | 1 | `00H 01H`（固定） |
+| (0002,0002) | Media Storage SOP Class UID | 1 | モダリティテンプレートの `file_meta.media_storage_sop_class_uid`（既定は CT Image Storage `1.2.840.10008.5.1.4.1.1.2`）。装置プロファイルを使うときは、プロファイルの `storage.sop_classes` の最初の値 |
+| (0002,0003) | Media Storage SOP Instance UID | 1 | 画像の SOP Instance UID と同じ値。異なれば `DICOMBuildError` |
+| (0002,0010) | Transfer Syntax UID | 1 | Job の `transfer_syntax.uid`（9 章） |
+| (0002,0012) | Implementation Class UID | 1 | DTG の固定の UID（`IMPLEMENTATION_CLASS_UID`。同じ実装は同じ UID。PS3.7 D.3.3.2、PS3.10 7.1） |
+| (0002,0013) | Implementation Version Name | 3 | モダリティテンプレートの `file_meta.implementation_version_name`（既定 `DICOM_GEN_1.1`）。装置プロファイルの `device.implementation_version_name` があれば、その値 |
+
+- File Meta Information Group Length (0002,0000) とプリアンブルは、
+  書き出すときに pydicom が付ける（`pydicom.dcmwrite` の
+  `enforce_file_format=True`）
+- モダリティテンプレートの `file_meta.transfer_syntax_uid` は読まない。
+  Transfer Syntax は Job の値だけで決まる
+
+## 3. UID の生成
+
+### 3.1 UID の種類と範囲
+
+| UID | 範囲 | 生成する時点 | 備考 |
+|-----|------|--------------|------|
+| Study Instance UID | Study | 作成の開始時に 1 回 | 予約からの撮影で予約に値があれば、その値を使う（spec/12） |
+| Series Instance UID | Series | シリーズごとに 1 回 | |
+| SOP Instance UID | Instance | 画像ごと | |
+| Frame of Reference UID | Study | 作成の開始時に 1 回 | 同じ Study のすべてのシリーズで共通（空間座標を共有するため） |
+| Instance Creator UID | 固定 | 定数（`INSTANCE_CREATOR_UID`） | DTG が作成するすべての画像で共通 |
+
+生成の方式は Job の `uid_method` で選ぶ（`uuid_2_25` が既定）。生成は
+`UIDGenerator`（`app/core/uid_generator.py`）が行う。
+
+### 3.2 UUID 2.25 方式
+
+形式は `2.25.{UUID の 128 ビットの整数の 10 進表記}`（PS3.5 B.2）。UUID は
+バージョン 4（乱数）を使う。
+
+例：`2.25.113059749145936325402354257176981405696`
+
+### 3.3 カスタム Root 方式
+
+形式は `{custom_root}.{作成ごとの番号}.{連番}`。ルートは Job の
+`uid_custom_root` で指定する。
+
+- UID は世界で一意でなければならない（PS3.5 9）。連番は作成のたびに 1 に
+  戻るので、作成ごとの番号（64 ビットの乱数、20 桁まで）をルートの後ろに
+  連結し、前の作成の UID と重複する確率を無視できるほど小さくする
+  （2.25 の UUID と同じく、確率による一意性）
+- 連番は、1 回の作成の中で Study・Frame of Reference・Series・SOP Instance
+  の順に生成するたびに 1 ずつ増える
+- ルートは PS3.5 9.1 の形式：数字と `.` だけ、2 成分以上、最初の成分は 0・1・2
+  （0・1 なら 2 番目は 0〜39。ITU-T X.660）、成分の先頭に 0 を置かない
+  （`0` だけの成分は可）。UID は 64 文字までなので、ルートは 35 文字まで。
+  外れれば `UIDGenerationError`
+- ルートは自分の組織に割り当てられたものを使う。他の組織のルートを使わない
+
+### 3.4 SOP Instance UID の不正な値（異常のデータ）
+
+Job の `abnormal.allow_invalid_sop_uid` が `true` のとき、SOP Instance UID を
+10% の確率で、先頭が 0 の成分を含む値にする（PS3.5 9.1 に違反する）。
+確率は固定で、Job の `abnormal.invalid_sop_uid_probability` は使わない。
+
+| 方式 | 不正な値の形 |
+|------|--------------|
+| `uuid_2_25` | `2.25.0{UUID の整数の前半}.{後半}`（新しい UUID を任意の位置で 2 つに分ける） |
+| `custom_root` | `{custom_root}.{作成ごとの番号}.0{連番}` |
+
+```text
+正常: 2.25.123456789012345678901234567890
+不正: 2.25.0123456.789012345678901234567890
+```
+
+## 4. Pixel Data
+
+### 4.1 モード
+
+Job の `pixel_spec.mode` で選ぶ（[ADR-0005](../decisions/0005-pixel-modes.md)）。
+どちらのモードも CT Image（PS3.3 C.8.2.1）の画素として書く。
+
+| モード | 用途 | Bits Allocated | Bits Stored | Pixel Representation | 内容 |
+|--------|------|----------------|-------------|----------------------|------|
+| `simple_text` | 簡易確認 | 16 | 12（固定） | 1（符号あり） | SOP Instance UID の文字列 |
+| `ct_realistic` | ビューアでの表示 | 16 | 12〜16（既定 12） | 1（符号あり） | HU 値のパターン |
+
+### 4.2 画素の属性
+
+`DICOMBuilder`（`app/core/generator.py`）が、どちらのモードでも次の値を書く。
+
+| Tag | Attribute Name | 値 |
+|-----|----------------|----|
+| (0028,0002) | Samples per Pixel | 1 |
+| (0028,0004) | Photometric Interpretation | `MONOCHROME2` |
+| (0028,0010) | Rows | `pixel_spec.height`（既定 512） |
+| (0028,0011) | Columns | `pixel_spec.width`（既定 512） |
+| (0028,0100) | Bits Allocated | 16 |
+| (0028,0101) | Bits Stored | 4.1 の表のとおり |
+| (0028,0102) | High Bit | Bits Stored − 1 |
+| (0028,0103) | Pixel Representation | 1 |
+| (0028,1050) | Window Center | `40\400` |
+| (0028,1051) | Window Width | `400\1500` |
+| (0028,1052) | Rescale Intercept | `-1024` |
+| (0028,1053) | Rescale Slope | `1` |
+
+CT Image では Bits Allocated は 16、Bits Stored は 12〜16、Rescale
+Intercept・Slope は Type 1（PS3.3 C.8.2.1.1.4・C.8.2.1.1.5）。Bits Stored が
+この範囲の外なら `DICOMBuildError` になる。画素の値と HU 値の関係は次のとおり。
+
+```text
+HU = Pixel Value × Rescale Slope + Rescale Intercept
+```
+
+モダリティテンプレートの `ct_image.rescale_intercept`・`rescale_slope` と
+`window_presets` は読まない。上の値は固定である。
+
+### 4.3 simple_text
+
+1. Pillow で 8 ビットのグレースケールの画像を作成する。背景は 0（黒）、
+   文字は 255（白）
+2. SOP Instance UID を、幅 10 ピクセルあたり 1 文字で折り返し、x = 10、
+   y = 高さの 1/4 から 20 ピクセルの行間で描く。フォントは DejaVu Sans Mono
+   の 16 ポイントで、無ければ Pillow の既定のフォント
+3. `DICOMBuilder` が 0〜255 を 0〜2047 に線形に広げ（四捨五入）、Bits Stored
+   12 の CT の画素として書く。背景は画素 0（HU −1024）、文字は画素 2047
+   （HU 1023）になる
+
+Job の `pixel_spec.background_color`・`text_color`・`font_size` は受け付けるが、
+画像には反映しない。
+
+### 4.4 ct_realistic
+
+`pixel_spec.pattern` で次の 3 つから選ぶ（既定 `gradient`）。Bits Stored の
+上限は 2^(Bits Stored − 1) − 1（12 ビットなら 2047）。
+
+| パターン | 画素の値 |
+|----------|----------|
+| `gradient` | 左端 0 から右端の上限まで、列ごとに線形に増やす（12 ビットで HU −1024〜1023） |
+| `circle` | 中心に半径 min(幅, 高さ)/4 の円。円の内側は 2024（HU 1000、骨）、外側は 1064（HU 40、軟部組織）。上限を超える値は上限に収める |
+| `noise` | 0 から上限までの一様な乱数 |
+
+### 4.5 画素の値の範囲
+
+Pixel Representation 1 の画素は、Bits Stored のビット数の 2 の補数で表す
+（PS3.3 C.7.6.3、PS3.5 8）。値は −2^(Bits Stored − 1) 〜
+2^(Bits Stored − 1) − 1 に収める。12 ビットなら −2048〜2047 で、DTG は
+0〜2047（HU −1024〜1023）を使う。範囲を超える値は、読み込む側が High Bit で
+符号拡張するため別の値に変わる（12 ビットの 2048 は −2048）。
+`DICOMBuilder` は範囲を超える画素を `DICOMBuildError` で拒否する。
+
+## 5. CT Image の必須の属性
+
+CT Image IOD（PS3.3 A.3）の Type 1・2・2C の属性のうち、Job・テンプレート・
+予約から値が来ないものは、`DICOMBuilder` が次の既定値で必ず出力する。
+装置プロファイルの `attributes.set` で変更でき、`omit` では削除できない。
+Type 1 の Image Type は `empty` と空の `set` でも空にできない
+（spec/13 の 3.3）。
+
+| Tag | Attribute Name | Module | Type | 既定値 | 規格の節 |
+|-----|----------------|--------|------|--------|----------|
+| (0008,0008) | Image Type | CT Image | 1 | `ORIGINAL\PRIMARY\AXIAL` | PS3.3 C.8.2.1.1.1 |
+| (0018,5100) | Patient Position | General Series | 2C（CT Image Storage では必須） | `HFS` | PS3.3 C.7.3.1、C.7.3.1.1.2 |
+| (0020,1040) | Position Reference Indicator | Frame of Reference | 2 | 空 | PS3.3 C.7.4.1、C.7.4.1.1.2 |
+
+CT の Image Type の値 3 の Defined Terms は `AXIAL` と `LOCALIZER`
+（C.8.2.1.1.1。`AXIAL` は断層の画像を指し、横断に限らない）。DTG は
+断層の画像を作成するので、既定を `AXIAL` にする。
+
+## 6. マルチスライスの空間座標
+
+### 6.1 計算の規則
+
+シリーズの i 枚目（0 始まり）の値は `SpatialCalculator`
+（`app/core/dicom_writer.py`）が計算する。`start_z`・`slice_spacing`・
+`slice_thickness` は Job の `series_list` の値（既定は 0.0・5.0・5.0 mm）。
+
+| Tag | Attribute Name | Type | 値 |
+|-----|----------------|------|----|
+| (0020,0013) | Instance Number | 2 | i + 1 |
+| (0020,0032) | Image Position (Patient) | 1 | `[0, 0, z]`。z = `start_z` + i × `slice_spacing` |
+| (0020,0037) | Image Orientation (Patient) | 1 | `[1, 0, 0, 0, 1, 0]`（固定） |
+| (0020,1041) | Slice Location | 3 | z |
+| (0018,0050) | Slice Thickness | 2 | `slice_thickness`（シリーズで共通） |
+| (0028,0030) | Pixel Spacing | 1 | `[0.5, 0.5]`（固定） |
+
+Type は PS3.3 C.7.6.1（General Image）と C.7.6.2（Image Plane）による。
+モダリティテンプレートの `spatial` の節は読まない。
+
+例：20 枚、厚さ 5 mm、間隔 5 mm、開始 z = 0 のとき
+
+| i | Instance Number | Image Position (Patient) | Slice Location |
+|---|-----------------|--------------------------|----------------|
+| 0 | 1 | `[0, 0, 0]` | 0 |
+| 1 | 2 | `[0, 0, 5]` | 5 |
+| 19 | 20 | `[0, 0, 95]` | 95 |
+
+### 6.2 DS の書き方
+
+DS（Decimal String）は 16 バイトまで（PS3.5 6.2 の表 6.2-1）。
+`str(float)` は浮動小数点の誤差で 16 文字を超える（間隔 0.1 の 4 枚目は
+`0.30000000000000004`、身長 165.7 cm は `1.6569999999999998` m）。
+DTG が数値から作成する DS（Image Position (Patient)・Image Orientation
+(Patient)・Slice Location・Slice Thickness・Pixel Spacing・Patient's
+Weight・Patient's Size）は、有効 12 桁で丸めてから
+`pydicom.valuerep.format_number_as_ds` で 16 文字以内にする
+（`app/core/generator.py` の `format_ds`）。上の例は `0.3`・`1.657` になる。
+小さい値は 0 にせず、指数表記で残す（`1e-07`。DS は指数表記を許す）。
+
+## 7. 文字コード
+
+### 7.1 Specific Character Set (0008,0005)
+
+値は次の順に決め、後のものが前のものを上書きする。
+
+1. Job の `character_set.specific_character_set`（既定
+   `ISO 2022 IR 6\ISO 2022 IR 87`）
+2. 病院テンプレートの `overrides.character_set.specific_character_set`
+3. 装置プロファイルの `character_set.default`（病院テンプレートが 2 を
+   書いていないときだけ。spec/13）
+
+- `\` で区切った値は複数の値として書く（PS3.3 C.12.1.1.2）
+- 値が空なら (0008,0005) を書かない。このとき患者名に ASCII 以外の文字が
+  あれば `DICOMBuildError` で停止する（PS3.3 C.12.1 の Type 1C）
+- 病院テンプレートが値に `null` を書いたときは、患者名に ASCII 以外の文字が
+  あれば `ISO 2022 IR 6\ISO 2022 IR 87` を書き、無ければ書かない
+- 予約からの撮影では、Specific Character Set と患者の値を予約の値で
+  上書きする（spec/12 の 6 章）
+
+### 7.2 PN の構成
+
+PN（Person Name）は英字・漢字・かなの 3 つのコンポーネントグループを `=` で
+つなぐ（PS3.5 6.2.1）。Job の `patient.patient_name` の `alphabetic`・
+`ideographic`・`phonetic` をこの順に並べる。
+
+```text
+YAMADA^TARO=山田^太郎=ヤマダ^タロウ
+```
+
+- 英字のコンポーネントグループは常に書く
+- 漢字は `use_ideographic`、かなは `use_phonetic` が `true` で、値があるときだけ
+  書く。どちらも Job の `character_set` の値を、病院テンプレートの
+  `overrides.patient_module.patient_name` が上書きする。
+  `use_alphabetic` は読まない
+- 末尾の空のコンポーネントグループは削除する。途中の空は残す
+  （漢字が無くかながある例：`YAMADA^TARO==ヤマダ^タロウ`）
+
+### 7.3 病院テンプレート
+
+`templates/hospital/` の 2 つのテンプレートの出力は次のとおり。
+
+| テンプレート | Specific Character Set | Patient's Name |
+|--------------|------------------------|----------------|
+| `hospital_a` | `ISO 2022 IR 6\ISO 2022 IR 87` | `YAMADA^TARO=山田^太郎=ヤマダ^タロウ` |
+| `hospital_b` | （書かない） | `YAMADA^TARO` |
+
+### 7.4 表現できない文字
+
+Specific Character Set は、デフォルトの文字セット（ASCII）に無い文字を使う
+ときに必須（PS3.3 C.12.1 の Type 1C、PS3.5 6.1）。宣言した文字コードで
+表現できない文字を書き出すと、pydicom は `?` に置き換えるか、宣言に無い
+バイト列のまま書き出す。DTG は、画像を 1 枚書き出す前にその画像のすべての
+文字列の属性を検証し、表現できない文字があればその画像を書き出さずに停止する
+（それより前に書き出した画像は残る。
+[ADR-0018](../decisions/0018-stop-on-unrepresentable-characters.md)）。
+予約からの撮影は `WorklistMappingError`（spec/12 の 7.2）、
+Job からの作成は `DICOMValidationError`（どちらも CLI の終了コード 4。
+spec/04）。Job からの作成のエラーメッセージとログには、属性の名前と文字コード
+だけを出し、表現できない文字そのもの（氏名の一部など）は出さない。
+例：文字コードが空の病院テンプレート（`hospital_b`）で、Job の紹介医名や
+検査の説明に漢字・`é` があれば停止する。
+
+## 8. Patient's Age (0010,1010)
+
+Patient's Age は Job の `patient.age` を使わず、`birth_date` と
+`study_date` から日本の法律の基準で算出する
+（[ADR-0008](../decisions/0008-patient-age-derived-from-dates.md)）。
+
+### 8.1 法的根拠
+
+- **年齢計算ニ関スル法律**（明治 35 年法律第 50 号）：出生の日から起算する
+- **民法 143 条**：期間を年で定めたときは暦に従って計算する。応当日が無いときは
+  その月の末日に満了する
+
+### 8.2 算出の規則
+
+N 歳に達する日（加齢日）は、誕生日の前日の N 年後の同じ月日とする。その日が
+存在しないとき（前日が 2 月 29 日で、N 年後が閏年でない）は 2 月 28 日とする。
+年齢は、加齢日が検査日以前である最大の N。
+
+### 8.3 2 月 29 日生まれの例
+
+| 生年月日 | 検査日 | 値 | 理由 |
+|----------|--------|----|------|
+| 2000-02-29 | 2025-02-27 | `024Y` | 加齢日（2/28）の前日 |
+| 2000-02-29 | 2025-02-28 | `025Y` | 閏年でない年の加齢日 |
+| 2000-02-29 | 2024-02-28 | `024Y` | 閏年の加齢日 |
+
+### 8.4 制約
+
+- `study_date` は `birth_date` 以上でなければならない（Job の検証のエラー。
+  spec/07）
+- 値は AS の形式 `nnnY`（PS3.5 6.2）。0〜999 の範囲の外は `DICOMBuildError`
+
+## 9. Transfer Syntax
+
+### 9.1 作成する Transfer Syntax
+
+| Transfer Syntax | UID | VR | Endian |
+|-----------------|-----|----|--------|
+| Implicit VR Little Endian（既定） | 1.2.840.10008.1.2 | Implicit | Little |
+| Explicit VR Little Endian | 1.2.840.10008.1.2.1 | Explicit | Little |
+
+Job の `transfer_syntax.uid` で選ぶ。符号化の方法は UID から決まり、Job の
+`transfer_syntax` の `name`・`is_implicit_vr`・`is_little_endian` は使わない。
+この 2 つが `app/core/generator.py` の `DICOMBuilder` が受け付ける Transfer
+Syntax で、ほかの UID は `DICOMBuildError` になる。
+
+### 9.2 Explicit VR Big Endian
+
+Explicit VR Big Endian（1.2.840.10008.1.2.2）は規格で廃止された形式
+（PS3.5 A.3）なので作成しない
+（[ADR-0015](../decisions/0015-no-explicit-vr-big-endian.md)）。Job で
+指定すると、出力フォルダを作成する前に停止する。
+
+- 装置プロファイルを選択していれば、先にプロファイルと合うかを検証する。
+  プロファイルが Big Endian を持たなければ `ProfileMismatchError`
+  （CLI の終了コード 2）
+- その検証を通過した Big Endian の指定は `DICOMValidationError`（終了コード 4）
+- 装置プロファイルの最初の Transfer Syntax が Big Endian で、それを使う
+  経路（`quick --profile` とモダリティエミュレーターの撮影で、プロファイルから
+  Transfer Syntax を決めるとき）は `ProfileMismatchError`（終了コード 2）
+
+異常のデータの定義（spec/02）にも含まれないので、異常のデータのレベルに関わらず
+作成しない（1.1 の「通常の経路と異常のデータの経路」）。
+
+## 10. 参考資料
+
+1. **DICOM Standard**：<https://www.dicomstandard.org/>
+2. **pydicom**：<https://pydicom.github.io/>
+3. **IHE Japan**：<https://www.ihe-j.org/>（OID の取得の情報）
+4. **ITU-T X.667（ISO/IEC 9834-8）**：UUID から 2.25 の OID を作る規則
+   （PS3.5 B.2 が参照する）
+5. **装置のコンフォーマンスステートメント**（DICOM PS3.2 Annex N の形式）：
+   再現する装置ごとに参照する。どの文書のどの版から転記したかは、外部の
+   配置場所のプロファイルの `source` に書く（spec/13）

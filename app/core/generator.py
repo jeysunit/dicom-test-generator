@@ -21,15 +21,15 @@ from .models import (
 # CT Image Storage SOP Class UID
 CT_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.2"
 
-# CT Image IOD の必須の属性の既定値（spec/06 の「CT Image の必須の属性」）。
-# 装置のプロファイルの attributes.set で変えられる（spec/13）
+# CT Image IOD の必須の属性の既定値（docs/spec/06 の「CT Image の必須の属性」）。
+# 装置のプロファイルの attributes.set で変えられる（docs/spec/13）
 DEFAULT_IMAGE_TYPE = ("ORIGINAL", "PRIMARY", "AXIAL")  # PS3.3 C.8.2.1.1.1
 DEFAULT_PATIENT_POSITION = "HFS"  # PS3.3 C.7.3.1.1.2
 DEFAULT_POSITION_REFERENCE_INDICATOR = ""  # PS3.3 C.7.4.1.1.2（Type 2）
 # CT Image の Bits Stored の範囲（PS3.3 C.8.2.1.1.5）
 CT_BITS_STORED_MIN = 12
 CT_BITS_STORED_MAX = 16
-# 廃止の転送の形（PS3.5 A.3）。作らない。異常のデータの約束（spec/02）にも無い
+# 廃止の転送の形（PS3.5 A.3）。作らない。異常のデータの約束（docs/spec/02）にも無い
 RETIRED_TRANSFER_SYNTAXES = {"1.2.840.10008.1.2.2": "Explicit VR Big Endian"}
 
 # DS（PS3.5 6.2、16 バイトまで）に書く前に丸める有効桁の数。

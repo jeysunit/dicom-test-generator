@@ -70,7 +70,7 @@ def test_template_parse_error(tmp_path) -> None:
 
 
 def test_generic_ct_template_has_no_commercial_names() -> None:
-    """ct_generic の中身は架空の名前だけを使う（spec/12b の 17）."""
+    """ct_generic の中身は架空の名前だけを使う（ADR-0016）."""
     service = TemplateLoaderService()
 
     template = service.load_modality_template("ct_generic")
@@ -84,7 +84,7 @@ def test_generic_ct_template_has_no_commercial_names() -> None:
 
 
 def test_device_specific_template_raises_with_profile_hint(monkeypatch) -> None:
-    """装置ごとの古いテンプレートの名前は、プロファイルの置き場へ案内する（spec/13 の 7.3）."""
+    """装置ごとの古いテンプレートの名前は、プロファイルの置き場へ案内する（docs/spec/13 の 7.3）."""
     import app.services.template_loader as template_loader_module
 
     old_name = "old_vendor_ct"

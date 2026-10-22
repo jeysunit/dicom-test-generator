@@ -49,7 +49,7 @@ DEFAULT_IMPLEMENTATION_VERSION_NAME = "DICOM_GEN_1.1"
 # この道具（DTG）の実装を表す固定の UID。同じ実装は同じ Implementation Class UID
 # を使う（PS3.7 D.3.3.2、PS3.10 7.1）。版の違いは Implementation Version Name で表す
 IMPLEMENTATION_CLASS_UID = "2.25.209401092321175805341347975050777963523"
-# Instance Creator UID (0008,0014) も、作った画像すべてで共通の固定の値にする（spec/06）
+# Instance Creator UID (0008,0014) も、作った画像すべてで共通の固定の値にする（docs/spec/06）
 INSTANCE_CREATOR_UID = "2.25.79995515066742824497440504634117232234"
 
 GENERAL_EQUIPMENT_TAG_MAP = {
@@ -74,7 +74,7 @@ SIMPLE_TEXT_BITS_STORED = 12
 class StudyGeneratorService:
     """DICOMスタディ生成を担うService Layer."""
 
-    # 装置のプロファイルで作れる SOP Class（spec/13 の 4.3。P1 は CT だけ）
+    # 装置のプロファイルで作れる SOP Class（docs/spec/13 の 4.3。P1 は CT だけ）
     PROFILE_CREATABLE_SOP_CLASSES = frozenset({CT_IMAGE_STORAGE})
 
     def __init__(self, profile_loader: ProfileLoaderService | None = None) -> None:
@@ -92,7 +92,7 @@ class StudyGeneratorService:
     ) -> Path:
         """設定に基づいてDICOMファイルを生成する.
 
-        `scheduled` を渡すと、予約の値（spec/12 の 6 章）を画像に写す。
+        `scheduled` を渡すと、予約の値（docs/spec/12 の 6 章）を画像に写す。
         予約に Study Instance UID があればそれを使う。各画像は書き出す前に
         文字コードで表せるかを確かめ、表せなければ WorklistMappingError で止める。
         渡さなければいまと同じ動き。
@@ -108,7 +108,7 @@ class StudyGeneratorService:
 
         try:
             # custom_root は生成ごとの番号を根の後ろにつなぎ、前の生成の UID と
-            # 重ならないようにする（PS3.5 9。spec/06 の「カスタム Root 方式」）
+            # 重ならないようにする（PS3.5 9。docs/spec/06 の「カスタム Root 方式」）
             uid_generator = UIDGenerator(
                 method=config.uid_method,
                 custom_root=config.uid_custom_root or "",
@@ -224,19 +224,19 @@ class StudyGeneratorService:
                     if scheduled is not None:
                         apply_scheduled_context(dataset, scheduled)
                     # 装置のプロファイルの attributes とプライベートタグは最後に当てる
-                    # （spec/13 の 4.2）
+                    # （docs/spec/13 の 4.2）
                     if profile is not None:
                         apply_device_profile(
                             dataset, profile, apply_station_name=apply_station_name
                         )
                     # 異常のデータは最後に当てる（予約・プロファイルの値にも効く。
-                    # spec/02 の AbnormalGenerator）。none では何も変えない
+                    # docs/spec/02 の AbnormalGenerator）。none では何も変えない
                     apply_abnormal_to_dataset(dataset, abnormal_generator)
                     # 表せない字は黙って `?` にせず止める（PS3.3 C.12.1・PS3.5 6.1）
                     self._ensure_encodable(dataset, scheduled is not None)
 
                     # Patient ID・検査日・モダリティは信用できない値（予約・Job）なので、
-                    # 決まった字だけにしてから名前に使う（spec/12 の 6.5）
+                    # 決まった字だけにしてから名前に使う（docs/spec/12 の 6.5）
                     filename = (
                         f"{safe_path_component(config.patient.patient_id, 'UNKNOWN')}_"
                         f"{safe_path_component(config.study.study_date, 'NODATE')}_"
@@ -284,8 +284,8 @@ class StudyGeneratorService:
     def _reject_retired_transfer_syntax(transfer_syntax_uid: str) -> None:
         """廃止の転送の形を、出力のフォルダを作る前に断る（PS3.5 A.3）.
 
-        Explicit VR Big Endian は異常のデータの約束（spec/02）にも無いので、
-        異常のデータのレベルに関わらず作らない（spec/06 の「ふつうの経路と
+        Explicit VR Big Endian は異常のデータの約束（docs/spec/02）にも無いので、
+        異常のデータのレベルに関わらず作らない（docs/spec/06 の「通常の経路と
         異常のデータの経路」）。
         """
         name = RETIRED_TRANSFER_SYNTAXES.get(transfer_syntax_uid)
@@ -319,7 +319,7 @@ class StudyGeneratorService:
         transfer_syntax_uid: str,
         specific_character_set: str | None,
     ) -> str:
-        """プロファイルとテンプレート・Job が合うかを確かめる（spec/13 の 4.3）.
+        """プロファイルとテンプレート・Job が合うかを確かめる（docs/spec/13 の 4.3）.
 
         合えば、作る SOP Class UID を返す。
         """
@@ -421,8 +421,8 @@ class StudyGeneratorService:
     def _ensure_encodable(dataset: Dataset, scheduled: bool) -> None:
         """文字の属性が Specific Character Set で表せるかを確かめる.
 
-        予約の撮影は WorklistMappingError（spec/12 の 7.2）、Job の生成は
-        DICOMValidationError で止める（どちらも CLI の終了コード 4。spec/04）。
+        予約の撮影は WorklistMappingError（docs/spec/12 の 7.2）、Job の生成は
+        DICOMValidationError で止める（どちらも CLI の終了コード 4。docs/spec/04）。
         Job の値（紹介医名・検査の説明など）も、宣言の無い字のまま書けば
         受け手で `?` や別の字に化ける。
         """

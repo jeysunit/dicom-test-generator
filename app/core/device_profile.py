@@ -1,4 +1,4 @@
-"""Device profile model and its application to a dataset (spec/13).
+"""Device profile model and its application to a dataset (docs/spec/13).
 
 装置のプロファイルは、ある装置のコンフォーマンスステートメント（DICOM PS3.2）
 から写した、その装置の DICOM の出し方。モダリティのテンプレートの上に重ねる。
@@ -19,7 +19,7 @@ from pydicom.valuerep import validate_value
 UID_PATTERN = r"^[0-2](\.(0|[1-9][0-9]*))+$"
 PROFILE_NAME_PATTERN = r"^[a-z0-9][a-z0-9_]*$"
 
-# プロファイルの attributes で触れない属性（spec/13 の 3.3）。
+# プロファイルの attributes で触れない属性（docs/spec/13 の 3.3）。
 # 患者の値・UID・画素・文字コードはほかの仕組みが、装置の値は device の欄が決める。
 PROTECTED_KEYWORDS: frozenset[str] = frozenset(
     {
@@ -58,7 +58,7 @@ PROTECTED_KEYWORDS: frozenset[str] = frozenset(
     }
 )
 
-# attributes.omit で消せない属性（spec/13 の 3.3）。この道具が CT Image で出す
+# attributes.omit で消せない属性（docs/spec/13 の 3.3）。この道具が CT Image で出す
 # Type 1・Type 2 の属性。omit は装置の表に無い Type 3 を消すためのもので、
 # 必須の属性を欠いた画像は異常のデータ（abnormal）の仕事にする。
 OMIT_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
@@ -88,7 +88,7 @@ OMIT_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
     }
 )
 
-# attributes.empty と空の attributes.set で空にできない属性（spec/13 の 3.3）。
+# attributes.empty と空の attributes.set で空にできない属性（docs/spec/13 の 3.3）。
 # この道具が CT Image で出す Type 1 の属性で、PROTECTED_KEYWORDS に無いもの
 # （PS3.3 C.7.3.1・C.7.6.2・C.8.2.1）。Type 1 は空の値を許さない
 EMPTY_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
@@ -117,7 +117,7 @@ AttributeValue = Union[Scalar, list[Scalar]]
 
 
 def normalize_character_set(value: str | list[str] | tuple[str, ...] | None) -> tuple[str, ...]:
-    """Specific Character Set の値を比べられる形にする（spec/13 の 4.3）.
+    """Specific Character Set の値を比べられる形にする（docs/spec/13 の 4.3）.
 
     `\\` で分け、前後の空白を除く。値 1 が空なら ISO 2022 IR 6 とみなす
     （PS3.3 C.12.1.1.2）。値が無ければ既定の字の集まり（ISO_IR 6）とみなす。
@@ -374,7 +374,7 @@ class ProfileServices(_StrictModel):
 
 
 class DeviceProfile(_StrictModel):
-    """装置のプロファイル（spec/13 の 3）."""
+    """装置のプロファイル（docs/spec/13 の 3）."""
 
     schema_version: Literal[1]
     name: str = Field(..., pattern=PROFILE_NAME_PATTERN, max_length=64)
@@ -401,7 +401,7 @@ def apply_device_profile(
 ) -> None:
     """プロファイルの装置の値・属性・プライベートタグを Dataset に当てる.
 
-    spec/13 の 4.2：装置の値は病院テンプレートでも変えない。Station Name は
+    docs/spec/13 の 4.2：装置の値は病院テンプレートでも変えない。Station Name は
     施設が決めていなければ（apply_station_name=True）プロファイルの値にする。
     attributes とプライベートタグは最後に当てる。
     """

@@ -1,33 +1,15 @@
-# Claude Instructions
+# Claude への指示
 
-このプロジェクトでは AI_DEVELOPMENT_RULES.md を必ず遵守してください。
-
-実装前に以下を順番に確認してください：
-
-1. AI_DEVELOPMENT_RULES.md
-2. WORKFLOW.md
-3. spec/ 配下の仕様書
-
-重要ルール：
-
-- レイヤー構造を厳守する
-- Core Engine を優先実装する
-- 不明点は推測せず質問する
-- requirements.txt を勝手に変更しない
-- 仕様にない機能は実装しない
-- DICOM と HL7（v2・FHIR）の規格に違反しないことを開発の前提とする。
-  識別子の型と長さ・属性の Type・応答の状態・文字コードは原典
-  （dicom.nema.org・hl7.org・IHE）で確かめ、出どころを spec か ADR に書く
-- PySide6 の GUI（`app/gui/`）は凍結。機能を足さない（ADR-0011 の案 B。
-  モダリティの画面はウェブの画面）
+@AGENTS.md
 
 実装は小さな単位で行ってください。
 
-## Codex MCP 呼び出しルール
+## Codex MCP の呼び出し
 
-- `approval-policy` は必ず `"never"` を指定する
-  （MCP経由ではインタラクティブ承認が不可能なため）
+- `approval-policy` は必ず `"never"` を指定する（MCP 経由では対話で承認できない
+  ため）
 - `sandbox` は `"workspace-write"` を指定する
-- ドキュメント（.md）の編集・整形は Codex に委譲しない（直接実行する）
-- 1ファイルで完結する変更は Codex に委譲しない
-- Codex への委譲は「新規コード生成20行以上」「複数ファイルのコード変更」に限定する
+- 文書（.md）の編集と整形は Codex に任せない（直接行う）
+- 1ファイルで済む変更は Codex に任せない
+- Codex に任せるのは、新しいコードの生成が 20 行以上のときと、複数のファイルの
+  コードを変えるときに限る

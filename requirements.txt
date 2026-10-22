@@ -22,7 +22,7 @@ tqdm>=4.0.0
 # GUI framework (Phase 2)
 PySide6>=6.5.0
 
-# Web UI of the modality emulator (Phase 3b, spec/12 10.1. Approved 2026-10-18)
+# Web UI of the modality emulator (Phase 3b, docs/spec/12a 10.1. Approved 2026-10-18)
 fastapi>=0.110
 uvicorn>=0.29
 jinja2>=3.1

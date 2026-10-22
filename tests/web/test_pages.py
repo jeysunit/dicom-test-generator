@@ -1,4 +1,4 @@
-"""頁と HTMX の部分の応答（spec/12a の 10.3〜10.8）."""
+"""頁と HTMX の部分の応答（docs/spec/12a の 10.3〜10.8）."""
 
 from __future__ import annotations
 
@@ -202,7 +202,7 @@ def test_pacs_echo(client) -> None:
 
 
 def test_screens_say_get_the_worklist_not_hiku(client) -> None:
-    """画面の言葉は「ワークリストを取得」「取得し直す」（2026-10-19。spec/12a の 10.4）."""
+    """画面の言葉は「ワークリストを取得」「取得し直す」（2026-10-19。docs/spec/12a の 10.4）."""
     page = client.get("/worklist").text
     results = _query(client)
     exam = client.get(f"/exam?key={_key_for(results, 'A0001')}").text
@@ -220,7 +220,7 @@ def _field(html: str, name: str) -> str:
 
 
 def test_required_fields_are_marked(client) -> None:
-    """必須の欄に「必須」の印と required（spec/12a の 10.5）."""
+    """必須の欄に「必須」の印と required（docs/spec/12a の 10.5）."""
     html = client.get("/exam").text
     for name in ("patient_id", "name_alphabetic", "series", "images"):
         field = _field(html, name)
@@ -275,7 +275,7 @@ def test_person_name_script_replaces_spaces_on_blur() -> None:
 
 
 def test_broken_state_is_reported_without_values(client, tmp_path) -> None:
-    """壊れた保存のデータの誤りを、値（氏名）を出さずに見せる（spec/12 の 12 章）."""
+    """壊れた保存のデータの誤りを、値（氏名）を出さずに見せる（docs/spec/12 の 12 章）."""
     state = tmp_path / "state"
     state.mkdir(exist_ok=True)
     (state / "worklist_last.json").write_text(

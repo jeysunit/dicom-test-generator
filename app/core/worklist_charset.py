@@ -1,4 +1,4 @@
-"""画像の文字コードの決め方と、表せない字の確かめ（spec/12_modality_emulator.md 7 章）.
+"""画像の文字コードの決め方と、表せない字の確かめ（docs/spec/12_modality_emulator.md 7 章）.
 
 Core Engine の Pure な処理。ファイル・通信・ログを使わない。
 """

@@ -1,4 +1,4 @@
-"""モダリティのダミーの設定（config/app_config.yaml の `modality:` の節。spec/12 の 12 章）."""
+"""モダリティのダミーの設定（config/app_config.yaml の `modality:` の節。docs/spec/12 の 12 章）."""
 
 from __future__ import annotations
 
@@ -21,10 +21,10 @@ DEFAULT_MAX_RESULTS = 1000
 MAX_RESULTS_LIMIT = 100_000
 DEFAULT_MAX_ITEM_BYTES = 256 * 1024
 DEFAULT_MAX_TOTAL_BYTES = 16 * 1024 * 1024
-DEFAULT_MAX_IMAGES_PER_EXAM = 2000  # 1回の撮影の合計の枚数（spec/12a の 10.5）
-DEFAULT_COMMITMENT_TIMEOUT_SECONDS = 600.0  # 保管の確認の結果を待つ（spec/12 の 8.3）
+DEFAULT_MAX_IMAGES_PER_EXAM = 2000  # 1回の撮影の合計の枚数（docs/spec/12a の 10.5）
+DEFAULT_COMMITMENT_TIMEOUT_SECONDS = 600.0  # 保管の確認の結果を待つ（docs/spec/12 の 8.3）
 MAX_COMMITMENT_TIMEOUT_SECONDS = 86400.0
-MAX_COMMITMENT_WAIT_SECONDS = 60.0  # 同じ Association で待つ上限（spec/12 の 12 章）
+MAX_COMMITMENT_WAIT_SECONDS = 60.0  # 同じ Association で待つ上限（docs/spec/12 の 12 章）
 _PRINTABLE_ASCII_MIN = 0x20
 _PRINTABLE_ASCII_MAX = 0x7E
 
@@ -113,7 +113,7 @@ class ModalityConfig(BaseModel):
     character_set: CharacterSetChoice = "auto"
     character_set_fallback: FallbackChoice = "utf8"
     default_template: str = "ct_generic"
-    default_profile: str | None = None  # 装置のプロファイル（spec/13 の 8）。None は重ねない
+    default_profile: str | None = None  # 装置のプロファイル（docs/spec/13 の 8）。None は重ねない
     default_hospital: str | None = None
     default_pixel_mode: PixelMode = "ct_realistic"
     worklist: WorklistPeerConfig

@@ -1,4 +1,4 @@
-"""保管の確認（Storage Commitment Push Model）の SCU と結果の待ち受け（spec/12 の 8.3）.
+"""保管の確認（Storage Commitment Push Model）の SCU と結果の待ち受け（docs/spec/12 の 8.3）.
 
 - N-ACTION（Action Type 1）で、送れた画像の組を送り先に問う
 - 結果（N-EVENT-REPORT）は、同じ Association（送り先の `commitment_wait_seconds` を

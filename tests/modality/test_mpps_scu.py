@@ -1,4 +1,4 @@
-"""MPPS（N-CREATE・N-SET）の試験（spec/12 の 6.4・8.4、spec/12b の 14 章。Phase 3c）.
+"""MPPS（N-CREATE・N-SET）の試験（docs/spec/12 の 6.4・8.4、docs/development.md の 4 章。Phase 3c）.
 
 手元の偽の MPPS の相手（tests/modality_peers.py の MppsRecorder）を相手にする。
 """
@@ -456,7 +456,7 @@ def test_mpps_off_by_config_and_override(tmp_path, worklist_scp, mpps_scp) -> No
 def test_profile_without_mpps_service_does_not_send(
     tmp_path, monkeypatch, worklist_scp, mpps_scp
 ) -> None:
-    """装置のプロファイルが MPPS に対応しなければ、設定で選んでいても送らない（spec/13 の 8）."""
+    """装置のプロファイルが MPPS に対応しなければ、設定で選んでいても送らない（docs/spec/13 の 8）."""
     write_service_profile(tmp_path / "profiles", "dtg_no_mpps", mpps=False, storage_commitment=False)
     write_service_profile(tmp_path / "profiles", "dtg_with_mpps", mpps=True, storage_commitment=False)
     monkeypatch.setenv(PROFILE_DIRS_ENV, str(tmp_path / "profiles"))

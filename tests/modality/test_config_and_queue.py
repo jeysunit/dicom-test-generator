@@ -132,7 +132,7 @@ def test_queue_job_failure_and_counters(tmp_path) -> None:
 
 
 def test_mark_sending_only_from_pending_or_failed(tmp_path) -> None:
-    """同じ件を2つの手順が同時に送らない（spec/12 の 8.2）."""
+    """同じ件を2つの手順が同時に送らない（docs/spec/12 の 8.2）."""
     queue = SendQueue(tmp_path / "queue.sqlite3")
     job_id = queue.add_job("exam", "PACS_TEST", ["a.dcm"])
 

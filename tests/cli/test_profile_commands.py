@@ -1,4 +1,4 @@
-"""装置のプロファイルの CLI の試験（spec/13 の 7）."""
+"""装置のプロファイルの CLI の試験（docs/spec/13 の 7）."""
 
 from __future__ import annotations
 

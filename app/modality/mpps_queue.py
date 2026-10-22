@@ -1,4 +1,4 @@
-"""MPPS の知らせの待ち行列（sqlite3。spec/12_modality_emulator.md 8.4.1）.
+"""MPPS の知らせの待ち行列（sqlite3。docs/spec/12_modality_emulator.md 8.4.1）.
 
 1件は1つの撮影の MPPS（1つの SOP Instance）。N-CREATE と、終わりの N-SET
 （COMPLETED・DISCONTINUED）の値と、それぞれ送れたかを持つ。送れなかった分は

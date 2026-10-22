@@ -1,4 +1,4 @@
-"""ウェブの画面の試験の道具（spec/12b の 14 章の Web）."""
+"""ウェブの画面の試験の道具（docs/development.md の 4 章）."""
 
 from __future__ import annotations
 

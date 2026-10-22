@@ -1,4 +1,4 @@
-"""モダリティのダミーの CLI（spec/12a_web_screens_and_cli.md 11 章）.
+"""モダリティのダミーの CLI（docs/spec/12a_web_screens_and_cli.md 11 章）.
 
 結果は標準出力、エラーは標準エラー。`--json` のときは標準出力に JSON だけを出す。
 """
@@ -85,7 +85,7 @@ def register_modality_commands(
     exam_parser.add_argument("--study-description", help="検査の記述（--emergency のとき）")
     exam_parser.add_argument("-m", "--modality", help="モダリティテンプレート")
     exam_parser.add_argument(
-        "--profile", help="装置のプロファイル（spec/13。default: 設定の default_profile）"
+        "--profile", help="装置のプロファイル（docs/spec/13。default: 設定の default_profile）"
     )
     exam_parser.add_argument("--hospital", help="病院テンプレート")
     exam_parser.add_argument("-s", "--series", type=int, default=1, help="シリーズ数")

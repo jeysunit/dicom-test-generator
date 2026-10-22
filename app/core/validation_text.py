@@ -1,4 +1,4 @@
-"""Pydantic の検証の誤りを、値を出さずに文にする（spec/12_modality_emulator.md 12 章）.
+"""Pydantic の検証の誤りを、値を出さずに文にする（docs/spec/12_modality_emulator.md 12 章）.
 
 `str(ValidationError)` は `input_value=...` で入っていた値を出す。壊れた保存のデータでは
 そこに患者の氏名が入りうるので、画面・CLI・ログには「項目の名前: 原因」だけを出す。

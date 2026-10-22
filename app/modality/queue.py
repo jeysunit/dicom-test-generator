@@ -1,4 +1,4 @@
-"""送信の待ち行列と送った履歴（sqlite3。spec/12_modality_emulator.md 8.2）."""
+"""送信の待ち行列と送った履歴（sqlite3。docs/spec/12_modality_emulator.md 8.2）."""
 
 from __future__ import annotations
 
@@ -89,7 +89,7 @@ _SCHEMA = (
         PRIMARY KEY (transaction_uid, sop_class_uid, sop_instance_uid)
     )
     """,
-    # 撮影の出力のフォルダと、撮影に使った装置のプロファイル（spec/13 の 8 を効かせる）
+    # 撮影の出力のフォルダと、撮影に使った装置のプロファイル（docs/spec/13 の 8 を効かせる）
     """
     CREATE TABLE IF NOT EXISTS exam_profiles (
         output_dir TEXT PRIMARY KEY,
@@ -357,7 +357,7 @@ class SendQueue:
                 (worklist_key, study_instance_uid),
             )
 
-    # --- 撮影に使った装置のプロファイル（spec/13 の 8） ----------------------
+    # --- 撮影に使った装置のプロファイル（docs/spec/13 の 8） ----------------------
 
     def remember_exam_profile(self, output_dir: str, profile: str) -> None:
         with self._connect() as conn:

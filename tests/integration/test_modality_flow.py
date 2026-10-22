@@ -1,4 +1,4 @@
-"""統合の試験：MWL の SCP → `exam --from-worklist --send` → 偽の PACS が受ける（spec/12b の 14 章）."""
+"""統合の試験：MWL の SCP → `exam --from-worklist --send` → 偽の PACS が受ける（docs/development.md の 4 章）."""
 
 from __future__ import annotations
 

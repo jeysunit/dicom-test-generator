@@ -1,4 +1,4 @@
-"""C-STORE・C-ECHO の SCU（spec/12_modality_emulator.md 8 章）."""
+"""C-STORE・C-ECHO の SCU（docs/spec/12_modality_emulator.md 8 章）."""
 
 from __future__ import annotations
 

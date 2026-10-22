@@ -79,7 +79,7 @@ def setup_logging(verbose: bool, quiet: bool, log_file: str) -> None:
 
     console_handler = logging.StreamHandler()
     console_handler.setLevel(console_level)
-    # 端末には相手から来る値の制御文字を生で出さない（spec/12a の 11.7）
+    # 端末には相手から来る値の制御文字を生で出さない（docs/spec/12a の 11.7）
     console_handler.setFormatter(TerminalSafeFormatter(log_format))
     root_logger.addHandler(console_handler)
 
@@ -169,7 +169,7 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     generate_parser.add_argument(
         "--profile",
-        help="装置のプロファイル名（Job YAML の device_profile を上書き。spec/13）",
+        help="装置のプロファイル名（Job YAML の device_profile を上書き。docs/spec/13）",
     )
     generate_parser.set_defaults(func=generate_command)
 
@@ -201,7 +201,7 @@ def _create_parser() -> argparse.ArgumentParser:
     quick_parser.add_argument("--hospital", help="病院テンプレート名")
     quick_parser.add_argument(
         "--profile",
-        help="装置のプロファイル名（spec/13）。転送の形はプロファイルの最初の形",
+        help="装置のプロファイル名（docs/spec/13）。転送の形はプロファイルの最初の形",
     )
     quick_parser.add_argument(
         "--pixel-mode",

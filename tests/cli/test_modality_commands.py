@@ -1,4 +1,4 @@
-"""モダリティのダミーの CLI の試験：終了コードと --json の形（spec/12a の 11 章、spec/12b の 14 章）."""
+"""モダリティのダミーの CLI の試験：終了コードと --json の形（docs/spec/12a の 11 章、docs/development.md の 4 章）."""
 
 from __future__ import annotations
 
@@ -163,7 +163,7 @@ def test_exam_emergency_json(monkeypatch, capsys, tmp_path, config) -> None:
 
 
 def test_exam_with_profile(monkeypatch, capsys, tmp_path, config) -> None:
-    """exam --profile：装置のプロファイルを重ねる。無い名前は終了コード 2（spec/13 の 8・9）."""
+    """exam --profile：装置のプロファイルを重ねる。無い名前は終了コード 2（docs/spec/13 の 8・9）."""
     code, out, _ = run_cli(
         monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0001",
         "--patient-name", "KINKYU^TARO", "--profile", "dtg_synthetic_ct",
@@ -201,7 +201,7 @@ def test_exam_emergency_requires_patient(monkeypatch, capsys, tmp_path, config) 
 
 
 def test_exam_without_images_fills_one_per_series(monkeypatch, capsys, tmp_path, config) -> None:
-    """-i を省いたら、シリーズごとに 1 枚（-s 3 なら 1,1,1。spec/12a の 10.5）."""
+    """-i を省いたら、シリーズごとに 1 枚（-s 3 なら 1,1,1。docs/spec/12a の 10.5）."""
     code, out, _ = run_cli(
         monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0003",
         "--patient-name", "KINKYU^TARO", "-s", "3", "--pixel-mode", "simple_text", "--json",
@@ -312,7 +312,7 @@ def test_bad_modality_config_is_exit_2(monkeypatch, capsys, tmp_path) -> None:
 
 
 def test_broken_state_error_shows_no_values(monkeypatch, capsys, tmp_path, config) -> None:
-    """壊れた保存のデータの誤りに、入っていた値（氏名）を出さない（spec/12 の 12 章）."""
+    """壊れた保存のデータの誤りに、入っていた値（氏名）を出さない（docs/spec/12 の 12 章）."""
     state = tmp_path / "state"
     state.mkdir(exist_ok=True)
     (state / "worklist_last.json").write_text(

@@ -12,13 +12,13 @@ from app.core.exceptions import TemplateNotFoundError, TemplateParseError
 
 from .profile_loader import PROFILE_DIRS_ENV
 
-# テンプレートの名前（spec/12b の 17：小文字・数字・`_` 区切り。既存の名前も読めるよう `-` と大文字も許す）
+# テンプレートの名前（ADR-0016：小文字・数字・`_` 区切り。既存の名前も読めるよう `-` と大文字も許す）
 TEMPLATE_NAME_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
 
 # 装置ごとだった古いモダリティテンプレート：古い名前の SHA-256 → 土台のテンプレート。
 # 古い名前は商用の製品の名前を含むため、名前そのものを書かない
-# （spec/12b_decisions_and_limits.md の 17）。装置ごとの写しは装置のプロファイルに
-# なった（spec/13_device_profiles.md の 7.3）。別名として黙って読まず、
+# （docs/decisions/0016-generic-template-names.md）。装置ごとの写しは装置のプロファイルに
+# なった（docs/spec/13_device_profiles.md の 7.3）。別名として黙って読まず、
 # プロファイルの置き場へ案内する TemplateNotFoundError にする。
 DEVICE_SPECIFIC_TEMPLATES: dict[str, str] = {
     "ece4615a3432602c091b9c7abcc6e0578ee7cc1762e1360414e3c3b516859422": "ct_generic",
@@ -43,7 +43,7 @@ def _deep_merge(base: dict, overrides: dict) -> dict:
 def _device_profile_hint(base_template: str) -> str:
     return (
         "this name was a device-specific template; device-specific output is now "
-        "a device profile (spec/13). Put the profile in an external profile "
+        "a device profile (docs/spec/13). Put the profile in an external profile "
         f"directory ({PROFILE_DIRS_ENV} or profiles.search_paths in "
         "config/app_config.yaml) and generate with "
         f"--modality {base_template} --profile <profile name>"

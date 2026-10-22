@@ -1,4 +1,4 @@
-"""相手から来る悪い値（`<script>`・制御文字）が画面でエスケープされる（spec/12a の 10.8）."""
+"""相手から来る悪い値（`<script>`・制御文字）が画面でエスケープされる（docs/spec/12a の 10.8）."""
 
 from __future__ import annotations
 
