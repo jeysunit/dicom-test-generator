@@ -106,6 +106,7 @@ def worklist_item_from_identifier(identifier: Dataset) -> WorklistItem:
         "study_instance_uid": text(identifier, "StudyInstanceUID"),
         "accession_number": text(identifier, "AccessionNumber"),
         "referring_physician_name": text(identifier, "ReferringPhysicianName"),
+        "requesting_physician": text(identifier, "RequestingPhysician"),
         "requested_procedure_id": text(identifier, "RequestedProcedureID"),
         "requested_procedure_description": text(identifier, "RequestedProcedureDescription"),
         "reason_for_requested_procedure": text(identifier, "ReasonForTheRequestedProcedure"),

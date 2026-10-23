@@ -104,6 +104,8 @@ def build_worklist_dataset(raw: dict[str, Any], character_set: list[str]) -> Dat
     ds.StudyInstanceUID = raw.get("study_instance_uid", "")
     ds.AccessionNumber = raw.get("accession_number", "")
     ds.ReferringPhysicianName = raw.get("referring_physician_name", "")
+    if raw.get("requesting_physician"):
+        ds.RequestingPhysician = raw["requesting_physician"]
     ds.RequestedProcedureID = raw.get("requested_procedure_id", "")
     ds.RequestedProcedureDescription = raw.get("requested_procedure_description", "")
     ds.RequestedProcedureCodeSequence = _code_sequence(raw.get("requested_procedure_code"))

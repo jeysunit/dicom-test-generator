@@ -200,6 +200,12 @@ RAD TF-2 Table 4.5-3 で、SCU が R+・R+* の値をすべて求める。主な
 - Specific Character Set (0008,0005)
 - Institution Name（返ってくれば）
 
+Requesting Physician (0032,1032) は予約の詳細に「依頼医」として出すだけで、画像には
+転記しない（6.2 の表に無い。IHE RAD TF-2x Table A.1-1 の転記の対象でもない）。
+Referring Physician's Name (0008,0090) は「紹介医」として出し、画像に転記する。
+(0032,1032) は Imaging Service Request を依頼した医師（PS3.3 C.4.12）、(0008,0090) は
+患者の紹介医（PS3.3 C.7.2.1）で、別の属性である。
+
 ### 5.3 問い合わせの文字コード
 
 - 検索条件がすべて ASCII なら、問い合わせに Specific Character Set を入れない
@@ -445,6 +451,9 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID (0008,1155)
   選べば、pynetdicom が Explicit VR Little Endian のファイルを Implicit に変換して
   送信する
 - 失敗の理由（相手の Status の値・pynetdicom の例外の型）を記録する
+- 件の受付番号は、件を作るときにフォルダの最初の画像の Accession Number (0008,0050)
+  を読んで記録する（画面からの送信と CLI の `send` の両方）。読めなければ空のまま
+  送信する。受付番号を記録していない前の件は、表示のときに画像から読んで補う
 - 再送は失敗した分だけを送信する。自動の再送は既定でしない（設定
   `retry.max_attempts` で回数を決めたときだけ）
 - 送信キューと送信の履歴は、状態の保存先の SQLite（標準ライブラリの `sqlite3`）に

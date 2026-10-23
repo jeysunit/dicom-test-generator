@@ -97,6 +97,26 @@ def test_detail_shows_the_scheduled_station_ae_title_on_its_own_row(client) -> N
     assert "DTG_MR01" not in schedule
 
 
+def _detail_row(html: str, label: str) -> str:
+    return html.split(f"<dt>{label}</dt><dd>", 1)[1].split("</dd>", 1)[0]
+
+
+def test_detail_shows_requesting_and_referring_physicians(client, worklist_scp) -> None:
+    """依頼医 (0032,1032) と紹介医 (0008,0090) を別の行に出す（docs/spec/12a の 10.4）."""
+    item = dict(worklist_scp.items[0])
+    item["requesting_physician"] = "SATO^ICHIRO"
+    item["referring_physician_name"] = "SUZUKI^HANAKO"
+    worklist_scp.items = [item, *worklist_scp.items[1:]]
+    html = _query(client)
+
+    detail = client.get(f"/worklist/item/{_key_for(html, 'A0001')}").text
+    assert _detail_row(detail, "依頼医") == "SATO ICHIRO"
+    assert _detail_row(detail, "紹介医") == "SUZUKI HANAKO"
+
+    other = client.get(f"/worklist/item/{_key_for(html, 'A0002')}").text
+    assert _detail_row(other, "依頼医") == "—"  # 応答に無い
+
+
 def test_worklist_detail_and_refresh(client, worklist_scp) -> None:
     html = _query(client)
     key = _key_for(html, "A0001")

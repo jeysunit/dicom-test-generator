@@ -9,7 +9,9 @@
     <dt>Scheduled Procedure Step</dt><dd>{{ item.scheduled_procedure_step_id }} {{ item.scheduled_procedure_step_description }}</dd>
     <dt>予定</dt><dd>{{ item.scheduled_start_date|date_label }} {{ item.scheduled_start_time|time_label }}・{{ item.modality }}</dd>
     <dt>予定の装置の AE タイトル</dt><dd class="font-mono">{{ item.scheduled_station_ae_title or "—" }}</dd>
-    <dt>紹介医</dt><dd>{{ item.referring_physician_name or "—" }}</dd>
+    {# 依頼医は (0032,1032) Requesting Physician、紹介医は (0008,0090) Referring Physician's Name #}
+    <dt>依頼医</dt><dd>{{ item.requesting_physician|name_parts|select|join(" / ") or "—" }}</dd>
+    <dt>紹介医</dt><dd>{{ item.referring_physician_name|name_parts|select|join(" / ") or "—" }}</dd>
     <dt>施設</dt><dd>{{ item.institution_name or "—" }}</dd>
     <dt>文字コード</dt><dd>{{ item.specific_character_set|charset_label }}</dd>
     <dt>Study Instance UID</dt><dd>{% with uid = item.study_instance_uid %}{% include "_uid.html" %}{% endwith %}</dd>

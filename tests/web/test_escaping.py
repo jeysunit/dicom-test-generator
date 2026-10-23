@@ -41,6 +41,19 @@ def test_worklist_list_and_detail_escape_peer_values(client, worklist_scp) -> No
     _assert_safe(client.get("/worklist").text)
 
 
+def test_detail_escapes_requesting_physician(client, worklist_scp) -> None:
+    """依頼医 (0032,1032) も相手から来る値としてエスケープする（docs/spec/12a の 10.8）."""
+    item = dict(worklist_scp.items[0])
+    item["requesting_physician"] = "<script>alert(3)</script>^Y\x1b"
+    worklist_scp.items = [item]
+
+    key = _key_for(_query(client), "A0001")
+    html = client.get(f"/worklist/item/{key}").text
+
+    assert "<script>alert(3)" not in html and "\x1b" not in html
+    assert "&lt;script&gt;alert(3)&lt;/script&gt;" in html
+
+
 def test_peer_status_text_in_errors_is_escaped(client) -> None:
     token = csrf_token(client, "/pacs")
     html = client.post("/pacs/echo/<script>x</script>", headers=post_headers(token)).text

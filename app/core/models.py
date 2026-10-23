@@ -241,6 +241,8 @@ class WorklistItem(BaseModel):
     study_instance_uid: str = ""
     accession_number: str = ""
     referring_physician_name: str = ""
+    # 依頼医 (0032,1032)。画面に出すだけで、画像には写さない（docs/spec/12 の 5.2）
+    requesting_physician: str = ""
     requested_procedure_id: str = ""
     requested_procedure_description: str = ""
     reason_for_requested_procedure: str = ""
