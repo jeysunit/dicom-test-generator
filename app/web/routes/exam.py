@@ -16,7 +16,7 @@ from app.core.models import ScheduledPatient, WorklistItem
 from app.modality.service import ExamRequest, ExamResult, ModalityService, SendResult
 
 from ..display import exam_notices
-from ..rendering import error_text, render, render_error, service_of
+from ..rendering import error_text, render, service_of, worklist_error_text
 
 router = APIRouter()
 
@@ -87,7 +87,7 @@ def exam_page(request: Request, key: str = "") -> HTMLResponse:
         try:
             item = service.find_item(key)
         except DICOMGeneratorError as exc:
-            load_error = str(exc)
+            load_error = worklist_error_text(exc)
     try:
         templates = service.available_templates()
         profiles, profile_errors = service.available_profiles()
@@ -127,7 +127,7 @@ def exam_check(
         try:
             item = service.find_item(key)
         except DICOMGeneratorError as exc:
-            return render(request, "_exam_actions.html", blocker=str(exc))
+            return render(request, "_exam_actions.html", blocker=worklist_error_text(exc))
     blocker = _blocker(service, item, template or service.config.default_template, profile)
     return render(request, "_exam_actions.html", blocker=blocker)
 
@@ -184,7 +184,7 @@ def exam_run(
         result = service.exam(exam_request)
         accepted = True
     except (DICOMGeneratorError, ValidationError) as exc:
-        return render_error(request, exc)
+        return render(request, "_notice.html", error=worklist_error_text(exc))
     finally:
         if exam_token:
             tokens.finish(exam_token, accepted=accepted)

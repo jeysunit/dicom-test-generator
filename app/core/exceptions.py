@@ -185,6 +185,18 @@ class WorklistQueryError(ModalityError):
     """C-FIND（MWL）の失敗・時間切れ."""
 
 
+class WorklistRefreshTimeoutError(WorklistQueryError):
+    """予約を取得し直す C-FIND が、時間の上限で途中までになった."""
+
+
+class WorklistItemNotFoundError(ModalityError):
+    """最後に取得した一覧に、その予約の鍵が無い."""
+
+
+class WorklistItemGoneError(ModalityError):
+    """取得し直した応答に、その予約がもう無い."""
+
+
 class WorklistMappingError(ModalityError):
     """予約の値を画像に写せない（文字・長さ・モダリティ）."""
 
