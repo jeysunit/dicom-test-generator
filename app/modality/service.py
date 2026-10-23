@@ -118,20 +118,9 @@ def check_send_files(folder: Path, files: list[str]) -> None:
             raise FileReadError(name, f"not a regular file directly inside {root}")
 
 
-def _read_source_ae_title(folder: Path) -> str:
-    """フォルダの最初の画像の File Meta の Source Application Entity Title。読めなければ空."""
-    try:
-        first = next(
-            path for path in sorted(folder.glob("*.dcm")) if path.is_file() and not path.is_symlink()
-        )
-        meta = dcmread(first, stop_before_pixels=True, specific_tags=["PatientID"]).file_meta
-    except (StopIteration, OSError, InvalidDicomError, AttributeError):
-        return ""
-    return str(meta.get("SourceApplicationEntityTitle", "")).strip()
-
-
-def _read_job_summary(folder: Path) -> tuple[str, str, str, str]:
-    """フォルダの最初の画像から（患者 ID・氏名・検査日時・受付番号）を読む。読めなければ空."""
+def _read_job_summary(folder: Path) -> tuple[str, str, str, str, str]:
+    """フォルダの最初の画像から（患者 ID・氏名・検査日時・受付番号・File Meta の Source
+    Application Entity Title）を読む。読めなければ空."""
     try:
         first = next(
             path for path in sorted(folder.glob("*.dcm")) if path.is_file() and not path.is_symlink()
@@ -142,7 +131,9 @@ def _read_job_summary(folder: Path) -> tuple[str, str, str, str]:
             specific_tags=["PatientID", "PatientName", "StudyDate", "StudyTime", "AccessionNumber"],
         )
     except (StopIteration, OSError, InvalidDicomError):
-        return "", "", "", ""
+        return "", "", "", "", ""
+    meta = getattr(dataset, "file_meta", None)
+    source_ae_title = str(meta.get("SourceApplicationEntityTitle", "")).strip() if meta else ""
     study_date = str(dataset.get("StudyDate", ""))
     study_time = str(dataset.get("StudyTime", ""))
     study_datetime = ""
@@ -155,6 +146,7 @@ def _read_job_summary(folder: Path) -> tuple[str, str, str, str]:
         str(dataset.get("PatientName", "")),
         study_datetime,
         str(dataset.get("AccessionNumber", "")),
+        source_ae_title,
     )
 
 
@@ -254,7 +246,7 @@ class ModalityService:
         # 同時に走る撮影は1つ（画面のプロセスの中。docs/spec/12a の 10.5）
         self._exam_lock = threading.Lock()
         # 送信ジョブの一覧に出す患者・検査の値（元のファイルから読み、ジョブの番号で覚える）
-        self._job_summaries: dict[int, tuple[str, str, str, str]] = {}
+        self._job_summaries: dict[int, tuple[str, str, str, str, str]] = {}
 
     @property
     def queue(self) -> SendQueue:
@@ -347,9 +339,8 @@ class ModalityService:
             job_id, self._commitment_node(job_id), self._job_ae_title(job_id)
         )
 
-    def _station_ae_title_of(self, folder: Path) -> str:
-        """画像を作った装置の AE タイトル。設定の装置でなければ、いまの装置."""
-        source = _read_source_ae_title(folder)
+    def _station_ae_title_of(self, source: str) -> str:
+        """画像の Source AE Title が設定の装置のどれかならそれ。違えば、いまの装置."""
         if any(station.ae_title == source for station in self.config.stations):
             return source
         return self.current_station().ae_title
@@ -769,8 +760,8 @@ class ModalityService:
         # 待ち行列に入れる前に、送ってよいファイルかを確かめる（8.2）
         check_send_files(folder_path, files)
         # 件の受付番号は、送る画像の Accession Number（読めなければ空のまま送る）
-        accession_number = _read_job_summary(folder_path)[3]
-        calling = calling_ae_title or self._station_ae_title_of(folder_path)
+        _, _, _, accession_number, source_ae_title = _read_job_summary(folder_path)
+        calling = calling_ae_title or self._station_ae_title_of(source_ae_title)
         job_id = self.queue.add_job(
             str(folder_path), node.name, files, accession_number, calling_ae_title=calling
         )
@@ -830,7 +821,7 @@ class ModalityService:
             summary = _read_job_summary(Path(job.folder))
             if any(summary):
                 self._job_summaries[job.id] = summary
-        patient_id, patient_name, study_datetime, accession_number = summary
+        patient_id, patient_name, study_datetime, accession_number, _source = summary
         return job.model_copy(
             update={
                 "patient_id": patient_id,
