@@ -115,7 +115,8 @@ class StationConfig(BaseModel):
     @field_validator("ae_title")
     @classmethod
     def _check_ae_title(cls, value: str) -> str:
-        return validate_ae_title(value)
+        # 前後の空白は AE タイトルの値に含めない（PS3.5 の AE）。比べる前にそろえる
+        return validate_ae_title(value).strip()
 
     @field_validator("station_name")
     @classmethod

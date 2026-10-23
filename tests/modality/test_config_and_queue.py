@@ -128,6 +128,15 @@ def test_invalid_stations_are_config_errors(tmp_path, raw) -> None:
         load_modality_config(_write(tmp_path, raw))
 
 
+def test_station_ae_titles_are_compared_without_padding(tmp_path) -> None:
+    """装置の AE タイトルの前後の空白はそろえる（PS3.5 の AE）。空白だけ違うものは重複."""
+    config = load_modality_config(_write(tmp_path, _stations({**CT1, "ae_title": " DTG_CT01 "})))
+    assert config.stations[0].ae_title == "DTG_CT01"
+
+    with pytest.raises(ModalityConfigError):
+        load_modality_config(_write(tmp_path, _stations(CT1, {**MR1, "ae_title": "DTG_CT01 "})))
+
+
 def test_unknown_station_name(tmp_path) -> None:
     config = load_modality_config(_write(tmp_path, _stations(CT1, MR1)))
 
