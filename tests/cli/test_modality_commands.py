@@ -375,3 +375,49 @@ def test_worklist_output_neutralizes_control_chars(
     )
     assert "\x1b" not in out and "\u202e" not in out
     assert json.loads(out)["patient_name"] == "EVIL^\u202eNAME"
+
+
+def _two_station_config(tmp_path: Path, worklist_port: int, storage_port: int) -> Path:
+    path = write_config(tmp_path, worklist_port, storage_port)
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    modality = data["modality"]
+    del modality["ae_title"], modality["station_name"]
+    modality["stations"] = [
+        {"name": "CT1", "ae_title": "DTG_CT01", "station_name": "DTG_CT01"},
+        {"name": "MR1", "ae_title": "DTG_MR01", "station_name": "DTG_MR01"},
+    ]
+    path.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+    return path
+
+
+def test_station_option_applies_to_one_command(
+    monkeypatch, capsys, tmp_path, worklist_scp, storage_scp
+) -> None:
+    """`--station` \u306f\u305d\u306e\u30b3\u30de\u30f3\u30c9\u3060\u3051\u306b\u52b9\u304f\uff08docs/spec/12a \u306e 11 \u7ae0\u30fbADR-0023\uff09."""
+    config = _two_station_config(tmp_path, worklist_scp.port, storage_scp.port)
+    _, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0007",
+        "--patient-name", "STATION^TEST", "--pixel-mode", "simple_text", "--json",
+        "--station", "MR1",
+    )
+    folder = json.loads(out)["output_dir"]
+    image = pydicom.dcmread(next(Path(folder).glob("*.dcm")), stop_before_pixels=True)
+    assert image.file_meta.SourceApplicationEntityTitle == "DTG_MR01"
+
+    code, _, _ = run_cli(monkeypatch, capsys, tmp_path, config, "send", folder)
+    assert code == 0
+    assert storage_scp.calling_ae_titles[-1] == "DTG_CT01"  # \u8a18\u9332\u306f\u5909\u3048\u3066\u3044\u306a\u3044
+
+
+def test_unknown_station_option_is_exit_2(
+    monkeypatch, capsys, tmp_path, worklist_scp, storage_scp
+) -> None:
+    config = _two_station_config(tmp_path, worklist_scp.port, storage_scp.port)
+
+    code, _, err = run_cli(
+        monkeypatch, capsys, tmp_path, config, "worklist", "query", "--station", "XR9"
+    )
+
+    assert code == 2
+    assert "Station not found" in err
+    assert worklist_scp.queries == []

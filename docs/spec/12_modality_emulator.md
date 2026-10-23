@@ -137,6 +137,14 @@ Number）、検査、シリーズ、緊急、送信完了。
   ことが多い。受け取るために、DTG は小さな待ち受け（N-EVENT-REPORT と、相手からの
   疎通確認の C-ECHO だけを受け付ける）を持つ。待ち受けは保管確認を有効にした
   ときだけ起動する（8.3.1）。画像を受信する機能ではない
+- **どの Association でも、選んだ装置（12 章）の AE タイトルを Calling AE Title に
+  する**（ADR-0023）。C-FIND・C-STORE・C-ECHO・MPPS・保管確認の N-ACTION のすべて。
+  例外は2つ：送信の件・MPPS の行の再送は、作ったときの装置の AE タイトルで名乗る
+  （8.2・8.4.1）。保管確認の要求は、件を作った装置の AE タイトルで送る（8.3.1）
+- 相手が A-ASSOCIATE-RJ の理由 3「calling-AE-title-not-recognized」（PS3.8 9.3.4）で
+  拒否したら、「相手が AE タイトル DTG_MR01 を受け付けませんでした。相手の側に、
+  この装置の AE タイトルを登録してください」と知らせる（送信なら送信失敗の理由に
+  なる）。PACS・RIS には、使う装置の AE タイトルをすべて登録しておく
 
 ### 4.2 Orthanc の対応
 
@@ -306,13 +314,13 @@ Association を切断し、`WorklistQueryError`（終了コード 5）で停止�
 | Referenced Performed Procedure Step Sequence | (0008,1111) | MPPS を使うときだけ、その SOP Instance UID | 同じ | Table A.1-1（IHE-A.1.3） |
 | Modality | (0008,0060) | テンプレートの値。予約の値と異なれば撮影の画面で停止する | テンプレートの値 | この仕様の決定 |
 | Institution Name | (0008,0080) | 転記（あれば）。無ければ病院テンプレート | 病院テンプレート | Table A.1-1（Enterprise Identity Option のとき） |
-| Station Name | (0008,1010) | テンプレートの値 | 同じ | — |
+| Station Name | (0008,1010) | 選んだ装置の Station Name。空なら病院テンプレート → 装置プロファイル → テンプレートの値 | 同じ | PS3.3 C.7.5.1、ADR-0023 |
 | Series Instance UID・Frame of Reference UID | (0020,000E)・(0020,0052) | Series Instance UID はシリーズごとに生成する。Frame of Reference UID は既存の作成のとおり検査ごとに1つ生成する | 同じ | RAD TF-2 4.8.4.1.1.1 |
-| Source Application Entity Title（File Meta） | (0002,0016) | 自分の AE タイトル | 同じ | PS3.10 |
+| Source Application Entity Title（File Meta） | (0002,0016) | 選んだ装置の AE タイトル | 同じ | PS3.10 |
 
 Scheduled Station AE Title (0040,0001) は画像に転記する属性ではない。検索条件に
-使い、予約の値が自分の AE タイトルと異なれば、撮影の画面で「この予約は別の装置の
-予定です」と表示して確認を求める。
+使い、予約の値が選んだ装置の AE タイトルと異なれば、撮影の画面で「この予約は別の
+装置の予定です」と表示して確認を求める。
 
 ### 6.3 規則の補足
 
@@ -341,7 +349,8 @@ Sequence（Study Instance UID・Referenced Study Sequence・Accession Number・
 Requested Procedure ID・Requested Procedure Description・Scheduled Procedure
 Step ID・Scheduled Procedure Step Description・Scheduled Protocol Code
 Sequence）、患者の値、Performed Procedure Step ID・Start Date・Start Time・
-Description、Modality、Performed Station AE Title（自分の AE タイトル）。
+Description、Modality、Performed Station AE Title・Performed Station Name（撮影
+した装置の AE タイトルと Station Name）。
 
 N-SET（状態 `COMPLETED`・`DISCONTINUED`）で Performed Series Sequence
 （シリーズごとの Series Instance UID と、作成した画像の SOP Class・Instance UID）と
@@ -454,6 +463,9 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID (0008,1155)
 - 件の受付番号は、件を作るときにフォルダの最初の画像の Accession Number (0008,0050)
   を読んで記録する（画面からの送信と CLI の `send` の両方）。読めなければ空のまま
   送信する。受付番号を記録していない前の件は、表示のときに画像から読んで補う
+- 件には、件を作ったときの装置の AE タイトルを記録する。再送（送信完了の件の再送で
+  できる新しい件も）はその AE タイトルで名乗る。あとで装置を切り替えても変えない
+  （ADR-0023）。AE タイトルの列が無い前の版の行は、既定の装置の AE タイトルで埋める
 - 送信失敗の件の再送は、その件の送れていない画像だけを同じ件で送信する。自動の
   再送は既定でしない（設定 `retry.max_attempts` で回数を決めたときだけ）
 - 送信完了の件も、回数の上限なしに再送できる。同じフォルダの画像をすべて、その件と
@@ -506,8 +518,13 @@ N-EVENT-REPORT も受ける。
 - どちらの経路でも、同じ受け取りの処理（8.3.2）を実行する
 - 待ち受けは `modality.listen`（既定 `127.0.0.1:11113`）で起動する。受け付ける
   SOP Class は Storage Commitment Push Model と Verification（相手からの疎通確認）
-  だけ。呼び出された AE タイトルが自分の AE タイトルと異なる Association は拒否
-  する。相手が SCP の役を求める SCP/SCU Role Selection は受け付ける
+  だけ。呼び出された AE タイトルが、設定の装置（12 章）のどの AE タイトルとも
+  異なる Association は、理由 7「called-AE-title-not-recognized」で拒否する
+  （PS3.8 9.3.4）。装置を切り替えた後も、前の装置あての結果を受けるため。相手が
+  SCP の役を求める SCP/SCU Role Selection は受け付ける
+- 要求には、要求を送った装置の AE タイトルを記録する。結果は、その AE タイトルあてに
+  届いたものだけを、その要求の結果にする（ほかの装置あては `0x0110` を返す）。要求は
+  件を作った装置の AE タイトルで送る（8.2）
 - 別の経路で受けるときは、相手が Orthanc なら `DicomModalities` に DTG を登録して
   おく必要がある（4.2・10.7）
 
@@ -629,6 +646,8 @@ N-EVENT-REPORT も受ける。
 - 画像を書き出せなかった（OSError）・作成した画像のヘッダーを読めないときも、
   N-CREATE を送信していれば DISCONTINUED を残す（開いたままにしない）
 - MPPS の SOP Instance UID は DTG が生成する（2.25 の UUID の形式）
+- 撮影した装置の AE タイトルも行に記録し、再送はその AE タイトルで名乗る（あとで
+  装置を切り替えても変えない。ADR-0023）
 
 #### 8.4.2 ローカルでテストする相手
 
@@ -729,8 +748,14 @@ DICOMGeneratorError
 
 ```yaml
 modality:
-  ae_title: "DTG_CT01"
-  station_name: "DTG_CT01"
+  stations:                     # 名乗る装置の一覧。画面の情報バーで切り替える
+    - name: "CT1"               # 表示名
+      ae_title: "DTG_CT01"
+      station_name: "DTG_CT01"  # 画像の Station Name。空ならテンプレートなどの値
+    - name: "MR1"
+      ae_title: "DTG_MR01"
+      station_name: "DTG_MR01"
+  default_station: "CT1"        # 書かなければ一覧の先頭
   listen:                       # 保管確認の結果を受ける待ち受け
     bind_address: "127.0.0.1"
     port: 11113
@@ -781,6 +806,15 @@ web:
   ファイルに書かず、`DTG_WEB_PASSWORD_FILE` が指すファイルから読む）
 - 読み込みは `app/modality/config.py`（Pydantic）。Core からは読まない
 - AE タイトルは 16 文字以内で、空白だけのものは禁止する（PS3.5 の AE の VR）
+- **装置（`stations`）**（ADR-0023）：表示名・AE タイトル・Station Name を書く。表示名と
+  AE タイトルは一覧の中で重複させない。Station Name は SH（16 文字以内・`\` と制御
+  文字は不可。PS3.5 6.2）。装置が1台なら、`stations` の代わりに `ae_title`・
+  `station_name` だけを書いてもよい（表示名は AE タイトルになる）。両方を書くのは、
+  `ae_title`・`station_name` が既定の装置の値と同じときだけ（違えば設定の誤り）
+- 画面で選んだ装置は、状態の保存先の `station.json` に表示名で記録する。画面と CLI が
+  同じ記録を使い、CLI の `--station <表示名>` はそのコマンドだけに効く（記録は変えない）。
+  記録の表示名が設定に無くなっていたら、既定の装置を使い、情報バーで知らせる。撮影・
+  送信の最中は切り替えを断る（「撮影・送信の最中は装置を切り替えられません」）
 - 例はループバックのアドレスと例の名前だけにする。施設の名前・アドレスを書かない
 - 設定・状態の保存先のファイル（`worklist_last.json` など）が検証で不正となった
   とき、エラーメッセージは「項目の名前: 原因」だけにし、入っていた値を出さない

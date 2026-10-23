@@ -61,7 +61,7 @@ from app.services import ProfileLoaderService, StudyGeneratorService, TemplateLo
 from app.services.profile_loader import profile_transfer_syntax
 
 from .commitment_scu import CommitmentListener, CommitmentManager
-from .config import DestinationConfig, ModalityConfig
+from .config import DestinationConfig, ModalityConfig, StationConfig
 from .mpps_queue import MppsQueue, MppsRecord
 from .mpps_scu import (
     IMAGE_READ_ERRORS,
@@ -77,6 +77,8 @@ from .worklist_scu import WorklistQuery, WorklistQueryResult, query_worklist
 logger = logging.getLogger(__name__)
 
 WORKLIST_STATE_FILE = "worklist_last.json"
+STATION_STATE_FILE = "station.json"  # 画面で選んだ装置（ADR-0023）
+STATION_BUSY_MESSAGE = "撮影・送信の最中は装置を切り替えられません"
 EMERGENCY_FOLDER_NAME = "emergency"
 STUDY_ID_COUNTER = "emergency_study_id"
 PPS_ID_COUNTER = "performed_procedure_step_id"
@@ -218,8 +220,16 @@ class ModalityService:
         template_loader: TemplateLoaderService | None = None,
         profile_loader: ProfileLoaderService | None = None,
         auto_commitment: bool = False,
+        station: str | None = None,
     ) -> None:
+        """`station` はこの service だけで使う装置の表示名（CLI の `--station`）.
+
+        無ければ、状態の保存先に記録した装置（画面で選んだ装置）を使う。
+        """
+        if station is not None:
+            config.station(station)  # 設定に無い名前なら ModalityConfigError
         self.config = config
+        self._station_override = station
         self._profile_loader = profile_loader or ProfileLoaderService()
         self._generator = generator or StudyGeneratorService(self._profile_loader)
         self._template_loader = template_loader or TemplateLoaderService()
@@ -236,14 +246,60 @@ class ModalityService:
     @property
     def queue(self) -> SendQueue:
         if self._queue is None:
-            self._queue = SendQueue(self._state_dir / QUEUE_DB_NAME)
+            # AE タイトルの列が無い前の版の行は、既定の装置の AE タイトルで埋める
+            self._queue = SendQueue(self._state_dir / QUEUE_DB_NAME, self.config.ae_title)
         return self._queue
 
     @property
     def mpps_queue(self) -> MppsQueue:
         if self._mpps_queue is None:
-            self._mpps_queue = MppsQueue(self._state_dir / QUEUE_DB_NAME)
+            self._mpps_queue = MppsQueue(self._state_dir / QUEUE_DB_NAME, self.config.ae_title)
         return self._mpps_queue
+
+    # --- 装置（docs/spec/12 の 12 章・ADR-0023） --------------------------
+
+    def current_station(self) -> StationConfig:
+        """いま名乗る装置：`--station`、無ければ記録した装置、無ければ既定の装置."""
+        if self._station_override is not None:
+            return self.config.station(self._station_override)
+        recorded = self._recorded_station_name()
+        if recorded is not None and any(s.name == recorded for s in self.config.stations):
+            return self.config.station(recorded)
+        return self.config.station()
+
+    def station_notice(self) -> str:
+        """記録した装置が設定に無くなって、既定の装置に戻したときの知らせ。無ければ空."""
+        if self._station_override is not None:
+            return ""
+        recorded = self._recorded_station_name()
+        if recorded is None or any(s.name == recorded for s in self.config.stations):
+            return ""
+        return (
+            f"前に選んだ装置（{recorded}）は設定にありません。"
+            f"既定の装置（{self.config.default_station}）を使います"
+        )
+
+    def select_station(self, name: str) -> StationConfig:
+        """装置を切り替えて記録する。撮影・送信の最中は断る（ModalityError）."""
+        station = self.config.station(name)
+        if self._exam_lock.locked() or any(
+            not job.stale for job in self.queue.list_jobs("sending")
+        ):
+            raise ModalityError(STATION_BUSY_MESSAGE)
+        self._write_state(self._state_dir / STATION_STATE_FILE, {"name": station.name})
+        logger.info("Station selected: %s (%s)", station.name, station.ae_title)
+        return station
+
+    def _recorded_station_name(self) -> str | None:
+        path = self._state_dir / STATION_STATE_FILE
+        if not path.exists():
+            return None
+        try:
+            name = json.loads(path.read_text(encoding="utf-8")).get("name")
+        except (OSError, ValueError, AttributeError):
+            logger.warning("Could not read the selected station; using the default")
+            return None
+        return name if isinstance(name, str) else None
 
     # --- 保管の確認（Phase 3c。8.3） -------------------------------------
 
@@ -260,13 +316,23 @@ class ModalityService:
 
     def _new_listener(self) -> CommitmentListener:
         listen = self.config.listen
+        # 切り替えた後に届く前の装置あての結果も受ける（設定の装置の AE タイトルの全部）
         return CommitmentListener(
-            self.config.ae_title, listen.bind_address, listen.port, self._commitments().receive
+            [station.ae_title for station in self.config.stations],
+            listen.bind_address,
+            listen.port,
+            self._commitments().receive,
         )
 
     def request_commitment(self, job_id: int) -> CommitmentState:
         """送れた件の保管の確認を求める（8.3.3。CLI の `commit`、画面の自動）."""
-        return self._commitments().request(job_id, self._commitment_node(job_id))
+        return self._commitments().request(
+            job_id, self._commitment_node(job_id), self._job_ae_title(job_id)
+        )
+
+    def _job_ae_title(self, job_id: int) -> str:
+        """件を作った装置の AE タイトル。記録が無ければいまの装置."""
+        return self.queue.get_job(job_id).calling_ae_title or self.current_station().ae_title
 
     def commit_and_wait(self, job_id: int, wait_seconds: float | None = None) -> CommitmentState:
         """CLI の `commit`：待ち受けを立ててから求め、結果か `wait_seconds` まで待つ（11.8）.
@@ -277,7 +343,7 @@ class ModalityService:
         listener = self._new_listener()
         listener.start()
         try:
-            state = self._commitments().request(job_id, node)
+            state = self._commitments().request(job_id, node, self._job_ae_title(job_id))
             if state.status == "waiting":
                 seconds = node.commitment_timeout_seconds if wait_seconds is None else wait_seconds
                 state = self.wait_commitment(state.transaction_uid, seconds)
@@ -309,7 +375,7 @@ class ModalityService:
         return self._commitments().wait(transaction_uid, seconds)
 
     def _commitments(self) -> CommitmentManager:
-        return CommitmentManager(self.config.ae_title, self.queue)
+        return CommitmentManager(self.current_station().ae_title, self.queue)
 
     def _auto_commit(self, job_id: int) -> None:
         """送れた件の保管の確認を自動で求める。求められなくても送れた結果は変えない."""
@@ -317,7 +383,7 @@ class ModalityService:
         node = self.config.destination(job.destination)
         try:
             if node.storage_commitment and self._profile_allows(job.folder, "storage_commitment"):
-                self._commitments().request(job_id, node)
+                self._commitments().request(job_id, node, self._job_ae_title(job_id))
         except (ModalityError, ConfigurationError, sqlite3.Error) as exc:
             # sqlite3.Error：待ち受けのスレッドが同じ DB に書いている間の「locked」など
             logger.warning(
@@ -359,10 +425,12 @@ class ModalityService:
             )
         return records
 
-    def _mpps(self) -> MppsManager:
+    def _mpps(self, station: StationConfig | None = None) -> MppsManager:
+        """`station` は撮影する装置。送り直しは行に記録した AE タイトルで送る（8.4.1）."""
+        station = station or self.current_station()
         return MppsManager(
-            self.config.ae_title,
-            self.config.station_name,
+            station.ae_title,
+            station.station_name,
             self.config.mpps_peer(),
             self.config.retry.max_attempts,
             self.mpps_queue,
@@ -375,11 +443,12 @@ class ModalityService:
     # --- C-ECHO ---------------------------------------------------------
 
     def echo(self, destination: str | None = None, worklist: bool = False) -> EchoResult:
+        own_ae_title = self.current_station().ae_title
         if worklist:
             peer = self.config.worklist
-            return echo(self.config.ae_title, peer, peer.timeout_seconds)
+            return echo(own_ae_title, peer, peer.timeout_seconds)
         node = self.config.destination(destination)
-        return echo(self.config.ae_title, node, node.timeout_seconds)
+        return echo(own_ae_title, node, node.timeout_seconds)
 
     # --- ワークリスト ---------------------------------------------------
 
@@ -389,11 +458,11 @@ class ModalityService:
         return WorklistQuery(
             date_range=f"{value}-{value}",
             modality=self.template_modality(self.config.default_template),
-            station_ae_title=self.config.ae_title,
+            station_ae_title=self.current_station().ae_title,
         )
 
     def query_worklist(self, query: WorklistQuery) -> WorklistQueryResult:
-        result = query_worklist(self.config.ae_title, self.config.worklist, query)
+        result = query_worklist(self.current_station().ae_title, self.config.worklist, query)
         self._save_worklist(result)
         return result
 
@@ -427,7 +496,7 @@ class ModalityService:
         """その予約だけを、受付番号と Requested Procedure ID で引き直す（10.4）."""
         current = self.find_item(key)
         result = query_worklist(
-            self.config.ae_title,
+            self.current_station().ae_title,
             self.config.worklist,
             WorklistQuery(
                 accession_number=current.accession_number,
@@ -528,6 +597,8 @@ class ModalityService:
             )
         template = request.template or self.config.default_template
         modality = self.template_modality(template)
+        # 撮影は始めたときの装置で最後まで行う（途中で切り替えは受けない。ADR-0023）
+        station = self.current_station()
         now = datetime.now()
         notices: list[str] = []
         pps_id = f"{PPS_ID_PREFIX}{self.queue.next_value(PPS_ID_COUNTER):0{COUNTER_WIDTH}d}"
@@ -547,9 +618,9 @@ class ModalityService:
                 item,
                 performed_procedure_step_id=pps_id,
                 specific_character_set=character_set,
-                source_ae_title=self.config.ae_title,
+                source_ae_title=station.ae_title,
             )
-            notices.extend(self._scheduled_notices(item))
+            notices.extend(self._scheduled_notices(item, station.ae_title))
             if ctx.study_instance_uid is None:
                 # 予約に UID が無いとき、同じ予約の2回目は前に作った UID を使う（6.3）
                 remembered = self.queue.generated_study_uid(item.key)
@@ -583,12 +654,14 @@ class ModalityService:
                 study_description=request.study_description,
                 performed_procedure_step_id=pps_id,
                 specific_character_set=character_set,
-                source_ae_title=self.config.ae_title,
+                source_ae_title=station.ae_title,
             )
             notices.append("予約なし（受付番号は空）")
             if not ctx.patient.birth_date:
                 notices.append("生年月日が空です")
 
+        if station.station_name:
+            ctx = ctx.model_copy(update={"station_name": station.station_name})
         profile_name = request.profile or self.config.default_profile
         use_mpps = self._uses_mpps(request, profile_name)
         if use_mpps and ctx.study_instance_uid is None:
@@ -596,7 +669,8 @@ class ModalityService:
             ctx = ctx.model_copy(update={"study_instance_uid": UIDGenerator().generate_study_uid()})
         output_dir = self._exam_output_dir(request, ctx, now)
         config = self._generation_config(request, ctx, template, output_dir, now)
-        mpps_id = self._mpps().start_exam(ctx, modality, now) if use_mpps else None
+        mpps = self._mpps(station)
+        mpps_id = mpps.start_exam(ctx, modality, now) if use_mpps else None
         if mpps_id is not None:
             # 画像に MPPS への参照を入れる（IHE RAD TF-2x A.1.3・A.2.2）
             mpps_uid = self.mpps_queue.get(mpps_id).sop_instance_uid
@@ -609,21 +683,21 @@ class ModalityService:
             self._remove_if_empty(output_dir)
             if mpps_id is not None:
                 # N-CREATE の後に撮影が止まった＝取り消し（DISCONTINUED。8.4.1）
-                self._mpps().finish_exam(
+                mpps.finish_exam(
                     mpps_id, STATE_DISCONTINUED, partial, ctx, str(output_dir)
                 )
             raise
         files = sorted(str(path) for path in output_dir.glob("*.dcm"))
-        mpps = None
+        mpps_outcome = None
         if mpps_id is not None:
             try:
-                mpps = self._mpps().finish_exam(
+                mpps_outcome = mpps.finish_exam(
                     mpps_id, STATE_COMPLETED, files, ctx, str(output_dir)
                 )
             except IMAGE_READ_ERRORS:
                 # 作った画像のヘッダーを読めなければ、開いたままにせず DISCONTINUED を残す。
                 # DISCONTINUED は読めた画像だけを知らせる
-                self._mpps().finish_exam(
+                mpps.finish_exam(
                     mpps_id, STATE_DISCONTINUED, files, ctx, str(output_dir)
                 )
                 raise
@@ -647,13 +721,18 @@ class ModalityService:
             study_instance_uid=study_uid,
             character_set=character_set,
             notices=notices,
-            mpps=mpps,
+            mpps=mpps_outcome,
         )
 
     # --- 送信 -----------------------------------------------------------
 
-    def send(self, folder: str, destination: str | None = None) -> SendResult:
-        """フォルダの *.dcm を待ち行列に1件入れ、すぐに送る（8.2）."""
+    def send(
+        self, folder: str, destination: str | None = None, calling_ae_title: str | None = None
+    ) -> SendResult:
+        """フォルダの *.dcm を待ち行列に1件入れ、すぐに送る（8.2）.
+
+        `calling_ae_title` が無ければ、いまの装置の AE タイトルで名乗り、件に記録する。
+        """
         node = self.config.destination(destination)
         folder_path = Path(folder)
         if not folder_path.is_dir():
@@ -665,7 +744,10 @@ class ModalityService:
         check_send_files(folder_path, files)
         # 件の受付番号は、送る画像の Accession Number（読めなければ空のまま送る）
         accession_number = _read_job_summary(folder_path)[3]
-        job_id = self.queue.add_job(str(folder_path), node.name, files, accession_number)
+        calling = calling_ae_title or self.current_station().ae_title
+        job_id = self.queue.add_job(
+            str(folder_path), node.name, files, accession_number, calling_ae_title=calling
+        )
         return self._send_job(job_id, files)
 
     def send_exam_output(self, folder: str, destination: str | None = None) -> SendResult:
@@ -699,8 +781,11 @@ class ModalityService:
         results = []
         for job in jobs:
             if job_id is not None and job.status == "sent":
-                # 送れた件は変えずに残し、履歴と保管の確認を件ごとに分ける
-                results.append(self.send(job.folder, job.destination))
+                # 送れた件は変えずに残し、履歴と保管の確認を件ごとに分ける。名乗る AE
+                # タイトルは元の件のもの（あとで装置を切り替えても変えない）
+                results.append(
+                    self.send(job.folder, job.destination, job.calling_ae_title or None)
+                )
                 continue
             if job.status != "failed":
                 raise ModalityError(
@@ -750,7 +835,8 @@ class ModalityService:
                 break
             try:
                 results = store_files(
-                    self.config.ae_title,
+                    # 件を作ったときの装置の AE タイトルで名乗る（切り替えた後の再送も同じ）
+                    job.calling_ae_title or self.current_station().ae_title,
                     node,
                     pending,
                     node.timeout_seconds,
@@ -777,9 +863,9 @@ class ModalityService:
 
     # --- 内部 -----------------------------------------------------------
 
-    def _scheduled_notices(self, item: WorklistItem) -> list[str]:
+    def _scheduled_notices(self, item: WorklistItem, own_ae_title: str) -> list[str]:
         notices = []
-        if item.scheduled_station_ae_title and item.scheduled_station_ae_title != self.config.ae_title:
+        if item.scheduled_station_ae_title and item.scheduled_station_ae_title != own_ae_title:
             notices.append("この予約は別の装置の予定です")
         if not item.study_instance_uid:
             notices.append("予約に Study Instance UID が無いため、このツールが生成しました")

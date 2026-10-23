@@ -39,6 +39,10 @@ STATUS_SUCCESS = 0x0000
 STATUS_PROCESSING_FAILURE = 0x0110
 STATUS_NO_SUCH_EVENT_TYPE = 0x0113
 LISTENER_MAX_ASSOCIATIONS = 4
+# A-ASSOCIATE-RJ の Result・Source・Reason（PS3.8 9.3.4）
+REJECT_PERMANENT = 0x01
+REJECT_SOURCE_SERVICE_USER = 0x01
+REJECT_CALLED_AE_NOT_RECOGNIZED = 0x07
 # 結果の Event Information の大きさの上限（2000 枚の参照を十分に入れられる。8.3.2）
 MAX_REPORT_BYTES = 1024 * 1024
 WAIT_POLL_SECONDS = 0.05
@@ -49,8 +53,9 @@ RECEIVABLE_STATUSES = ("waiting", "timed_out")
 _DECODE_ERRORS = (AttributeError, KeyError, TypeError, ValueError, IndexError)
 
 SopReference = tuple[str, str]  # (SOP Class UID, SOP Instance UID)
-# 結果を受けたときに呼ぶ：(相手の AE タイトル, Event Type, Event Information) → 返す Status
-ReportHandler = Callable[[str, int | None, Dataset], int]
+# 結果を受けたときに呼ぶ：(相手の AE タイトル, 自分の側の AE タイトル, Event Type,
+# Event Information) → 返す Status
+ReportHandler = Callable[[str, str, int | None, Dataset], int]
 
 
 class CommitmentReferences(BaseModel):
@@ -191,14 +196,22 @@ class CommitmentListener:
     """結果（N-EVENT-REPORT）だけを受ける待ち受け（4.1・8.3.1。既定は 127.0.0.1）."""
 
     def __init__(
-        self, ae_title: str, bind_address: str, port: int, on_report: ReportHandler
+        self,
+        ae_titles: Sequence[str],
+        bind_address: str,
+        port: int,
+        on_report: ReportHandler,
     ) -> None:
+        """`ae_titles` は受ける AE タイトル（設定の装置の全部）。ほかあては断る（8.3.1）."""
+        if not ae_titles:
+            raise ModalityConfigError("No AE title to listen on for storage commitment")
         self._address = (bind_address, port)
         self._on_report = on_report
+        self._ae_titles = {title.strip() for title in ae_titles}
         self._server: Any = None
-        ae = AE(ae_title=ae_title)
-        # 呼ばれる AE タイトルが自分と違う Association は断る（8.3.1）
-        ae.require_called_aet = True
+        ae = AE(ae_title=ae_titles[0])
+        # 呼ばれる AE タイトルが装置の AE タイトルのどれかかは、EVT_REQUESTED で確かめる
+        # （require_called_aet は1つの AE タイトルにしか効かない）
         ae.maximum_associations = LISTENER_MAX_ASSOCIATIONS
         # 相手が SCP の役を求める役の交渉を受ける（別の道。PS3.4 J.3.3）
         ae.add_supported_context(StorageCommitmentPushModel, scu_role=True, scp_role=True)
@@ -216,7 +229,10 @@ class CommitmentListener:
             self._server = self._ae.start_server(
                 self._address,
                 block=False,
-                evt_handlers=[(evt.EVT_N_EVENT_REPORT, self._handle)],
+                evt_handlers=[
+                    (evt.EVT_REQUESTED, self._check_called_ae_title),
+                    (evt.EVT_N_EVENT_REPORT, self._handle),
+                ],
             )
         except OSError as exc:
             raise ModalityConfigError(
@@ -235,6 +251,21 @@ class CommitmentListener:
             self._server.shutdown()
             self._server = None
 
+    def _check_called_ae_title(self, event: Any) -> None:
+        """装置の AE タイトルでないあての Association を、理由 7 で断る（PS3.8 9.3.4）."""
+        assoc = event.assoc
+        called = str(assoc.requestor.primitive.called_ae_title).strip()
+        if called not in self._ae_titles:
+            logger.warning("Storage commitment association to an unknown AE refused: %r", called)
+            assoc.acse.send_reject(
+                REJECT_PERMANENT, REJECT_SOURCE_SERVICE_USER, REJECT_CALLED_AE_NOT_RECOGNIZED
+            )
+            # pynetdicom が自分で断るときと同じく、送った後に Association を閉じる
+            assoc.kill()
+            return
+        # 受けた側の AE タイトルを、呼ばれた AE タイトルにする（結果の宛先を確かめるため）
+        assoc.acceptor.ae_title = called
+
     def _handle(self, event: Any) -> tuple[int, None]:
         return _dispatch(event, self._on_report), None
 
@@ -246,13 +277,19 @@ class CommitmentManager:
         self._own_ae_title = own_ae_title
         self._queue = queue
 
-    def request(self, job_id: int, node: DestinationConfig) -> CommitmentState:
-        """送れた画像の組で N-ACTION を送り、要求の状態を返す。送れなければ「確認の失敗」."""
+    def request(
+        self, job_id: int, node: DestinationConfig, own_ae_title: str | None = None
+    ) -> CommitmentState:
+        """送れた画像の組で N-ACTION を送り、要求の状態を返す。送れなければ「確認の失敗」.
+
+        `own_ae_title` は要求を送る装置の AE タイトル（件を作った装置。無ければ既定）。
+        """
         references = self._queue.sent_references(job_id)
         if not references:
             raise StorageCommitmentError(
                 f"No sent images to commit: {job_id}", {"job_id": job_id}
             )
+        calling = own_ae_title or self._own_ae_title
         transaction_uid = UIDGenerator().generate_sop_uid()
         self._queue.add_commitment(
             job_id,
@@ -261,11 +298,10 @@ class CommitmentManager:
             transaction_uid,
             references,
             node.commitment_timeout_seconds,
+            own_ae_title=calling,
         )
         try:
-            request_commitment(
-                self._own_ae_title, node, transaction_uid, references, self.receive
-            )
+            request_commitment(calling, node, transaction_uid, references, self.receive)
         except (AssociationError, StorageCommitmentError) as exc:
             self._queue.fail_commitment(transaction_uid, str(exc))
             logger.warning(
@@ -273,8 +309,14 @@ class CommitmentManager:
             )
         return self._queue.get_commitment(transaction_uid)
 
-    def receive(self, peer_ae_title: str, event_type: int | None, info: Dataset) -> int:
-        """結果を確かめて書く。返す値は相手に返す Status（8.3.2）."""
+    def receive(
+        self, peer_ae_title: str, own_ae_title: str, event_type: int | None, info: Dataset
+    ) -> int:
+        """結果を確かめて書く。返す値は相手に返す Status（8.3.2）.
+
+        `own_ae_title` は結果が届いた自分の側の AE タイトル。要求を送った装置の AE
+        タイトルと違えば、その要求の結果にしない。
+        """
         # 先に Event Type・Transaction UID・相手の AE だけを確かめ、合ったときだけ参照を読む
         try:
             transaction_uid = read_transaction_uid(event_type, info)
@@ -289,12 +331,19 @@ class CommitmentManager:
                 transaction_uid,
             )
             return STATUS_PROCESSING_FAILURE
-        status, expected_ae_title = known
+        status, expected_ae_title, requested_by = known
         if peer_ae_title != expected_ae_title:
             logger.warning(
                 "Storage commitment report from another AE: got=%r expected=%r",
                 peer_ae_title,
                 expected_ae_title,
+            )
+            return STATUS_PROCESSING_FAILURE
+        if requested_by and own_ae_title != requested_by:
+            logger.warning(
+                "Storage commitment report to another station: got=%r expected=%r",
+                own_ae_title,
+                requested_by,
             )
             return STATUS_PROCESSING_FAILURE
         try:
@@ -333,8 +382,11 @@ class CommitmentManager:
 def _dispatch(event: Any, on_report: ReportHandler) -> int:
     """N-EVENT-REPORT を読み、呼ぶ側に渡して、相手に返す Status を決める."""
     assoc = event.assoc
-    peer = assoc.acceptor if assoc.is_requestor else assoc.requestor
+    peer, own = (
+        (assoc.acceptor, assoc.requestor) if assoc.is_requestor else (assoc.requestor, assoc.acceptor)
+    )
     peer_ae_title = str(peer.ae_title).strip()
+    own_ae_title = str(own.ae_title).strip()
     if str(event.request.AffectedSOPInstanceUID) != COMMITMENT_INSTANCE_UID:
         logger.warning("Storage commitment report with an unknown instance from %r", peer_ae_title)
         return STATUS_PROCESSING_FAILURE
@@ -351,7 +403,7 @@ def _dispatch(event: Any, on_report: ReportHandler) -> int:
     except _DECODE_ERRORS:
         logger.warning("Unreadable storage commitment report from %r", peer_ae_title)
         return STATUS_PROCESSING_FAILURE
-    return on_report(peer_ae_title, event.event_type, info)
+    return on_report(peer_ae_title, own_ae_title, event.event_type, info)
 
 
 def _reference(item: Dataset) -> SopReference | None:

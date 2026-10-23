@@ -71,6 +71,70 @@ def test_invalid_config_is_config_error(tmp_path, change) -> None:
         load_modality_config(_write(tmp_path, raw))
 
 
+def _stations(*stations: dict, default: str | None = None) -> dict:
+    raw = {key: value for key, value in _minimal().items() if key != "ae_title"}
+    raw["stations"] = list(stations)
+    if default is not None:
+        raw["default_station"] = default
+    return raw
+
+
+CT1 = {"name": "CT1号機", "ae_title": "DTG_CT01", "station_name": "DTG_CT01"}
+MR1 = {"name": "MR1号機", "ae_title": "DTG_MR01", "station_name": "DTG_MR01"}
+
+
+def test_config_reads_two_stations(tmp_path) -> None:
+    """設定に装置を複数書ける（docs/spec/12 の 12 章・openspec の station-identity）."""
+    config = load_modality_config(_write(tmp_path, _stations(CT1, MR1, default="MR1号機")))
+
+    assert [station.name for station in config.stations] == ["CT1号機", "MR1号機"]
+    assert config.default_station == "MR1号機"
+    assert config.station("MR1号機").ae_title == "DTG_MR01"
+    # 既定の装置の値は、今までの ae_title・station_name としても読める
+    assert (config.ae_title, config.station_name) == ("DTG_MR01", "DTG_MR01")
+
+
+def test_default_station_is_the_first_one(tmp_path) -> None:
+    config = load_modality_config(_write(tmp_path, _stations(CT1, MR1)))
+
+    assert config.default_station == "CT1号機"
+    assert config.ae_title == "DTG_CT01"
+
+
+def test_config_without_stations_is_one_station(tmp_path) -> None:
+    raw = {**_minimal(), "station_name": "ST01"}
+    config = load_modality_config(_write(tmp_path, raw))
+
+    [station] = config.stations
+    assert (station.name, station.ae_title, station.station_name) == ("DTG_CT01", "DTG_CT01", "ST01")
+    assert config.default_station == "DTG_CT01"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        _stations(CT1, {**MR1, "ae_title": "DTG_CT01"}),  # AE タイトルの重複
+        _stations(CT1, {**MR1, "name": "CT1号機"}),  # 表示名の重複
+        _stations(CT1, default="XR9号機"),  # 一覧に無い既定
+        _stations({**CT1, "ae_title": "A" * 17}),  # AE の VR に合わない
+        _stations({**CT1, "station_name": "S" * 17}),  # SH は 16 文字まで
+        _stations({**CT1, "station_name": "A\\B"}),  # SH に `\` は入れない
+        {**_stations(CT1), "ae_title": "DTG_XX01"},  # 一覧と食い違う今の形の値
+        _stations(),  # 空の一覧
+    ],
+)
+def test_invalid_stations_are_config_errors(tmp_path, raw) -> None:
+    with pytest.raises(ModalityConfigError):
+        load_modality_config(_write(tmp_path, raw))
+
+
+def test_unknown_station_name(tmp_path) -> None:
+    config = load_modality_config(_write(tmp_path, _stations(CT1, MR1)))
+
+    with pytest.raises(ModalityConfigError):
+        config.station("XR9号機")
+
+
 def test_missing_section_and_file(tmp_path) -> None:
     path = tmp_path / "other.yaml"
     path.write_text("profiles: {}\n", encoding="utf-8")

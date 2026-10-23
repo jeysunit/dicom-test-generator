@@ -93,11 +93,15 @@ def worklist_error_text(exc: DICOMGeneratorError | ValidationError) -> str:
 
 
 def band_context(request: Request) -> dict[str, Any]:
-    """自分の帯：自分の AE・ワークリストの相手・既定の送り先・文字コード（10.3・7.1）."""
+    """自分の帯：装置・ワークリストの相手・既定の送り先・文字コード（10.3・7.1）."""
     service = service_of(request)
     config = service.config
+    station = service.current_station()
     band: dict[str, Any] = {
-        "own_ae": config.ae_title,
+        "own_ae": station.ae_title,
+        "station_name": station.name,
+        "stations": config.stations,
+        "station_notice": service.station_notice(),
         "worklist_ae": config.worklist.ae_title,
         "destination": config.default_destination,
         "worklist_charset": None,

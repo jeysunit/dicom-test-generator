@@ -273,7 +273,8 @@ class MppsManager:
         uid = UIDGenerator().generate_sop_uid()
         # 送り先は行に固定する（設定を後で変えても、送り直しは同じ相手へ。8.4.1）
         peer = (self._peer.ae_title, self._peer.host, self._peer.port)
-        record_id = self._queue.add(uid, accession_number, create, peer)
+        # 撮影した装置の AE タイトルも行に固定し、送り直しもその AE タイトルで送る
+        record_id = self._queue.add(uid, accession_number, create, peer, self._own_ae_title)
         self._with_claim(record_id, lambda: self._send_create(record_id))
         return record_id
 
@@ -332,7 +333,7 @@ class MppsManager:
             record_id,
             "create",
             lambda record, maybe_delivered: send_n_create(
-                self._own_ae_title,
+                record.calling_ae_title or self._own_ae_title,
                 _peer_of(record),
                 self._peer.timeout_seconds,
                 record.sop_instance_uid,
@@ -348,7 +349,7 @@ class MppsManager:
             record_id,
             "set",
             lambda record, maybe_delivered: send_n_set(
-                self._own_ae_title,
+                record.calling_ae_title or self._own_ae_title,
                 _peer_of(record),
                 self._peer.timeout_seconds,
                 record.sop_instance_uid,

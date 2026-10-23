@@ -7,8 +7,17 @@ profiles:
 # モダリティのダミー（docs/spec/12_modality_emulator.md の 12 章）。
 # 例は手元の住所と例の名前だけ。試験用の PACS・RIS にだけつなぐ。
 modality:
-  ae_title: "DTG_CT01"
-  station_name: "DTG_CT01"
+  # 名乗る装置の一覧（AE タイトル・Station Name）。画面の情報バーで切り替える。
+  # 相手の PACS・RIS に、使う装置の AE タイトルを登録しておく。
+  # 1台だけなら、stations の代わりに ae_title・station_name だけを書いてもよい。
+  stations:
+    - name: "CT1"
+      ae_title: "DTG_CT01"
+      station_name: "DTG_CT01"
+    - name: "MR1"
+      ae_title: "DTG_MR01"
+      station_name: "DTG_MR01"
+  default_station: "CT1"
   listen:                         # 保管の確認の結果を受ける待ち受け（Phase 3c）
     bind_address: "127.0.0.1"
     port: 11113
