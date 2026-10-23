@@ -117,6 +117,8 @@ class QueueJob(BaseModel):
     last_error: str
     num_files: int
     num_sent: int
+    # 件を作ったときの装置の AE タイトル。再送もこの AE タイトルで送る（docs/spec/12 の 8.2）
+    calling_ae_title: str = ""
     stale: bool = False  # 送信中のまま止まった件（8.2）
     commitment: str = ""  # 最後の保管の確認の状態。使わない件は空（8.3.3）
     commitment_error: str = ""
@@ -145,7 +147,8 @@ class CommitmentState(BaseModel):
 class SendQueue:
     """待ち行列。1件は1つの検査（1つのフォルダ）を1つの送り先へ送ること."""
 
-    def __init__(self, db_path: Path) -> None:
+    def __init__(self, db_path: Path, legacy_ae_title: str = "") -> None:
+        """`legacy_ae_title` は、AE タイトルの列が無い前の版の行に入れる AE タイトル."""
         self._db_path = db_path
         try:
             db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -158,6 +161,9 @@ class SendQueue:
                     conn.execute(
                         "ALTER TABLE jobs ADD COLUMN send_token TEXT NOT NULL DEFAULT ''"
                     )
+                # 装置を切り替えられる前の版の待ち行列に足す。前の行は今の装置の AE タイトル
+                _add_ae_title_column(conn, "jobs", "calling_ae_title", legacy_ae_title)
+                _add_ae_title_column(conn, "commitments", "own_ae_title", legacy_ae_title)
                 file_columns = {row[1] for row in conn.execute("PRAGMA table_info(job_files)")}
                 if "sop_class_uid" not in file_columns:
                     # 保管の確認の前の版の待ち行列に足す（Phase 3c）
@@ -171,14 +177,19 @@ class SendQueue:
             ) from exc
 
     def add_job(
-        self, folder: str, destination: str, files: Sequence[str], accession_number: str = ""
+        self,
+        folder: str,
+        destination: str,
+        files: Sequence[str],
+        accession_number: str = "",
+        calling_ae_title: str = "",
     ) -> int:
         now = _now()
         with self._connect() as conn:
             cursor = conn.execute(
                 "INSERT INTO jobs (created_at, updated_at, folder, destination, accession_number,"
-                " status) VALUES (?, ?, ?, ?, ?, 'pending')",
-                (now, now, folder, destination, accession_number),
+                " calling_ae_title, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')",
+                (now, now, folder, destination, accession_number, calling_ae_title),
             )
             job_id = int(cursor.lastrowid or 0)
             conn.executemany(
@@ -394,15 +405,27 @@ class SendQueue:
         transaction_uid: str,
         references: Sequence[SopReference],
         timeout_seconds: float,
+        own_ae_title: str = "",
     ) -> None:
+        """要求を記録する。`own_ae_title` は要求を送った装置の AE タイトル（結果の宛先）."""
         now = datetime.now()
         deadline = (now + timedelta(seconds=timeout_seconds)).isoformat(timespec="seconds")
         stamp = now.isoformat(timespec="seconds")
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO commitments (transaction_uid, job_id, destination, peer_ae_title,"
-                " status, requested_at, updated_at, deadline) VALUES (?, ?, ?, ?, 'waiting', ?, ?, ?)",
-                (transaction_uid, job_id, destination, peer_ae_title, stamp, stamp, deadline),
+                " own_ae_title, status, requested_at, updated_at, deadline)"
+                " VALUES (?, ?, ?, ?, ?, 'waiting', ?, ?, ?)",
+                (
+                    transaction_uid,
+                    job_id,
+                    destination,
+                    peer_ae_title,
+                    own_ae_title,
+                    stamp,
+                    stamp,
+                    deadline,
+                ),
             )
             conn.executemany(
                 "INSERT OR IGNORE INTO commitment_items (transaction_uid, sop_class_uid,"
@@ -482,15 +505,19 @@ class SendQueue:
             )
         return True
 
-    def commitment_peer(self, transaction_uid: str) -> tuple[str, str] | None:
-        """要求の（状態, 送り先の AE タイトル）。知らない Transaction UID なら None."""
+    def commitment_peer(self, transaction_uid: str) -> tuple[str, str, str] | None:
+        """要求の（状態, 送り先の AE タイトル, 要求を送った装置の AE タイトル）.
+
+        知らない Transaction UID なら None。
+        """
         self.expire_commitments()
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT status, peer_ae_title FROM commitments WHERE transaction_uid = ?",
+                "SELECT status, peer_ae_title, own_ae_title FROM commitments"
+                " WHERE transaction_uid = ?",
                 (transaction_uid,),
             ).fetchone()
-        return (str(row[0]), str(row[1])) if row else None
+        return (str(row[0]), str(row[1]), str(row[2])) if row else None
 
     def get_commitment(self, transaction_uid: str) -> CommitmentState:
         self.expire_commitments()
@@ -541,7 +568,8 @@ class SendQueue:
             "SELECT j.id, j.created_at, j.updated_at, j.folder, j.destination, j.accession_number,"
             " j.status, j.attempts, j.last_error, COUNT(f.path),"
             " SUM(CASE WHEN f.status = 'sent' THEN 1 ELSE 0 END),"
-            f" {latest.format(column='status')}, {latest.format(column='error')}"
+            f" {latest.format(column='status')}, {latest.format(column='error')},"
+            " j.calling_ae_title"
             f" FROM jobs j LEFT JOIN job_files f ON f.job_id = j.id {where}"
             " GROUP BY j.id ORDER BY j.id"
         )
@@ -564,6 +592,7 @@ class SendQueue:
                 stale=row[6] == "sending" and row[2] < cutoff,
                 commitment=row[11] or "",
                 commitment_error=row[12] or "",
+                calling_ae_title=row[13] or "",
             )
             for row in rows
         ]
@@ -576,6 +605,17 @@ class SendQueue:
 
 def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
+
+
+def _add_ae_title_column(
+    conn: sqlite3.Connection, table: str, column: str, legacy_ae_title: str
+) -> None:
+    """AE タイトルの列が無ければ足し、前の行を `legacy_ae_title` で埋める（表と列は定数）."""
+    columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    if column in columns:
+        return
+    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
+    conn.execute(f"UPDATE {table} SET {column} = ?", (legacy_ae_title,))
 
 
 def _folder_key(folder: str) -> str:

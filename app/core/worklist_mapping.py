@@ -283,6 +283,9 @@ def apply_scheduled_context(ds: Dataset, ctx: ScheduledContext) -> None:
         ds.InstitutionName = ctx.institution_name
     if ctx.source_ae_title and hasattr(ds, "file_meta"):
         ds.file_meta.SourceApplicationEntityTitle = ctx.source_ae_title
+    if ctx.station_name:
+        # 画像を作った装置の名前（PS3.3 C.7.5.1）。装置の設定の値を優先する
+        ds.StationName = ctx.station_name
 
 
 def ensure_modality_matches(item: WorklistItem, template_modality: str) -> None:

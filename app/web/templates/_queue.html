@@ -60,6 +60,8 @@
               <dl class="values mt-2">
                 <dt>元のファイル</dt><dd>{% with uid = job.folder %}{% include "_uid.html" %}{% endwith %}</dd>
                 <dt>試行回数</dt><dd>{{ job.attempts }}</dd>
+                {# 再送もこの AE タイトルで名乗る（docs/spec/12 の 8.2・ADR-0023） #}
+                <dt>名乗る AE タイトル</dt><dd class="font-mono">{{ job.calling_ae_title or "—" }}</dd>
               </dl>
             </details>
           </div>

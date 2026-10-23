@@ -12,6 +12,7 @@ from app.core.exceptions import ModalityConfigError
 from app.core.validation_text import describe_validation_error
 
 AE_TITLE_MAX_LENGTH = 16
+STATION_NAME_MAX_LENGTH = 16  # SH（PS3.5 6.2）
 PORT_MIN = 1
 PORT_MAX = 65535
 DEFAULT_TIMEOUT_SECONDS = 30.0
@@ -27,6 +28,7 @@ MAX_COMMITMENT_TIMEOUT_SECONDS = 86400.0
 MAX_COMMITMENT_WAIT_SECONDS = 60.0  # 同じ Association で待つ上限（docs/spec/12 の 12 章）
 _PRINTABLE_ASCII_MIN = 0x20
 _PRINTABLE_ASCII_MAX = 0x7E
+_DELETE = 0x7F
 
 CharacterSetChoice = Literal["auto", "utf8", "jis", "jis_kana"]
 FallbackChoice = Literal["utf8", "jis", "jis_kana"]
@@ -102,9 +104,41 @@ class RetryConfig(BaseModel):
     max_attempts: int = Field(0, ge=0, le=MAX_RETRY_ATTEMPTS)
 
 
+class StationConfig(BaseModel):
+    """DTG が名乗る装置の1つ：表示名・AE タイトル・Station Name（docs/spec/12 の 12 章）."""
+
+    model_config = {"frozen": True}
+
+    name: str = Field(..., min_length=1)
+    ae_title: str
+    station_name: str = ""
+
+    @field_validator("ae_title")
+    @classmethod
+    def _check_ae_title(cls, value: str) -> str:
+        # 前後の空白は AE タイトルの値に含めない（PS3.5 の AE）。比べる前にそろえる
+        return validate_ae_title(value).strip()
+
+    @field_validator("station_name")
+    @classmethod
+    def _check_station_name(cls, value: str) -> str:
+        """Station Name (0008,1010) は SH：16 文字まで・`\\` と制御文字は不可（PS3.5 6.2）."""
+        if len(value) > STATION_NAME_MAX_LENGTH:
+            raise ValueError(f"station_name must be {STATION_NAME_MAX_LENGTH} characters or fewer")
+        if "\\" in value or any(
+            ord(char) < _PRINTABLE_ASCII_MIN or ord(char) == _DELETE for char in value
+        ):
+            raise ValueError("station_name must not contain backslash or control characters")
+        return value
+
+
 class ModalityConfig(BaseModel):
     model_config = {"frozen": True}
 
+    # 装置の一覧（docs/spec/12 の 12 章）。`ae_title`・`station_name` は既定の装置の値で、
+    # 一覧を書かない今の形の設定では、この2つから装置1つの一覧を作る
+    stations: list[StationConfig] = Field(..., min_length=1)
+    default_station: str
     ae_title: str
     station_name: str = ""
     listen: ListenConfig = Field(default_factory=ListenConfig)
@@ -127,6 +161,68 @@ class ModalityConfig(BaseModel):
     @classmethod
     def _check_ae_title(cls, value: str) -> str:
         return validate_ae_title(value)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_stations(cls, data: object) -> object:
+        """今の形（`ae_title` だけ）を装置1つの一覧にし、既定の装置の値を写す."""
+        if not isinstance(data, dict):
+            return data
+        raw = dict(data)
+        mirrored = {key: raw.pop(key) for key in ("ae_title", "station_name") if key in raw}
+        if "stations" in raw:
+            stations = raw["stations"]
+            if not isinstance(stations, list) or not stations:
+                raise ValueError("stations must list at least one station")
+        else:
+            if "ae_title" not in mirrored:
+                return {**raw, **mirrored}  # 項目が無いことは、ふつうの検証で知らせる
+            stations = [
+                {
+                    "name": mirrored["ae_title"],
+                    "ae_title": mirrored["ae_title"],
+                    "station_name": mirrored.get("station_name", ""),
+                }
+            ]
+            raw["stations"] = stations
+            mirrored = {}
+        default_name = raw.get("default_station")
+        if default_name is None:
+            first = stations[0]
+            default_name = first.get("name") if isinstance(first, dict) else None
+            raw["default_station"] = default_name
+        default = next(
+            (s for s in stations if isinstance(s, dict) and s.get("name") == default_name), None
+        )
+        if default is None:
+            raise ValueError(f"default_station '{default_name}' is not in stations")
+        raw["ae_title"] = default.get("ae_title")
+        raw["station_name"] = default.get("station_name", "")
+        # 一覧と今の形の両方を書くのは、既定の装置の値と同じとき（読み直した値）だけ
+        if any(raw[key] != value for key, value in mirrored.items()):
+            raise ValueError("write either stations or ae_title/station_name, not both")
+        return raw
+
+    @model_validator(mode="after")
+    def _check_stations(self) -> ModalityConfig:
+        names = [station.name for station in self.stations]
+        ae_titles = [station.ae_title for station in self.stations]
+        if len(names) != len(set(names)):
+            raise ValueError("station names must be unique")
+        if len(ae_titles) != len(set(ae_titles)):
+            raise ValueError("station AE titles must be unique")
+        return self
+
+    def station(self, name: str | None = None) -> StationConfig:
+        """名前の装置を返す。名前が無ければ既定の装置."""
+        wanted = name or self.default_station
+        for station in self.stations:
+            if station.name == wanted:
+                return station
+        raise ModalityConfigError(
+            f"Station not found: {wanted}",
+            {"station": wanted, "known": ", ".join(s.name for s in self.stations)},
+        )
 
     @model_validator(mode="after")
     def _check_destinations(self) -> ModalityConfig:

@@ -293,3 +293,5 @@ class ScheduledContext(BaseModel):
     sequences: DicomJsonSequences = Field(default_factory=dict)
     specific_character_set: list[str] = Field(default_factory=list)
     source_ae_title: str = ""
+    # 撮影した装置の Station Name (0008,1010)。空ならテンプレート・プロファイル・病院の値
+    station_name: str = ""

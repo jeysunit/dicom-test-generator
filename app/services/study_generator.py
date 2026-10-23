@@ -149,6 +149,9 @@ class StudyGeneratorService:
                     isinstance(site_equipment, dict)
                     and site_equipment.get("station_name")
                 )
+                if scheduled is not None and scheduled.station_name:
+                    # 選んだ装置の Station Name を、装置のプロファイルより先にする（ADR-0023）
+                    apply_station_name = False
                 site_charset = site_overrides.get("character_set")
                 site_sets_charset = isinstance(site_charset, dict) and (
                     "specific_character_set" in site_charset

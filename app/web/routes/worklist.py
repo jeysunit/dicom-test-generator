@@ -78,7 +78,9 @@ def worklist_query(
         query = WorklistQuery(
             date_range=_date_range(day, date_value),
             modality=modality.strip(),
-            station_ae_title=service.config.ae_title if station == STATION_OWN else "",
+            station_ae_title=(
+                service.current_station().ae_title if station == STATION_OWN else ""
+            ),
             patient_id=patient_id.strip(),
             patient_name=patient_name.strip(),
             accession_number=accession.strip(),
@@ -139,7 +141,7 @@ def _results(
     selected: str = "",
     notice: str = "",
 ) -> dict[str, object]:
-    own_ae = service_of(request).config.ae_title
+    own_ae = service_of(request).current_station().ae_title
     rows: list[tuple[WorklistItem, list[str]]] = [
         (item, item_marks(item, own_ae)) for item in state.items
     ]

@@ -46,6 +46,10 @@ def register_modality_commands(
         "--log-file", default=default_log_file, help=f"ログファイル（default: {default_log_file}）"
     )
     common.add_argument("--json", action="store_true", help="結果を JSON で出す")
+    common.add_argument(
+        "--station",
+        help="このコマンドだけ使う装置の表示名（設定の stations。無ければ画面で選んだ装置）",
+    )
 
     echo_parser = subparsers.add_parser("echo", parents=[common], help="C-ECHO で疎通を確かめる")
     echo_target = echo_parser.add_mutually_exclusive_group()
@@ -362,13 +366,16 @@ def queue_retry_command(args: argparse.Namespace) -> int:
 def _service(args: argparse.Namespace) -> ModalityService:
     pynetdicom_level = logging.DEBUG if getattr(args, "verbose", False) else logging.WARNING
     logging.getLogger("pynetdicom").setLevel(pynetdicom_level)
-    return ModalityService(load_modality_config(Path(args.config)))
+    # `--station` はこのコマンドだけに効き、画面で選んだ装置の記録は変えない（ADR-0023）
+    return ModalityService(
+        load_modality_config(Path(args.config)), station=getattr(args, "station", None)
+    )
 
 
 def _build_query(service: ModalityService, args: argparse.Namespace) -> WorklistQuery:
     config = service.config
     modality = args.modality or service.template_modality(config.default_template)
-    station = args.station_aet or config.ae_title
+    station = args.station_aet or service.current_station().ae_title
     return WorklistQuery(
         date_range=parse_date_option(args.date, date.today()),
         modality="" if modality == ANY else modality,
@@ -404,7 +411,8 @@ def _print_worklist(service: ModalityService, result: WorklistQueryResult) -> No
 
 def _item_marks(service: ModalityService, item: WorklistItem) -> str:
     marks = []
-    if item.scheduled_station_ae_title and item.scheduled_station_ae_title != service.config.ae_title:
+    own_ae_title = service.current_station().ae_title
+    if item.scheduled_station_ae_title and item.scheduled_station_ae_title != own_ae_title:
         marks.append("別の装置")
     if item.unreadable_attributes:
         marks.append("読めない値")

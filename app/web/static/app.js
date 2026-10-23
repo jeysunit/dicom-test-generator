@@ -113,8 +113,42 @@
     notice.textContent = message;
     place.replaceChildren(notice);
   }
+  // 情報バーの装置の切り替え（ADR-0023）が届かない・断られたときは、選択を元の装置に
+  // 戻し、帯に知らせる（表示とサーバーの装置がずれないように）。
+  function isStationSelect(element) {
+    return element instanceof HTMLSelectElement && element.closest("#band") !== null;
+  }
+  function stationFailure(select, message) {
+    Array.prototype.forEach.call(select.options, function (option) {
+      option.selected = option.defaultSelected;
+    });
+    var band = select.closest("#band");
+    var notice = band.querySelector("[data-station-alert]") || document.createElement("span");
+    notice.setAttribute("role", "alert");
+    notice.setAttribute("data-station-alert", "");
+    notice.className = "text-danger";
+    notice.textContent = message;
+    select.closest("label").after(notice);
+  }
+  document.addEventListener("htmx:beforeSwap", function (event) {
+    // 差し替えの知らせは差し替える先で出るので、要求を出した要素は requestConfig から取る
+    var config = event.detail.requestConfig;
+    var xhr = event.detail.xhr;
+    if (config && isStationSelect(config.elt) && xhr && xhr.status >= 400) {
+      event.detail.shouldSwap = false;
+      stationFailure(
+        config.elt,
+        "装置を切り替えられませんでした。頁を読み込み直してから、もう一度選んでください"
+      );
+    }
+  });
   document.addEventListener("htmx:sendError", function (event) {
-    showFailure(event, "サーバーに届きませんでした。接続を確かめてから、もう一度押してください");
+    var message = "サーバーに届きませんでした。接続を確かめてから、もう一度押してください";
+    if (isStationSelect(event.detail.elt)) {
+      stationFailure(event.detail.elt, message);
+      return;
+    }
+    showFailure(event, message);
   });
 
   // PACS の送信ジョブ：2秒ごとに表を差し替えても、開いた「詳細」は開いたままにする。
