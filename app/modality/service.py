@@ -682,8 +682,10 @@ class ModalityService:
     def retry(
         self, job_id: int | None = None, all_failed: bool = False, stale: bool = False
     ) -> list[SendResult]:
-        """失敗の分だけを送り直す（8.2）.
+        """送り直す（8.2）。送信失敗の件は、送れていない画像だけを同じ件で送る.
 
+        `job_id` が送信完了の件なら、同じフォルダの画像をすべて、同じ送信先へ新しい件として
+        送る（回数の上限は無い。画像は作り直さないので UID は変わらない）。
         `stale` は、送信中のまま止まった件を失敗に戻してから送り直す。
         """
         if sum((job_id is not None, all_failed, stale)) != 1:
@@ -696,6 +698,10 @@ class ModalityService:
             jobs = self.queue.list_jobs("failed")
         results = []
         for job in jobs:
+            if job_id is not None and job.status == "sent":
+                # 送れた件は変えずに残し、履歴と保管の確認を件ごとに分ける
+                results.append(self.send(job.folder, job.destination))
+                continue
             if job.status != "failed":
                 raise ModalityError(
                     f"Queue job is not failed: {job.id}", {"job_id": job.id, "status": job.status}

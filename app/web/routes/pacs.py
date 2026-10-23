@@ -8,7 +8,8 @@ from fastapi.responses import HTMLResponse
 from app.core.exceptions import DICOMGeneratorError
 from app.modality.service import SendResult
 
-from ..rendering import error_text, render, render_error, service_of
+from ..display import STATUS_LABELS
+from ..rendering import error_text, render, service_of
 
 router = APIRouter()
 
@@ -47,8 +48,11 @@ def pacs_retry(request: Request, job_id: int) -> HTMLResponse:
     try:
         results = service_of(request).retry(job_id=job_id)
     except DICOMGeneratorError as exc:
-        return render_error(request, exc)
-    return render(request, "_queue.html", **_queue_context(request, _retry_notice(results)))
+        # 失敗しても表は消さず、表の上の知らせの場所に理由を出す
+        return render(request, "_queue.html", **_queue_context(request, error=error_text(exc)))
+    return render(
+        request, "_queue.html", **_queue_context(request, _retry_notice(results, job_id))
+    )
 
 
 @router.post("/pacs/retry-failed", response_class=HTMLResponse)
@@ -56,20 +60,25 @@ def pacs_retry_failed(request: Request) -> HTMLResponse:
     try:
         results = service_of(request).retry(all_failed=True)
     except DICOMGeneratorError as exc:
-        return render_error(request, exc)
+        return render(request, "_queue.html", **_queue_context(request, error=error_text(exc)))
     return render(request, "_queue.html", **_queue_context(request, _retry_notice(results)))
 
 
-def _queue_context(request: Request, notice: str = "") -> dict[str, object]:
+def _queue_context(request: Request, notice: str = "", error: str = "") -> dict[str, object]:
+    context: dict[str, object] = {"notice": notice, "retry_error": error}
     try:
         jobs = service_of(request).list_queue()
     except DICOMGeneratorError as exc:
-        return {"jobs": [], "queue_error": str(exc), "notice": notice}
-    return {"jobs": list(reversed(jobs)), "queue_error": "", "notice": notice}
+        return {**context, "jobs": [], "queue_error": str(exc)}
+    return {**context, "jobs": list(reversed(jobs)), "queue_error": ""}
 
 
-def _retry_notice(results: list[SendResult]) -> str:
+def _retry_notice(results: list[SendResult], job_id: int | None = None) -> str:
     if not results:
         return "失敗の件はありません"
+    if job_id is not None and len(results) == 1 and results[0].job_id != job_id:
+        # 送信完了の件の再送は新しい件になる。どの件になったかを出す（10.6）
+        result = results[0]
+        return f"ジョブ {result.job_id} として再送しました（{STATUS_LABELS.get(result.status)}）"
     sent = sum(1 for result in results if result.status == "sent")
     return f"{len(results)} 件を再送しました（送信完了 {sent} 件）"

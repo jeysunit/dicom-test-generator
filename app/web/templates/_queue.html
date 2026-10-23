@@ -1,4 +1,9 @@
-{% if notice %}<p role="status" class="notice notice-ok mb-3">{{ notice }}</p>{% endif %}
+{# 再送の結果は表の外（#queue-notice）に出し、2 秒ごとの再取得で消さない（10.6） #}
+{% if notice or retry_error %}
+<div id="queue-notice" hx-swap-oob="true">
+  {% if retry_error %}{% with error = retry_error %}{% include "_notice.html" %}{% endwith %}{% else %}<p role="status" class="notice notice-ok mb-3">{{ notice }}</p>{% endif %}
+</div>
+{% endif %}
 {% if queue_error %}{% with error = queue_error %}{% include "_notice.html" %}{% endwith %}{% endif %}
 {% if not jobs %}
 <p class="text-label">送信した検査はまだありません</p>
@@ -45,7 +50,10 @@
           <div class="flex flex-wrap items-center gap-2">
             {% if job.status == "failed" %}
             <span class="text-xs text-danger">{{ job.last_error }}</span>
-            <button type="button" class="btn btn-outline" hx-post="/pacs/retry/{{ job.id }}" hx-target="#queue" hx-disabled-elt="this">再送</button>
+            {% endif %}
+            {# 送信失敗は送れていない画像だけを、送信完了は新しい件として全部を送り直す（10.6） #}
+            {% if job.status in ("failed", "sent") %}
+            <button type="button" class="btn btn-outline" data-resend hx-post="/pacs/retry/{{ job.id }}" hx-target="#queue" hx-disabled-elt="this">再送</button>
             {% endif %}
             <details class="text-xs" data-job="{{ job.id }}">
               <summary class="link cursor-pointer">詳細</summary>

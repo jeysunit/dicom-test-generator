@@ -41,6 +41,7 @@
       <span class="icon icon-refresh-cw" aria-hidden="true"></span>失敗をすべて再送
     </button>
   </div>
+  <div id="queue-notice" aria-live="polite"></div>
   <div id="queue" hx-get="/pacs/queue" hx-trigger="{{ poll_trigger }}">
     {% include "_queue.html" %}
   </div>

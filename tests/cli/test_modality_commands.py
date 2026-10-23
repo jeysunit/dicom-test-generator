@@ -256,6 +256,30 @@ def test_send_queue_list_and_retry(
     assert [job["status"] for job in json.loads(out)] == ["sent"]
 
 
+def test_queue_retry_job_resends_a_sent_job_as_a_new_job(
+    monkeypatch, capsys, tmp_path, config, storage_scp
+) -> None:
+    """`queue retry --job` は送信完了の件も受け、新しい件として送る（8.2・11.5）."""
+    _, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0006",
+        "--patient-name", "RESEND^TEST", "-i", "2", "--pixel-mode", "simple_text", "--json",
+    )
+    folder = json.loads(out)["output_dir"]
+    _, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "send", folder, "--json")
+    first_job = json.loads(out)["job_id"]
+
+    code, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "queue", "retry", "--job", str(first_job), "--json"
+    )
+
+    assert code == 0
+    [result] = json.loads(out)
+    assert result["status"] == "sent" and result["job_id"] != first_job
+    code, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "queue", "list", "--json")
+    assert [job["status"] for job in json.loads(out)] == ["sent", "sent"]
+    assert len(storage_scp.received) == 4
+
+
 def test_send_unreachable_is_exit_5_and_recorded(
     monkeypatch, capsys, tmp_path, worklist_scp
 ) -> None:
