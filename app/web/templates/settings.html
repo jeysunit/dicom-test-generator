@@ -9,7 +9,10 @@
   <h2 class="panel-title">自分</h2>
   <dl class="values">
     {% for station in config.stations %}
-    <dt>{{ station.name }}{% if station.name == config.default_station %}（既定）{% endif %}{% if station.name == band.station_name %}（使っている装置）{% endif %}</dt>
+    {% set marks = [] %}
+    {% if station.name == config.default_station %}{% set marks = marks + ["既定"] %}{% endif %}
+    {% if station.name == band.station_name %}{% set marks = marks + ["使用中"] %}{% endif %}
+    <dt>{{ station.name }}{% if marks %}（{{ marks|join("・") }}）{% endif %}</dt>
     <dd><span class="font-mono">{{ station.ae_title }}</span>・Station Name {{ station.station_name or "—" }}</dd>
     {% endfor %}
     <dt>保管の確認の待ち受け</dt><dd class="font-mono">{{ config.listen.bind_address }}:{{ config.listen.port }}</dd>

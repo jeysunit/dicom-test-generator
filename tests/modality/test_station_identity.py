@@ -344,4 +344,5 @@ def test_unregistered_calling_ae_title_is_told(tmp_path, worklist_scp) -> None:
     assert result.status == "failed"
     assert "相手が AE タイトル DTG_MR01 を受け付けませんでした" in result.error
     assert "この装置の AE タイトルを登録してください" in result.error
+    assert "peer=" not in result.error  # 利用者が読む知らせに内部の値を付けない
     assert pacs.received == []

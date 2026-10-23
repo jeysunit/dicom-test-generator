@@ -77,11 +77,32 @@ def test_switching_during_an_exam_is_refused(tmp_path, worklist_scp, storage_scp
     assert service.current_station().name == "CT1号機"
 
 
+def test_queue_details_show_the_calling_ae_title(tmp_path, worklist_scp, storage_scp) -> None:
+    """再送で名乗る AE タイトルを、送信ジョブの詳細に出す（docs/spec/12a の 10.6）."""
+    from app.core.models import ScheduledPatient
+    from app.modality.service import ExamRequest
+
+    client = _client(tmp_path, worklist_scp.port, storage_scp.port)
+    service = client.app.state.service
+    exam = service.exam(
+        ExamRequest(
+            emergency_patient=ScheduledPatient(patient_id="E0001", patient_name="A^B"),
+            pixel_mode="simple_text",
+        )
+    )
+    service.send(exam.output_dir)
+
+    html = client.get("/pacs/queue").text
+
+    assert '<dt>名乗る AE タイトル</dt><dd class="font-mono">DTG_CT01</dd>' in html
+
+
 def test_settings_lists_the_stations_and_registration(tmp_path, worklist_scp, storage_scp) -> None:
     client = _client(tmp_path, worklist_scp.port, storage_scp.port)
 
     html = client.get("/settings").text
 
-    assert "CT1号機（既定）（使っている装置）" in html
+    assert "CT1号機（既定・使用中）" in html
+    assert "MR1号機</dt>" in html
     assert "DTG_MR01" in html
     assert "相手の側に登録してください" in html
