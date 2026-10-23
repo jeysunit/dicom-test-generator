@@ -151,16 +151,125 @@
     showFailure(event, message);
   });
 
-  // PACS の送信ジョブ：2秒ごとに表を差し替えても、開いた「詳細」は開いたままにする。
-  var openJobs = [];
+  // PACS の送信ジョブの「詳細」は、押したボタンのそばに浮かぶ枠（popover）に出す。
+  // 枠は最上位の層に出るので、表の列の幅は変わらない。枠は操作の欄の左に出し、どの行の
+  // 「詳細」「再送」も覆わない。左に収まらない狭い画面では、ボタンの下に出す。
+  // popover に対応しないブラウザでは、枠はセルの中にそのまま出る（下の処理は動かさない）
+  var SUPPORTS_POPOVER = typeof HTMLElement.prototype.showPopover === "function";
+  var DETAIL_GAP = 4;
+  var PAGE_GUTTER = 16; // 画面の端から離す幅（ページの左右の余白と同じ。10.2）
+  function detailButton(popover) {
+    return document.querySelector('[popovertarget="' + popover.id + '"]');
+  }
+  function placeDetail(popover) {
+    var button = detailButton(popover);
+    if (!button) {
+      return;
+    }
+    var rect = button.getBoundingClientRect();
+    // 左に出すときは、同じ行の「再送」も覆わないように、ボタンのある欄の左に出す
+    var cell = (button.closest("td") || button).getBoundingClientRect();
+    var vw = window.innerWidth;
+    popover.style.left = "";
+    popover.style.top = rect.top + "px";
+    popover.style.right = vw - cell.left + DETAIL_GAP + "px";
+    // 大きさを測って直す：画面の左右にはみ出せば、ボタンの下に左の余白から広げて出す。
+    // 下にはみ出せば上へ寄せる。開く前（beforetoggle）は大きさを測れないので、開いた後の
+    // 最初の描画の前（requestAnimationFrame）に測る。開いているときはその場で測る
+    function fit() {
+      var box = popover.getBoundingClientRect();
+      var top = rect.top;
+      if (box.left < PAGE_GUTTER || box.right > vw - PAGE_GUTTER) {
+        top = rect.bottom + DETAIL_GAP;
+        popover.style.left = PAGE_GUTTER + "px";
+        popover.style.right = Math.min(Math.max(vw - rect.right, PAGE_GUTTER), vw / 2) + "px";
+        box = popover.getBoundingClientRect();
+      }
+      if (top + box.height > window.innerHeight - PAGE_GUTTER) {
+        top = Math.max(window.innerHeight - PAGE_GUTTER - box.height, PAGE_GUTTER);
+      }
+      popover.style.top = top + "px";
+    }
+    if (popover.matches(":popover-open")) {
+      fit();
+    } else {
+      window.requestAnimationFrame(fit);
+    }
+  }
+  function openDetail() {
+    return SUPPORTS_POPOVER ? document.querySelector("#queue .job-detail:popover-open") : null;
+  }
+  document.addEventListener(
+    "beforetoggle",
+    function (event) {
+      if (event.newState === "open" && event.target.classList.contains("job-detail")) {
+        placeDetail(event.target);
+      }
+    },
+    true
+  );
+  // Esc で閉じたときは、その行の「詳細」へフォーカスを戻す（開き直した枠には戻り先が無い）
+  document.addEventListener(
+    "toggle",
+    function (event) {
+      var popover = event.target;
+      // 差し替えで外された枠の知らせは、新しい枠を開き直した後に届くので見ない
+      if (
+        event.newState !== "closed" ||
+        !popover.classList.contains("job-detail") ||
+        !popover.isConnected
+      ) {
+        return;
+      }
+      var active = document.activeElement;
+      var button = detailButton(popover);
+      if (button && (active === document.body || popover.contains(active))) {
+        button.focus();
+      }
+    },
+    true
+  );
+  ["scroll", "resize"].forEach(function (name) {
+    window.addEventListener(
+      name,
+      function () {
+        var popover = openDetail();
+        if (popover) {
+          placeDetail(popover);
+        }
+      },
+      true
+    );
+  });
+  // 2秒ごとに表を差し替えても、開いた枠は開いたままにし、フォーカスも同じ役割の要素に
+  // 戻す。差し替えと開き直しは同じ描画の前に終わるので、閉じた枠は描かれない。
+  // 差し替えなかったとき（再送の応答待ち）は afterSwap が来ず、次の beforeSwap で覚え直す
+  var openJob = null;
+  var focusedRole = null;
+  function roleOf(element, queue) {
+    if (!element || !queue.contains(element)) {
+      return null;
+    }
+    var popover = element.closest(".job-detail");
+    if (popover) {
+      return {
+        selector: "#" + popover.id + " button",
+        index: Array.prototype.indexOf.call(popover.querySelectorAll("button"), element),
+      };
+    }
+    if (element.hasAttribute("popovertarget")) {
+      return {
+        selector: '[popovertarget="' + element.getAttribute("popovertarget") + '"]',
+        index: 0,
+      };
+    }
+    return null;
+  }
   document.addEventListener("htmx:beforeSwap", function (event) {
     if (event.target.id === "queue") {
-      openJobs = Array.prototype.map.call(
-        event.target.querySelectorAll("details[open][data-job]"),
-        function (details) {
-          return details.getAttribute("data-job");
-        }
-      );
+      var popover = openDetail();
+      openJob = popover ? popover.id : null;
+      focusedRole = roleOf(document.activeElement, event.target);
     }
   });
   // 再送を押してから応答が返るまでは、2秒ごとの差し替えを止める（差し替えると、押せなく
@@ -184,13 +293,28 @@
     }
   });
   document.addEventListener("htmx:afterSwap", function (event) {
-    if (event.target.id === "queue") {
-      openJobs.forEach(function (job) {
-        var details = event.target.querySelector('details[data-job="' + job + '"]');
-        if (details) {
-          details.setAttribute("open", "");
-        }
-      });
+    if (event.target.id !== "queue") {
+      return;
+    }
+    var popover = openJob ? document.getElementById(openJob) : null;
+    if (popover && !popover.matches(":popover-open")) {
+      popover.showPopover();
+    }
+    if (focusedRole) {
+      var target = event.target.querySelectorAll(focusedRole.selector)[focusedRole.index];
+      if (target) {
+        target.focus();
+      }
+    }
+    openJob = null;
+    focusedRole = null;
+  });
+  // htmx は差し替えの後の落ち着かせ（settle）で、同じ id の要素の style を新しい要素の値
+  // （無し）に戻すので、開いている枠の位置はその後に決め直す
+  document.addEventListener("htmx:afterSettle", function (event) {
+    var popover = event.target.id === "queue" ? openDetail() : null;
+    if (popover) {
+      placeDetail(popover);
     }
   });
 })();
