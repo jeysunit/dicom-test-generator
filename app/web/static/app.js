@@ -122,6 +122,18 @@
       );
     }
   });
+  // 再送を押してから応答が返るまでは、2秒ごとの差し替えを止める（差し替えると、押せなく
+  // したボタンが押せる形で描き直される）。
+  // 送信中のボタンは htmx が htmx-request の印を付け、応答の後（表を差し替えて消えたときも）
+  // 印は残らない。
+  document.addEventListener("htmx:beforeRequest", function (event) {
+    if (
+      event.detail.elt.id === "queue" &&
+      document.querySelector('[hx-target="#queue"].htmx-request')
+    ) {
+      event.preventDefault();
+    }
+  });
   document.addEventListener("htmx:afterSwap", function (event) {
     if (event.target.id === "queue") {
       openJobs.forEach(function (job) {

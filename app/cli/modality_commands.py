@@ -128,7 +128,9 @@ def register_modality_commands(
     retry_parser = queue_sub.add_parser("retry", parents=[common], help="失敗を再送する")
     retry_target = retry_parser.add_mutually_exclusive_group(required=True)
     retry_target.add_argument("--all", action="store_true", help="失敗の全部")
-    retry_target.add_argument("--job", type=int, help="送信ジョブの ID")
+    retry_target.add_argument(
+        "--job", type=int, help="送信ジョブの ID（送信完了の件は、新しい件として全部を送り直す）"
+    )
     retry_target.add_argument(
         "--stale", action="store_true", help="送信中のまま止まった件の全部（失敗に戻して送る）"
     )

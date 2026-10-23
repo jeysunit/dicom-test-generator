@@ -130,3 +130,60 @@ def test_failed_send_is_retried_from_pacs(tmp_path, worklist_scp, storage_scp) -
     assert retried.status_code == 200
     assert "送信完了" in retried.text
     assert len(storage_scp.received) == 3
+
+
+def _resend_buttons(html: str) -> list[str]:
+    return re.findall(r'hx-post="/pacs/retry/(\d+)"', html)
+
+
+def test_sent_job_is_resent_from_pacs_as_a_new_job(client, worklist_scp, storage_scp) -> None:
+    """送信完了の件にも [再送] を出し、押すと新しい件として送る（10.6）."""
+    key = key_for(query_worklist(client), "A0001")
+    token = csrf_token(client, f"/exam?key={key}")
+    client.post("/exam", data=_exam_form(key, "exam_send"), headers=post_headers(token))
+    assert _resend_buttons(client.get("/pacs/queue").text) == ["1"]
+
+    token = csrf_token(client, "/pacs")
+    resent = client.post("/pacs/retry/1", headers=post_headers(token)).text
+
+    assert "1 件を再送しました（送信完了 1 件）" in resent
+    assert sorted(_resend_buttons(resent)) == ["1", "2"]
+    assert len(storage_scp.received) == 6
+    uids = [ds.SOPInstanceUID for ds in storage_scp.received]
+    assert sorted(uids[:3]) == sorted(uids[3:])  # 同じ画像を送り直す
+
+
+def test_sending_job_has_no_resend_button(client) -> None:
+    from app.core.models import ScheduledPatient
+    from app.modality.service import ExamRequest
+
+    service = client.app.state.service
+    exam = service.exam(
+        ExamRequest(
+            emergency_patient=ScheduledPatient(patient_id="E0001", patient_name="A^B"),
+            pixel_mode="simple_text",
+        )
+    )
+    job_id = service.queue.add_job(exam.output_dir, "PACS_TEST", exam.files)
+    service.queue.mark_sending(job_id)
+
+    assert _resend_buttons(client.get("/pacs/queue").text) == []
+
+
+def test_exam_result_offers_send_again(client, worklist_scp, storage_scp) -> None:
+    """撮影の画面で、送信の結果の後も [もう一度送る] で何回でも送り直せる（10.5）."""
+    key = key_for(query_worklist(client), "A0001")
+    token = csrf_token(client, f"/exam?key={key}")
+    result = client.post(
+        "/exam", data=_exam_form(key, "exam_send"), headers=post_headers(token)
+    ).text
+    assert "もう一度送る" in result
+    output_dir = _OUTPUT_DIR_PATTERN.search(result).group(1)
+
+    for job in (2, 3):
+        again = client.post(
+            "/exam/send", data={"output_dir": output_dir}, headers=post_headers(token)
+        ).text
+        assert f"送信完了：PACS_TEST へ 3/3 画像（ジョブ {job}）" in again
+        assert "もう一度送る" in again and 'hx-disabled-elt="find button"' in again
+    assert len(storage_scp.received) == 9

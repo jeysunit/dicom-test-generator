@@ -27,7 +27,7 @@
   {% endif %}
   <div id="send-result">
     {% if send %}
-    {% include "_send_result.html" %}
+    {% with output_dir = result.output_dir %}{% include "_send_outcome.html" %}{% endwith %}
     {% elif send_error %}
     {% with error = send_error %}{% include "_notice.html" %}{% endwith %}
     {% else %}
