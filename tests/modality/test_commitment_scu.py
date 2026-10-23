@@ -104,6 +104,8 @@ def _exam_and_send(service: ModalityService, images: list[int] | None = None) ->
 
 def test_separate_association_round_trip(service, commitment_pacs) -> None:
     """要求→別の Association の結果→待ち行列の「確認済」（推奨の既定の道。8.3.1）."""
+    # 結果が要求より後に届く前提を決まった形にする（すぐ送ると、状態を読む前に確認済になりうる）
+    commitment_pacs.report_delay = 0.5
     job_id = _exam_and_send(service, [1, 2])
 
     state = service.request_commitment(job_id)
