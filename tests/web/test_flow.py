@@ -146,8 +146,11 @@ def test_sent_job_is_resent_from_pacs_as_a_new_job(client, worklist_scp, storage
     token = csrf_token(client, "/pacs")
     resent = client.post("/pacs/retry/1", headers=post_headers(token)).text
 
-    assert "1 件を再送しました（送信完了 1 件）" in resent
+    # どの件になったかを、表の外（2 秒ごとの再取得で消えない場所）に出す
+    notice = resent.split('<div id="queue-notice" hx-swap-oob="true">', 1)[1].split("</div>", 1)[0]
+    assert "ジョブ 2 として再送しました（送信完了）" in notice
     assert sorted(_resend_buttons(resent)) == ["1", "2"]
+    assert "queue-notice" not in client.get("/pacs/queue").text  # 再取得では知らせを消さない
     assert len(storage_scp.received) == 6
     uids = [ds.SOPInstanceUID for ds in storage_scp.received]
     assert sorted(uids[:3]) == sorted(uids[3:])  # 同じ画像を送り直す
@@ -168,6 +171,13 @@ def test_sending_job_has_no_resend_button(client) -> None:
     service.queue.mark_sending(job_id)
 
     assert _resend_buttons(client.get("/pacs/queue").text) == []
+
+    # 送信中の件の再送の要求は断り、表を残して理由を表の上に出す
+    token = csrf_token(client, "/pacs")
+    refused = client.post(f"/pacs/retry/{job_id}", headers=post_headers(token)).text
+    notice = refused.split('<div id="queue-notice" hx-swap-oob="true">', 1)[1]
+    assert 'role="alert"' in notice.split("</div>", 1)[0]
+    assert "<table" in refused
 
 
 def test_exam_result_offers_send_again(client, worklist_scp, storage_scp) -> None:

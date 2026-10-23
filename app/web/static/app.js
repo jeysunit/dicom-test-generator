@@ -94,9 +94,16 @@
   });
   function showFailure(event, message) {
     var form = event.target;
-    var place =
-      form instanceof HTMLFormElement &&
-      document.getElementById(form.id === "exam-form" ? "result" : "send-result");
+    var target = event.detail && event.detail.target;
+    var place;
+    if (target && target.id === "queue") {
+      // PACS の画面の再送：表の上の知らせの場所に出す
+      place = document.getElementById("queue-notice");
+    } else {
+      place =
+        form instanceof HTMLFormElement &&
+        document.getElementById(form.id === "exam-form" ? "result" : "send-result");
+    }
     if (!place) {
       return;
     }

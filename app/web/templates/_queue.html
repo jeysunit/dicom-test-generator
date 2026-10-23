@@ -1,4 +1,9 @@
-{% if notice %}<p role="status" class="notice notice-ok mb-3">{{ notice }}</p>{% endif %}
+{# 再送の結果は表の外（#queue-notice）に出し、2 秒ごとの再取得で消さない（10.6） #}
+{% if notice or retry_error %}
+<div id="queue-notice" hx-swap-oob="true">
+  {% if retry_error %}{% with error = retry_error %}{% include "_notice.html" %}{% endwith %}{% else %}<p role="status" class="notice notice-ok mb-3">{{ notice }}</p>{% endif %}
+</div>
+{% endif %}
 {% if queue_error %}{% with error = queue_error %}{% include "_notice.html" %}{% endwith %}{% endif %}
 {% if not jobs %}
 <p class="text-label">送信した検査はまだありません</p>
