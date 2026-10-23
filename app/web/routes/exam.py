@@ -197,8 +197,9 @@ def exam_run(
             images_per_series=_parse_images(images, series),
             abnormal_level=abnormal_level,
             charset=charset or None,
-            # 撮影済みの予約の「追加撮影」（10.5・ADR-0024）
-            append=bool(append) and emergency_patient is None,
+            # 撮影済みの予約の「追加撮影」（10.5・ADR-0024）。緊急の患者に付いていれば、
+            # 黙って普通に撮らずに断る（CLI と同じ文言）
+            append=bool(append),
         )
         result = service.exam(exam_request)
         accepted = True

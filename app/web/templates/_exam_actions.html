@@ -3,12 +3,13 @@
   {% if taken %}
   {# 撮影済みの予約（docs/spec/12a の 10.5・ADR-0024）。撮影・撮影して送るは押せない #}
   {% if retake_mode == "new_order" %}
-  <p role="status" class="mr-auto text-label">撮影済み。撮り直しの予約が要ります（RIS で新しい予約を作ってください）</p>
+  <p id="taken-note" role="status" class="mr-auto text-label">撮影済み。撮り直しの予約が要ります（RIS で新しい予約を作ってください）</p>
   {% else %}
-  <p role="status" class="mr-auto text-label">撮影済み。続けて撮るときは「追加撮影」</p>
+  <p id="taken-note" role="status" class="mr-auto text-label">撮影済み。続けて撮るときは「追加撮影」</p>
   {% endif %}
-  <button type="button" class="btn btn-outline" disabled>撮影</button>
-  <button type="button" class="btn btn-outline" disabled>撮影して送る</button>
+  {# 押せない理由を、ボタンにも結び付ける（title と aria-describedby） #}
+  <button type="button" class="btn btn-outline" disabled title="撮影済みの予約です" aria-describedby="taken-note">撮影</button>
+  <button type="button" class="btn btn-outline" disabled title="撮影済みの予約です" aria-describedby="taken-note">撮影して送る</button>
   {% if retake_mode == "append" %}
   <input type="hidden" name="append" value="1">
   <button type="submit" name="action" value="exam" class="btn btn-primary"{% if blocker %} disabled{% endif %}>追加撮影</button>

@@ -633,7 +633,7 @@ class ModalityService:
             # 判定から記録までを、予約ごとの札で守る（6.3・ADR-0024）
             token = self.queue.claim_exam(key)
             if token is None:
-                raise ModalityError(ORDER_BUSY_MESSAGE, {"worklist_key": key})
+                raise ModalityError(ORDER_BUSY_MESSAGE)
             try:
                 return self._exam(request, lambda: self.queue.touch_exam(key, token))
             finally:
@@ -963,18 +963,19 @@ class ModalityService:
         return self.queue.taken_keys()
 
     def _check_retake(self, request: ExamRequest, record: ExamRecord | None) -> None:
-        """撮影済みの予約の撮り直しを、設定の形で決める。外れたら撮らずに ValidationError."""
+        """撮影済みの予約の撮り直しを、設定の形で決める。外れたら撮らずに ValidationError.
+
+        文言は画面にもそのまま出すので、内部の予約の鍵は添えない（docs/spec/12a の 10.4）。
+        """
         if record is None:
             if request.append:
-                raise ValidationError(NOT_TAKEN_MESSAGE, {"worklist_key": request.worklist_key})
+                raise ValidationError(NOT_TAKEN_MESSAGE)
             return
         if self.config.retake_mode == "new_order":
             # 受付番号と Study Instance UID は RIS が出す。DTG は作らない（ADR-0024）
-            raise ValidationError(
-                TAKEN_NEW_ORDER_MESSAGE, {"worklist_key": request.worklist_key}
-            )
+            raise ValidationError(TAKEN_NEW_ORDER_MESSAGE)
         if not request.append:
-            raise ValidationError(TAKEN_APPEND_MESSAGE, {"worklist_key": request.worklist_key})
+            raise ValidationError(TAKEN_APPEND_MESSAGE)
 
     def _scheduled_notices(self, item: WorklistItem, own_ae_title: str) -> list[str]:
         notices = []

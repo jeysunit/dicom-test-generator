@@ -71,6 +71,12 @@ def test_append_from_the_screen(tmp_path, worklist_scp, storage_scp) -> None:
 
     again = client.post("/exam", data=_form(key), headers=post_headers(token)).text
     assert "撮影済みです" in again  # 通常の撮影は断る
+    assert "worklist_key" not in again and key not in again.split('id="result"', 1)[-1]
+
+    page = client.get(f"/exam?key={key}").text
+    assert 'disabled title="撮影済みの予約です" aria-describedby="taken-note"' in page
+    assert 'id="taken-note"' in page
+    assert "撮影済み" in client.get(f"/worklist/item/{key}").text  # 詳細にも出す
 
     appended = client.post("/exam", data=_form(key, append="1"), headers=post_headers(token)).text
     assert "撮影完了：1 画像" in appended
@@ -100,3 +106,24 @@ def test_template_check_keeps_the_taken_state(tmp_path, worklist_scp, storage_sc
     checked = client.get("/exam/check", params={"key": key, "template": "ct_generic"}).text
 
     assert _enabled_buttons(checked) == ["追加撮影"]
+
+
+def test_append_on_emergency_is_refused(tmp_path, worklist_scp, storage_scp) -> None:
+    """緊急の患者に追加撮影を付けても、黙って普通に撮らない（CLI と同じ文言）."""
+    client = _client(tmp_path, worklist_scp.port, storage_scp.port)
+    token = csrf_token(client, "/exam")
+    form = {
+        "mode": "emergency",
+        "patient_id": "E0001",
+        "name_alphabetic": "KINKYU TARO",
+        "template": "ct_generic",
+        "series": "1",
+        "images": "1",
+        "action": "exam",
+        "append": "1",
+    }
+
+    html = client.post("/exam", data=form, headers=post_headers(token)).text
+
+    assert "緊急の患者（予約なし）では追加撮影はできません" in html
+    assert "撮影完了" not in html

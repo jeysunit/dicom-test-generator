@@ -1,6 +1,6 @@
 {% if oob_band %}{% include "_band.html" %}
 {# 一覧を差し替えたら、詳細も選んだ行の値にする（選んでいなければ閉じる） #}
-<section id="detail" hx-swap-oob="true">{% if results.detail_item %}{% with item = results.detail_item %}{% include "_worklist_detail.html" %}{% endwith %}{% endif %}</section>
+<section id="detail" hx-swap-oob="true">{% if results.detail_item %}{% with item = results.detail_item, item_taken = results.detail_taken %}{% include "_worklist_detail.html" %}{% endwith %}{% endif %}</section>
 {% endif %}
 {% if results.notice %}
 <p role="status" class="notice notice-ok">{{ results.notice }}</p>
