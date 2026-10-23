@@ -28,6 +28,7 @@ MAX_COMMITMENT_TIMEOUT_SECONDS = 86400.0
 MAX_COMMITMENT_WAIT_SECONDS = 60.0  # 同じ Association で待つ上限（docs/spec/12 の 12 章）
 _PRINTABLE_ASCII_MIN = 0x20
 _PRINTABLE_ASCII_MAX = 0x7E
+_DELETE = 0x7F
 
 CharacterSetChoice = Literal["auto", "utf8", "jis", "jis_kana"]
 FallbackChoice = Literal["utf8", "jis", "jis_kana"]
@@ -124,7 +125,9 @@ class StationConfig(BaseModel):
         """Station Name (0008,1010) は SH：16 文字まで・`\\` と制御文字は不可（PS3.5 6.2）."""
         if len(value) > STATION_NAME_MAX_LENGTH:
             raise ValueError(f"station_name must be {STATION_NAME_MAX_LENGTH} characters or fewer")
-        if "\\" in value or any(ord(char) < _PRINTABLE_ASCII_MIN for char in value):
+        if "\\" in value or any(
+            ord(char) < _PRINTABLE_ASCII_MIN or ord(char) == _DELETE for char in value
+        ):
             raise ValueError("station_name must not contain backslash or control characters")
         return value
 

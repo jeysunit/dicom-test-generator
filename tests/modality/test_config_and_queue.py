@@ -119,6 +119,7 @@ def test_config_without_stations_is_one_station(tmp_path) -> None:
         _stations({**CT1, "ae_title": "A" * 17}),  # AE の VR に合わない
         _stations({**CT1, "station_name": "S" * 17}),  # SH は 16 文字まで
         _stations({**CT1, "station_name": "A\\B"}),  # SH に `\` は入れない
+        _stations({**CT1, "station_name": "A\x7fB"}),  # 制御文字（DEL）も入れない
         {**_stations(CT1), "ae_title": "DTG_XX01"},  # 一覧と食い違う今の形の値
         _stations(),  # 空の一覧
     ],
