@@ -96,6 +96,7 @@ TAKEN_APPEND_MESSAGE = "この予約は撮影済みです。続けて撮ると�
 TAKEN_NEW_ORDER_MESSAGE = "撮り直しの予約が要ります（RIS で新しい予約を作ってください）"
 NOT_TAKEN_MESSAGE = "この予約はまだ撮影していません。追加撮影は撮影済みの予約で行います"
 EMERGENCY_APPEND_MESSAGE = "緊急の患者（予約なし）では追加撮影はできません"
+ORDER_BUSY_MESSAGE = "この予約は、ほかで撮影しています。終わってから撮ってください"
 # DICOM の値の区切り（PS3.5 6.2）。LO・PN・SH の値に入れると VM が増える
 VALUE_DELIMITER = "\\"
 
@@ -607,7 +608,16 @@ class ModalityService:
         if not self._exam_lock.acquire(blocking=False):
             raise ModalityError(EXAM_BUSY_MESSAGE)
         try:
-            return self._exam(request)
+            key = request.worklist_key
+            # 同じ予約を、別のプロセス（CLI と画面など）が同時に撮らないようにする。撮影済みの
+            # 判定から記録までを、予約ごとの札で守る（6.3・ADR-0024）
+            if key is not None and not self.queue.claim_exam(key):
+                raise ModalityError(ORDER_BUSY_MESSAGE, {"worklist_key": key})
+            try:
+                return self._exam(request)
+            finally:
+                if key is not None:
+                    self.queue.release_exam(key)
         finally:
             self._exam_lock.release()
 
@@ -652,7 +662,9 @@ class ModalityService:
                 update: dict[str, object] = {}
                 if ctx.study_instance_uid is None and record.study_instance_uid:
                     update["study_instance_uid"] = record.study_instance_uid
-                if record.study_description:
+                if record.study_date:
+                    # 最初の撮影の説明が空なら、空のまま（あとで RIS が説明を足しても変えない）。
+                    # 前の版から移した記録（日時の無い記録）は、説明も分からないので予約の値
                     update["study_description"] = record.study_description
                 ctx = ctx.model_copy(update=update)
         else:

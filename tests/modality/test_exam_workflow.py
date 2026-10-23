@@ -11,7 +11,12 @@ import pytest
 from modality_peers import LOCALHOST, free_port
 from pydicom import dcmread
 
-from app.core.exceptions import GenerationError, ModalityConfigError, ValidationError
+from app.core.exceptions import (
+    GenerationError,
+    ModalityConfigError,
+    ModalityError,
+    ValidationError,
+)
 from app.core.models import ScheduledPatient
 from app.modality.config import ModalityConfig
 from app.modality.queue import QUEUE_DB_NAME, SendQueue
@@ -241,6 +246,49 @@ def test_new_order_mode_shoots_the_retake_order_from_ris(
     assert image.StudyInstanceUID == "2.25.100000000000000000000000000000000099"
     created = mpps_scp.created[result.mpps.sop_instance_uid]
     assert created.ScheduledStepAttributesSequence[0].AccessionNumber == "A0001R"
+
+
+def test_same_order_is_not_shot_by_two_processes_at_once(tmp_path, worklist_scp) -> None:
+    """別のプロセスが同じ予約を撮っている間は撮らない（予約ごとの札。ADR-0024）."""
+    service = _service(tmp_path, worklist_scp.port)
+    other = _service(tmp_path, worklist_scp.port)  # 同じ状態の保存先を使う別のプロセス
+    key = _key(service)
+    assert other.queue.claim_exam(key)
+
+    with pytest.raises(ModalityError, match="ほかで撮影しています"):
+        _exam(service, key)
+    assert not service.is_taken(key)
+
+    other.queue.release_exam(key)
+    _exam(service, key)
+    assert service.queue.claim_exam(key)  # 撮り終えたら札は戻している
+
+
+def test_stale_exam_claim_can_be_taken_over(tmp_path) -> None:
+    queue = SendQueue(tmp_path / QUEUE_DB_NAME)
+    assert queue.claim_exam("abc")
+    assert not queue.claim_exam("abc")
+    with closing(sqlite3.connect(tmp_path / QUEUE_DB_NAME)) as conn, conn:
+        conn.execute("UPDATE exam_locks SET locked_at = '2000-01-01T00:00:00'")
+
+    assert queue.claim_exam("abc")  # 落ちたまま古い札は取り直せる
+
+
+def test_append_keeps_an_empty_first_description(tmp_path, worklist_scp) -> None:
+    """最初の撮影の説明が空なら、あとで RIS が説明を足しても追加撮影は空のまま（IHE-A.3.3）."""
+    service = _service(tmp_path, worklist_scp.port)
+    key = _key(service)
+    assert service.queue  # 待ち行列の表を作っておく
+    with closing(sqlite3.connect(tmp_path / "state" / QUEUE_DB_NAME)) as conn, conn:
+        conn.execute(
+            "INSERT INTO exam_records VALUES (?, ?, '20261022', '100000', '', 1)",
+            (key, A0001_STUDY_UID),
+        )
+
+    appended = _exam(service, key, append=True)
+
+    first_desc = "胸部 CT"  # 予約の Requested Procedure Description
+    assert str(_first(appended.files).get("StudyDescription", "")) != first_desc
 
 
 def test_old_study_uid_rows_become_taken(tmp_path) -> None:

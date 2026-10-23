@@ -64,6 +64,13 @@ _SCHEMA = (
         study_instance_uid TEXT NOT NULL
     )
     """,
+    # 予約を撮っている間の札（別のプロセスが同じ予約を同時に撮らない。ADR-0024）
+    """
+    CREATE TABLE IF NOT EXISTS exam_locks (
+        worklist_key TEXT PRIMARY KEY,
+        locked_at TEXT NOT NULL
+    )
+    """,
     # 予約ごとの撮影の記録（撮影済みの判定と追加撮影の値。docs/spec/12 の 6.3・ADR-0024）
     """
     CREATE TABLE IF NOT EXISTS exam_records (
@@ -398,6 +405,23 @@ class SendQueue:
             study_description=row[4],
             series_count=row[5],
         )
+
+    def claim_exam(self, worklist_key: str) -> bool:
+        """予約の撮影の札を取る。ほかが持っていれば False（止まったまま古い札は取り直せる）."""
+        with self._connect() as conn:
+            conn.execute(
+                "DELETE FROM exam_locks WHERE worklist_key = ? AND locked_at < ?",
+                (worklist_key, _stale_cutoff()),
+            )
+            cursor = conn.execute(
+                "INSERT OR IGNORE INTO exam_locks (worklist_key, locked_at) VALUES (?, ?)",
+                (worklist_key, _now()),
+            )
+            return cursor.rowcount == 1
+
+    def release_exam(self, worklist_key: str) -> None:
+        with self._connect() as conn:
+            conn.execute("DELETE FROM exam_locks WHERE worklist_key = ?", (worklist_key,))
 
     def taken_keys(self) -> set[str]:
         """撮影済みの予約の鍵（一覧の印）."""
