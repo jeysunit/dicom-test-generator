@@ -159,6 +159,23 @@
   .link {
     @apply underline;
   }
+  /* 送信ジョブの「詳細」。文字のボタンのまま、押せる範囲を 24px 四方より広くする */
+  .job-detail-button {
+    @apply inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center px-1 text-xs;
+  }
+  /* 送信ジョブの詳細の枠（popover）。位置は app.js が操作の欄の左に決める（10.6）。
+     popover に対応しないブラウザでは、枠はセルの中にそのまま出す */
+  .job-detail {
+    @apply rounded-md border border-border bg-background p-3 text-xs text-foreground shadow-md;
+  }
+  @supports selector(:popover-open) {
+    .job-detail {
+      position: fixed;
+      inset: auto;
+      margin: 0;
+      max-width: min(32rem, calc(100vw - 2rem));
+    }
+  }
   /* 撮影・送信の途中の表示。htmx が要求の間、form に htmx-request を付ける。
      form の data-action（app.js が押したボタンから入れる）で文言を選ぶ */
   .busy {
