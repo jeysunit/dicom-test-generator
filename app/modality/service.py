@@ -115,8 +115,8 @@ def check_send_files(folder: Path, files: list[str]) -> None:
             raise FileReadError(name, f"not a regular file directly inside {root}")
 
 
-def _read_job_summary(folder: Path) -> tuple[str, str, str]:
-    """フォルダの最初の画像から（患者 ID・氏名・検査日時）を読む。読めなければ空."""
+def _read_job_summary(folder: Path) -> tuple[str, str, str, str]:
+    """フォルダの最初の画像から（患者 ID・氏名・検査日時・受付番号）を読む。読めなければ空."""
     try:
         first = next(
             path for path in sorted(folder.glob("*.dcm")) if path.is_file() and not path.is_symlink()
@@ -124,10 +124,10 @@ def _read_job_summary(folder: Path) -> tuple[str, str, str]:
         dataset = dcmread(
             first,
             stop_before_pixels=True,
-            specific_tags=["PatientID", "PatientName", "StudyDate", "StudyTime"],
+            specific_tags=["PatientID", "PatientName", "StudyDate", "StudyTime", "AccessionNumber"],
         )
     except (StopIteration, OSError, InvalidDicomError):
-        return "", "", ""
+        return "", "", "", ""
     study_date = str(dataset.get("StudyDate", ""))
     study_time = str(dataset.get("StudyTime", ""))
     study_datetime = ""
@@ -135,7 +135,12 @@ def _read_job_summary(folder: Path) -> tuple[str, str, str]:
         study_datetime = f"{study_date[:4]}/{study_date[4:6]}/{study_date[6:]}"
         if len(study_time) >= DICOM_TIME_MIN_LENGTH:
             study_datetime += f" {study_time[:2]}:{study_time[2:4]}"
-    return str(dataset.get("PatientID", "")), str(dataset.get("PatientName", "")), study_datetime
+    return (
+        str(dataset.get("PatientID", "")),
+        str(dataset.get("PatientName", "")),
+        study_datetime,
+        str(dataset.get("AccessionNumber", "")),
+    )
 
 
 class ExamRequest(BaseModel):
@@ -226,7 +231,7 @@ class ModalityService:
         # 同時に走る撮影は1つ（画面のプロセスの中。docs/spec/12a の 10.5）
         self._exam_lock = threading.Lock()
         # 送信ジョブの一覧に出す患者・検査の値（元のファイルから読み、ジョブの番号で覚える）
-        self._job_summaries: dict[int, tuple[str, str, str]] = {}
+        self._job_summaries: dict[int, tuple[str, str, str, str]] = {}
 
     @property
     def queue(self) -> SendQueue:
@@ -658,7 +663,9 @@ class ModalityService:
             raise FileReadError(str(folder_path), "No .dcm files in the folder")
         # 待ち行列に入れる前に、送ってよいファイルかを確かめる（8.2）
         check_send_files(folder_path, files)
-        job_id = self.queue.add_job(str(folder_path), node.name, files)
+        # 件の受付番号は、送る画像の Accession Number（読めなければ空のまま送る）
+        accession_number = _read_job_summary(folder_path)[3]
+        job_id = self.queue.add_job(str(folder_path), node.name, files, accession_number)
         return self._send_job(job_id, files)
 
     def send_exam_output(self, folder: str, destination: str | None = None) -> SendResult:
@@ -706,12 +713,14 @@ class ModalityService:
             summary = _read_job_summary(Path(job.folder))
             if any(summary):
                 self._job_summaries[job.id] = summary
-        patient_id, patient_name, study_datetime = summary
+        patient_id, patient_name, study_datetime, accession_number = summary
         return job.model_copy(
             update={
                 "patient_id": patient_id,
                 "patient_name": patient_name,
                 "study_datetime": study_datetime,
+                # 受付番号を記録していない前の件は、画像の値で補う
+                "accession_number": job.accession_number or accession_number,
             }
         )
 

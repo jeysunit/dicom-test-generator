@@ -126,6 +126,28 @@ def test_item_from_identifier_reads_values() -> None:
     assert item.unreadable_attributes == []
 
 
+def test_item_from_identifier_reads_requesting_physician() -> None:
+    """依頼医 (0032,1032) を紹介医 (0008,0090) と別に読む（PS3.3 C.4.12・C.7.2.1）."""
+    ds = _identifier()
+    ds.RequestingPhysician = "SATO^ICHIRO"
+
+    item = worklist_item_from_identifier(ds)
+
+    assert item.requesting_physician == "SATO^ICHIRO"
+    assert item.referring_physician_name == "REFERRING^DOCTOR"
+    assert worklist_item_from_identifier(_identifier()).requesting_physician == ""
+
+
+def test_item_from_identifier_marks_unreadable_requesting_physician() -> None:
+    ds = _identifier()
+    tag = Tag(0x00321032)
+    ds[tag] = RawDataElement(tag, "PN", 4, b"\xff\xfeAB", 0, True, True)
+
+    item = worklist_item_from_identifier(ds)
+
+    assert item.unreadable_attributes == ["RequestingPhysician"]
+
+
 def test_item_from_identifier_marks_unreadable_value() -> None:
     ds = _identifier()
     tag = Tag(0x00100010)

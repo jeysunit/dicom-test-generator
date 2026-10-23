@@ -49,6 +49,17 @@ def test_pick_exam_send_and_confirm(client, worklist_scp, storage_scp) -> None:
     assert "3/3" in queue
 
 
+def test_queue_table_shows_the_accession_number(client, worklist_scp, storage_scp) -> None:
+    """送信キューの表の受付番号の欄に、画像の Accession Number を出す（docs/spec/12a の 10.6）."""
+    key = key_for(query_worklist(client), "A0001")
+    token = csrf_token(client, f"/exam?key={key}")
+    client.post("/exam", data=_exam_form(key, "exam_send"), headers=post_headers(token))
+
+    queue = client.get("/pacs/queue").text
+
+    assert '<td class="font-mono">A0001</td>' in queue
+
+
 def test_exam_with_profile_then_send_from_result(client, storage_scp) -> None:
     """予約なしの緊急の患者を、装置を選んで撮り、結果の [送る] で送る.
 

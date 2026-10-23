@@ -130,6 +130,38 @@ def test_send_exam_output_sends_inside_output_root(tmp_path, worklist_scp, stora
     assert len(storage_scp.received) == 1
 
 
+def test_queue_job_takes_the_accession_number_of_the_images(
+    tmp_path, worklist_scp, storage_scp
+) -> None:
+    """送信キューの件の受付番号は、送る画像の Accession Number（docs/spec/12 の 8.2）."""
+    service = _service(tmp_path, worklist_scp.port, storage_scp.port)
+    item = service.query_worklist(WorklistQuery(accession_number="A0001")).items[0]
+    scheduled = service.exam(ExamRequest(worklist_key=item.key, pixel_mode="simple_text"))
+    patient = ScheduledPatient(patient_id="E0001", patient_name="KINKYU^TARO")
+    emergency = service.exam(ExamRequest(emergency_patient=patient, pixel_mode="simple_text"))
+
+    scheduled_job = service.send_exam_output(scheduled.output_dir).job_id
+    emergency_job = service.send(emergency.output_dir).job_id  # CLI の send と同じ道
+
+    assert service.queue.get_job(scheduled_job).accession_number == "A0001"
+    jobs = {job.id: job for job in service.list_queue()}
+    assert jobs[scheduled_job].accession_number == "A0001"
+    assert jobs[emergency_job].accession_number == ""  # 緊急の患者は空（画面は「—」）
+
+
+def test_queue_job_recorded_without_accession_is_filled_from_images(
+    tmp_path, worklist_scp, storage_scp
+) -> None:
+    """受付番号を記録していない前の件は、表示のときに画像から補う."""
+    service = _service(tmp_path, worklist_scp.port, storage_scp.port)
+    item = service.query_worklist(WorklistQuery(accession_number="A0001")).items[0]
+    exam = service.exam(ExamRequest(worklist_key=item.key, pixel_mode="simple_text"))
+    old_job = service.queue.add_job(exam.output_dir, "PACS_TEST", exam.files)
+
+    assert service.queue.get_job(old_job).accession_number == ""
+    assert {job.id: job for job in service.list_queue()}[old_job].accession_number == "A0001"
+
+
 @pytest.mark.parametrize("name", ["../../config/app_config", "/etc/hosts", "ct_generic/../x", ""])
 def test_template_name_must_be_a_listed_template(tmp_path, worklist_scp, name) -> None:
     """画面から来るテンプレートの名前で、テンプレートの置き場の外を読まない."""
