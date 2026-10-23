@@ -8,8 +8,9 @@
   <p id="taken-note" role="status" class="mr-auto text-label">撮影済み。続けて撮るときは「追加撮影」</p>
   {% endif %}
   {# 押せない理由を、ボタンにも結び付ける（title と aria-describedby） #}
-  <button type="button" class="btn btn-outline" disabled title="撮影済みの予約です" aria-describedby="taken-note">撮影</button>
-  <button type="button" class="btn btn-outline" disabled title="撮影済みの予約です" aria-describedby="taken-note">撮影して送る</button>
+  {% set taken_title = "撮影済みの予約は押せません。" ~ ("撮り直しの予約が要ります" if retake_mode == "new_order" else "続けて撮るときは「追加撮影」") %}
+  <button type="button" class="btn btn-outline" disabled title="{{ taken_title }}" aria-describedby="taken-note">撮影</button>
+  <button type="button" class="btn btn-outline" disabled title="{{ taken_title }}" aria-describedby="taken-note">撮影して送る</button>
   {% if retake_mode == "append" %}
   <input type="hidden" name="append" value="1">
   <button type="submit" name="action" value="exam" class="btn btn-primary"{% if blocker %} disabled{% endif %}>追加撮影</button>
