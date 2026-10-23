@@ -301,8 +301,12 @@ def test_append_keeps_an_empty_first_description(tmp_path, worklist_scp) -> None
 
     appended = _exam(service, key, append=True)
 
-    first_desc = "胸部 CT"  # 予約の Requested Procedure Description
-    assert str(_first(appended.files).get("StudyDescription", "")) != first_desc
+    ds = _first(appended.files)
+    assert "StudyDescription" not in ds  # 予約・テンプレートの説明で埋めない
+    # Study の日時は最初の撮影、画像を作った日時（Content）はこの撮影（PS3.3 C.7.6.1）
+    assert ds.StudyDate == "20261022" and ds.StudyTime == "100000"
+    assert ds.ContentDate == ds.PerformedProcedureStepStartDate != "20261022"
+    assert ds.ContentTime == ds.PerformedProcedureStepStartTime
 
 
 def test_old_study_uid_rows_become_taken(tmp_path) -> None:

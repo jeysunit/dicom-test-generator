@@ -299,3 +299,6 @@ class ScheduledContext(BaseModel):
     # Study の日時は最初の撮影の値で、PPS はその撮影の日時になる（IHE RAD TF-2x Table A.1-3）
     performed_procedure_step_start_date: str = ""
     performed_procedure_step_start_time: str = ""
+    # True なら study_description が空でも写す（テンプレートの説明を消す）。追加撮影で、
+    # 最初の撮影の説明（空を含む）に揃える（IHE RAD TF-2x の IHE-A.3.3）
+    study_description_fixed: bool = False

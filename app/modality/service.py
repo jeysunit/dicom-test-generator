@@ -686,9 +686,11 @@ class ModalityService:
                 if ctx.study_instance_uid is None and record.study_instance_uid:
                     update["study_instance_uid"] = record.study_instance_uid
                 if record.study_date:
-                    # 最初の撮影の説明が空なら、空のまま（あとで RIS が説明を足しても変えない）。
+                    # 最初の画像の説明（テンプレートの説明を含む）に揃える。空なら空のまま
+                    # （あとで RIS が説明を足しても、テンプレートが違っても変えない）。
                     # 前の版から移した記録（日時の無い記録）は、説明も分からないので予約の値
                     update["study_description"] = record.study_description
+                    update["study_description_fixed"] = True
                 ctx = ctx.model_copy(update=update)
         else:
             if request.append:
@@ -779,15 +781,16 @@ class ModalityService:
                 raise
         if profile_name:
             self.queue.remember_exam_profile(str(output_dir), profile_name)
-        study_uid = self._read_study_uid(files)
+        study_uid, study_description = self._read_study_values(files)
         if request.worklist_key is not None:
-            # 書き終えてから撮影済みにする（止まった撮影は記録しない。6.3）
+            # 書き終えてから撮影済みにする（止まった撮影は記録しない。6.3）。説明は画像に
+            # 入った値（テンプレートの説明を含む）を記録する
             self.queue.record_exam(
                 request.worklist_key,
                 study_uid or (ctx.study_instance_uid or ""),
                 config.study.study_date,
                 config.study.study_time,
-                ctx.study_description,
+                study_description,
                 len(request.images_per_series),
             )
         logger.info(
@@ -1066,10 +1069,19 @@ class ModalityService:
 
     @staticmethod
     def _read_study_uid(files: list[str]) -> str:
+        return ModalityService._read_study_values(files)[0]
+
+    @staticmethod
+    def _read_study_values(files: list[str]) -> tuple[str, str]:
+        """最初の画像の（Study Instance UID・Study Description）。無ければ空."""
         if not files:
-            return ""
+            return "", ""
         # 異常のデータ（moderate・severe）では Study Instance UID が無いことがある
-        return str(getattr(dcmread(files[0], stop_before_pixels=True), "StudyInstanceUID", ""))
+        ds = dcmread(files[0], stop_before_pixels=True)
+        return (
+            str(getattr(ds, "StudyInstanceUID", "")),
+            str(getattr(ds, "StudyDescription", "")),
+        )
 
     def _save_worklist(self, result: WorklistQueryResult) -> None:
         path = self._state_dir / WORKLIST_STATE_FILE

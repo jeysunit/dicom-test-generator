@@ -257,6 +257,8 @@ def apply_scheduled_context(ds: Dataset, ctx: ScheduledContext) -> None:
     ds.StudyID = ctx.study_id
     if ctx.study_description:
         ds.StudyDescription = ctx.study_description
+    elif ctx.study_description_fixed and "StudyDescription" in ds:
+        del ds.StudyDescription
 
     for keyword in _SCHEDULED_ONLY_ATTRIBUTES:
         if keyword in ds:
@@ -280,6 +282,11 @@ def apply_scheduled_context(ds: Dataset, ctx: ScheduledContext) -> None:
     ds.PerformedProcedureStepStartTime = ctx.performed_procedure_step_start_time or ds.get(
         "StudyTime", ""
     )
+    if ctx.performed_procedure_step_start_date and ctx.performed_procedure_step_start_time:
+        # Content Date・Time は画像を作った日時（PS3.3 C.7.6.1）。追加撮影では Study の
+        # 日時（最初の撮影）でなく、その撮影の日時にする
+        ds.ContentDate = ctx.performed_procedure_step_start_date
+        ds.ContentTime = ctx.performed_procedure_step_start_time
     if ctx.study_description:
         ds.PerformedProcedureStepDescription = ctx.study_description
 

@@ -348,7 +348,9 @@ Scheduled Station AE Title (0040,0001) は画像に転記する属性ではな�
     Append Case（RAD TF-2 4.6.4.1.2.3.3、RAD TF-2x Table A.1-3）に従い、Study Instance
     UID・受付番号・Request Attributes Sequence は元の予約と同じにし、シリーズは新しい
     Series Instance UID で作る（RAD TF-2 4.8.4.1.1.1 の「完了した手順にシリーズを
-    追加しない」）。Study Date・Time・Description は最初の撮影の値にする（IHE-A.3.3）。
+    追加しない」）。Study Date・Time・Description は最初の撮影の画像の値にする（説明が
+    空なら空のまま。IHE-A.3.3）。Content Date・Time（画像を作った日時。PS3.3 C.7.6.1）
+    と PPS の開始は、その撮影の日時にする。
     Series Number は前に作ったシリーズの続きから振る（この仕様の決定）。MPPS を使う
     ときは新しい MPPS の SOP Instance を作り、終わった MPPS には N-SET を送らない
     （PS3.4 F.7.2.2.2）。予約に Study Instance UID が無いときは、最初の撮影で作った
