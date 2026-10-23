@@ -426,3 +426,42 @@ def test_unknown_station_option_is_exit_2(
     assert code == 2
     assert "Station not found" in err
     assert worklist_scp.queries == []
+
+
+def _a0001_key(monkeypatch, capsys, tmp_path, config) -> str:
+    _, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "worklist", "query", "--json")
+    return next(i for i in json.loads(out)["items"] if i["accession_number"] == "A0001")["key"]
+
+
+def test_exam_twice_needs_append(monkeypatch, capsys, tmp_path, config) -> None:
+    """撮影済みの予約は `--append` で追加撮影する（docs/spec/12a の 11.4・ADR-0024）."""
+    key = _a0001_key(monkeypatch, capsys, tmp_path, config)
+    args = ("exam", "--from-worklist", key, "--pixel-mode", "simple_text")
+
+    code, _, err = run_cli(monkeypatch, capsys, tmp_path, config, *args, "--append")
+    assert code == 4 and "まだ撮影していません" in err
+
+    assert run_cli(monkeypatch, capsys, tmp_path, config, *args)[0] == 0
+    code, _, err = run_cli(monkeypatch, capsys, tmp_path, config, *args)
+    assert code == 4 and "撮影済みです" in err
+    assert run_cli(monkeypatch, capsys, tmp_path, config, *args, "--append")[0] == 0
+
+    _, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "worklist", "query")
+    assert "撮影済み" in out
+
+
+def test_append_is_refused_in_new_order_mode(
+    monkeypatch, capsys, tmp_path, worklist_scp, storage_scp
+) -> None:
+    config = write_config(tmp_path, worklist_scp.port, storage_scp.port)
+    data = yaml.safe_load(config.read_text(encoding="utf-8"))
+    data["modality"]["retake_mode"] = "new_order"
+    config.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+    key = _a0001_key(monkeypatch, capsys, tmp_path, config)
+    args = ("exam", "--from-worklist", key, "--pixel-mode", "simple_text")
+    assert run_cli(monkeypatch, capsys, tmp_path, config, *args)[0] == 0
+
+    code, _, err = run_cli(monkeypatch, capsys, tmp_path, config, *args, "--append")
+
+    assert code == 4
+    assert "撮り直しの予約が要ります" in err

@@ -141,9 +141,11 @@ def _results(
     selected: str = "",
     notice: str = "",
 ) -> dict[str, object]:
-    own_ae = service_of(request).current_station().ae_title
+    service = service_of(request)
+    own_ae = service.current_station().ae_title
+    taken = service.taken_keys()
     rows: list[tuple[WorklistItem, list[str]]] = [
-        (item, item_marks(item, own_ae)) for item in state.items
+        (item, item_marks(item, own_ae, item.key in taken)) for item in state.items
     ]
     return {
         "queried": bool(state.queried_at),

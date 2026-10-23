@@ -70,6 +70,14 @@ python -m app.web
 `<受付番号か emergency>_<撮影の日時 YYYYMMDDHHMMSS>/` に保存される（既定の
 出力フォルダは `output/modality`、Docker では `/app/output` の下）。
 
+予約で1回撮影すると、その予約は撮影済みになり、[撮影]・[撮影して送る] は押せなく
+なる（一覧にも「撮影済み」の印が付く）。撮り直すときは、設定の `retake_mode` に従う。
+
+- `append`（既定）：[追加撮影] で、同じ Study に新しいシリーズとして撮る（IHE の
+  Append Case）。CLI では `exam --from-worklist <鍵> --append`
+- `new_order`：RIS で撮り直しの予約を作り、ワークリストを取得し直して、その予約で
+  撮る（受付番号と Study Instance UID は RIS が出す）
+
 ### 2.2 予約の無い患者で撮影する
 
 ワークリストの画面の [緊急の患者で撮る] を押し、撮影の画面で患者 ID と氏名（英字）を

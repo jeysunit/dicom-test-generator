@@ -64,6 +64,17 @@ _SCHEMA = (
         study_instance_uid TEXT NOT NULL
     )
     """,
+    # 予約ごとの撮影の記録（撮影済みの判定と追加撮影の値。docs/spec/12 の 6.3・ADR-0024）
+    """
+    CREATE TABLE IF NOT EXISTS exam_records (
+        worklist_key TEXT PRIMARY KEY,
+        study_instance_uid TEXT NOT NULL DEFAULT '',
+        study_date TEXT NOT NULL DEFAULT '',
+        study_time TEXT NOT NULL DEFAULT '',
+        study_description TEXT NOT NULL DEFAULT '',
+        series_count INTEGER NOT NULL DEFAULT 0
+    )
+    """,
     # 保管の確認の要求と画像ごとの結果（Phase 3c。8.3.3）
     """
     CREATE TABLE IF NOT EXISTS commitments (
@@ -128,6 +139,19 @@ class QueueJob(BaseModel):
     study_datetime: str = ""
 
 
+class ExamRecord(BaseModel):
+    """予約の撮影の記録：最初の撮影の Study の値と、作ったシリーズの数（docs/spec/12 の 6.3）."""
+
+    model_config = {"frozen": True}
+
+    worklist_key: str
+    study_instance_uid: str
+    study_date: str
+    study_time: str
+    study_description: str
+    series_count: int
+
+
 class CommitmentState(BaseModel):
     """保管の確認の1つの要求の状態（8.3.3）."""
 
@@ -164,6 +188,11 @@ class SendQueue:
                 # 装置を切り替えられる前の版の待ち行列に足す。前の行は今の装置の AE タイトル
                 _add_ae_title_column(conn, "jobs", "calling_ae_title", legacy_ae_title)
                 _add_ae_title_column(conn, "commitments", "own_ae_title", legacy_ae_title)
+                # 撮影の記録が無かった前の版で撮った予約も、撮影済みとして移す（UID だけ）
+                conn.execute(
+                    "INSERT OR IGNORE INTO exam_records (worklist_key, study_instance_uid)"
+                    " SELECT worklist_key, study_instance_uid FROM generated_study_uids"
+                )
                 file_columns = {row[1] for row in conn.execute("PRAGMA table_info(job_files)")}
                 if "sop_class_uid" not in file_columns:
                     # 保管の確認の前の版の待ち行列に足す（Phase 3c）
@@ -351,22 +380,61 @@ class SendQueue:
             row = conn.execute("SELECT value FROM counters WHERE name = ?", (name,)).fetchone()
         return int(row[0])
 
-    def generated_study_uid(self, worklist_key: str) -> str | None:
-        """予約に Study Instance UID が無く、この道具が作った UID（同じ予約で2回撮るとき用）."""
+    def exam_record(self, worklist_key: str) -> ExamRecord | None:
+        """予約の撮影の記録。撮っていなければ None（撮影済みの判定。docs/spec/12 の 6.3）."""
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT study_instance_uid FROM generated_study_uids WHERE worklist_key = ?",
+                "SELECT worklist_key, study_instance_uid, study_date, study_time,"
+                " study_description, series_count FROM exam_records WHERE worklist_key = ?",
                 (worklist_key,),
             ).fetchone()
-        return str(row[0]) if row else None
+        if row is None:
+            return None
+        return ExamRecord(
+            worklist_key=row[0],
+            study_instance_uid=row[1],
+            study_date=row[2],
+            study_time=row[3],
+            study_description=row[4],
+            series_count=row[5],
+        )
 
-    def remember_study_uid(self, worklist_key: str, study_instance_uid: str) -> None:
+    def taken_keys(self) -> set[str]:
+        """撮影済みの予約の鍵（一覧の印）."""
         with self._connect() as conn:
-            conn.execute(
-                "INSERT OR IGNORE INTO generated_study_uids (worklist_key, study_instance_uid)"
-                " VALUES (?, ?)",
-                (worklist_key, study_instance_uid),
+            rows = conn.execute("SELECT worklist_key FROM exam_records").fetchall()
+        return {str(row[0]) for row in rows}
+
+    def record_exam(
+        self,
+        worklist_key: str,
+        study_instance_uid: str,
+        study_date: str,
+        study_time: str,
+        study_description: str,
+        series_count: int,
+    ) -> None:
+        """撮影を終えた予約を記録する。2回目以降（追加撮影）はシリーズの数だけ足す."""
+        with self._connect() as conn:
+            updated = conn.execute(
+                "UPDATE exam_records SET series_count = series_count + ?,"
+                " study_instance_uid = CASE WHEN study_instance_uid = '' THEN ?"
+                " ELSE study_instance_uid END WHERE worklist_key = ?",
+                (series_count, study_instance_uid, worklist_key),
             )
+            if updated.rowcount == 0:
+                conn.execute(
+                    "INSERT INTO exam_records (worklist_key, study_instance_uid, study_date,"
+                    " study_time, study_description, series_count) VALUES (?, ?, ?, ?, ?, ?)",
+                    (
+                        worklist_key,
+                        study_instance_uid,
+                        study_date,
+                        study_time,
+                        study_description,
+                        series_count,
+                    ),
+                )
 
     # --- 撮影に使った装置のプロファイル（docs/spec/13 の 8） ----------------------
 

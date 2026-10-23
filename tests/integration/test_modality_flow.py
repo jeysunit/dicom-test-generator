@@ -120,10 +120,11 @@ def test_same_order_twice_adds_series_to_same_study(
     _, out = _run(monkeypatch, capsys, tmp_path, config, "worklist", "query", "--json")
     item = next(i for i in json.loads(out)["items"] if i["accession_number"] == "A0002")
 
-    for _ in range(2):
+    # 2回目は撮影済みの予約の追加撮影（docs/spec/12 の 6.3。通常の撮影は断られる）
+    for extra in ([], ["--append"]):
         code, out = _run(
             monkeypatch, capsys, tmp_path, config, "exam", "--from-worklist", item["key"],
-            "--refresh", "--pixel-mode", "simple_text", "--send", "--json",
+            "--refresh", "--pixel-mode", "simple_text", "--send", "--json", *extra,
         )
         assert code == 0
         notices = json.loads(out)["notices"]

@@ -82,6 +82,11 @@ def register_modality_commands(
     source.add_argument("--from-worklist", metavar="KEY", help="予約の鍵")
     source.add_argument("--emergency", action="store_true", help="予約なし（緊急の患者）")
     exam_parser.add_argument("--refresh", action="store_true", help="撮る前に予約を引き直す")
+    exam_parser.add_argument(
+        "--append",
+        action="store_true",
+        help="撮影済みの予約で追加撮影する（同じ Study に新しいシリーズ。retake_mode: append のとき）",
+    )
     exam_parser.add_argument("--patient-id", help="緊急の患者の ID")
     exam_parser.add_argument("--patient-name", help="緊急の患者の氏名（PN）")
     exam_parser.add_argument("--birth-date", help="緊急の患者の生年月日（YYYYMMDD）")
@@ -243,6 +248,7 @@ def exam_command(args: argparse.Namespace) -> int:
             charset=args.charset,
             output_dir=args.output,
             mpps=args.mpps,
+            append=args.append,
         )
     )
     if result.mpps is not None and not result.mpps.sent:
@@ -419,6 +425,8 @@ def _item_marks(service: ModalityService, item: WorklistItem) -> str:
     groups = item.patient_name.split("=")
     if len(groups) < 2 or not any(group for group in groups[1:]):
         marks.append("漢字・かなが空")
+    if service.is_taken(item.key):
+        marks.append("撮影済み")  # 画面の一覧と同じ（docs/spec/12 の 6.3）
     return f"  [{' / '.join(marks)}]" if marks else ""
 
 

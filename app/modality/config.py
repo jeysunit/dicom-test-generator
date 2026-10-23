@@ -34,6 +34,8 @@ CharacterSetChoice = Literal["auto", "utf8", "jis", "jis_kana"]
 FallbackChoice = Literal["utf8", "jis", "jis_kana"]
 QueryCharacterSet = Literal["ISO_IR 192", "utf8", "jis", "jis_kana"]
 PixelMode = Literal["simple_text", "ct_realistic"]
+# 撮影済みの予約の撮り直しの形（docs/spec/12 の 6.3・ADR-0024）
+RetakeMode = Literal["append", "new_order"]
 
 
 def validate_ae_title(value: str) -> str:
@@ -156,6 +158,8 @@ class ModalityConfig(BaseModel):
     default_destination: str
     retry: RetryConfig = Field(default_factory=RetryConfig)
     max_images_per_exam: int = Field(DEFAULT_MAX_IMAGES_PER_EXAM, ge=1)
+    # append：同じ予約で追加撮影（IHE の Append Case）。new_order：RIS の新しい予約で撮り直す
+    retake_mode: RetakeMode = "append"
 
     @field_validator("ae_title")
     @classmethod

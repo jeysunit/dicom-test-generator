@@ -446,11 +446,12 @@ def test_mpps_off_by_config_and_override(tmp_path, worklist_scp, mpps_scp) -> No
     assert _scheduled_exam(off).mpps is None
     assert mpps_scp.created == {}
 
-    forced = _scheduled_exam(off, mpps=True)
+    # 同じ予約の2回目以降は追加撮影（docs/spec/12 の 6.3）
+    forced = _scheduled_exam(off, mpps=True, append=True)
     assert forced.mpps is not None and forced.mpps.sent is True
 
     on = _service(tmp_path, worklist_scp.port, mpps_scp.port)
-    assert _scheduled_exam(on, mpps=False).mpps is None
+    assert _scheduled_exam(on, mpps=False, append=True).mpps is None
 
 
 def test_profile_without_mpps_service_does_not_send(
@@ -463,7 +464,8 @@ def test_profile_without_mpps_service_does_not_send(
     service = _service(tmp_path, worklist_scp.port, mpps_scp.port)
 
     assert _scheduled_exam(service, profile="dtg_no_mpps", mpps=True).mpps is None
-    assert _scheduled_exam(service, profile="dtg_with_mpps").mpps.sent is True
+    # 同じ予約の2回目は追加撮影（docs/spec/12 の 6.3）
+    assert _scheduled_exam(service, profile="dtg_with_mpps", append=True).mpps.sent is True
 
 
 def test_untrusted_values_do_not_escape(tmp_path, worklist_scp, worklist_items, mpps_scp) -> None:

@@ -295,3 +295,7 @@ class ScheduledContext(BaseModel):
     source_ae_title: str = ""
     # 撮影した装置の Station Name (0008,1010)。空ならテンプレート・プロファイル・病院の値
     station_name: str = ""
+    # PPS の開始日時（YYYYMMDD・HHMMSS）。空なら Study Date・Time と同じ。追加撮影では
+    # Study の日時は最初の撮影の値で、PPS はその撮影の日時になる（IHE RAD TF-2x Table A.1-3）
+    performed_procedure_step_start_date: str = ""
+    performed_procedure_step_start_time: str = ""

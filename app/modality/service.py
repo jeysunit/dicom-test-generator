@@ -71,7 +71,7 @@ from .mpps_scu import (
     MppsManager,
     MppsOutcome,
 )
-from .queue import QUEUE_DB_NAME, CommitmentState, QueueJob, SendQueue
+from .queue import QUEUE_DB_NAME, CommitmentState, ExamRecord, QueueJob, SendQueue
 from .store_scu import EchoResult, StoreFileResult, echo, store_files
 from .worklist_scu import WorklistQuery, WorklistQueryResult, query_worklist
 
@@ -91,6 +91,11 @@ MAX_FOLDER_SUFFIX = 100
 DICOM_DATE_LENGTH = 8
 DICOM_TIME_MIN_LENGTH = 4
 EXAM_BUSY_MESSAGE ="ほかの撮影が走っています。終わってから撮ってください"
+# 撮影済みの予約（docs/spec/12 の 6.3・ADR-0024）
+TAKEN_APPEND_MESSAGE = "この予約は撮影済みです。続けて撮るときは「追加撮影」を使ってください"
+TAKEN_NEW_ORDER_MESSAGE = "撮り直しの予約が要ります（RIS で新しい予約を作ってください）"
+NOT_TAKEN_MESSAGE = "この予約はまだ撮影していません。追加撮影は撮影済みの予約で行います"
+EMERGENCY_APPEND_MESSAGE = "緊急の患者（予約なし）では追加撮影はできません"
 # DICOM の値の区切り（PS3.5 6.2）。LO・PN・SH の値に入れると VM が増える
 VALUE_DELIMITER = "\\"
 
@@ -168,6 +173,8 @@ class ExamRequest(BaseModel):
     charset: str | None = None
     output_dir: str | None = None
     mpps: bool | None = None  # None は設定（worklist.use_mpps）。8.4.1
+    # 撮影済みの予約での追加撮影（IHE の Append Case。docs/spec/12 の 6.3・ADR-0024）
+    append: bool = False
 
 
 class ExamResult(BaseModel):
@@ -616,8 +623,8 @@ class ModalityService:
         station = self.current_station()
         now = datetime.now()
         notices: list[str] = []
-        pps_id = f"{PPS_ID_PREFIX}{self.queue.next_value(PPS_ID_COUNTER):0{COUNTER_WIDTH}d}"
         choice = request.charset or self.config.character_set
+        record: ExamRecord | None = None
 
         if request.worklist_key is not None:
             item = (
@@ -625,23 +632,32 @@ class ModalityService:
                 if request.refresh
                 else self.find_item(request.worklist_key)
             )
+            # 撮影済みの予約は、設定の撮り直しの形に従う（6.3・ADR-0024）
+            record = self.queue.exam_record(item.key)
+            self._check_retake(request, record)
             ensure_modality_matches(item, modality)
             character_set = resolve_image_character_set(
                 choice, item.specific_character_set, self.config.character_set_fallback
             )
             ctx = scheduled_context_from_item(
                 item,
-                performed_procedure_step_id=pps_id,
+                performed_procedure_step_id=self._next_pps_id(),
                 specific_character_set=character_set,
                 source_ae_title=station.ae_title,
             )
             notices.extend(self._scheduled_notices(item, station.ae_title))
-            if ctx.study_instance_uid is None:
-                # 予約に UID が無いとき、同じ予約の2回目は前に作った UID を使う（6.3）
-                remembered = self.queue.generated_study_uid(item.key)
-                if remembered:
-                    ctx = ctx.model_copy(update={"study_instance_uid": remembered})
+            if record is not None:
+                # 追加撮影：Study の UID・説明は最初の撮影の値（IHE RAD TF-2x の IHE-A.3.3）。
+                # 予約に UID が無いときは、最初の撮影で作った UID を使う
+                update: dict[str, object] = {}
+                if ctx.study_instance_uid is None and record.study_instance_uid:
+                    update["study_instance_uid"] = record.study_instance_uid
+                if record.study_description:
+                    update["study_description"] = record.study_description
+                ctx = ctx.model_copy(update=update)
         else:
+            if request.append:
+                raise ValidationError(EMERGENCY_APPEND_MESSAGE)
             emergency_patient = request.emergency_patient
             if emergency_patient is None:
                 raise ConfigurationError("emergency_patient is required for an emergency exam")
@@ -667,7 +683,7 @@ class ModalityService:
                 emergency_patient,
                 study_id=study_id,
                 study_description=request.study_description,
-                performed_procedure_step_id=pps_id,
+                performed_procedure_step_id=self._next_pps_id(),
                 specific_character_set=character_set,
                 source_ae_title=station.ae_title,
             )
@@ -675,6 +691,14 @@ class ModalityService:
             if not ctx.patient.birth_date:
                 notices.append("生年月日が空です")
 
+        # PPS の開始はこの撮影の日時（追加撮影でも。Study の日時とは別。IHE RAD TF-2x
+        # Table A.1-3）
+        ctx = ctx.model_copy(
+            update={
+                "performed_procedure_step_start_date": now.strftime("%Y%m%d"),
+                "performed_procedure_step_start_time": now.strftime("%H%M%S"),
+            }
+        )
         if station.station_name:
             ctx = ctx.model_copy(update={"station_name": station.station_name})
         profile_name = request.profile or self.config.default_profile
@@ -683,7 +707,7 @@ class ModalityService:
             # MPPS と画像の Study をそろえるため、N-CREATE より前に UID を作る（8.4.1）
             ctx = ctx.model_copy(update={"study_instance_uid": UIDGenerator().generate_study_uid()})
         output_dir = self._exam_output_dir(request, ctx, now)
-        config = self._generation_config(request, ctx, template, output_dir, now)
+        config = self._generation_config(request, ctx, template, output_dir, now, record)
         mpps = self._mpps(station)
         mpps_id = mpps.start_exam(ctx, modality, now) if use_mpps else None
         if mpps_id is not None:
@@ -719,8 +743,16 @@ class ModalityService:
         if profile_name:
             self.queue.remember_exam_profile(str(output_dir), profile_name)
         study_uid = self._read_study_uid(files)
-        if request.worklist_key is not None and study_uid:
-            self.queue.remember_study_uid(request.worklist_key, study_uid)
+        if request.worklist_key is not None:
+            # 書き終えてから撮影済みにする（止まった撮影は記録しない。6.3）
+            self.queue.record_exam(
+                request.worklist_key,
+                study_uid or (ctx.study_instance_uid or ""),
+                config.study.study_date,
+                config.study.study_time,
+                ctx.study_description,
+                len(request.images_per_series),
+            )
         logger.info(
             "Exam completed: worklist_key=%s accession=%r files=%s output_dir=%s",
             request.worklist_key,
@@ -880,6 +912,30 @@ class ModalityService:
 
     # --- 内部 -----------------------------------------------------------
 
+    def _next_pps_id(self) -> str:
+        return f"{PPS_ID_PREFIX}{self.queue.next_value(PPS_ID_COUNTER):0{COUNTER_WIDTH}d}"
+
+    def is_taken(self, worklist_key: str) -> bool:
+        """予約が撮影済みか（画面のボタンと一覧の印。docs/spec/12 の 6.3）."""
+        return self.queue.exam_record(worklist_key) is not None
+
+    def taken_keys(self) -> set[str]:
+        return self.queue.taken_keys()
+
+    def _check_retake(self, request: ExamRequest, record: ExamRecord | None) -> None:
+        """撮影済みの予約の撮り直しを、設定の形で決める。外れたら撮らずに ValidationError."""
+        if record is None:
+            if request.append:
+                raise ValidationError(NOT_TAKEN_MESSAGE, {"worklist_key": request.worklist_key})
+            return
+        if self.config.retake_mode == "new_order":
+            # 受付番号と Study Instance UID は RIS が出す。DTG は作らない（ADR-0024）
+            raise ValidationError(
+                TAKEN_NEW_ORDER_MESSAGE, {"worklist_key": request.worklist_key}
+            )
+        if not request.append:
+            raise ValidationError(TAKEN_APPEND_MESSAGE, {"worklist_key": request.worklist_key})
+
     def _scheduled_notices(self, item: WorklistItem, own_ae_title: str) -> list[str]:
         notices = []
         if item.scheduled_station_ae_title and item.scheduled_station_ae_title != own_ae_title:
@@ -911,7 +967,10 @@ class ModalityService:
         template: str,
         output_dir: Path,
         now: datetime,
+        record: ExamRecord | None = None,
     ) -> GenerationConfig:
+        """`record` があれば追加撮影：Study Date・Time は最初の撮影の値（IHE-A.3.3）、
+        Series Number は前に作ったシリーズの続き（この仕様の決定。docs/spec/12 の 6.3）."""
         pixel_mode = request.pixel_mode or self.config.default_pixel_mode
         if pixel_mode == "simple_text":
             pixel_spec: PixelSpecSimple | PixelSpecCTRealistic = PixelSpecSimple()
@@ -919,7 +978,9 @@ class ModalityService:
             pixel_spec = PixelSpecCTRealistic()
         else:
             raise ConfigurationError("Unsupported pixel mode", {"pixel_mode": pixel_mode})
-        study_date = now.strftime("%Y%m%d")
+        study_date = (record.study_date if record else "") or now.strftime("%Y%m%d")
+        study_time = (record.study_time if record else "") or now.strftime("%H%M%S")
+        first_series = 1 + (record.series_count if record else 0)
         profile_name = request.profile or self.config.default_profile
         transfer_syntax = (
             profile_transfer_syntax(self._profile_loader.load(profile_name))
@@ -933,11 +994,11 @@ class ModalityService:
             study=StudyConfig(
                 accession_number=ctx.accession_number,
                 study_date=study_date,
-                study_time=now.strftime("%H%M%S"),
+                study_time=study_time,
                 num_series=len(request.images_per_series),
             ),
             series_list=[
-                SeriesConfig(series_number=index + 1, num_images=count)
+                SeriesConfig(series_number=first_series + index, num_images=count)
                 for index, count in enumerate(request.images_per_series)
             ],
             modality_template=template,

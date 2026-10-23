@@ -299,8 +299,8 @@ Association を切断し、`WorklistQueryError`（終了コード 5）で停止�
 | Referenced Study Sequence | (0008,1110) | 転記（あれば） | 出力しない | Table A.1-1 |
 | Referring Physician's Name | (0008,0090) | 転記 | 空 | RAD TF-2 Table 4.5-3 |
 | Study ID | (0020,0010) | Requested Procedure ID | 作成（連番。`E` と 6 桁。状態の保存先の SQLite で採番する） | Table A.1-1（IHE の推奨） |
-| Study Description | (0008,1030) | Requested Procedure Description | 撮影の画面の入力 | この仕様の決定（慣習。IHE の表には無い） |
-| Study Date・Time | (0008,0020)・(0008,0030) | 撮影した日時 | 同じ | この仕様の決定 |
+| Study Description | (0008,1030) | Requested Procedure Description。追加撮影では最初の撮影の値 | 撮影の画面の入力 | この仕様の決定（慣習。IHE の表には無い）、追加撮影は IHE-A.3.3 |
+| Study Date・Time | (0008,0020)・(0008,0030) | 撮影した日時。追加撮影（6.3）では、その予約の最初の撮影の値 | 同じ | この仕様の決定、追加撮影は RAD TF-2x の IHE-A.3.3 |
 | Procedure Code Sequence | (0008,1032) | Requested Procedure Code Sequence を転記 | 入れない | Table A.1-1 |
 | Request Attributes Sequence | (0040,0275) | 1 項目を作成し、下の値を転記 | **属性を出力しない**（空の Sequence も置かない。Table A.1-2 の `n.a.`） | Table A.1-1・A.1-2 |
 | >Requested Procedure ID | (0040,1001) | 転記 | — | Table A.1-1 |
@@ -310,7 +310,7 @@ Association を切断し、`WorklistQueryError`（終了コード 5）で停止�
 | >Scheduled Protocol Code Sequence | (0040,0008) | 転記 | — | 同上 |
 | >Reason for the Requested Procedure | (0040,1002) | 転記（あれば） | — | 同上 |
 | Performed Procedure Step ID | (0040,0253) | 作成（連番。`PPS` と 6 桁） | 作成（同じ） | Table A.1-1（IHE-A.1.2） |
-| Performed Procedure Step Start Date・Time | (0040,0244)・(0040,0245) | Study Date・Time と同じ | 同じ | Table A.1-1（IHE の推奨） |
+| Performed Procedure Step Start Date・Time | (0040,0244)・(0040,0245) | その撮影の日時（ふつうは Study Date・Time と同じ。追加撮影では Study の日時と別） | 同じ | Table A.1-1（IHE の推奨）・A.1-3 |
 | Performed Procedure Step Description | (0040,0254) | Study Description と同じ | 同じ | 同上 |
 | Referenced Performed Procedure Step Sequence | (0008,1111) | MPPS を使うときだけ、その SOP Instance UID | 同じ | Table A.1-1（IHE-A.1.3） |
 | Modality | (0008,0060) | テンプレートの値。予約の値と異なれば撮影の画面で停止する | テンプレートの値 | この仕様の決定 |
@@ -337,11 +337,32 @@ Scheduled Station AE Title (0040,0001) は画像に転記する属性ではな�
   （`ScheduledPatient`）を使う。作成の設定へ渡す処理は 03 に書いてある
 - 異常のデータ（`abnormal`）は、転記した値にも適用される。異常のレベルを上げると、
   転記した値が壊れることがある。画面の「異常のデータ」にその旨を表示する
-- 同じ予約で2回撮影すると、同じ Study に新しいシリーズを追加する（Study Instance
-  UID は同じ、Series は新しく生成する。RAD TF-2 4.8.4.1.1.1 の「完了した手順に
-  シリーズを追加しない」に従う）。予約に Study Instance UID が無く DTG が生成した
-  ときは、生成した UID を予約のキーごとに状態の保存先の SQLite に記録し、2回目も
-  同じ UID を使う
+- **予約での撮影は1回で撮影済みになる**（[ADR-0024](../decisions/0024-exam-once-and-retake.md)）。
+  画像を書き出し終えたら、予約の鍵ごとに、最初の撮影の Study Instance UID・Study
+  Date・Study Time・Study Description と、作ったシリーズの数を状態の保存先の SQLite
+  に記録する。撮影が止まった（MPPS を使うときは DISCONTINUED を送った）予約は記録
+  しない。撮影済みの予約での通常の撮影は断る（`ValidationError`。CLI は終了コード 4）。
+  ワークリストの一覧（画面・CLI）では、撮影済みの予約に「撮影済み」の印を付ける
+- **撮り直しの形は設定 `modality.retake_mode` で選ぶ**（既定 `append`）
+  - `append`：撮影済みの予約で「追加撮影」（CLI は `exam --append`）を行う。IHE の
+    Append Case（RAD TF-2 4.6.4.1.2.3.3、RAD TF-2x Table A.1-3）に従い、Study Instance
+    UID・受付番号・Request Attributes Sequence は元の予約と同じにし、シリーズは新しい
+    Series Instance UID で作る（RAD TF-2 4.8.4.1.1.1 の「完了した手順にシリーズを
+    追加しない」）。Study Date・Time・Description は最初の撮影の値にする（IHE-A.3.3）。
+    Series Number は前に作ったシリーズの続きから振る（この仕様の決定）。MPPS を使う
+    ときは新しい MPPS の SOP Instance を作り、終わった MPPS には N-SET を送らない
+    （PS3.4 F.7.2.2.2）。予約に Study Instance UID が無いときは、最初の撮影で作った
+    UID を使う
+  - `new_order`：撮影済みの予約は撮り直さず、「撮り直しの予約が要ります（RIS で
+    新しい予約を作ってください）」と知らせる。RIS が作った撮り直しの予約（別の受付
+    番号・Study Instance UID）をワークリストで取得し直し、通常の撮影で撮る
+  - どちらの形でも、DTG は予約に Study Instance UID がある予約で新しい Study
+    Instance UID を作らず、予約と異なる受付番号も作らない（RAD TF-2 4.8.4.1.1.1。
+    受付番号は RIS が発番する）
+  - 予約の鍵は Study Instance UID・Requested Procedure ID・SPS ID・受付番号から作る
+    ので、RIS が予約の値を変えると別の予約として扱う
+  - 撮影の記録が無かった前の版で撮った予約（Study Instance UID だけの記録）も、
+    撮影済みとして扱う
 
 ### 6.4 MPPS に転記する値
 
@@ -589,6 +610,8 @@ N-EVENT-REPORT も受ける。
 
 - ワークリストの取得先（または別の MPPS の相手）ごとに、MPPS を使うかを選択する。
   既定は使わない（4.2 のとおり Orthanc は受け付けない）
+- 1回の撮影（追加撮影を含む）ごとに、新しい MPPS の SOP Instance を作る。COMPLETED・
+  DISCONTINUED を送った MPPS には N-SET を送らない（PS3.4 F.7.2.2.2。6.3）
 - 撮影の開始で N-CREATE（IN PROGRESS）、作成の終了で N-SET（COMPLETED）。
   撮影が止まったら N-SET（DISCONTINUED）
 - MPPS が失敗しても撮影と送信は止めない。失敗は画面とログに出す
@@ -799,6 +822,7 @@ modality:
   retry:
     max_attempts: 0             # 0 = 自動で再送しない
   max_images_per_exam: 2000     # 1回の撮影の合計の画像数の上限（10.5）
+  retake_mode: "append"         # 撮影済みの予約の撮り直し：append・new_order（6.3）
 web:
   bind_address: "127.0.0.1"
   port: 8080

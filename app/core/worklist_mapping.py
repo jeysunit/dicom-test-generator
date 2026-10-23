@@ -274,8 +274,12 @@ def apply_scheduled_context(ds: Dataset, ctx: ScheduledContext) -> None:
         reference.ReferencedSOPInstanceUID = ctx.performed_procedure_step_sop_instance_uid
         ds.ReferencedPerformedProcedureStepSequence = Sequence([reference])
     ds.PerformedProcedureStepID = ctx.performed_procedure_step_id
-    ds.PerformedProcedureStepStartDate = ds.get("StudyDate", "")
-    ds.PerformedProcedureStepStartTime = ds.get("StudyTime", "")
+    ds.PerformedProcedureStepStartDate = ctx.performed_procedure_step_start_date or ds.get(
+        "StudyDate", ""
+    )
+    ds.PerformedProcedureStepStartTime = ctx.performed_procedure_step_start_time or ds.get(
+        "StudyTime", ""
+    )
     if ctx.study_description:
         ds.PerformedProcedureStepDescription = ctx.study_description
 
