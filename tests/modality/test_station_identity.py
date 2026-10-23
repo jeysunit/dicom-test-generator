@@ -183,6 +183,37 @@ def test_station_name_of_the_station_wins_over_the_profile(
     assert station_name_with(ModalityService(blank)) == "DTGCT01"  # プロファイルの値
 
 
+def test_images_are_sent_as_the_station_that_made_them(
+    tmp_path, worklist_scp, storage_scp
+) -> None:
+    """撮った後に切り替えても、画像を作った装置の AE タイトルで送る（8.2・ADR-0023）."""
+    service = ModalityService(_config(tmp_path, worklist_scp.port, storage_scp.port))
+    exam = _emergency(service)  # CT1号機で撮る
+    service.select_station("MR1号機")
+
+    service.send_exam_output(exam.output_dir)
+
+    assert storage_scp.calling_ae_titles == ["DTG_CT01"]
+
+
+def test_select_station_and_exam_do_not_interleave(tmp_path, worklist_scp, storage_scp) -> None:
+    """切り替えは撮影と同じ錠を取る。切り替えの最中に撮影は始まらない."""
+    service = ModalityService(_config(tmp_path, worklist_scp.port, storage_scp.port))
+    real_write = service._write_state
+    seen = []
+
+    def write_and_try_exam(path, data):
+        with pytest.raises(ModalityError, match="ほかの撮影"):
+            _emergency(service)
+        seen.append(data)
+        real_write(path, data)
+
+    service._write_state = write_and_try_exam  # type: ignore[method-assign]
+    service.select_station("MR1号機")
+
+    assert seen == [{"name": "MR1号機"}]
+
+
 def test_resend_after_switching_uses_the_ae_of_the_job(tmp_path, worklist_scp, storage_scp) -> None:
     service = ModalityService(_config(tmp_path, worklist_scp.port, storage_scp.port))
     exam = _emergency(service)

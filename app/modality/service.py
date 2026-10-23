@@ -117,6 +117,18 @@ def check_send_files(folder: Path, files: list[str]) -> None:
             raise FileReadError(name, f"not a regular file directly inside {root}")
 
 
+def _read_source_ae_title(folder: Path) -> str:
+    """フォルダの最初の画像の File Meta の Source Application Entity Title。読めなければ空."""
+    try:
+        first = next(
+            path for path in sorted(folder.glob("*.dcm")) if path.is_file() and not path.is_symlink()
+        )
+        meta = dcmread(first, stop_before_pixels=True, specific_tags=["PatientID"]).file_meta
+    except (StopIteration, OSError, InvalidDicomError, AttributeError):
+        return ""
+    return str(meta.get("SourceApplicationEntityTitle", "")).strip()
+
+
 def _read_job_summary(folder: Path) -> tuple[str, str, str, str]:
     """フォルダの最初の画像から（患者 ID・氏名・検査日時・受付番号）を読む。読めなければ空."""
     try:
@@ -282,11 +294,15 @@ class ModalityService:
     def select_station(self, name: str) -> StationConfig:
         """装置を切り替えて記録する。撮影・送信の最中は断る（ModalityError）."""
         station = self.config.station(name)
-        if self._exam_lock.locked() or any(
-            not job.stale for job in self.queue.list_jobs("sending")
-        ):
+        # 撮影と同じ錠を取ってから確かめて書く（確かめた後に撮影が始まらないように）
+        if not self._exam_lock.acquire(blocking=False):
             raise ModalityError(STATION_BUSY_MESSAGE)
-        self._write_state(self._state_dir / STATION_STATE_FILE, {"name": station.name})
+        try:
+            if any(not job.stale for job in self.queue.list_jobs("sending")):
+                raise ModalityError(STATION_BUSY_MESSAGE)
+            self._write_state(self._state_dir / STATION_STATE_FILE, {"name": station.name})
+        finally:
+            self._exam_lock.release()
         logger.info("Station selected: %s (%s)", station.name, station.ae_title)
         return station
 
@@ -329,6 +345,13 @@ class ModalityService:
         return self._commitments().request(
             job_id, self._commitment_node(job_id), self._job_ae_title(job_id)
         )
+
+    def _station_ae_title_of(self, folder: Path) -> str:
+        """画像を作った装置の AE タイトル。設定の装置でなければ、いまの装置."""
+        source = _read_source_ae_title(folder)
+        if any(station.ae_title == source for station in self.config.stations):
+            return source
+        return self.current_station().ae_title
 
     def _job_ae_title(self, job_id: int) -> str:
         """件を作った装置の AE タイトル。記録が無ければいまの装置."""
@@ -731,7 +754,9 @@ class ModalityService:
     ) -> SendResult:
         """フォルダの *.dcm を待ち行列に1件入れ、すぐに送る（8.2）.
 
-        `calling_ae_title` が無ければ、いまの装置の AE タイトルで名乗り、件に記録する。
+        名乗る AE タイトル（件に記録する）は、`calling_ae_title`、無ければ画像を作った
+        装置（画像の Source AE Title が設定の装置のどれかなら、その AE タイトル）、それも
+        無ければいまの装置。撮った後に切り替えても、画像と送信の名乗りをそろえるため。
         """
         node = self.config.destination(destination)
         folder_path = Path(folder)
@@ -744,7 +769,7 @@ class ModalityService:
         check_send_files(folder_path, files)
         # 件の受付番号は、送る画像の Accession Number（読めなければ空のまま送る）
         accession_number = _read_job_summary(folder_path)[3]
-        calling = calling_ae_title or self.current_station().ae_title
+        calling = calling_ae_title or self._station_ae_title_of(folder_path)
         job_id = self.queue.add_job(
             str(folder_path), node.name, files, accession_number, calling_ae_title=calling
         )
