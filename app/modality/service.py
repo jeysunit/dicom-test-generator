@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+import tempfile
 import threading
 from datetime import date, datetime
 from pathlib import Path
@@ -1004,8 +1005,15 @@ class ModalityService:
         self._write_state(path, data)
 
     def _write_state(self, path: Path, data: dict) -> None:
+        """状態のファイルを書く。一時のファイルに書いてから置き換える（別のプロセスの画面・
+        CLI が、書きかけのファイルを読まないように）."""
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+            with tempfile.NamedTemporaryFile(
+                "w", encoding="utf-8", dir=path.parent, prefix=f".{path.name}.", delete=False
+            ) as fp:
+                fp.write(json.dumps(data, ensure_ascii=False, indent=2))
+                temporary = Path(fp.name)
+            temporary.replace(path)
         except OSError as exc:
             raise FileWriteError(str(path), str(exc)) from exc

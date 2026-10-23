@@ -88,6 +88,10 @@ def test_selected_station_is_recorded_and_read_back(tmp_path, worklist_scp, stor
     assert service.current_station().name == "CT1号機"  # 既定は一覧の先頭
 
     service.select_station("MR1号機")
+    # 一時のファイルに書いてから置き換えるので、書きかけのファイルは残らない
+    assert sorted(p.name for p in (tmp_path / "state").iterdir() if p.suffix != ".sqlite3") == [
+        "station.json"
+    ]
 
     # 画面を再起動しても、CLI でも、記録した装置を使う
     assert ModalityService(config).current_station().ae_title == "DTG_MR01"
