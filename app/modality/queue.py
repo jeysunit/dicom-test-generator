@@ -457,13 +457,29 @@ class SendQueue:
         study_description: str,
         series_count: int,
     ) -> None:
-        """撮影を終えた予約を記録する。2回目以降（追加撮影）はシリーズの数だけ足す."""
+        """撮影を終えた予約を記録する。2回目以降（追加撮影）はシリーズの数だけ足す.
+
+        前の版から移した記録（日時が空）は、移した後の最初の撮影の日時・説明で埋め、
+        その後の追加撮影をそろえる。
+        """
         with self._connect() as conn:
             updated = conn.execute(
                 "UPDATE exam_records SET series_count = series_count + ?,"
                 " study_instance_uid = CASE WHEN study_instance_uid = '' THEN ?"
-                " ELSE study_instance_uid END WHERE worklist_key = ?",
-                (series_count, study_instance_uid, worklist_key),
+                " ELSE study_instance_uid END,"
+                " study_time = CASE WHEN study_date = '' THEN ? ELSE study_time END,"
+                " study_description = CASE WHEN study_date = '' THEN ?"
+                " ELSE study_description END,"
+                " study_date = CASE WHEN study_date = '' THEN ? ELSE study_date END"
+                " WHERE worklist_key = ?",
+                (
+                    series_count,
+                    study_instance_uid,
+                    study_time,
+                    study_description,
+                    study_date,
+                    worklist_key,
+                ),
             )
             if updated.rowcount == 0:
                 conn.execute(
