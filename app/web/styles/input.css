@@ -109,6 +109,10 @@
   .table tbody tr {
     @apply hover:bg-muted/50;
   }
+  /* 氏名の列は、狭い幅でも1文字幅まで潰さない（下に印を出すため） */
+  .table .name-cell {
+    @apply min-w-32;
+  }
   .values {
     @apply grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-[12rem_1fr];
   }
@@ -122,7 +126,7 @@
     @apply font-mono text-xs font-normal break-all text-label;
   }
   .badge {
-    @apply mr-1 inline-block rounded-md border border-border px-1.5 text-xs text-label;
+    @apply mr-1 inline-block rounded-md border border-border px-1.5 text-xs whitespace-nowrap text-label;
   }
   .status-sent {
     @apply text-value;

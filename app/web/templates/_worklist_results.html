@@ -29,7 +29,6 @@
           <th scope="col">生年月日・性別</th>
           <th scope="col">受付番号</th>
           <th scope="col">検査の記述</th>
-          <th scope="col"><span class="sr-only">印</span></th>
         </tr>
       </thead>
       <tbody>
@@ -39,14 +38,15 @@
           <td><input type="radio" name="key" value="{{ item.key }}" required aria-label="この予約を選ぶ" hx-get="/worklist/item/{{ item.key }}" hx-target="#detail" hx-trigger="change"{% if item.key == results.selected %} checked{% endif %}></td>
           <td>{{ item.scheduled_start_time|time_label }}</td>
           <td class="font-mono">{{ item.patient_id }}</td>
-          <td>
+          {# 印（撮影済み・別の装置）は氏名の下に出す。狭い幅でも横にスクロールせずに見える #}
+          <td class="name-cell">
             <div class="font-semibold text-value">{{ ideographic or alphabetic }}</div>
             {% if phonetic or (ideographic and alphabetic) %}<div class="text-xs text-label">{{ phonetic or alphabetic }}</div>{% endif %}
+            {% if marks %}<div>{% for mark in marks %}<span class="badge">{{ mark }}</span>{% endfor %}</div>{% endif %}
           </td>
           <td>{{ item|birth_label }}</td>
           <td class="font-mono">{{ item.accession_number }}</td>
           <td>{{ item.requested_procedure_description }}</td>
-          <td>{% for mark in marks %}<span class="badge">{{ mark }}</span>{% endfor %}</td>
         </tr>
         {% endfor %}
       </tbody>

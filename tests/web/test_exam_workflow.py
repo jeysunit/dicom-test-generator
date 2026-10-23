@@ -60,7 +60,10 @@ def test_exam_then_buttons_change_to_append(tmp_path, worklist_scp, storage_scp)
     assert '<div id="actions" hx-swap-oob="true">' in result
     assert _enabled_buttons(_actions(result)) == ["追加撮影"]
     assert _enabled_buttons(_actions(client.get(f"/exam?key={key}").text)) == ["追加撮影"]
-    assert "撮影済み" in query_worklist(client)
+    listing = query_worklist(client)
+    # 印は氏名のセルの下に出す（狭い幅でも見える。10.4）
+    name_cell = listing.split('<td class="name-cell">', 1)[1].split("</td>", 1)[0]
+    assert '<span class="badge">撮影済み</span>' in name_cell
 
 
 def test_append_from_the_screen(tmp_path, worklist_scp, storage_scp) -> None:
@@ -74,7 +77,8 @@ def test_append_from_the_screen(tmp_path, worklist_scp, storage_scp) -> None:
     assert "worklist_key" not in again and key not in again.split('id="result"', 1)[-1]
 
     page = client.get(f"/exam?key={key}").text
-    assert 'disabled title="撮影済みの予約です" aria-describedby="taken-note"' in page
+    title = "撮影済みの予約は押せません。続けて撮るときは「追加撮影」"
+    assert f'disabled title="{title}" aria-describedby="taken-note"' in page
     assert 'id="taken-note"' in page
     assert "撮影済み" in client.get(f"/worklist/item/{key}").text  # 詳細にも出す
 
