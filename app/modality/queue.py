@@ -68,6 +68,7 @@ _SCHEMA = (
     """
     CREATE TABLE IF NOT EXISTS exam_locks (
         worklist_key TEXT PRIMARY KEY,
+        token TEXT NOT NULL,
         locked_at TEXT NOT NULL
     )
     """,
@@ -406,22 +407,40 @@ class SendQueue:
             series_count=row[5],
         )
 
-    def claim_exam(self, worklist_key: str) -> bool:
-        """予約の撮影の札を取る。ほかが持っていれば False（止まったまま古い札は取り直せる）."""
+    def claim_exam(self, worklist_key: str) -> str | None:
+        """予約の撮影の札を取り、札を返す。ほかが持っていれば None.
+
+        札の時刻は撮影の間 `touch_exam` で進める。進まないまま古くなった札（撮影の処理が
+        落ちた）は取り直せる。
+        """
+        token = secrets.token_hex(SEND_TOKEN_BYTES)
         with self._connect() as conn:
             conn.execute(
                 "DELETE FROM exam_locks WHERE worklist_key = ? AND locked_at < ?",
                 (worklist_key, _stale_cutoff()),
             )
             cursor = conn.execute(
-                "INSERT OR IGNORE INTO exam_locks (worklist_key, locked_at) VALUES (?, ?)",
-                (worklist_key, _now()),
+                "INSERT OR IGNORE INTO exam_locks (worklist_key, token, locked_at)"
+                " VALUES (?, ?, ?)",
+                (worklist_key, token, _now()),
             )
-            return cursor.rowcount == 1
+        return token if cursor.rowcount == 1 else None
 
-    def release_exam(self, worklist_key: str) -> None:
+    def touch_exam(self, worklist_key: str, token: str) -> None:
+        """撮影の間、札の時刻を進める（長い撮影を落ちたとみなさない）."""
         with self._connect() as conn:
-            conn.execute("DELETE FROM exam_locks WHERE worklist_key = ?", (worklist_key,))
+            conn.execute(
+                "UPDATE exam_locks SET locked_at = ? WHERE worklist_key = ? AND token = ?",
+                (_now(), worklist_key, token),
+            )
+
+    def release_exam(self, worklist_key: str, token: str) -> None:
+        """自分の札だけを戻す（取り直されていたら、ほかの札は消さない）."""
+        with self._connect() as conn:
+            conn.execute(
+                "DELETE FROM exam_locks WHERE worklist_key = ? AND token = ?",
+                (worklist_key, token),
+            )
 
     def taken_keys(self) -> set[str]:
         """撮影済みの予約の鍵（一覧の印）."""

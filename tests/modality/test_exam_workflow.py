@@ -253,25 +253,39 @@ def test_same_order_is_not_shot_by_two_processes_at_once(tmp_path, worklist_scp)
     service = _service(tmp_path, worklist_scp.port)
     other = _service(tmp_path, worklist_scp.port)  # 同じ状態の保存先を使う別のプロセス
     key = _key(service)
-    assert other.queue.claim_exam(key)
+    token = other.queue.claim_exam(key)
+    assert token is not None
 
     with pytest.raises(ModalityError, match="ほかで撮影しています"):
         _exam(service, key)
     assert not service.is_taken(key)
 
-    other.queue.release_exam(key)
+    other.queue.release_exam(key, token)
     _exam(service, key)
-    assert service.queue.claim_exam(key)  # 撮り終えたら札は戻している
+    assert service.queue.claim_exam(key) is not None  # 撮り終えたら札は戻している
 
 
-def test_stale_exam_claim_can_be_taken_over(tmp_path) -> None:
+def test_exam_claim_is_owned_and_renewed(tmp_path) -> None:
+    """札は持ち主だけが戻せ、時刻を進めた札は古くならない。落ちたまま古い札は取り直せる."""
     queue = SendQueue(tmp_path / QUEUE_DB_NAME)
-    assert queue.claim_exam("abc")
-    assert not queue.claim_exam("abc")
-    with closing(sqlite3.connect(tmp_path / QUEUE_DB_NAME)) as conn, conn:
-        conn.execute("UPDATE exam_locks SET locked_at = '2000-01-01T00:00:00'")
+    first = queue.claim_exam("abc")
+    assert first is not None and queue.claim_exam("abc") is None
 
-    assert queue.claim_exam("abc")  # 落ちたまま古い札は取り直せる
+    def age() -> None:
+        with closing(sqlite3.connect(tmp_path / QUEUE_DB_NAME)) as conn, conn:
+            conn.execute("UPDATE exam_locks SET locked_at = '2000-01-01T00:00:00'")
+
+    age()
+    queue.touch_exam("abc", first)  # 撮っている間は時刻を進める
+    assert queue.claim_exam("abc") is None
+
+    age()
+    second = queue.claim_exam("abc")  # 進まないまま古くなった札は取り直せる
+    assert second is not None
+    queue.release_exam("abc", first)  # 前の持ち主は、取り直された札を消せない
+    assert queue.claim_exam("abc") is None
+    queue.release_exam("abc", second)
+    assert queue.claim_exam("abc") is not None
 
 
 def test_append_keeps_an_empty_first_description(tmp_path, worklist_scp) -> None:

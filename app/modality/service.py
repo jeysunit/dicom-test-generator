@@ -10,6 +10,8 @@ import logging
 import sqlite3
 import tempfile
 import threading
+import time
+from collections.abc import Callable
 from datetime import date, datetime
 from pathlib import Path
 
@@ -97,6 +99,7 @@ TAKEN_NEW_ORDER_MESSAGE = "撮り直しの予約が要ります（RIS で新し�
 NOT_TAKEN_MESSAGE = "この予約はまだ撮影していません。追加撮影は撮影済みの予約で行います"
 EMERGENCY_APPEND_MESSAGE = "緊急の患者（予約なし）では追加撮影はできません"
 ORDER_BUSY_MESSAGE = "この予約は、ほかで撮影しています。終わってから撮ってください"
+CLAIM_TOUCH_SECONDS = 60  # 撮影の間、予約の札の時刻を進める間（札は 30 分で古くなる）
 # DICOM の値の区切り（PS3.5 6.2）。LO・PN・SH の値に入れると VM が増える
 VALUE_DELIMITER = "\\"
 
@@ -122,6 +125,21 @@ def check_send_files(folder: Path, files: list[str]) -> None:
         resolved = path.resolve()
         if resolved.parent != root or not resolved.is_file():
             raise FileReadError(name, f"not a regular file directly inside {root}")
+
+
+def _throttled(touch: Callable[[], None] | None) -> Callable[[int, int], None] | None:
+    """作成の進み（1枚ごと）で呼ばれ、`touch` を間を空けて呼ぶ（札の時刻を進める）."""
+    if touch is None:
+        return None
+    last = [time.monotonic()]
+
+    def progress(_done: int, _total: int) -> None:
+        now = time.monotonic()
+        if now - last[0] >= CLAIM_TOUCH_SECONDS:
+            last[0] = now
+            touch()
+
+    return progress
 
 
 def _read_job_summary(folder: Path) -> tuple[str, str, str, str, str]:
@@ -609,19 +627,24 @@ class ModalityService:
             raise ModalityError(EXAM_BUSY_MESSAGE)
         try:
             key = request.worklist_key
+            if key is None:
+                return self._exam(request)
             # 同じ予約を、別のプロセス（CLI と画面など）が同時に撮らないようにする。撮影済みの
             # 判定から記録までを、予約ごとの札で守る（6.3・ADR-0024）
-            if key is not None and not self.queue.claim_exam(key):
+            token = self.queue.claim_exam(key)
+            if token is None:
                 raise ModalityError(ORDER_BUSY_MESSAGE, {"worklist_key": key})
             try:
-                return self._exam(request)
+                return self._exam(request, lambda: self.queue.touch_exam(key, token))
             finally:
-                if key is not None:
-                    self.queue.release_exam(key)
+                self.queue.release_exam(key, token)
         finally:
             self._exam_lock.release()
 
-    def _exam(self, request: ExamRequest) -> ExamResult:
+    def _exam(
+        self, request: ExamRequest, keep_claim: Callable[[], None] | None = None
+    ) -> ExamResult:
+        """`keep_claim` は、撮影の間に予約の札の時刻を進める（長い撮影を落ちたとみなさない）."""
         if (request.worklist_key is None) == (request.emergency_patient is None):
             raise ConfigurationError(
                 "Specify exactly one of worklist_key or emergency_patient",
@@ -727,7 +750,9 @@ class ModalityService:
             mpps_uid = self.mpps_queue.get(mpps_id).sop_instance_uid
             ctx = ctx.model_copy(update={"performed_procedure_step_sop_instance_uid": mpps_uid})
         try:
-            self._generator.generate(config=config, scheduled=ctx)
+            self._generator.generate(
+                config=config, scheduled=ctx, progress_callback=_throttled(keep_claim)
+            )
         except (DICOMGeneratorError, OSError):
             # 止まる前に書けた画像も DISCONTINUED の N-SET で知らせる（PS3.4 F.7.2.2.2）
             partial = sorted(str(path) for path in output_dir.glob("*.dcm"))
