@@ -339,7 +339,8 @@ class CommitmentManager:
                 expected_ae_title,
             )
             return STATUS_PROCESSING_FAILURE
-        if requested_by and own_ae_title != requested_by:
+        # AE タイトルの前後の空白は、比べる前にそろえる（PS3.5 の AE は空白を値に含めない）
+        if requested_by and own_ae_title.strip() != requested_by.strip():
             logger.warning(
                 "Storage commitment report to another station: got=%r expected=%r",
                 own_ae_title,
