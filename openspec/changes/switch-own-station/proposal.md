@@ -22,7 +22,7 @@ PACS・RIS は、登録していない Calling AE Title からの Association �
   保存先に記録し、画面を再起動しても残す。CLI は同じ記録を使い、`--station <表示名>`
   でそのコマンドだけ別の装置にできる
 - 選んだ装置の AE タイトルを、ワークリストの C-FIND・C-STORE・C-ECHO・MPPS・
-  保管確認の Calling AE Title に使う。ワークリストの「この装置の AE タイトルで絞る」も
+  保管確認の Calling AE Title に使う。ワークリストの「この装置で絞る」も
   選んだ装置の AE タイトルで絞る
 - 作る画像の Station Name (0008,1010) と File Meta の Source Application Entity
   Title (0002,0016) を、選んだ装置の値にする。MPPS の Performed Station AE Title

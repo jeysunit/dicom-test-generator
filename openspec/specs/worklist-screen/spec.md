@@ -58,16 +58,16 @@ CLI 向けの hint を含めてはならない（SHALL NOT）。
 ### Requirement: 装置の AE タイトルの絞り込みをそれと分かる言葉で示す
 
 ワークリストの画面は、Scheduled Station AE Title (0040,0001) の検索条件を
-「装置の AE タイトル」というラベルと、「この装置の AE タイトルで絞る（<自分の AE
-タイトル>）」「絞らない」の選択肢で表示しなければならない（SHALL）。既定は
-「この装置の AE タイトルで絞る」とし、選ぶと Scheduled Procedure Step Sequence の
+「装置の AE タイトル」というラベルと、「この装置で絞る（<自分の AE タイトル>）」
+「絞らない」の選択肢で表示しなければならない（SHALL）。選択肢は、幅の狭い画面でも
+括弧の AE タイトルまで見える長さにする。既定は「この装置で絞る」とし、選ぶと Scheduled Procedure Step Sequence の
 中の (0040,0001) に自分の AE タイトルを入れて送る（PS3.4 K.6.1.2.2、IHE RAD TF-2
 Table 4.5-2）。
 
 #### Scenario: 既定の条件で取得する
 
 - **WHEN** 自分の AE タイトルが `DTG_CT01` の画面で、ワークリストの画面を開いて「ワークリストを取得」を押す
-- **THEN** 条件の欄に「装置の AE タイトル」「この装置の AE タイトルで絞る（DTG_CT01）」と表示され、C-FIND の Scheduled Procedure Step Sequence の (0040,0001) に `DTG_CT01` が入る
+- **THEN** 条件の欄に「装置の AE タイトル」「この装置で絞る（DTG_CT01）」と表示され、C-FIND の Scheduled Procedure Step Sequence の (0040,0001) に `DTG_CT01` が入る
 
 #### Scenario: 絞らないで取得する
 

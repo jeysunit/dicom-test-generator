@@ -74,10 +74,10 @@ def test_station_filter_is_labeled_as_the_device_ae_title(client, worklist_scp) 
     """(0040,0001) の絞り込みだと分かる言葉で示す（docs/spec/12a の 10.4）."""
     page = client.get("/worklist").text
     assert "装置の AE タイトル" in page
-    assert f"この装置の AE タイトルで絞る（{OWN_AE}）" in page
+    assert f"この装置で絞る（{OWN_AE}）" in page
     assert ">予定の AE<" not in page
 
-    _query(client)  # 既定は「この装置の AE タイトルで絞る」
+    _query(client)  # 既定は「この装置で絞る」
     sps = worklist_scp.queries[-1].ScheduledProcedureStepSequence[0]
     assert sps.ScheduledStationAETitle == OWN_AE
 
