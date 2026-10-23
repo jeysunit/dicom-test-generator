@@ -67,13 +67,13 @@ CLI は、画面と同じ記録の装置を使い、`--station <表示名>` を�
 
 DTG は、ワークリストの C-FIND、C-STORE、C-ECHO、MPPS の N-CREATE・N-SET、
 保管確認の N-ACTION の Association の Calling AE Title に、選んだ装置の AE タイトルを
-使わなければならない（SHALL）。ワークリストの「この装置の AE タイトルで絞る」は、
+使わなければならない（SHALL）。ワークリストの「この装置で絞る」は、
 選んだ装置の AE タイトルを Scheduled Station AE Title (0040,0001) に入れる
 （PS3.4 K.6.1.2.2）。
 
 #### Scenario: MR1号機でワークリストを取得する
 
-- **WHEN** `MR1号機` を選び、「この装置の AE タイトルで絞る」でワークリストを取得する
+- **WHEN** `MR1号機` を選び、「この装置で絞る」でワークリストを取得する
 - **THEN** C-FIND の Association の Calling AE Title と、Scheduled Procedure Step Sequence の (0040,0001) が `DTG_MR01` になる
 
 #### Scenario: MR1号機で撮影して送る

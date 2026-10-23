@@ -7,7 +7,8 @@
     <dt>受付番号</dt><dd class="font-mono">{{ item.accession_number or "—" }}</dd>
     <dt>Requested Procedure</dt><dd>{{ item.requested_procedure_id }} {{ item.requested_procedure_description }}</dd>
     <dt>Scheduled Procedure Step</dt><dd>{{ item.scheduled_procedure_step_id }} {{ item.scheduled_procedure_step_description }}</dd>
-    <dt>予定</dt><dd>{{ item.scheduled_start_date|date_label }} {{ item.scheduled_start_time|time_label }}・{{ item.modality }}・{{ item.scheduled_station_ae_title }}</dd>
+    <dt>予定</dt><dd>{{ item.scheduled_start_date|date_label }} {{ item.scheduled_start_time|time_label }}・{{ item.modality }}</dd>
+    <dt>予定の装置の AE タイトル</dt><dd class="font-mono">{{ item.scheduled_station_ae_title or "—" }}</dd>
     <dt>紹介医</dt><dd>{{ item.referring_physician_name or "—" }}</dd>
     <dt>施設</dt><dd>{{ item.institution_name or "—" }}</dd>
     <dt>文字コード</dt><dd>{{ item.specific_character_set|charset_label }}</dd>

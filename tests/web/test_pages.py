@@ -70,6 +70,33 @@ def test_worklist_bad_date_is_shown_as_error(client) -> None:
     assert 'role="alert"' in html
 
 
+def test_station_filter_is_labeled_as_the_device_ae_title(client, worklist_scp) -> None:
+    """(0040,0001) の絞り込みだと分かる言葉で示す（docs/spec/12a の 10.4）."""
+    page = client.get("/worklist").text
+    assert "装置の AE タイトル" in page
+    assert f"この装置で絞る（{OWN_AE}）" in page
+    assert ">予定の AE<" not in page
+
+    _query(client)  # 既定は「この装置で絞る」
+    sps = worklist_scp.queries[-1].ScheduledProcedureStepSequence[0]
+    assert sps.ScheduledStationAETitle == OWN_AE
+
+    _query(client, station="any")
+    sps = worklist_scp.queries[-1].ScheduledProcedureStepSequence[0]
+    assert sps.ScheduledStationAETitle == ""
+
+
+def test_detail_shows_the_scheduled_station_ae_title_on_its_own_row(client) -> None:
+    key = _key_for(_query(client, station="any", modality=""), "A0003")
+
+    detail = client.get(f"/worklist/item/{key}").text
+
+    row = detail.split("<dt>予定の装置の AE タイトル</dt>", 1)[1].split("</dd>", 1)[0]
+    assert "DTG_MR01" in row
+    schedule = detail.split("<dt>予定</dt>", 1)[1].split("</dd>", 1)[0]
+    assert "DTG_MR01" not in schedule
+
+
 def test_worklist_detail_and_refresh(client, worklist_scp) -> None:
     html = _query(client)
     key = _key_for(html, "A0001")
