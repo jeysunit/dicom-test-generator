@@ -113,7 +113,16 @@ def exam_page(request: Request, key: str = "") -> HTMLResponse:
         sex_choices=SEX_CHOICES,
         blocker=_blocker(service, item, template, profile),
         exam_token=ExamTokens.issue(),
+        **_retake_context(service, item),
     )
+
+
+def _retake_context(service: ModalityService, item: WorklistItem | None) -> dict[str, object]:
+    """撮影済みの予約か、と撮り直しの形（ボタンの出し分け。10.5・ADR-0024）."""
+    return {
+        "taken": item is not None and service.is_taken(item.key),
+        "retake_mode": service.config.retake_mode,
+    }
 
 
 @router.get("/exam/check", response_class=HTMLResponse)
@@ -127,9 +136,16 @@ def exam_check(
         try:
             item = service.find_item(key)
         except DICOMGeneratorError as exc:
-            return render(request, "_exam_actions.html", blocker=worklist_error_text(exc))
+            return render(
+                request,
+                "_exam_actions.html",
+                blocker=worklist_error_text(exc),
+                **_retake_context(service, None),
+            )
     blocker = _blocker(service, item, template or service.config.default_template, profile)
-    return render(request, "_exam_actions.html", blocker=blocker)
+    return render(
+        request, "_exam_actions.html", blocker=blocker, **_retake_context(service, item)
+    )
 
 
 @router.post("/exam", response_class=HTMLResponse)
@@ -152,6 +168,7 @@ def exam_run(
     sex: FormStr = "",
     study_description: FormStr = "",
     exam_token: FormStr = "",
+    append: FormStr = "",
 ) -> HTMLResponse:
     service = service_of(request)
     tokens = tokens_of(request)
@@ -180,6 +197,9 @@ def exam_run(
             images_per_series=_parse_images(images, series),
             abnormal_level=abnormal_level,
             charset=charset or None,
+            # 撮影済みの予約の「追加撮影」（10.5・ADR-0024）。緊急の患者に付いていれば、
+            # 黙って普通に撮らずに断る（CLI と同じ文言）
+            append=bool(append),
         )
         result = service.exam(exam_request)
         accepted = True
@@ -212,6 +232,7 @@ def _exam_result(
     send_error: str,
     next_token: str,
 ) -> HTMLResponse:
+    service = service_of(request)
     return render(
         request,
         "_exam_result.html",
@@ -219,6 +240,11 @@ def _exam_result(
         send=send,
         send_error=send_error,
         next_token=next_token,
+        # 予約で撮ったら撮影済みになるので、撮影のボタンを描き直す（10.5・ADR-0024）
+        refresh_actions=result.worklist_key is not None,
+        blocker="",
+        taken=result.worklist_key is not None and service.is_taken(result.worklist_key),
+        retake_mode=service.config.retake_mode,
     )
 
 

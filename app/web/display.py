@@ -69,9 +69,11 @@ def charset_label(character_set: list[str]) -> str:
     return "\\".join(character_set) if any(character_set) else DEFAULT_CHARSET_LABEL
 
 
-def item_marks(item: WorklistItem, own_ae_title: str) -> list[str]:
-    """一覧の行の印（10.4・16.1）。CLI の `worklist query` と同じ3つ."""
+def item_marks(item: WorklistItem, own_ae_title: str, taken: bool = False) -> list[str]:
+    """一覧の行の印（10.4・16.1）。CLI の `worklist query` と同じ4つ."""
     marks = []
+    if taken:
+        marks.append("撮影済み")  # 撮影を終えた予約（docs/spec/12 の 6.3・ADR-0024）
     if item.scheduled_station_ae_title and item.scheduled_station_ae_title != own_ae_title:
         marks.append("別の装置")
     if item.unreadable_attributes:

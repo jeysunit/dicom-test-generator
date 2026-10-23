@@ -1,4 +1,5 @@
 {% if next_token %}<input type="hidden" id="exam-token" name="exam_token" value="{{ next_token }}" hx-swap-oob="true">{% endif %}
+{% if refresh_actions %}<div id="actions" hx-swap-oob="true">{% include "_exam_actions.html" %}</div>{% endif %}
 <div class="panel space-y-3">
   <p role="status" class="notice notice-ok font-semibold text-value">
     <span class="icon icon-check" aria-hidden="true"></span>

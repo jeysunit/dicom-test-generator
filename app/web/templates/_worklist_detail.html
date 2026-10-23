@@ -1,5 +1,6 @@
 <div class="panel">
   <h2 class="panel-title">予約の詳細</h2>
+  {% if item_taken %}<p><span class="badge">撮影済み</span></p>{% endif %}
   <dl class="values">
     <dt>氏名</dt><dd>{{ item.patient_name }}</dd>
     <dt>患者 ID</dt><dd class="font-mono">{{ item.patient_id }}{% if item.issuer_of_patient_id %}（{{ item.issuer_of_patient_id }}）{% endif %}</dd>

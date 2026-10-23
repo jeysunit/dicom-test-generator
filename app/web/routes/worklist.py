@@ -121,16 +121,18 @@ def worklist_refresh(request: Request, key: FormStr = "") -> HTMLResponse:
     results["error"] = error
     # 開いている詳細も、取得し直した一覧の値に差し替える
     results["detail_item"] = next((item for item in state.items if item.key == key), None)
+    results["detail_taken"] = service.is_taken(key) if key else False
     return render(request, "_worklist_results.html", oob_band=True, results=results)
 
 
 @router.get("/worklist/item/{key}", response_class=HTMLResponse)
 def worklist_item(request: Request, key: str) -> HTMLResponse:
+    service = service_of(request)
     try:
-        item = service_of(request).find_item(key)
+        item = service.find_item(key)
     except DICOMGeneratorError as exc:
         return render(request, "_notice.html", error=worklist_error_text(exc))
-    return render(request, "_worklist_detail.html", item=item)
+    return render(request, "_worklist_detail.html", item=item, item_taken=service.is_taken(key))
 
 
 def _results(
@@ -141,9 +143,11 @@ def _results(
     selected: str = "",
     notice: str = "",
 ) -> dict[str, object]:
-    own_ae = service_of(request).current_station().ae_title
+    service = service_of(request)
+    own_ae = service.current_station().ae_title
+    taken = service.taken_keys()
     rows: list[tuple[WorklistItem, list[str]]] = [
-        (item, item_marks(item, own_ae)) for item in state.items
+        (item, item_marks(item, own_ae, item.key in taken)) for item in state.items
     ]
     return {
         "queried": bool(state.queried_at),
@@ -156,6 +160,7 @@ def _results(
         # 「取得し直す」は、選んだ行が一覧にあるときだけ押せる（10.4）
         "has_selection": any(item.key == selected for item, _marks in rows),
         "detail_item": None,
+        "detail_taken": False,
         "notice": notice,
         "error": "",
     }

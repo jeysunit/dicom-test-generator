@@ -53,6 +53,9 @@ modality:
   retry:
     max_attempts: 0               # 0 = 自動で再送しない
   max_images_per_exam: 2000       # 1回の撮影の合計の枚数の上限（docs/spec/12a の 10.5）
+  # 撮影済みの予約の撮り直し（docs/spec/12 の 6.3）。append：同じ予約で追加撮影（同じ
+  # Study に新しいシリーズ）。new_order：RIS で作った新しい予約で撮り直す
+  retake_mode: "append"
 
 # ウェブの画面（docs/spec/12a_web_screens_and_cli.md の 10.9、docs/spec/12_modality_emulator.md の 12 章）。既定は手元だけ。
 # 手元の外で待ち受けるときは、環境の変数 DTG_WEB_PASSWORD_FILE でパスワードの
