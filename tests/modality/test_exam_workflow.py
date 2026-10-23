@@ -323,3 +323,16 @@ def test_old_study_uid_rows_become_taken(tmp_path) -> None:
 
     assert record is not None and record.study_instance_uid == "2.25.1"
     assert record.series_count == 0
+
+    # 移した後の最初の撮影で日時・説明を埋め、その後の追加撮影はその値にそろえる
+    queue = SendQueue(db_path)
+    queue.record_exam("abc", "2.25.1", "20261023", "101010", "胸部 CT", 1)
+    queue.record_exam("abc", "2.25.1", "20261024", "090000", "別の説明", 1)
+    record = queue.exam_record("abc")
+    assert record is not None
+    assert (record.study_date, record.study_time, record.study_description) == (
+        "20261023",
+        "101010",
+        "胸部 CT",
+    )
+    assert record.series_count == 2
