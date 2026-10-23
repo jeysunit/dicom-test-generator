@@ -126,12 +126,20 @@
   // したボタンが押せる形で描き直される）。
   // 送信中のボタンは htmx が htmx-request の印を付け、応答の後（表を差し替えて消えたときも）
   // 印は残らない。
+  function resendInFlight() {
+    return document.querySelector('[hx-target="#queue"].htmx-request') !== null;
+  }
   document.addEventListener("htmx:beforeRequest", function (event) {
-    if (
-      event.detail.elt.id === "queue" &&
-      document.querySelector('[hx-target="#queue"].htmx-request')
-    ) {
+    if (event.detail.elt.id === "queue" && resendInFlight()) {
       event.preventDefault();
+    }
+  });
+  // 再送を押す直前に出ていた再取得（GET）の応答も、再送の応答が返るまでは差し替えない。
+  // 差し替えの知らせは差し替える先（#queue）で出るので、再取得かは要求の動詞で見分ける
+  document.addEventListener("htmx:beforeSwap", function (event) {
+    var config = event.detail.requestConfig;
+    if (event.target.id === "queue" && config && config.verb === "get" && resendInFlight()) {
+      event.detail.shouldSwap = false;
     }
   });
   document.addEventListener("htmx:afterSwap", function (event) {
