@@ -14,7 +14,7 @@
   <section class="panel">
     <h2 class="panel-title">予約の値（読むだけ）</h2>
     <dl class="values">
-      <dt>患者 ID</dt><dd class="font-mono">{{ item.patient_id }}</dd>
+      <dt>患者ID</dt><dd class="font-mono">{{ item.patient_id }}</dd>
       <dt>氏名</dt>
       <dd>
         <span class="font-semibold text-value">{{ ideographic or alphabetic }}</span>
@@ -23,7 +23,7 @@
       </dd>
       <dt>生年月日・性別</dt><dd>{{ item|birth_label }}</dd>
       <dt>受付番号</dt><dd class="font-mono">{{ item.accession_number or "—" }}</dd>
-      <dt>検査の記述</dt><dd>{{ item.requested_procedure_description or "—" }}</dd>
+      <dt>検査名</dt><dd>{{ item.requested_procedure_description or "—" }}</dd>
       <dt>予約のモダリティ</dt><dd>{{ item.modality or "—" }}</dd>
       <dt>Study Instance UID</dt><dd>{% with uid = item.study_instance_uid %}{% include "_uid.html" %}{% endwith %}</dd>
       <dt>ワークリストの文字コード</dt><dd>{{ item.specific_character_set|charset_label }}</dd>
@@ -35,7 +35,7 @@
       {% endfor %}
     </ul>
     {% endif %}
-    <p class="mt-4 text-xs text-label">値を直すときは RIS の側で直し、ワークリストで「取得し直す」を押してください。</p>
+    <p class="mt-4 text-xs text-label">値を直すときは RIS の側で直し、ワークリストで「再検索」を押してください。</p>
   </section>
   {% else %}
   <input type="hidden" name="mode" value="emergency">
@@ -44,7 +44,7 @@
     <p class="mb-4 text-xs text-label">予約なし（受付番号は空）。予約から撮るときは、<a class="link" href="/worklist">ワークリスト</a>で予約を選んでください。姓と名は空白で区切って入れてください（DICOM の区切りの ^ に置き換えます）。</p>
     <div class="grid gap-4 sm:grid-cols-3">
       <label class="field">
-        <span class="field-label">患者 ID <span class="badge text-danger">必須</span></span>
+        <span class="field-label">患者ID <span class="badge text-danger">必須</span></span>
         <input type="text" name="patient_id" class="input" maxlength="16" required aria-required="true">
       </label>
       <label class="field">
@@ -70,7 +70,7 @@
         </select>
       </label>
       <label class="field sm:col-span-3">
-        <span class="field-label">検査の記述</span>
+        <span class="field-label">検査名</span>
         <input type="text" name="study_description" class="input" maxlength="64">
       </label>
     </div>

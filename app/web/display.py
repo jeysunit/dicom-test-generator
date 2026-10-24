@@ -14,7 +14,7 @@ DATE_LENGTH = 8
 TIME_MIN_LENGTH = 4
 PN_GROUPS = 3
 SEX_LABELS = {"M": "男", "F": "女", "O": "その他"}
-STATUS_LABELS = {"pending": "待機中", "sending": "送信中", "sent": "送信完了", "failed": "送信失敗"}
+STATUS_LABELS = {"pending": "送信待ち", "sending": "送信中", "sent": "送信完了", "failed": "送信失敗"}
 # 保管の確認の状態（10.6・10.8）と、出すときの色の印（送信ジョブの状態と同じ CSS を使う）
 COMMITMENT_LABELS = {
     "waiting": "確認待ち",
@@ -28,7 +28,7 @@ COMMITMENT_STATUS_CLASSES = {
     "failed": "failed",
     "timed_out": "failed",
 }
-DEFAULT_CHARSET_LABEL = "既定"
+DEFAULT_CHARSET_LABEL = "初期設定"
 
 
 def utc_offset_label() -> str:
@@ -49,21 +49,21 @@ def send_error_label(reason: str) -> str:
     endpoint = "・".join(value for value in (peer, address) if value)
     if reason.startswith("Association failed: could not connect"):
         suffix = f"（{endpoint}）" if endpoint else ""
-        return f"接続できませんでした{suffix}。送り先の電源とポートを確かめてください"
+        return f"接続できませんでした{suffix}。送信先の電源とポートを確かめてください"
     if reason.startswith("Association failed: association rejected by the peer"):
         suffix = f"（{peer}）" if peer else ""
-        return f"送り先に断られました{suffix}。AE タイトルの登録を確かめてください"
+        return f"送信先に断られました{suffix}。AEタイトルの登録を確かめてください"
     if reason == "association lost":
-        return "送信の途中で接続が切れました。送り先の接続を確かめてください"
+        return "送信の途中で接続が切れました。送信先の接続を確かめてください"
     if reason == "no response (timed out or aborted)":
-        return "送り先から応答がありませんでした。送り先の稼働状況を確かめてください"
+        return "送信先から応答がありませんでした。送信先の稼働状況を確かめてください"
     status = re.fullmatch(r"status (0x[0-9A-Fa-f]{4})", reason)
     if status:
-        return f"送り先が画像を受け付けませんでした（状態 {status[1]}）。送り先の記録を確かめてください"
+        return f"送信先が画像を受け付けませんでした（状態 {status[1]}）。送信先の記録を確かめてください"
     if reason.startswith("unreadable file:"):
         return "送信する画像のファイルを読めませんでした。元のファイルを確かめてください"
     if re.search(r"[ぁ-んァ-ヶ一-龯]", reason):
-        # 相手の AE タイトルを受け付けなかった知らせなど、すでに日本語の文
+        # 相手の AEタイトルを受け付けなかった知らせなど、すでに日本語の文
         return reason
     return "送信に失敗しました"
 

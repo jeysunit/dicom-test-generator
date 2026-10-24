@@ -15,7 +15,7 @@
   <header class="border-b border-border bg-surface">
     <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2">
       <a href="/worklist" class="font-semibold text-value">dicom-test-generator</a>
-      <nav class="flex flex-wrap gap-1" aria-label="頁">
+      <nav class="flex flex-wrap gap-1" aria-label="ページ">
         {% for key, href, label in pages %}
         <a href="{{ href }}" class="nav-link{% if key == page %} nav-active{% endif %}"{% if key == page %} aria-current="page"{% endif %}>{{ label }}</a>
         {% endfor %}

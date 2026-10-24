@@ -16,12 +16,12 @@
 | `version` | バージョンを表示する |
 | `profiles list` | 読み込める装置プロファイルの一覧 |
 | `echo` | C-ECHO |
-| `worklist query`・`worklist show` | ワークリストを取得する・1件を出力する |
+| `worklist query`・`worklist show` | ワークリストを検索する・1件を出力する |
 | `exam` | 予約（または緊急の患者）で撮影する |
 | `send` | 出力フォルダの画像を送信する |
-| `queue list`・`queue retry` | 送信キューと履歴・失敗した送信の再送 |
+| `queue list`・`queue retry` | 送信キューと履歴・失敗した送信の再送信 |
 | `commit` | 送信した検査の保管確認（Storage Commitment）を要求して待つ |
-| `mpps list`・`mpps retry` | MPPS の通知のキューを出力する・失敗した通知を再送する |
+| `mpps list`・`mpps retry` | MPPS の通知のキューを出力する・失敗した通知を再送信する |
 
 - `generate`・`validate`・`quick`・`version` 以外のモダリティエミュレーターの
   コマンド（`echo`・`worklist`・`exam`・`send`・`queue`・`commit`・`mpps`）の
@@ -99,7 +99,7 @@ python -m app.cli quick [options]
 
 | オプション | 短縮 | 説明 | 例 |
 |-----------|------|------|-----|
-| `--patient ID` | `-p` | 患者 ID。患者マスター（`data/patients_master.yaml`）から検索する | P000001 |
+| `--patient ID` | `-p` | 患者ID。患者マスター（`data/patients_master.yaml`）から検索する | P000001 |
 | `--modality NAME` | `-m` | モダリティテンプレート | ct_generic |
 | `--series N` | `-s` | シリーズ数 | 3 |
 | `--images LIST` | `-i` | 各シリーズの画像枚数（カンマ区切り） | 1,20,20 |
@@ -118,7 +118,7 @@ python -m app.cli quick [options]
 
 ### 4.3 動作
 
-- 患者 ID が患者マスターに無い、テンプレートが無い、`--series` と `--images`
+- 患者ID が患者マスターに無い、テンプレートが無い、`--series` と `--images`
   の件数が一致しない、`--images` に正の整数以外がある、`--pixel-mode` が
   上の2つ以外のときは、設定エラー（終了コード 2）
 - 検査時刻は実行した時刻。UID は UUID 2.25 方式、文字セットと

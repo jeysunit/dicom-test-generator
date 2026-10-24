@@ -9,7 +9,7 @@
 {% with error = results.error %}{% include "_notice.html" %}{% endwith %}
 {% endif %}
 {% if not results.queried %}
-<p class="text-label">まだ取得していません。条件を選んで「ワークリストを取得」を押してください。</p>
+<p class="text-label">まだ取得していません。条件を選んで「ワークリスト検索」を押してください。</p>
 {% elif not results.rows %}
 <div class="panel space-y-3">
   <p>{{ results.zero_message }}</p>
@@ -24,11 +24,11 @@
         <tr>
           <th scope="col"><span class="sr-only">選ぶ</span></th>
           <th scope="col">時刻</th>
-          <th scope="col">患者 ID</th>
+          <th scope="col">患者ID</th>
           <th scope="col">氏名</th>
           <th scope="col">生年月日・性別</th>
           <th scope="col">受付番号</th>
-          <th scope="col">検査の記述</th>
+          <th scope="col">検査名</th>
         </tr>
       </thead>
       <tbody>
@@ -58,7 +58,7 @@
     <div class="ml-auto flex flex-wrap gap-2">
       <a class="btn btn-ghost" href="/exam">緊急の患者で撮る</a>
       <button type="button" class="btn btn-outline" data-needs-selection hx-post="/worklist/refresh" hx-include="#pick" hx-target="#results" hx-disabled-elt="this"{% if not results.has_selection %} disabled title="行を選ぶと押せます"{% endif %}>
-        <span class="icon icon-refresh-cw" aria-hidden="true"></span>取得し直す
+        <span class="icon icon-refresh-cw" aria-hidden="true"></span>再検索
       </button>
       <button type="submit" class="btn btn-primary">選んで撮影へ</button>
     </div>

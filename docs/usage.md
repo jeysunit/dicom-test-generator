@@ -58,7 +58,7 @@ docker build -t dicom-test-generator .
 
 ### 2.1 予約から撮影する
 
-1. ワークリストの画面で、予定日・モダリティ・AE タイトルを選び、「ワークリストを取得」を
+1. ワークリストの画面で、予定日・モダリティ・AEタイトルを選び、「ワークリスト検索」を
    押す
 2. 一覧から予約を選び、「選んで撮影へ」を押す
 3. 撮影の画面で、予約の値（読み取り専用）を確認する。「ルーチン」には、予約の検査の
@@ -67,45 +67,45 @@ docker build -t dicom-test-generator .
    [外す] でシリーズを外す。外したシリーズは薄く表示され、[戻す] で元の画像数のまま
    戻せる。「手で入れる」を選ぶと、シリーズ数と画像数を入れる欄になる
 4. [撮影して送信] を押す。DICOM ファイルを作成して出力フォルダに保存し、続けて
-   既定の送信先（PACS）へ送信する。送信しないときは [撮影] を押す
+   標準の送信先（PACS）へ送信する。送信しないときは [撮影] を押す
 
 作成した DICOM ファイルは、出力フォルダの
 `<受付番号か emergency>_<撮影の日時 YYYYMMDDHHMMSS>/` に保存される（出力
-フォルダは設定の `output_dir` で、既定は `output/modality`。1.1 の例では、ホストの
+フォルダは設定の `output_dir` で、初期設定は `output/modality`。1.1 の例では、ホストの
 `output/modality/` の下になる）。
 
 予約で1回撮影すると、その予約は撮影済みになり、[撮影]・[撮影して送信] は押せなく
 なる（一覧にも「撮影済み」の印が付く）。撮り直すときは、設定の `retake_mode` に従う。
 
-- `append`（既定）：[追加撮影] で、同じ Study に新しいシリーズとして撮る（IHE の
+- `append`（初期設定）：[追加撮影] で、同じ Study に新しいシリーズとして撮る（IHE の
   Append Case）。CLI では `exam --from-worklist <鍵> --append`
-- `new_order`：RIS で撮り直しの予約を作り、ワークリストを取得し直して、その予約で
+- `new_order`：RIS で撮り直しの予約を作り、ワークリストを再検索して、その予約で
   撮る（受付番号と Study Instance UID は RIS が出す）
 
 ### 2.2 予約の無い患者で撮影する
 
-ワークリストの画面の [緊急の患者で撮る] を押し、撮影の画面で患者 ID と氏名（英字）を
+ワークリストの画面の [緊急の患者で撮る] を押し、撮影の画面で患者ID と氏名（英字）を
 入力する。氏名の姓と名は空白で区切って入力する（DICOM の区切りの `^` に置き換える）。
 あとは 2.1 の 3・4 と同じ。
 
 画面の項目と表示は [spec/12a](spec/12a_web_screens_and_cli.md) の 10 章にある。
 
-## 3. 送信の状態を確認し、再送する
+## 3. 送信の状態を確認し、再送信する
 
-PACS の画面の送信キューに、ジョブごとの状態（待機中・送信中・送信完了・送信失敗）が
+PACS の画面の送信キューに、ジョブごとの状態（送信待ち・送信中・送信完了・送信失敗）が
 表示される。
 
-- 送信失敗の行は、理由が表示される。[再送] で再送し、表の上の [失敗をすべて再送] で
-  失敗したジョブをまとめて再送する
-- 送信完了の行の [再送] と、撮影の画面の送信の結果の下の [もう一度送信] で、同じ画像を
+- 送信失敗の行は、理由が表示される。[もう一度送る] で再送信し、表の上の [失敗をすべて再送信] で
+  失敗したジョブをまとめて再送信する
+- 送信完了の行の [もう一度送る] と、撮影の画面の送信の結果の下の [もう一度送る] で、同じ画像を
   何回でも送り直せる。送るたびに新しいジョブになり、画像の UID は変わらない
-- 行の [詳細] で、元のファイル（出力フォルダ）・試行回数・名乗る AE タイトルが
+- 行の [詳細] で、元のファイル（出力フォルダ）・試行回数・名乗る AEタイトルが
   浮かぶ枠に出る。枠の外を押すか Esc で閉じる
 - 送信先の一覧の [C-ECHO] で、送信先との疎通を確認できる
 
 ## 4. 保管確認（Storage Commitment）と MPPS を使う
 
-どちらも既定では無効。設定の項目は [spec/12](spec/12_modality_emulator.md) の
+どちらも初期設定では無効。設定の項目は [spec/12](spec/12_modality_emulator.md) の
 12 章、動作は 8.3・8.4 にある。
 
 ### 4.1 保管確認
@@ -116,19 +116,19 @@ PACS の画面の送信キューに、ジョブごとの状態（待機中・送
 2. 送信に成功した画像の保管確認が自動で要求される。PACS の画面の「保管の確認」の
    列に、確認待ち・確認済・確認の失敗・確認の時間切れのどれかが表示される
 3. Docker で動かすときは、設定の `modality.listen.bind_address` を `"0.0.0.0"` にし、
-   待ち受けのポート（既定 11113）も公開する
+   待ち受けのポート（初期設定 11113）も公開する
 
 ### 4.2 Orthanc で保管確認をテストする
 
 この手順は、まだ Orthanc を相手に実行して確認していない（[roadmap.md](roadmap.md)）。
 Orthanc（1.6.0 以降）は保管確認を受け付け、結果を別の Association で返す。
 
-1. Orthanc の設定の `DicomModalities` に、DTG の AE タイトル・IP アドレス・待ち受けの
+1. Orthanc の設定の `DicomModalities` に、DTG の AEタイトル・IP アドレス・待ち受けの
    ポートを追加する（例：`"DicomModalities": { "dtg": [ "DTG_CT01",
    "127.0.0.1", 11113 ] }`）。Orthanc をコンテナで動かすときは、コンテナから到達
    できる IP アドレスを書き、DTG の `listen.bind_address` もそのアドレスで待ち受ける
-   ようにする（既定の 127.0.0.1 にはコンテナから到達できない）
-2. DTG の送信先を Orthanc の AE タイトル・IP アドレス・DICOM のポートにし、
+   ようにする（初期設定の 127.0.0.1 にはコンテナから到達できない）
+2. DTG の送信先を Orthanc の AEタイトル・IP アドレス・DICOM のポートにし、
    `storage_commitment: true` にする
 3. 撮影の画面で [撮影して送信] を押す
 4. PACS の画面の送信キューで、そのジョブの「保管の確認」が「確認済」になることを
@@ -141,7 +141,7 @@ Orthanc（1.6.0 以降）は保管確認を受け付け、結果を別の Associ
 2. 撮影の開始で N-CREATE（IN PROGRESS）、画像を作成し終えたら N-SET（COMPLETED）を
    送信する。作成の途中で停止したときは N-SET（DISCONTINUED）を送信する
 3. MPPS を送信できなくても、撮影と画像の送信は止まらない。撮影の画面に表示され、
-   通知はキューに残る。残った通知は CLI の `mpps retry` で再送する（6 章）
+   通知はキューに残る。残った通知は CLI の `mpps retry` で再送信する（6 章）
 
 Orthanc は MPPS を受け付けないので、MPPS を受け付けるテスト用の相手（RIS など）を
 使う。
@@ -163,20 +163,20 @@ Orthanc は MPPS を受け付けないので、MPPS を受け付けるテスト�
 docker run --rm ghcr.io/jeysunit/dicom-test-generator:latest cat config/app_config.yaml > app_config.yaml
 ```
 
-1.1 の `docker run` に `-v "$PWD/app_config.yaml:/app/config/app_config.yaml:ro"` を
-追加して起動する。
+1.1 の `docker run` に
+`-v "$PWD/app_config.yaml:/app/config/app_config.yaml:ro"` を追加して起動する。
 
 ### 5.2 装置を切り替える
 
 装置を2台以上設定すると（例 CT1 は `DTG_CT01`、MR1 は `DTG_MR01`）、情報バーの
-「装置」で切り替えられる。切り替えた装置の AE タイトルで、ワークリストの取得・送信・
+「装置」で切り替えられる。切り替えた装置の AEタイトルで、ワークリストの取得・送信・
 MPPS・保管確認を行い、画像の Station Name もその装置の値になる。選んだ装置は画面を
 再起動しても残り、CLI も同じ装置を使う（`--station <表示名>` でそのコマンドだけ
 変えられる）。
 
-- PACS・RIS には、使う装置の AE タイトルをすべて登録しておく。登録していない AE
-  タイトルで断られると、「相手が AE タイトル DTG_MR01 を受け付けませんでした」と出る
-- 切り替える前に作った送信の件と MPPS は、再送しても作ったときの AE タイトルで送る
+- PACS・RIS には、使う装置の AEタイトルをすべて登録しておく。登録していない AE
+  タイトルで断られると、「相手が AEタイトル DTG_MR01 を受け付けませんでした」と出る
+- 切り替える前に作った送信の件と MPPS は、再送信しても作ったときの AEタイトルで送る
 
 ### 5.3 ネットワークに公開する
 
@@ -203,9 +203,9 @@ Web 画面は HTTP Basic 認証が必須で（ユーザー名は `dtg`）、パ�
 | ルーチンを選んで撮影 | `python -m app.cli exam --from-worklist <キー> --routine ct_head_plain` |
 | シリーズ数と画像数を手で入れて撮影 | `python -m app.cli exam --from-worklist <キー> -s 2 -i 1,20` |
 | 予約の無い患者で撮影 | `python -m app.cli exam --emergency --patient-id E0001 --patient-name "KINKYU^TARO"` |
-| 送信キューの確認と再送 | `python -m app.cli queue list --status failed`・`queue retry --all` |
+| 送信キューの確認と再送信 | `python -m app.cli queue list --status failed`・`queue retry --all` |
 | 保管確認の要求 | `python -m app.cli commit --job 1 --wait 60` |
-| MPPS の確認と再送 | `python -m app.cli mpps list`・`mpps retry` |
+| MPPS の確認と再送信 | `python -m app.cli mpps list`・`mpps retry` |
 
 - CLI では保管確認を自動で要求しない。送信の後に `commit` で要求して結果を待つ。
   確認済なら終了コード 0、それ以外は 5。Web 画面が同じポートで待ち受けているときは、

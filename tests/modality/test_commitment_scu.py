@@ -134,7 +134,7 @@ def test_separate_association_round_trip(service, commitment_pacs) -> None:
 
 
 def test_same_association_round_trip(tmp_path, commitment_pacs, listen_port) -> None:
-    """同じ Association で返す相手：送り先に待つ秒を入れたときだけ受ける（8.3.1 の例外）."""
+    """同じ Association で返す相手：送信先に待つ秒を入れたときだけ受ける（8.3.1 の例外）."""
     commitment_pacs.report_path = "same"
     service = ModalityService(
         _config(tmp_path, commitment_pacs.port, listen_port, wait_seconds=5)
@@ -304,7 +304,7 @@ def test_unknown_event_type_is_refused(service, commitment_pacs) -> None:
 
 
 def test_report_from_other_ae_is_refused(service, commitment_pacs) -> None:
-    """別の道では、呼んできた AE が要求の送り先の AE と同じときだけ受ける（8.3.2）."""
+    """別の道では、呼んできた AE が要求の送信先の AE と同じときだけ受ける（8.3.2）."""
     job_id = _exam_and_send(service, [1])
     commitment_pacs.calling_ae_title = "INTRUDER"
 

@@ -2,7 +2,7 @@
 
 ルーチンの形はモダリティごとに違う（docs/spec/03）。CT はシリーズの種類と再構成、
 MR はシーケンス、CR・DX は撮影の方向、US は静止画と動画の数を持つ。どのシリーズも
-既定の画像数を持つ。通信・ファイル・ログを持たない（app/core の決まり）。
+標準の画像数を持つ。通信・ファイル・ログを持たない（app/core の決まり）。
 """
 
 from __future__ import annotations
@@ -173,7 +173,7 @@ def match_routine(
     `fields` は先の欄から順に（Requested Procedure Description、Scheduled Procedure
     Step Description、Body Part Examined）。先の欄で当たれば後の欄は見ない。1つの欄で
     いくつかの語が当たれば長い語、同じ長さなら欄の中で前に出てくる語のルーチン。
-    どの欄でも当たらなければ、そのモダリティの既定のルーチン。
+    どの欄でも当たらなければ、そのモダリティの標準のルーチン。
     """
     candidates = [routine for routine in routines if routine.modality == modality]
     if not candidates:

@@ -198,7 +198,7 @@ def test_exam_mpps_json_and_mpps_list(monkeypatch, capsys, tmp_path, worklist_sc
 def test_exam_mpps_failure_warns_and_retry(monkeypatch, capsys, tmp_path, worklist_scp, storage_scp) -> None:
     """MPPS を送れなくても撮影は 0。`[WARN]` を出し、`mpps retry` で送る（11.4・11.9）.
 
-    送り先は行に固定するので、落ちていた相手が同じポートで戻ってから送り直す（8.4.1）。
+    送信先は行に固定するので、落ちていた相手が同じポートで戻ってから送り直す（8.4.1）。
     """
     mpps_port = free_port()
     down = write_config(

@@ -57,7 +57,7 @@ class StoreFileResult(BaseModel):
 
 
 def echo(own_ae_title: str, node: NodeConfig, timeout_seconds: float) -> EchoResult:
-    """C-ECHO で疎通を確かめる。つながらない・Success 以外なら AssociationError."""
+    """C-ECHO で疎通を確かめる。接続できない・Success 以外なら AssociationError."""
     ae = make_ae(own_ae_title, timeout_seconds)
     ae.add_requested_context(Verification)
     started = time.monotonic()

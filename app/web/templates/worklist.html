@@ -24,14 +24,14 @@
       <input type="text" name="modality" value="{{ default_modality }}" class="input" maxlength="16">
     </label>
     <label class="field">
-      <span class="field-label">装置の AE タイトル</span>
+      <span class="field-label">装置の AEタイトル</span>
       <select name="station" class="input">
         <option value="own" selected>この装置で絞る（{{ band.own_ae }}）</option>
         <option value="any">絞らない</option>
       </select>
     </label>
     <label class="field">
-      <span class="field-label">患者 ID</span>
+      <span class="field-label">患者ID</span>
       <input type="text" name="patient_id" class="input" maxlength="64">
     </label>
     <label class="field">
@@ -44,7 +44,7 @@
     </label>
     <div class="flex items-end justify-end sm:col-span-2">
       <button type="submit" class="btn btn-outline">
-        <span class="icon icon-search" aria-hidden="true"></span>ワークリストを取得
+        <span class="icon icon-search" aria-hidden="true"></span>ワークリスト検索
       </button>
     </div>
   </form>

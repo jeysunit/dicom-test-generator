@@ -7,7 +7,7 @@ DTG（dicom-test-generator）の使い方・設計・仕様・開発の手順を
 
 | ドキュメント | 内容 |
 |--------------|------|
-| [usage.md](usage.md) | 使い方：起動、Web 画面での撮影、送信の状態と再送、保管確認（Storage Commitment）と MPPS、設定、CLI |
+| [usage.md](usage.md) | 使い方：起動、Web 画面での撮影、送信の状態と再送信、保管確認（Storage Commitment）と MPPS、設定、CLI |
 | [project_charter.md](project_charter.md) | 目的、範囲（機能の一覧）、規格に違反しないという前提と異常のデータの扱い |
 | [architecture.md](architecture.md) | 全体の構成、モジュールの依存関係、DICOM 画像の作成の流れ、エラーの扱い、依存するパッケージ、セキュリティ |
 | spec/（下の表） | 現在の動作 |

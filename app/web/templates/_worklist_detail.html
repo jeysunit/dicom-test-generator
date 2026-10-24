@@ -3,13 +3,13 @@
   {% if item_taken %}<p><span class="badge">撮影済み</span></p>{% endif %}
   <dl class="values">
     <dt>氏名</dt><dd>{{ item.patient_name|name_display or "—" }}</dd>
-    <dt>患者 ID</dt><dd class="font-mono">{{ item.patient_id }}{% if item.issuer_of_patient_id %}（{{ item.issuer_of_patient_id }}）{% endif %}</dd>
+    <dt>患者ID</dt><dd class="font-mono">{{ item.patient_id }}{% if item.issuer_of_patient_id %}（{{ item.issuer_of_patient_id }}）{% endif %}</dd>
     <dt>生年月日・性別</dt><dd>{{ item|birth_label }}</dd>
     <dt>受付番号</dt><dd class="font-mono">{{ item.accession_number or "—" }}</dd>
     <dt>Requested Procedure</dt><dd>{{ item.requested_procedure_id }} {{ item.requested_procedure_description }}</dd>
     <dt>Scheduled Procedure Step</dt><dd>{{ item.scheduled_procedure_step_id }} {{ item.scheduled_procedure_step_description }}</dd>
     <dt>予定</dt><dd>{{ item.scheduled_start_date|date_label }} {{ item.scheduled_start_time|time_label }}・{{ item.modality }}</dd>
-    <dt>予定の装置の AE タイトル</dt><dd class="font-mono">{{ item.scheduled_station_ae_title or "—" }}</dd>
+    <dt>予定の装置の AEタイトル</dt><dd class="font-mono">{{ item.scheduled_station_ae_title or "—" }}</dd>
     {# 依頼医は (0032,1032) Requesting Physician、紹介医は (0008,0090) Referring Physician's Name #}
     <dt>依頼医</dt><dd>{{ item.requesting_physician|name_display or "—" }}</dd>
     <dt>紹介医</dt><dd>{{ item.referring_physician_name|name_display or "—" }}</dd>

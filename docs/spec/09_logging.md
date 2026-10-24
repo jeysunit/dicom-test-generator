@@ -81,14 +81,14 @@ logs/
 ### 5.2 モダリティエミュレーター（`app/modality/`）
 
 通信の開始・終了・相手の Status の値・件数を INFO で記録する（C-ECHO・C-FIND・
-C-STORE・保管確認（Storage Commitment）・MPPS・送信キュー）。相手の応答が不正なとき、再送や拒否の
+C-STORE・保管確認（Storage Commitment）・MPPS・送信キュー）。相手の応答が不正なとき、再送信や拒否の
 ときは WARNING。詳細は [12_modality_emulator.md](12_modality_emulator.md) の
 13 章にある。
 
 ### 5.3 出力しない値
 
 患者の氏名・生年月日はログに出力しない（[development.md](../development.md) の
-7 章）。出力するのは、患者 ID・予約のキー・受付番号・
+7 章）。出力するのは、患者ID・予約のキー・受付番号・
 SOP Instance UID まで。表現できない文字で停止したときも、その文字はログに
 出さない（spec/06 の 7.4）。
 

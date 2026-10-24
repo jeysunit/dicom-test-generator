@@ -1,4 +1,4 @@
-"""再送の応答を待つ間は、どの [再送] も [失敗をすべて再送] も押せない（docs/spec/12a の 10.6）."""
+"""再送信の応答を待つ間は、どの [もう一度送る] も [失敗をすべて再送信] も押せない（docs/spec/12a の 10.6）."""
 
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ def test_refused_retry_all_keeps_the_table_and_shows_the_reason_above_it(client,
     _failed_jobs(client, 1)
 
     def refuse(**kwargs):
-        raise DICOMGeneratorError("送信中の件があるため、再送できません")
+        raise DICOMGeneratorError("送信中の件があるため、再送信できません")
 
     monkeypatch.setattr(client.app.state.service, "retry", refuse)
     token = csrf_token(client, "/pacs")
@@ -51,5 +51,5 @@ def test_refused_retry_all_keeps_the_table_and_shows_the_reason_above_it(client,
     refused = client.post("/pacs/retry-failed", headers=post_headers(token)).text
 
     notice = refused.split('<div id="queue-notice" hx-swap-oob="true">', 1)[1].split("</div>", 1)[0]
-    assert 'role="alert"' in notice and "送信中の件があるため、再送できません" in notice
+    assert 'role="alert"' in notice and "送信中の件があるため、再送信できません" in notice
     assert "<table" in refused

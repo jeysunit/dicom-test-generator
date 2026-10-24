@@ -7,8 +7,8 @@ profiles:
 # モダリティのダミー（docs/spec/12_modality_emulator.md の 12 章）。
 # 例は手元の住所と例の名前だけ。試験用の PACS・RIS にだけつなぐ。
 modality:
-  # 名乗る装置の一覧（AE タイトル・Station Name）。画面の情報バーで切り替える。
-  # 相手の PACS・RIS に、使う装置の AE タイトルを登録しておく。
+  # 名乗る装置の一覧（AEタイトル・Station Name）。画面の情報バーで切り替える。
+  # 相手の PACS・RIS に、使う装置の AEタイトルを登録しておく。
   # 1台だけなら、stations の代わりに ae_title・station_name だけを書いてもよい。
   stations:
     - name: "CT1"
@@ -39,7 +39,7 @@ modality:
     max_item_bytes: 262144
     max_total_bytes: 16777216
     use_mpps: false               # MPPS を送るか（docs/spec/12 の 8.4.1）
-  mpps: null                      # MPPS の送り先。null はワークリストの相手（docs/spec/12 の 12 章）
+  mpps: null                      # MPPS の送信先。null はワークリストの相手（docs/spec/12 の 12 章）
   destinations:
     - name: "PACS_TEST"
       ae_title: "PACS_TEST"
@@ -51,7 +51,7 @@ modality:
       timeout_seconds: 30
   default_destination: "PACS_TEST"
   retry:
-    max_attempts: 0               # 0 = 自動で再送しない
+    max_attempts: 0               # 0 = 自動で再送信しない
   max_images_per_exam: 2000       # 1回の撮影の合計の枚数の上限（docs/spec/12a の 10.5）
   # 撮影済みの予約の撮り直し（docs/spec/12 の 6.3）。append：同じ予約で追加撮影（同じ
   # Study に新しいシリーズ）。new_order：RIS で作った新しい予約で撮り直す

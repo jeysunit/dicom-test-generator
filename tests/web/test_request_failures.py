@@ -20,21 +20,21 @@ def client(tmp_path):
 @pytest.mark.parametrize(("reason", "expected"), [
     ("Association failed: could not connect (refused, aborted or timed out) "
      "(peer=PACS_TEST, host=127.0.0.1, port=18200)",
-     "接続できませんでした（PACS_TEST・127.0.0.1:18200）。送り先の電源とポートを確かめてください"),
+     "接続できませんでした（PACS_TEST・127.0.0.1:18200）。送信先の電源とポートを確かめてください"),
     ("Association failed: association rejected by the peer (peer=PACS_TEST, host=x, port=1)",
-     "送り先に断られました（PACS_TEST）。AE タイトルの登録を確かめてください"),
-    ("association lost", "送信の途中で接続が切れました。送り先の接続を確かめてください"),
+     "送信先に断られました（PACS_TEST）。AEタイトルの登録を確かめてください"),
+    ("association lost", "送信の途中で接続が切れました。送信先の接続を確かめてください"),
     ("no response (timed out or aborted)",
-     "送り先から応答がありませんでした。送り先の稼働状況を確かめてください"),
-    ("status 0xA700", "送り先が画像を受け付けませんでした（状態 0xA700）。送り先の記録を確かめてください"),
+     "送信先から応答がありませんでした。送信先の稼働状況を確かめてください"),
+    ("status 0xA700", "送信先が画像を受け付けませんでした（状態 0xA700）。送信先の記録を確かめてください"),
     ("unreadable file: <broken>", "送信する画像のファイルを読めませんでした。元のファイルを確かめてください"),
     ("unreadable file: /output/山田/1.dcm",
      "送信する画像のファイルを読めませんでした。元のファイルを確かめてください"),
     ("Association failed: could not connect (refused, aborted or timed out) "
      "(peer=中央_PACS, host=pacs.example.org, port=104)",
-     "接続できませんでした（中央_PACS・pacs.example.org:104）。送り先の電源とポートを確かめてください"),
-    ("相手が AE タイトル DTG_CT01 を受け付けませんでした。登録してください",
-     "相手が AE タイトル DTG_CT01 を受け付けませんでした。登録してください"),
+     "接続できませんでした（中央_PACS・pacs.example.org:104）。送信先の電源とポートを確かめてください"),
+    ("相手が AEタイトル DTG_CT01 を受け付けませんでした。登録してください",
+     "相手が AEタイトル DTG_CT01 を受け付けませんでした。登録してください"),
     ("unexpected <error> " * 100, "送信に失敗しました"),
 ])
 def test_send_error_label_and_detail(client, reason, expected) -> None:
@@ -77,6 +77,6 @@ def test_retry_remaining_failure_is_an_alert(client, monkeypatch, path, job_id) 
     notice = html.split('<div id="queue-notice" hx-swap-oob="true">', 1)[1].split("</div>")[0]
     assert 'role="alert"' in notice and "notice-error" in notice
     if job_id == 1:
-        assert "1 件を再送しましたが、まだ送信できていません（送信完了 0 件・送信失敗 1 件）" in notice
+        assert "1 件を再送信しましたが、まだ送信できていません（送信完了 0 件・送信失敗 1 件）" in notice
     else:
-        assert "ジョブ 2 として再送しました（送信失敗）" in notice
+        assert "ジョブ 2 として再送信しました（送信失敗）" in notice

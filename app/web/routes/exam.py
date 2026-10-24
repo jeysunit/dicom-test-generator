@@ -294,11 +294,11 @@ def exam_run(
 
 @router.post("/exam/send", response_class=HTMLResponse)
 def exam_send(request: Request, output_dir: FormStr = "") -> HTMLResponse:
-    """撮った後の [送信]・[もう一度送信]。フォルダは出力の根の中だけを受ける（6.5）."""
+    """撮った後の [送信]・[もう一度送る]。フォルダは出力の根の中だけを受ける（6.5）."""
     send_result, send_error = _send(service_of(request), output_dir)
     if send_result is None:
         return render(request, "_notice.html", error=send_error)
-    # 結果の下に [もう一度送信] を出す。送るたびに新しい件になる（docs/spec/12 の 8.2）
+    # 結果の下に [もう一度送る] を出す。送るたびに新しい件になる（docs/spec/12 の 8.2）
     return render(request, "_send_outcome.html", send=send_result, output_dir=output_dir)
 
 
@@ -364,7 +364,7 @@ def _series_request(
         counts = [int(value) for value in routine_images]
     except ValueError as exc:
         raise ConfigurationError("画像数は整数で入れてください") from exc
-    # 行の欄が無い要求（スクリプトの routine=auto など）は、ルーチンの全部を既定の数で撮る。
+    # 行の欄が無い要求（スクリプトの routine=auto など）は、ルーチンの全部を標準の数で撮る。
     # 画面は最後の1行を外せない
     return {"routine": routine, "routine_series": keep or None, "routine_images": counts or None}
 

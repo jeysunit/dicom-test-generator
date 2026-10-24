@@ -3,7 +3,7 @@ schema: spec-driven
 context: |
   成果物（proposal・specs・design・tasks）は日本語で書く。
   DTG（DICOM Test Data Generator）は、架空の患者の架空の検査の DICOM 画像を作成し、フォルダに書き出すテスト用のツール。
-  補助の機能として、RIS からワークリストを取得して画像を作成し、PACS へ送信する（モダリティの機能）。
+  補助の機能として、RIS からワークリストを検索して画像を作成し、PACS へ送信する（モダリティの機能）。
 
 # Project context (optional)
 # Add only constraints that should guide OpenSpec artifacts and workflows.

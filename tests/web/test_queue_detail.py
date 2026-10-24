@@ -34,7 +34,7 @@ def test_detail_popover_keeps_the_three_items(client) -> None:
     html = _queue_with_jobs(client, 1)
 
     detail = html.split('<div id="job-detail-1" popover', 1)[1].split("</div>", 1)[0]
-    for label in ("元のファイル", "試行回数", "名乗る AE タイトル"):
+    for label in ("元のファイル", "試行回数", "名乗る AEタイトル"):
         assert f"<dt>{label}</dt>" in detail
 
 

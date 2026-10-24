@@ -74,14 +74,14 @@ class MppsRecord(BaseModel):
     set_sent: bool
     attempts: int
     last_error: str
-    # 送り先は行に固定する（8.4.1）
+    # 送信先は行に固定する（8.4.1）
     peer_ae_title: str
     peer_host: str
     peer_port: int
     # 前に送って「応答なし」で終わったか（届いていたかもしれない。8.4.1）
     create_no_response: bool
     set_no_response: bool
-    # 撮影したときの装置の AE タイトル。送り直しもこの AE タイトルで送る（8.4.1）
+    # 撮影したときの装置の AEタイトル。送り直しもこの AEタイトルで送る（8.4.1）
     calling_ae_title: str = ""
 
     @property
@@ -92,7 +92,7 @@ class MppsRecord(BaseModel):
 
 class MppsQueue:
     def __init__(self, db_path: Path, legacy_ae_title: str = "") -> None:
-        """`legacy_ae_title` は、AE タイトルの列が無い前の版の行に入れる AE タイトル."""
+        """`legacy_ae_title` は、AEタイトルの列が無い前の版の行に入れる AEタイトル."""
         self._db_path = db_path
         try:
             db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -100,7 +100,7 @@ class MppsQueue:
                 conn.execute(_SCHEMA)
                 columns = {row[1] for row in conn.execute("PRAGMA table_info(mpps)")}
                 if "calling_ae_title" not in columns:
-                    # 装置を切り替えられる前の版に足す。前の行は今の装置の AE タイトル
+                    # 装置を切り替えられる前の版に足す。前の行は今の装置の AEタイトル
                     conn.execute(
                         "ALTER TABLE mpps ADD COLUMN calling_ae_title TEXT NOT NULL DEFAULT ''"
                     )
@@ -119,9 +119,9 @@ class MppsQueue:
         peer: tuple[str, str, int],
         calling_ae_title: str = "",
     ) -> int:
-        """N-CREATE の知らせを入れる。`peer` は（AE タイトル, 住所, ポート）で、行に固定する.
+        """N-CREATE の知らせを入れる。`peer` は（AEタイトル, 住所, ポート）で、行に固定する.
 
-        `calling_ae_title`（撮影した装置の AE タイトル）も行に固定する。
+        `calling_ae_title`（撮影した装置の AEタイトル）も行に固定する。
         """
         now = _now()
         ae_title, host, port = peer

@@ -78,7 +78,7 @@ def test_switching_during_an_exam_is_refused(tmp_path, worklist_scp, storage_scp
 
 
 def test_queue_details_show_the_calling_ae_title(tmp_path, worklist_scp, storage_scp) -> None:
-    """再送で名乗る AE タイトルを、送信ジョブの詳細に出す（docs/spec/12a の 10.6）."""
+    """再送信で名乗る AEタイトルを、送信ジョブの詳細に出す（docs/spec/12a の 10.6）."""
     from app.core.models import ScheduledPatient
     from app.modality.service import ExamRequest
 
@@ -94,7 +94,7 @@ def test_queue_details_show_the_calling_ae_title(tmp_path, worklist_scp, storage
 
     html = client.get("/pacs/queue").text
 
-    assert '<dt>名乗る AE タイトル</dt><dd class="font-mono">DTG_CT01</dd>' in html
+    assert '<dt>名乗る AEタイトル</dt><dd class="font-mono">DTG_CT01</dd>' in html
 
 
 def test_settings_lists_the_stations_and_registration(tmp_path, worklist_scp, storage_scp) -> None:
@@ -102,7 +102,7 @@ def test_settings_lists_the_stations_and_registration(tmp_path, worklist_scp, st
 
     html = client.get("/settings").text
 
-    assert "CT1号機（既定・使用中）" in html
+    assert "CT1号機（標準・使用中）" in html
     assert "MR1号機</dt>" in html
     assert "DTG_MR01" in html
     assert "相手の側に登録してください" in html

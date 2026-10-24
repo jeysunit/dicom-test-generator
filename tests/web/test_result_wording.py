@@ -71,7 +71,7 @@ def test_pacs_job_table_shows_patient_not_folder(client) -> None:
     queue = client.get("/pacs/queue").text
 
     head = queue.split("</thead>", 1)[0]
-    for column in ("患者 ID", "氏名", "検査日時", "送信先", "画像数", "状態", "受付日時", "完了日時"):
+    for column in ("患者ID", "氏名", "検査日時", "送信先", "画像数", "状態", "受付日時", "完了日時"):
         assert f">{column}<" in head
     assert "出力先フォルダ" not in queue
     body = queue.split("<tbody>", 1)[1]

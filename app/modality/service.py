@@ -152,7 +152,7 @@ def _throttled(touch: Callable[[], None] | None) -> Callable[[int, int], None] |
 
 
 def _read_job_summary(folder: Path) -> tuple[str, str, str, str, str]:
-    """フォルダの最初の画像から（患者 ID・氏名・検査日時・受付番号・File Meta の Source
+    """フォルダの最初の画像から（患者ID・氏名・検査日時・受付番号・File Meta の Source
     Application Entity Title）を読む。読めなければ空."""
     try:
         first = next(
@@ -204,7 +204,7 @@ class ExamRequest(BaseModel):
     # 撮影済みの予約での追加撮影（IHE の Append Case。docs/spec/12 の 6.3・ADR-0024）
     append: bool = False
     # 撮影のルーチン（ADR-0025）。None は手で入れた images_per_series で撮る。"auto" は
-    # 予約の検査の記述と部位に当てたルーチン。ほかはルーチンの名前
+    # 予約の検査名と部位に当てたルーチン。ほかはルーチンの名前
     routine: str | None = None
     # ルーチンのうち撮るシリーズの位置（0 始まり）と、その画像数。無ければ全部・既定の数
     routine_series: list[int] | None = None
@@ -295,7 +295,7 @@ class ModalityService:
     @property
     def queue(self) -> SendQueue:
         if self._queue is None:
-            # AE タイトルの列が無い前の版の行は、既定の装置の AE タイトルで埋める
+            # AEタイトルの列が無い前の版の行は、標準の装置の AEタイトルで埋める
             self._queue = SendQueue(self._state_dir / QUEUE_DB_NAME, self.config.ae_title)
         return self._queue
 
@@ -308,7 +308,7 @@ class ModalityService:
     # --- 装置（docs/spec/12 の 12 章・ADR-0023） --------------------------
 
     def current_station(self) -> StationConfig:
-        """いま名乗る装置：`--station`、無ければ記録した装置、無ければ既定の装置."""
+        """いま名乗る装置：`--station`、無ければ記録した装置、無ければ標準の装置."""
         if self._station_override is not None:
             return self.config.station(self._station_override)
         recorded = self._recorded_station_name()
@@ -317,7 +317,7 @@ class ModalityService:
         return self.config.station()
 
     def station_notice(self) -> str:
-        """記録した装置が設定に無くなって、既定の装置に戻したときの知らせ。無ければ空."""
+        """記録した装置が設定に無くなって、標準の装置に戻したときの知らせ。無ければ空."""
         if self._station_override is not None:
             return ""
         recorded = self._recorded_station_name()
@@ -325,7 +325,7 @@ class ModalityService:
             return ""
         return (
             f"前に選んだ装置（{recorded}）は設定にありません。"
-            f"既定の装置（{self.config.default_station}）を使います"
+            f"標準の装置（{self.config.default_station}）を使います"
         )
 
     def select_station(self, name: str) -> StationConfig:
@@ -360,7 +360,7 @@ class ModalityService:
         return any(destination.storage_commitment for destination in self.config.destinations)
 
     def start_commitment_listener(self) -> CommitmentListener | None:
-        """待ち受けを立てる。保管の確認を使う送り先が無ければ立てずに None（8.3）."""
+        """待ち受けを立てる。保管の確認を使う送信先が無ければ立てずに None（8.3）."""
         if not self.uses_commitment():
             return None
         listener = self._new_listener()
@@ -369,7 +369,7 @@ class ModalityService:
 
     def _new_listener(self) -> CommitmentListener:
         listen = self.config.listen
-        # 切り替えた後に届く前の装置あての結果も受ける（設定の装置の AE タイトルの全部）
+        # 切り替えた後に届く前の装置あての結果も受ける（設定の装置の AEタイトルの全部）
         return CommitmentListener(
             [station.ae_title for station in self.config.stations],
             listen.bind_address,
@@ -390,7 +390,7 @@ class ModalityService:
         return self.current_station().ae_title
 
     def _job_ae_title(self, job_id: int) -> str:
-        """件を作った装置の AE タイトル。記録が無ければいまの装置."""
+        """件を作った装置の AEタイトル。記録が無ければいまの装置."""
         return self.queue.get_job(job_id).calling_ae_title or self.current_station().ae_title
 
     def commit_and_wait(self, job_id: int, wait_seconds: float | None = None) -> CommitmentState:
@@ -411,7 +411,7 @@ class ModalityService:
         return state
 
     def _commitment_node(self, job_id: int) -> DestinationConfig:
-        """保管の確認を求めてよい件かを確かめ、送り先を返す."""
+        """保管の確認を求めてよい件かを確かめ、送信先を返す."""
         job = self.queue.get_job(job_id)
         node = self.config.destination(job.destination)
         if not node.storage_commitment:
@@ -485,7 +485,7 @@ class ModalityService:
         return records
 
     def _mpps(self, station: StationConfig | None = None) -> MppsManager:
-        """`station` は撮影する装置。送り直しは行に記録した AE タイトルで送る（8.4.1）."""
+        """`station` は撮影する装置。送り直しは行に記録した AEタイトルで送る（8.4.1）."""
         station = station or self.current_station()
         return MppsManager(
             station.ae_title,
@@ -512,7 +512,7 @@ class ModalityService:
     # --- ワークリスト ---------------------------------------------------
 
     def default_query(self, today: date) -> WorklistQuery:
-        """既定の条件：今日・テンプレートのモダリティ・自分の AE タイトル（5.1）."""
+        """初期設定の条件：今日・テンプレートのモダリティ・自分の AEタイトル（5.1）."""
         value = today.strftime("%Y%m%d")
         return WorklistQuery(
             date_range=f"{value}-{value}",
@@ -628,7 +628,7 @@ class ModalityService:
     # --- 撮影のルーチン（ADR-0025） ----------------------------------------
 
     def routines(self, modality: str) -> list[Routine]:
-        """モダリティのルーチン（画面の選択肢の順：既定を先に、ほかは名前の順）."""
+        """モダリティのルーチン（画面の選択肢の順：標準を先に、ほかは名前の順）."""
         found = [r for r in self._routine_loader.list_routines() if r.modality == modality]
         return sorted(found, key=lambda routine: (not routine.default, routine.name))
 
@@ -636,9 +636,9 @@ class ModalityService:
         return self._routine_loader.get(name)
 
     def matched_routine(self, item: WorklistItem | None, template_modality: str) -> Routine:
-        """予約に当てるルーチン。緊急の患者（予約なし）はテンプレートのモダリティの既定.
+        """予約に当てるルーチン。緊急の患者（予約なし）はテンプレートのモダリティの標準.
 
-        予約の検査の記述（Requested Procedure Description、次に Scheduled Procedure Step
+        予約の検査名（Requested Procedure Description、次に Scheduled Procedure Step
         Description）と部位（Body Part Examined）に見出しの言葉を照らす。予約の
         モダリティが空なら、テンプレートのモダリティのルーチンから当てる。
         """
@@ -935,8 +935,8 @@ class ModalityService:
     ) -> SendResult:
         """フォルダの *.dcm を待ち行列に1件入れ、すぐに送る（8.2）.
 
-        名乗る AE タイトル（件に記録する）は、`calling_ae_title`、無ければ画像を作った
-        装置（画像の Source AE Title が設定の装置のどれかなら、その AE タイトル）、それも
+        名乗る AEタイトル（件に記録する）は、`calling_ae_title`、無ければ画像を作った
+        装置（画像の Source AE Title が設定の装置のどれかなら、その AEタイトル）、それも
         無ければいまの装置。撮った後に切り替えても、画像と送信の名乗りをそろえるため。
         """
         node = self.config.destination(destination)
@@ -1001,7 +1001,7 @@ class ModalityService:
         return results
 
     def list_queue(self, status: str | None = None) -> list[QueueJob]:
-        """送信ジョブの一覧。患者 ID・氏名・検査日時は、元のファイルの先頭から読んで足す."""
+        """送信ジョブの一覧。患者ID・氏名・検査日時は、元のファイルの先頭から読んで足す."""
         return [self._with_summary(job) for job in self.queue.list_jobs(status)]
 
     def _with_summary(self, job: QueueJob) -> QueueJob:
@@ -1032,7 +1032,7 @@ class ModalityService:
         for _attempt in range(attempts):
             token = self.queue.mark_sending(job_id)
             try:
-                # 再送でも確かめる。入れた後にファイルが替えられても送らない（8.2）
+                # 再送信でも確かめる。入れた後にファイルが替えられても送らない（8.2）
                 check_send_files(Path(job.folder), [str(path) for path in pending])
             except FileReadError as exc:
                 error = str(exc)
@@ -1041,7 +1041,7 @@ class ModalityService:
                 break
             try:
                 results = store_files(
-                    # 件を作ったときの装置の AE タイトルで名乗る（切り替えた後の再送も同じ）
+                    # 件を作ったときの装置の AEタイトルで名乗る（切り替えた後の再送信も同じ）
                     job.calling_ae_title or self.current_station().ae_title,
                     node,
                     pending,
