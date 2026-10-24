@@ -27,6 +27,17 @@ _SENDABLE_STATUSES: tuple[str, ...] = ("pending", "failed")
 _SENDABLE_PLACEHOLDERS = ", ".join("?" for _ in _SENDABLE_STATUSES)
 
 _SCHEMA = (
+    # 緊急の撮影の Study と仮の患者（追加撮影で引き継ぐ値）
+    """
+    CREATE TABLE IF NOT EXISTS emergency_exams (
+        study_instance_uid TEXT PRIMARY KEY,
+        study_id TEXT NOT NULL,
+        patient_id TEXT NOT NULL,
+        patient_name TEXT NOT NULL,
+        birth_date TEXT NOT NULL,
+        sex TEXT NOT NULL
+    )
+    """,
     """
     CREATE TABLE IF NOT EXISTS jobs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -155,6 +166,19 @@ class QueueJob(BaseModel):
     patient_id: str = ""
     patient_name: str = ""
     study_datetime: str = ""
+
+
+class EmergencyExamRecord(BaseModel):
+    """緊急の撮影の Study と仮の患者。追加撮影でも同じ値を使う."""
+
+    model_config = {"frozen": True}
+
+    study_instance_uid: str
+    study_id: str
+    patient_id: str
+    patient_name: str
+    birth_date: str
+    sex: str
 
 
 class ExamRecord(BaseModel):
@@ -462,6 +486,24 @@ class SendQueue:
             rows = conn.execute("SELECT worklist_key FROM exam_records").fetchall()
         return {str(row[0]) for row in rows}
 
+    def emergency_exam(self, study_instance_uid: str) -> EmergencyExamRecord | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT study_instance_uid, study_id, patient_id, patient_name, birth_date, sex"
+                " FROM emergency_exams WHERE study_instance_uid = ?",
+                (study_instance_uid,),
+            ).fetchone()
+        if row is None:
+            return None
+        return EmergencyExamRecord(
+            study_instance_uid=row[0],
+            study_id=row[1],
+            patient_id=row[2],
+            patient_name=row[3],
+            birth_date=row[4],
+            sex=row[5],
+        )
+
     def record_exam(
         self,
         worklist_key: str,
@@ -471,14 +513,27 @@ class SendQueue:
         study_description: str,
         series_count: int,
         series_numbers: list[tuple[int, bool]] | None = None,
+        emergency: EmergencyExamRecord | None = None,
     ) -> None:
         """撮影を終えた予約を記録する。2回目以降（追加撮影）はシリーズの数だけ足す.
 
         前の版から移した記録（日時が空）は、移した後の最初の撮影の日時・説明で埋め、
         その後の追加撮影をそろえる。`series_numbers`（使った番号と、書いた番号か）は
         前の記録の後ろに足す。無ければ、続きの自動の番号を使ったとみなす。
+        `emergency` があれば、緊急の患者の値も同じトランザクションで残す。
         """
         with self._connect() as conn:
+            if emergency is not None:
+                # Study の値と仮の患者を一緒に残す。追加撮影では最初の値を変えない
+                conn.execute(
+                    "INSERT OR IGNORE INTO emergency_exams"
+                    " (study_instance_uid, study_id, patient_id, patient_name, birth_date, sex)"
+                    " VALUES (?, ?, ?, ?, ?, ?)",
+                    (
+                        emergency.study_instance_uid, emergency.study_id, emergency.patient_id,
+                        emergency.patient_name, emergency.birth_date, emergency.sex,
+                    ),
+                )
             row = conn.execute(
                 "SELECT series_count FROM exam_records WHERE worklist_key = ?", (worklist_key,)
             ).fetchone()

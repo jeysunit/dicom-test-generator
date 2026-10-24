@@ -374,6 +374,27 @@ Scheduled Station AE Title (0040,0001) は画像に転記する属性ではな�
     予約は、ほかで撮影しています。終わってから撮ってください」）。撮影の間は札の時刻を
     1 分ごとに進め、30 分より長く進まない札は、撮影の処理が落ちたとみなして取り直す。
     札は持ち主だけが戻す（取り直された札は消さない）
+- **緊急の患者の追加撮影は、前の撮影の Study Instance UID を CLI で指定したときだけ
+  受ける**（[ADR-0027](../decisions/0027-emergency-append.md)。IHE PIR の Case 6 を
+  試すため）
+  - 書き終えた緊急の撮影は、Study Instance UID を鍵に、Study ID と患者の値（患者ID・
+    氏名・生年月日・性別）を状態の保存先の SQLite に記録する。Study の日時・説明と
+    シリーズの番号は、予約の撮影と同じ記録に `emergency:<Study Instance UID>` の鍵で
+    残す。止まった撮影は記録しない。緊急の撮影は、MPPS を使わないときも、画像を作る
+    前に Study Instance UID を作る
+  - `exam --emergency --append --study-uid <UID>` で撮る。記録に無い UID、記録と違う
+    患者ID か氏名は、撮らずに断る（`ValidationError`。終了コード 4）。生年月日と性別は
+    記録の値を使う
+  - Study Instance UID・Study ID・患者の値は前の撮影のまま、受付番号は空のまま、
+    シリーズは新しい Series Instance UID で作る。Study の日時・説明と Series Number は、
+    予約の追加撮影と同じ決まりにする。MPPS を使うときは、新しい MPPS の SOP Instance
+    で N-CREATE と N-SET を送る（Scheduled Step Attributes Sequence の Study Instance
+    UID は前の撮影の値、受付番号は空）
+  - 同じ緊急の Study を別のプロセスが同時に撮らないよう、`emergency:<Study Instance
+    UID>` の札で守る（文言は予約の撮影と同じ）
+  - 画面には Study Instance UID を指定する欄が無い。画面と、`--study-uid` の無い
+    緊急の患者の追加撮影は「緊急の患者（予約なし）では追加撮影はできません」と断る
+    （CLI で `--study-uid` を省くと終了コード 2）
 
 ### 6.4 MPPS に転記する値
 
