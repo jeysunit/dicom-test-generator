@@ -123,7 +123,7 @@ CLI の `generate`・`quick` は、`GenerationConfig` を組み立てて
 `ModalityService.exam` を経由する。`ModalityService.exam` は、撮影の依頼から
 `GenerationConfig` を、予約から予約の値（`ScheduledContext`）を作り、MPPS が
 有効なら撮影の開始を通知してから、両方を `generate` に渡す。終わったら撮影の終了
-（失敗したときは中止）を通知する。送信は、Web 画面では「撮影して送る」のボタン、
+（失敗したときは中止）を通知する。送信は、Web 画面では「撮影して送信」のボタン、
 CLI では `exam --send` のときに行う（撮影の後に送信だけを行うこともできる）。
 
 `StudyGeneratorService.generate` は、次の順に処理する。UID・File Meta・Dataset・

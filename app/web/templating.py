@@ -35,6 +35,7 @@ def create_environment() -> Environment:
         lstrip_blocks=True,
     )
     env.filters["name_parts"] = display.name_parts
+    env.filters["name_display"] = display.name_display
     env.filters["birth_label"] = display.birth_label
     env.filters["time_label"] = display.time_label
     env.filters["date_label"] = display.date_label
