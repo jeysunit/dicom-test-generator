@@ -35,7 +35,7 @@
           <td class="hidden whitespace-nowrap sm:table-cell">{{ kind_label }}</td>
           <td>
             <input type="hidden" name="routine_series" value="{{ loop.index0 }}">
-            <input type="number" name="routine_images" value="{{ series.images }}" min="1" max="{{ max_images_per_series }}" class="input w-20 sm:w-24" required aria-label="{{ series.description }} の画像数">
+            <input type="number" name="routine_images" value="{{ series.images }}" min="1" max="{{ max_images_per_series }}" class="input w-20 sm:w-24" required aria-label="{{ series.description }} の画像数" data-count-label="{{ series.description }} の画像数">
           </td>
           <td><button type="button" class="btn btn-outline" data-remove-series data-description="{{ series.description }}" aria-label="{{ series.description }} を外す"{% if one_row %} aria-disabled="true" aria-describedby="last-series-note" title="最後の1行は外せません"{% endif %}>外す</button></td>
         </tr>
@@ -46,11 +46,11 @@
   {% else %}
   <label class="field">
     <span class="field-label">シリーズ数 <span class="badge text-danger">必須</span></span>
-    <input type="number" name="series" value="1" min="1" max="99" class="input" required aria-required="true" data-series-count>
+    <input type="number" name="series" value="1" min="1" max="99" class="input" required aria-required="true" data-series-count data-count-label="シリーズ数">
   </label>
   <label class="field">
     <span class="field-label">画像数（シリーズごと。例 1,20） <span class="badge text-danger">必須</span></span>
-    <input type="text" name="images" value="1" class="input" required aria-required="true" data-images-list>
+    <input type="text" name="images" value="1" class="input" required aria-required="true" data-images-list data-count-label="画像数">
   </label>
   <p class="text-xs text-label sm:col-span-3">シリーズ数を変えると、画像数をシリーズごとに同じ数で自動入力します（画像数を手で直した後は上書きしません）。</p>
   {% endif %}

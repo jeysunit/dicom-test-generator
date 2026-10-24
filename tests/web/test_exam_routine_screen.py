@@ -31,6 +31,20 @@ def test_exam_page_selects_the_matched_routine(client) -> None:
     assert "mr_head" not in select
 
 
+def test_count_fields_carry_the_label_for_japanese_validation(client) -> None:
+    """数の欄の検証の文言は app.js が日本語で出す。欄の名前を data-count-label に置く（#52）."""
+    key = key_for(query_worklist(client), "A0001")
+    html = client.get(f"/exam?key={key}").text
+    manual = client.get("/exam/routine?template=ct_generic&routine=manual").text
+
+    assert 'aria-label="Scout の画像数" data-count-label="Scout の画像数"' in html
+    assert 'name="series"' in manual and 'data-count-label="シリーズ数"' in manual
+    assert 'data-images-list data-count-label="画像数"' in manual
+    script = client.get("/static/app.js").text
+    assert '"invalid"' in script and "setCustomValidity" in script
+    assert "で入れてください" in script
+
+
 def test_head_order_selects_the_head_routine(client) -> None:
     key = key_for(query_worklist(client), "A0002")  # 頭部 CT
 

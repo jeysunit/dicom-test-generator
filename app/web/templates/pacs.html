@@ -37,7 +37,8 @@
 <section class="panel">
   <div class="mb-4 flex flex-wrap items-center gap-3">
     <h2 class="panel-title mb-0">送信ジョブと履歴</h2>
-    <button type="button" class="btn btn-outline ml-auto" hx-post="/pacs/retry-failed" hx-target="#queue" hx-disabled-elt="this">
+    {# 再送の応答を待つ間は、どの行の [再送] も [失敗をすべて再送] も押せない（10.6） #}
+    <button type="button" id="retry-failed" class="btn btn-outline ml-auto" hx-post="/pacs/retry-failed" hx-target="#queue" hx-disabled-elt="#queue [data-resend], #retry-failed">
       <span class="icon icon-refresh-cw" aria-hidden="true"></span>失敗をすべて再送
     </button>
   </div>

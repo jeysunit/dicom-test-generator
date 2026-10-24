@@ -294,11 +294,11 @@ def exam_run(
 
 @router.post("/exam/send", response_class=HTMLResponse)
 def exam_send(request: Request, output_dir: FormStr = "") -> HTMLResponse:
-    """撮った後の [送る]・[もう一度送る]。フォルダは出力の根の中だけを受ける（6.5）."""
+    """撮った後の [送信]・[もう一度送信]。フォルダは出力の根の中だけを受ける（6.5）."""
     send_result, send_error = _send(service_of(request), output_dir)
     if send_result is None:
         return render(request, "_notice.html", error=send_error)
-    # 結果の下に [もう一度送る] を出す。送るたびに新しい件になる（docs/spec/12 の 8.2）
+    # 結果の下に [もう一度送信] を出す。送るたびに新しい件になる（docs/spec/12 の 8.2）
     return render(request, "_send_outcome.html", send=send_result, output_dir=output_dir)
 
 
