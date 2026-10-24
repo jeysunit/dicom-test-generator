@@ -8,8 +8,13 @@
 <section class="panel">
   <h2 class="panel-title">自分</h2>
   <dl class="values">
-    <dt>AE タイトル</dt><dd class="font-mono">{{ config.ae_title }}</dd>
-    <dt>Station Name</dt><dd>{{ config.station_name or "—" }}</dd>
+    {% for station in config.stations %}
+    {% set marks = [] %}
+    {% if station.name == config.default_station %}{% set marks = marks + ["既定"] %}{% endif %}
+    {% if station.name == band.station_name %}{% set marks = marks + ["使用中"] %}{% endif %}
+    <dt>{{ station.name }}{% if marks %}（{{ marks|join("・") }}）{% endif %}</dt>
+    <dd><span class="font-mono">{{ station.ae_title }}</span>・Station Name {{ station.station_name or "—" }}</dd>
+    {% endfor %}
     <dt>保管の確認の待ち受け</dt><dd class="font-mono">{{ config.listen.bind_address }}:{{ config.listen.port }}</dd>
     <dt>画面の待ち受け</dt><dd class="font-mono">{{ web.bind_address }}:{{ web.port }}</dd>
   </dl>
@@ -31,7 +36,7 @@
     <dd class="font-mono">{{ destination.ae_title }} {{ destination.host }}:{{ destination.port }}・保管の確認 {% if destination.storage_commitment %}使う（結果を待つ {{ "%g"|format(destination.commitment_timeout_seconds) }} 秒・同じ Association で待つ {{ "%g"|format(destination.commitment_wait_seconds) }} 秒）{% else %}使わない{% endif %}</dd>
     {% endfor %}
   </dl>
-  <p class="mt-4 text-xs text-label">Orthanc で保管の確認を使うときは、このツールを Orthanc の <code>DicomModalities</code> に登録してください（AE タイトル {{ config.ae_title }}・IP アドレス・待ち受けのポート {{ config.listen.port }}）。</p>
+  <p class="mt-4 text-xs text-label">PACS・RIS は、登録していない AE タイトルからの要求を断ることがあります。使う装置の AE タイトル（{% for station in config.stations %}{{ station.ae_title }}{% if not loop.last %}・{% endif %}{% endfor %}）を、相手の側に登録してください。Orthanc で保管の確認を使うときは <code>DicomModalities</code> に、AE タイトル・IP アドレス・待ち受けのポート {{ config.listen.port }} を登録します。</p>
 </section>
 <section class="panel">
   <h2 class="panel-title">文字コードと撮影</h2>

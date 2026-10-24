@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest
 from web_helpers import OWN_AE, csrf_token, post_headers
 from web_helpers import key_for as _key_for
@@ -68,6 +70,53 @@ def test_worklist_bad_date_is_shown_as_error(client) -> None:
     assert 'role="alert"' in html
 
 
+def test_station_filter_is_labeled_as_the_device_ae_title(client, worklist_scp) -> None:
+    """(0040,0001) の絞り込みだと分かる言葉で示す（docs/spec/12a の 10.4）."""
+    page = client.get("/worklist").text
+    assert "装置の AE タイトル" in page
+    assert f"この装置で絞る（{OWN_AE}）" in page
+    assert ">予定の AE<" not in page
+
+    _query(client)  # 既定は「この装置で絞る」
+    sps = worklist_scp.queries[-1].ScheduledProcedureStepSequence[0]
+    assert sps.ScheduledStationAETitle == OWN_AE
+
+    _query(client, station="any")
+    sps = worklist_scp.queries[-1].ScheduledProcedureStepSequence[0]
+    assert sps.ScheduledStationAETitle == ""
+
+
+def test_detail_shows_the_scheduled_station_ae_title_on_its_own_row(client) -> None:
+    key = _key_for(_query(client, station="any", modality=""), "A0003")
+
+    detail = client.get(f"/worklist/item/{key}").text
+
+    row = detail.split("<dt>予定の装置の AE タイトル</dt>", 1)[1].split("</dd>", 1)[0]
+    assert "DTG_MR01" in row
+    schedule = detail.split("<dt>予定</dt>", 1)[1].split("</dd>", 1)[0]
+    assert "DTG_MR01" not in schedule
+
+
+def _detail_row(html: str, label: str) -> str:
+    return html.split(f"<dt>{label}</dt><dd>", 1)[1].split("</dd>", 1)[0]
+
+
+def test_detail_shows_requesting_and_referring_physicians(client, worklist_scp) -> None:
+    """依頼医 (0032,1032) と紹介医 (0008,0090) を別の行に出す（docs/spec/12a の 10.4）."""
+    item = dict(worklist_scp.items[0])
+    item["requesting_physician"] = "SATO^ICHIRO"
+    item["referring_physician_name"] = "SUZUKI^HANAKO"
+    worklist_scp.items = [item, *worklist_scp.items[1:]]
+    html = _query(client)
+
+    detail = client.get(f"/worklist/item/{_key_for(html, 'A0001')}").text
+    assert _detail_row(detail, "依頼医") == "SATO ICHIRO"
+    assert _detail_row(detail, "紹介医") == "SUZUKI HANAKO"
+
+    other = client.get(f"/worklist/item/{_key_for(html, 'A0002')}").text
+    assert _detail_row(other, "依頼医") == "—"  # 応答に無い
+
+
 def test_worklist_detail_and_refresh(client, worklist_scp) -> None:
     html = _query(client)
     key = _key_for(html, "A0001")
@@ -127,7 +176,9 @@ def test_exam_check_partial_follows_profile_choice(client) -> None:
 def test_unknown_worklist_key_on_exam_page(client) -> None:
     html = client.get("/exam?key=0000000000").text
     assert 'role="alert"' in html
-    assert "0000000000" in html
+    # 内部の予約の鍵は出さず、次の操作を日本語で知らせる（docs/spec/12a の 10.4）
+    assert "0000000000" not in html
+    assert "「ワークリストを取得」からやり直してください" in html
 
 
 def test_emergency_form_validation_error_is_shown(client) -> None:
@@ -162,6 +213,147 @@ def test_template_name_from_the_form_is_not_a_path(client) -> None:
     html = client.get("/exam/check", params={"template": "../../config/app_config"}).text
     assert "disabled" in html
     assert "app_config.yaml" not in html
+
+
+REFRESH_BUTTON = 'hx-post="/worklist/refresh"'
+
+
+def _refresh_button(html: str) -> str:
+    start = html.rfind("<button", 0, html.index(REFRESH_BUTTON))
+    return html[start : html.index(">", html.index(REFRESH_BUTTON)) + 1]
+
+
+def _is_disabled(button: str) -> bool:
+    return re.search(r'\sdisabled[\s>]', button) is not None
+
+
+def test_refresh_button_waits_for_a_selected_row(client, worklist_scp) -> None:
+    """行を選ぶまで「取得し直す」は押せない（docs/spec/12a の 10.4）."""
+    html = _query(client)
+    button = _refresh_button(html)
+    assert _is_disabled(button)
+    assert 'title="行を選ぶと押せます"' in button
+    assert 'hx-disabled-elt="this"' in button  # 通信の間も押せない
+
+    key = _key_for(html, "A0001")
+    token = csrf_token(client)
+    refreshed = client.post("/worklist/refresh", data={"key": key}, headers=post_headers(token))
+    # 取得し直した後は、選んだ行に印があるので押せる
+    assert not _is_disabled(_refresh_button(refreshed.text))
+
+    unknown = client.post(
+        "/worklist/refresh", data={"key": "0000000000"}, headers=post_headers(token)
+    )
+    # 一覧に無い鍵では、どの行にも印が無いので押せない
+    assert _is_disabled(_refresh_button(unknown.text))
+
+
+def test_refresh_also_replaces_the_open_detail(client, worklist_scp) -> None:
+    """取得し直したら、開いている詳細も新しい値にする（docs/spec/12a の 10.4）."""
+    html = _query(client)
+    assert '<section id="detail" hx-swap-oob="true"></section>' in html  # 取得し直しで閉じる
+
+    key = _key_for(html, "A0001")
+    worklist_scp.items[0]["requested_procedure_description"] = "胸部 CT（直した）"
+    token = csrf_token(client)
+    refreshed = client.post("/worklist/refresh", data={"key": key}, headers=post_headers(token))
+
+    detail = refreshed.text.split('<section id="detail" hx-swap-oob="true">', 1)[1]
+    detail = detail.split("</section>", 1)[0]
+    assert "予約の詳細" in detail and "胸部 CT（直した）" in detail
+
+
+def test_refresh_without_a_key_does_not_query(client, worklist_scp) -> None:
+    _query(client)
+    queries = len(worklist_scp.queries)
+    token = csrf_token(client)
+
+    html = client.post("/worklist/refresh", data={}, headers=post_headers(token)).text
+
+    assert len(worklist_scp.queries) == queries
+    assert "予約を選んでから「取得し直す」を押してください" in html
+    assert "worklist_key" not in html and "worklist query" not in html
+    assert "A0001" in html  # 一覧は残す
+
+
+def test_refresh_of_an_unknown_key_is_told_in_japanese(client) -> None:
+    _query(client)
+    token = csrf_token(client)
+
+    html = client.post(
+        "/worklist/refresh", data={"key": "0000000000"}, headers=post_headers(token)
+    ).text
+
+    assert (
+        "この予約は最後に取得した一覧にありません。「ワークリストを取得」からやり直してください"
+        in html
+    )
+    assert "worklist_key" not in html and "worklist query" not in html
+
+
+def test_refresh_of_a_removed_item_keeps_the_row(client, worklist_scp) -> None:
+    key = _key_for(_query(client), "A0001")
+    worklist_scp.items = []
+    token = csrf_token(client)
+
+    html = client.post("/worklist/refresh", data={"key": key}, headers=post_headers(token)).text
+
+    assert (
+        "この予約はワークリストにもうありません（受付番号 A0001）。"
+        "RIS で取り消されたか、変更された可能性があります"
+    ) in html
+    assert html.count("A0001") >= 2  # 知らせと、残した一覧の行
+    assert "worklist_key" not in html
+
+
+def test_refresh_time_limit_is_told_in_japanese(client, monkeypatch) -> None:
+    from app.core.exceptions import WorklistRefreshTimeoutError
+
+    key = _key_for(_query(client), "A0001")
+    service = client.app.state.service
+
+    def time_out(worklist_key: str):
+        raise WorklistRefreshTimeoutError(
+            "Worklist refresh was cut off by the time limit: x",
+            {"worklist_key": worklist_key, "timeout_seconds": 30.0},
+        )
+
+    monkeypatch.setattr(service, "refresh_item", time_out)
+    token = csrf_token(client)
+
+    html = client.post("/worklist/refresh", data={"key": key}, headers=post_headers(token)).text
+
+    assert "取得し直す途中で時間切れになりました（30 秒）。もう一度押してください" in html
+    assert "worklist_key" not in html
+
+
+def test_removed_item_without_accession_has_no_empty_label(client, monkeypatch) -> None:
+    from app.core.exceptions import WorklistItemGoneError
+
+    key = _key_for(_query(client), "A0001")
+
+    def gone(worklist_key: str):
+        raise WorklistItemGoneError("gone", {"worklist_key": worklist_key, "accession_number": ""})
+
+    monkeypatch.setattr(client.app.state.service, "refresh_item", gone)
+    token = csrf_token(client)
+
+    html = client.post("/worklist/refresh", data={"key": key}, headers=post_headers(token)).text
+
+    assert "この予約はワークリストにもうありません。RIS で取り消されたか" in html
+    assert "受付番号 なし" not in html
+
+
+def test_exam_page_with_an_unknown_key_is_told_in_japanese(client) -> None:
+    _query(client)
+
+    html = client.get("/exam", params={"key": "0000000000"}).text
+
+    assert "この予約は最後に取得した一覧にありません" in html
+    assert "worklist_key" not in html and "worklist query" not in html
+
+    check = client.get("/exam/check", params={"key": "0000000000"}).text
+    assert "この予約は最後に取得した一覧にありません" in check
 
 
 def test_failed_refresh_keeps_the_list(client) -> None:
@@ -222,8 +414,14 @@ def _field(html: str, name: str) -> str:
 def test_required_fields_are_marked(client) -> None:
     """必須の欄に「必須」の印と required（docs/spec/12a の 10.5）."""
     html = client.get("/exam").text
-    for name in ("patient_id", "name_alphabetic", "series", "images"):
+    for name in ("patient_id", "name_alphabetic"):
         field = _field(html, name)
+        assert "必須" in field, name
+        assert " required" in field, name
+    # シリーズ数・画像数は「手で入れる」のときの欄（既定はルーチン。ADR-0025）
+    manual = client.get("/exam/routine?routine=manual").text
+    for name in ("series", "images"):
+        field = _field(manual, name)
         assert "必須" in field, name
         assert " required" in field, name
     for name in ("name_ideographic", "name_phonetic", "birth_date", "study_description"):

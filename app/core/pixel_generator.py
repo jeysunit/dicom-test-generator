@@ -59,6 +59,37 @@ class PixelGenerator:
                 mode="simple_text",
             ) from exc
 
+    def generate_text_lines(
+        self,
+        lines: list[str],
+        width: int = 512,
+        height: int = 512,
+    ) -> np.ndarray:
+        """黒背景に白文字で、行を上から順に描く（線量の画面。ADR-0025）.
+
+        Returns: shape=(height, width), dtype=uint8
+        """
+        try:
+            img = Image.new("L", (width, height), color=0)
+            draw = ImageDraw.Draw(img)
+            try:
+                font = ImageFont.truetype(
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+                    14,
+                )
+            except (OSError, IOError):
+                font = ImageFont.load_default()
+            y_offset = 16
+            for line in lines:
+                draw.text((16, y_offset), line, fill=255, font=font)
+                y_offset += 20
+            return np.array(img, dtype=np.uint8)
+        except Exception as exc:
+            raise PixelGenerationError(
+                f"Failed to generate text lines pixel data: {exc}",
+                mode="text_lines",
+            ) from exc
+
     def generate_ct_realistic(
         self,
         width: int = 512,

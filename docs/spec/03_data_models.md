@@ -89,6 +89,20 @@ class SeriesConfig(BaseModel):
     start_z: float = Field(0.0, description="開始Z座標（mm）")
 ```
 
+撮影のルーチン（[ADR-0025](../decisions/0025-exam-routines.md)）のシリーズは、
+次の欄も持つ（`app/core/models.py`）。手で入れたシリーズは既定の値のまま。
+
+| 欄 | 型 | 既定 | 中身 |
+|----|----|------|------|
+| `kind` | `axial`・`localizer`・`coronal`・`sagittal`・`dose_report` | `axial` | シリーズの種類（spec/06 の 5.1） |
+| `views` | `frontal`・`lateral` の並び | `["frontal"]` | 位置決めの画像ごとの方向。足りなければ繰り返す |
+| `contrast` | bool | false | 造影のシリーズ |
+
+ルーチンそのもの（`templates/routine/` の YAML）は `app/core/routine.py` の
+`Routine` で読む。形はモダリティごとに違う（CT はシリーズの種類と再構成、MR は
+シーケンス、CR・DX は撮影の方向、US は静止画と動画の数）。どのシリーズも `images`
+（既定の画像数）を必ず持つ。
+
 ### 3.3 InstanceConfig
 
 ```python

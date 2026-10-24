@@ -137,6 +137,15 @@ Number）、検査、シリーズ、緊急、送信完了。
   ことが多い。受け取るために、DTG は小さな待ち受け（N-EVENT-REPORT と、相手からの
   疎通確認の C-ECHO だけを受け付ける）を持つ。待ち受けは保管確認を有効にした
   ときだけ起動する（8.3.1）。画像を受信する機能ではない
+- **どの Association でも、選んだ装置（12 章）の AE タイトルを Calling AE Title に
+  する**（ADR-0023）。C-FIND・C-STORE・C-ECHO・MPPS・保管確認の N-ACTION のすべて。
+  例外は3つ：画像の送信は画像を作った装置の AE タイトルで名乗る（8.2）。送信の件・
+  MPPS の行の再送は、作ったときの AE タイトルで名乗る（8.2・8.4.1）。保管確認の要求は、
+  件を作った装置の AE タイトルで送る（8.3.1）
+- 相手が A-ASSOCIATE-RJ の理由 3「calling-AE-title-not-recognized」（PS3.8 9.3.4）で
+  拒否したら、「相手が AE タイトル DTG_MR01 を受け付けませんでした。相手の側に、
+  この装置の AE タイトルを登録してください」と知らせる（送信なら送信失敗の理由に
+  なる）。PACS・RIS には、使う装置の AE タイトルをすべて登録しておく
 
 ### 4.2 Orthanc の対応
 
@@ -167,7 +176,7 @@ Orthanc Book）。設定の画面に、その旨と DTG の待ち受けの AE �
 |------|-----|------|------|------|
 | 予定日（Scheduled Procedure Step Start Date） | (0040,0002) | 今日（範囲 `今日-今日` で送信する） | 今日・明日・日付の指定・絞らない | RAD TF-2 Table 4.5-2 |
 | モダリティ | (0008,0060) | テンプレートのモダリティ | 選択・空 | 同上 |
-| 予定の装置の AE タイトル（Scheduled Station AE Title） | (0040,0001) | 自分の AE タイトル | 自分・絞らない | 同上 |
+| 予定の装置の AE タイトル（Scheduled Station AE Title） | (0040,0001) | 自分の AE タイトル | 「装置の AE タイトル」の欄：この装置で絞る・絞らない | 同上 |
 | 患者 ID | (0010,0020) | 空 | 入力 | RAD TF-2 Table 4.5-1 |
 | 患者の氏名 | (0010,0010) | 空 | 入力（各成分の末尾に `*` を追加する） | 同上 |
 | 受付番号 | (0008,0050) | 空 | 入力 | 同上 |
@@ -199,6 +208,15 @@ RAD TF-2 Table 4.5-3 で、SCU が R+・R+* の値をすべて求める。主な
   Date・Patient's Sex・Patient's Weight・Patient's Size
 - Specific Character Set (0008,0005)
 - Institution Name（返ってくれば）
+- Body Part Examined (0018,0015)（返ってくれば）。MWL の標準の返却の値ではないので、
+  返さない RIS が多い。最上位か Scheduled Procedure Step Sequence の中のどちらかを
+  読み、撮影のルーチンを当てるのに使う（[ADR-0025](../decisions/0025-exam-routines.md)）
+
+Requesting Physician (0032,1032) は予約の詳細に「依頼医」として出すだけで、画像には
+転記しない（6.2 の表に無い。IHE RAD TF-2x Table A.1-1 の転記の対象でもない）。
+Referring Physician's Name (0008,0090) は「紹介医」として出し、画像に転記する。
+(0032,1032) は Imaging Service Request を依頼した医師（PS3.3 C.4.12）、(0008,0090) は
+患者の紹介医（PS3.3 C.7.2.1）で、別の属性である。
 
 ### 5.3 問い合わせの文字コード
 
@@ -284,8 +302,8 @@ Association を切断し、`WorklistQueryError`（終了コード 5）で停止�
 | Referenced Study Sequence | (0008,1110) | 転記（あれば） | 出力しない | Table A.1-1 |
 | Referring Physician's Name | (0008,0090) | 転記 | 空 | RAD TF-2 Table 4.5-3 |
 | Study ID | (0020,0010) | Requested Procedure ID | 作成（連番。`E` と 6 桁。状態の保存先の SQLite で採番する） | Table A.1-1（IHE の推奨） |
-| Study Description | (0008,1030) | Requested Procedure Description | 撮影の画面の入力 | この仕様の決定（慣習。IHE の表には無い） |
-| Study Date・Time | (0008,0020)・(0008,0030) | 撮影した日時 | 同じ | この仕様の決定 |
+| Study Description | (0008,1030) | Requested Procedure Description。追加撮影では最初の撮影の値 | 撮影の画面の入力 | この仕様の決定（慣習。IHE の表には無い）、追加撮影は IHE-A.3.3 |
+| Study Date・Time | (0008,0020)・(0008,0030) | 撮影した日時。追加撮影（6.3）では、その予約の最初の撮影の値 | 同じ | この仕様の決定、追加撮影は RAD TF-2x の IHE-A.3.3 |
 | Procedure Code Sequence | (0008,1032) | Requested Procedure Code Sequence を転記 | 入れない | Table A.1-1 |
 | Request Attributes Sequence | (0040,0275) | 1 項目を作成し、下の値を転記 | **属性を出力しない**（空の Sequence も置かない。Table A.1-2 の `n.a.`） | Table A.1-1・A.1-2 |
 | >Requested Procedure ID | (0040,1001) | 転記 | — | Table A.1-1 |
@@ -295,18 +313,18 @@ Association を切断し、`WorklistQueryError`（終了コード 5）で停止�
 | >Scheduled Protocol Code Sequence | (0040,0008) | 転記 | — | 同上 |
 | >Reason for the Requested Procedure | (0040,1002) | 転記（あれば） | — | 同上 |
 | Performed Procedure Step ID | (0040,0253) | 作成（連番。`PPS` と 6 桁） | 作成（同じ） | Table A.1-1（IHE-A.1.2） |
-| Performed Procedure Step Start Date・Time | (0040,0244)・(0040,0245) | Study Date・Time と同じ | 同じ | Table A.1-1（IHE の推奨） |
+| Performed Procedure Step Start Date・Time | (0040,0244)・(0040,0245) | その撮影の日時（ふつうは Study Date・Time と同じ。追加撮影では Study の日時と別） | 同じ | Table A.1-1（IHE の推奨）・A.1-3 |
 | Performed Procedure Step Description | (0040,0254) | Study Description と同じ | 同じ | 同上 |
 | Referenced Performed Procedure Step Sequence | (0008,1111) | MPPS を使うときだけ、その SOP Instance UID | 同じ | Table A.1-1（IHE-A.1.3） |
 | Modality | (0008,0060) | テンプレートの値。予約の値と異なれば撮影の画面で停止する | テンプレートの値 | この仕様の決定 |
 | Institution Name | (0008,0080) | 転記（あれば）。無ければ病院テンプレート | 病院テンプレート | Table A.1-1（Enterprise Identity Option のとき） |
-| Station Name | (0008,1010) | テンプレートの値 | 同じ | — |
+| Station Name | (0008,1010) | 選んだ装置の Station Name。空なら病院テンプレート → 装置プロファイル → テンプレートの値 | 同じ | PS3.3 C.7.5.1、ADR-0023 |
 | Series Instance UID・Frame of Reference UID | (0020,000E)・(0020,0052) | Series Instance UID はシリーズごとに生成する。Frame of Reference UID は既存の作成のとおり検査ごとに1つ生成する | 同じ | RAD TF-2 4.8.4.1.1.1 |
-| Source Application Entity Title（File Meta） | (0002,0016) | 自分の AE タイトル | 同じ | PS3.10 |
+| Source Application Entity Title（File Meta） | (0002,0016) | 選んだ装置の AE タイトル | 同じ | PS3.10 |
 
 Scheduled Station AE Title (0040,0001) は画像に転記する属性ではない。検索条件に
-使い、予約の値が自分の AE タイトルと異なれば、撮影の画面で「この予約は別の装置の
-予定です」と表示して確認を求める。
+使い、予約の値が選んだ装置の AE タイトルと異なれば、撮影の画面で「この予約は別の
+装置の予定です」と表示して確認を求める。
 
 ### 6.3 規則の補足
 
@@ -322,11 +340,40 @@ Scheduled Station AE Title (0040,0001) は画像に転記する属性ではな�
   （`ScheduledPatient`）を使う。作成の設定へ渡す処理は 03 に書いてある
 - 異常のデータ（`abnormal`）は、転記した値にも適用される。異常のレベルを上げると、
   転記した値が壊れることがある。画面の「異常のデータ」にその旨を表示する
-- 同じ予約で2回撮影すると、同じ Study に新しいシリーズを追加する（Study Instance
-  UID は同じ、Series は新しく生成する。RAD TF-2 4.8.4.1.1.1 の「完了した手順に
-  シリーズを追加しない」に従う）。予約に Study Instance UID が無く DTG が生成した
-  ときは、生成した UID を予約のキーごとに状態の保存先の SQLite に記録し、2回目も
-  同じ UID を使う
+- **予約での撮影は1回で撮影済みになる**（[ADR-0024](../decisions/0024-exam-once-and-retake.md)）。
+  画像を書き出し終えたら、予約の鍵ごとに、最初の撮影の Study Instance UID・Study
+  Date・Study Time・Study Description と、作ったシリーズの数を状態の保存先の SQLite
+  に記録する。撮影が止まった（MPPS を使うときは DISCONTINUED を送った）予約は記録
+  しない。撮影済みの予約での通常の撮影は断る（`ValidationError`。CLI は終了コード 4）。
+  ワークリストの一覧（画面・CLI）では、撮影済みの予約に「撮影済み」の印を付ける
+- **撮り直しの形は設定 `modality.retake_mode` で選ぶ**（既定 `append`）
+  - `append`：撮影済みの予約で「追加撮影」（CLI は `exam --append`）を行う。IHE の
+    Append Case（RAD TF-2 4.6.4.1.2.3.3、RAD TF-2x Table A.1-3）に従い、Study Instance
+    UID・受付番号・Request Attributes Sequence は元の予約と同じにし、シリーズは新しい
+    Series Instance UID で作る（RAD TF-2 4.8.4.1.1.1 の「完了した手順にシリーズを
+    追加しない」）。Study Date・Time・Description は最初の撮影の画像の値にする（説明が
+    空なら空のまま。IHE-A.3.3）。Content Date・Time（画像を作った日時。PS3.3 C.7.6.1）
+    と PPS の開始は、その撮影の日時にする。
+    Series Number は前に作ったシリーズの続きから振る（この仕様の決定）。MPPS を使う
+    ときは新しい MPPS の SOP Instance を作り、終わった MPPS には N-SET を送らない
+    （PS3.4 F.7.2.2.2）。予約に Study Instance UID が無いときは、最初の撮影で作った
+    UID を使う
+  - `new_order`：撮影済みの予約は撮り直さず、「撮り直しの予約が要ります（RIS で
+    新しい予約を作ってください）」と知らせる。RIS が作った撮り直しの予約（別の受付
+    番号・Study Instance UID）をワークリストで取得し直し、通常の撮影で撮る
+  - どちらの形でも、DTG は予約に Study Instance UID がある予約で新しい Study
+    Instance UID を作らず、予約と異なる受付番号も作らない（RAD TF-2 4.8.4.1.1.1。
+    受付番号は RIS が発番する）
+  - 予約の鍵は Study Instance UID・Requested Procedure ID・SPS ID・受付番号から作る
+    ので、RIS が予約の値を変えると別の予約として扱う
+  - 撮影の記録が無かった前の版で撮った予約（Study Instance UID だけの記録）も、
+    撮影済みとして扱う。その記録の日時・説明は、移した後の最初の撮影の値で埋め、
+    その後の追加撮影はその値にそろえる
+  - 同じ予約を、別のプロセス（画面と CLI など）が同時に撮らない。撮影済みの判定から
+    記録までを、状態の保存先の SQLite の予約ごとの札で守る（ほかが撮っていれば「この
+    予約は、ほかで撮影しています。終わってから撮ってください」）。撮影の間は札の時刻を
+    1 分ごとに進め、30 分より長く進まない札は、撮影の処理が落ちたとみなして取り直す。
+    札は持ち主だけが戻す（取り直された札は消さない）
 
 ### 6.4 MPPS に転記する値
 
@@ -335,7 +382,8 @@ Sequence（Study Instance UID・Referenced Study Sequence・Accession Number・
 Requested Procedure ID・Requested Procedure Description・Scheduled Procedure
 Step ID・Scheduled Procedure Step Description・Scheduled Protocol Code
 Sequence）、患者の値、Performed Procedure Step ID・Start Date・Start Time・
-Description、Modality、Performed Station AE Title（自分の AE タイトル）。
+Description、Modality、Performed Station AE Title・Performed Station Name（撮影
+した装置の AE タイトルと Station Name）。
 
 N-SET（状態 `COMPLETED`・`DISCONTINUED`）で Performed Series Sequence
 （シリーズごとの Series Instance UID と、作成した画像の SOP Class・Instance UID）と
@@ -435,7 +483,7 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID (0008,1155)
 |--------------------|------|----------|
 | 待機中 | 作成したが、まだ送信していない | 送信 |
 | 送信中 | Association を確立して送信している | — |
-| 送信完了 | C-STORE の応答が Success（0x0000）か Warning（0xB000 など） | 保管確認を要求 |
+| 送信完了 | C-STORE の応答が Success（0x0000）か Warning（0xB000 など） | 保管確認を要求・再送（新しい件） |
 | 送信失敗 | Association を確立できない、相手が Failure を返した、タイムアウト | 再送 |
 
 - 1回の送信では、1つの検査の画像を1つの Association で送信する
@@ -445,8 +493,23 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID (0008,1155)
   選べば、pynetdicom が Explicit VR Little Endian のファイルを Implicit に変換して
   送信する
 - 失敗の理由（相手の Status の値・pynetdicom の例外の型）を記録する
-- 再送は失敗した分だけを送信する。自動の再送は既定でしない（設定
-  `retry.max_attempts` で回数を決めたときだけ）
+- 件の受付番号は、件を作るときにフォルダの最初の画像の Accession Number (0008,0050)
+  を読んで記録する（画面からの送信と CLI の `send` の両方）。読めなければ空のまま
+  送信する。受付番号を記録していない前の件は、表示のときに画像から読んで補う
+- 件を作るときに名乗る AE タイトルは、画像を作った装置の AE タイトル（最初の画像の
+  Source Application Entity Title が設定の装置のどれかならそれ。違えば選んだ装置）。
+  撮った後に装置を切り替えても、画像・MPPS・送信の名乗りがそろう（ADR-0023）
+- 件には、名乗った AE タイトルを記録する。再送（送信完了の件の再送でできる新しい件も）
+  はその AE タイトルで名乗る。あとで装置を切り替えても変えない。AE タイトルの列が
+  無い前の版の行は、既定の装置の AE タイトルで埋める
+- 送信失敗の件の再送は、その件の送れていない画像だけを同じ件で送信する。自動の
+  再送は既定でしない（設定 `retry.max_attempts` で回数を決めたときだけ）
+- 送信完了の件も、回数の上限なしに再送できる。同じフォルダの画像をすべて、その件と
+  同じ送信先へ、新しい件として送信する（元の件と、その保管確認の結果は変えない）。
+  画像は作り直さないので、SOP Instance UID・Series Instance UID・Study Instance UID は
+  最初の送信と同じ（PS3.5 9 の UID は1つの物を指す）。相手が同じ SOP Instance UID の
+  2回目をどう扱うか（上書き・受け流し・Warning・Failure）は相手の実装による。DTG は
+  応答の Status をそのまま記録する。送信中・待機中の件は再送しない
 - 送信キューと送信の履歴は、状態の保存先の SQLite（標準ライブラリの `sqlite3`）に
   記録する。新しい外部パッケージは追加しない
 - 画像のファイルは出力フォルダに残す（送信しても削除しない）。削除するのは利用者の
@@ -491,8 +554,13 @@ N-EVENT-REPORT も受ける。
 - どちらの経路でも、同じ受け取りの処理（8.3.2）を実行する
 - 待ち受けは `modality.listen`（既定 `127.0.0.1:11113`）で起動する。受け付ける
   SOP Class は Storage Commitment Push Model と Verification（相手からの疎通確認）
-  だけ。呼び出された AE タイトルが自分の AE タイトルと異なる Association は拒否
-  する。相手が SCP の役を求める SCP/SCU Role Selection は受け付ける
+  だけ。呼び出された AE タイトルが、設定の装置（12 章）のどの AE タイトルとも
+  異なる Association は、理由 7「called-AE-title-not-recognized」で拒否する
+  （PS3.8 9.3.4）。装置を切り替えた後も、前の装置あての結果を受けるため。相手が
+  SCP の役を求める SCP/SCU Role Selection は受け付ける
+- 要求には、要求を送った装置の AE タイトルを記録する。結果は、その AE タイトルあてに
+  届いたものだけを、その要求の結果にする（ほかの装置あては `0x0110` を返す）。要求は
+  件を作った装置の AE タイトルで送る（8.2）
 - 別の経路で受けるときは、相手が Orthanc なら `DicomModalities` に DTG を登録して
   おく必要がある（4.2・10.7）
 
@@ -553,6 +621,8 @@ N-EVENT-REPORT も受ける。
 
 - ワークリストの取得先（または別の MPPS の相手）ごとに、MPPS を使うかを選択する。
   既定は使わない（4.2 のとおり Orthanc は受け付けない）
+- 1回の撮影（追加撮影を含む）ごとに、新しい MPPS の SOP Instance を作る。COMPLETED・
+  DISCONTINUED を送った MPPS には N-SET を送らない（PS3.4 F.7.2.2.2。6.3）
 - 撮影の開始で N-CREATE（IN PROGRESS）、作成の終了で N-SET（COMPLETED）。
   撮影が止まったら N-SET（DISCONTINUED）
 - MPPS が失敗しても撮影と送信は止めない。失敗は画面とログに出す
@@ -614,6 +684,8 @@ N-EVENT-REPORT も受ける。
 - 画像を書き出せなかった（OSError）・作成した画像のヘッダーを読めないときも、
   N-CREATE を送信していれば DISCONTINUED を残す（開いたままにしない）
 - MPPS の SOP Instance UID は DTG が生成する（2.25 の UUID の形式）
+- 撮影した装置の AE タイトルも行に記録し、再送はその AE タイトルで名乗る（あとで
+  装置を切り替えても変えない。ADR-0023）
 
 #### 8.4.2 ローカルでテストする相手
 
@@ -714,8 +786,14 @@ DICOMGeneratorError
 
 ```yaml
 modality:
-  ae_title: "DTG_CT01"
-  station_name: "DTG_CT01"
+  stations:                     # 名乗る装置の一覧。画面の情報バーで切り替える
+    - name: "CT1"               # 表示名
+      ae_title: "DTG_CT01"
+      station_name: "DTG_CT01"  # 画像の Station Name。空ならテンプレートなどの値
+    - name: "MR1"
+      ae_title: "DTG_MR01"
+      station_name: "DTG_MR01"
+  default_station: "CT1"        # 書かなければ一覧の先頭
   listen:                       # 保管確認の結果を受ける待ち受け
     bind_address: "127.0.0.1"
     port: 11113
@@ -755,6 +833,7 @@ modality:
   retry:
     max_attempts: 0             # 0 = 自動で再送しない
   max_images_per_exam: 2000     # 1回の撮影の合計の画像数の上限（10.5）
+  retake_mode: "append"         # 撮影済みの予約の撮り直し：append・new_order（6.3）
 web:
   bind_address: "127.0.0.1"
   port: 8080
@@ -766,6 +845,19 @@ web:
   ファイルに書かず、`DTG_WEB_PASSWORD_FILE` が指すファイルから読む）
 - 読み込みは `app/modality/config.py`（Pydantic）。Core からは読まない
 - AE タイトルは 16 文字以内で、空白だけのものは禁止する（PS3.5 の AE の VR）
+- **装置（`stations`）**（ADR-0023）：表示名・AE タイトル・Station Name を書く。表示名と
+  AE タイトルは一覧の中で重複させない。Station Name は SH（16 文字以内・`\` と制御
+  文字は不可。PS3.5 6.2）。装置が1台なら、`stations` の代わりに `ae_title`・
+  `station_name` だけを書いてもよい（表示名は AE タイトルになる）。両方を書くのは、
+  `ae_title`・`station_name` が既定の装置の値と同じときだけ（違えば設定の誤り）
+- 画面で選んだ装置は、状態の保存先の `station.json` に表示名で記録する。画面と CLI が
+  同じ記録を使い、CLI の `--station <表示名>` はそのコマンドだけに効く（記録は変えない）。
+  記録の表示名が設定に無くなっていたら、既定の装置を使い、情報バーで知らせる
+- 撮影と送信は、始めたときの装置の AE タイトルで最後まで行う（撮影は装置の値を写して
+  から、送信は件に AE タイトルを記録してから進める）。途中で切り替えても名乗りは
+  変わらない。画面のプロセスの中で撮影が走っているときと、送信中の件があるときは、
+  切り替えを断る（「撮影・送信の最中は装置を切り替えられません」）。別のプロセスの
+  CLI で走っている撮影は数えない
 - 例はループバックのアドレスと例の名前だけにする。施設の名前・アドレスを書かない
 - 設定・状態の保存先のファイル（`worklist_last.json` など）が検証で不正となった
   とき、エラーメッセージは「項目の名前: 原因」だけにし、入っていた値を出さない

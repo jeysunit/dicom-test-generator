@@ -14,7 +14,7 @@ from app.modality.service import WorklistState
 from app.modality.worklist_scu import WorklistQuery, parse_date_option
 
 from ..display import item_marks
-from ..rendering import error_text, render, render_error, service_of
+from ..rendering import render, render_error, service_of, worklist_error_text
 
 router = APIRouter()
 
@@ -31,6 +31,7 @@ NON_ASCII_HINT = (
     "日本語の条件は相手の文字コードの扱いに左右されます。患者 ID か受付番号でも取得してください"
 )
 PARTIAL_MESSAGE = "途中まで（相手が返し続けたため C-CANCEL を送った）"
+NO_SELECTION_MESSAGE = "予約を選んでから「取得し直す」を押してください"
 FormStr = Annotated[str, Form()]
 
 
@@ -77,7 +78,9 @@ def worklist_query(
         query = WorklistQuery(
             date_range=_date_range(day, date_value),
             modality=modality.strip(),
-            station_ae_title=service.config.ae_title if station == STATION_OWN else "",
+            station_ae_title=(
+                service.current_station().ae_title if station == STATION_OWN else ""
+            ),
             patient_id=patient_id.strip(),
             patient_name=patient_name.strip(),
             accession_number=accession.strip(),
@@ -98,11 +101,16 @@ def worklist_query(
 def worklist_refresh(request: Request, key: FormStr = "") -> HTMLResponse:
     service = service_of(request)
     error = ""
-    try:
-        service.refresh_item(key)
-    except DICOMGeneratorError as exc:
-        # 取得し直せなくても一覧は消さず、上に理由を出す（10.3 の知らせ）
-        error = error_text(exc)
+    key = key.strip()
+    if not key:
+        # 行を選ばずに届いた要求は、問い合わせずに知らせる（10.4）
+        error = NO_SELECTION_MESSAGE
+    else:
+        try:
+            service.refresh_item(key)
+        except DICOMGeneratorError as exc:
+            # 取得し直せなくても一覧は消さず、上に理由を出す（10.3 の知らせ）
+            error = worklist_error_text(exc)
     try:
         state = service.last_worklist_state()
     except DICOMGeneratorError as exc:
@@ -111,16 +119,20 @@ def worklist_refresh(request: Request, key: FormStr = "") -> HTMLResponse:
         request, state, state.partial, selected=key, notice="" if error else "取得し直しました"
     )
     results["error"] = error
+    # 開いている詳細も、取得し直した一覧の値に差し替える
+    results["detail_item"] = next((item for item in state.items if item.key == key), None)
+    results["detail_taken"] = service.is_taken(key) if key else False
     return render(request, "_worklist_results.html", oob_band=True, results=results)
 
 
 @router.get("/worklist/item/{key}", response_class=HTMLResponse)
 def worklist_item(request: Request, key: str) -> HTMLResponse:
+    service = service_of(request)
     try:
-        item = service_of(request).find_item(key)
+        item = service.find_item(key)
     except DICOMGeneratorError as exc:
-        return render_error(request, exc)
-    return render(request, "_worklist_detail.html", item=item)
+        return render(request, "_notice.html", error=worklist_error_text(exc))
+    return render(request, "_worklist_detail.html", item=item, item_taken=service.is_taken(key))
 
 
 def _results(
@@ -131,9 +143,11 @@ def _results(
     selected: str = "",
     notice: str = "",
 ) -> dict[str, object]:
-    own_ae = service_of(request).config.ae_title
+    service = service_of(request)
+    own_ae = service.current_station().ae_title
+    taken = service.taken_keys()
     rows: list[tuple[WorklistItem, list[str]]] = [
-        (item, item_marks(item, own_ae)) for item in state.items
+        (item, item_marks(item, own_ae, item.key in taken)) for item in state.items
     ]
     return {
         "queried": bool(state.queried_at),
@@ -143,6 +157,10 @@ def _results(
         "zero_message": ZERO_ITEMS_MESSAGE,
         "non_ascii_hint": NON_ASCII_HINT if non_ascii and not rows else "",
         "selected": selected,
+        # 「取得し直す」は、選んだ行が一覧にあるときだけ押せる（10.4）
+        "has_selection": any(item.key == selected for item, _marks in rows),
+        "detail_item": None,
+        "detail_taken": False,
         "notice": notice,
         "error": "",
     }

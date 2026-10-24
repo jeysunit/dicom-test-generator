@@ -64,6 +64,35 @@ _SCHEMA = (
         study_instance_uid TEXT NOT NULL
     )
     """,
+    # 予約を撮っている間の札（別のプロセスが同じ予約を同時に撮らない。ADR-0024）
+    """
+    CREATE TABLE IF NOT EXISTS exam_locks (
+        worklist_key TEXT PRIMARY KEY,
+        token TEXT NOT NULL,
+        locked_at TEXT NOT NULL
+    )
+    """,
+    # 予約ごとの撮影の記録（撮影済みの判定と追加撮影の値。docs/spec/12 の 6.3・ADR-0024）
+    """
+    CREATE TABLE IF NOT EXISTS exam_records (
+        worklist_key TEXT PRIMARY KEY,
+        study_instance_uid TEXT NOT NULL DEFAULT '',
+        study_date TEXT NOT NULL DEFAULT '',
+        study_time TEXT NOT NULL DEFAULT '',
+        study_description TEXT NOT NULL DEFAULT '',
+        series_count INTEGER NOT NULL DEFAULT 0
+    )
+    """,
+    # 予約で使ったシリーズ番号と、ルーチンに書いた番号か（ADR-0025）。行の無い予約（前の
+    # 版の記録）は 1〜series_count を自動で使ったとみなす
+    """
+    CREATE TABLE IF NOT EXISTS exam_series_numbers (
+        worklist_key TEXT NOT NULL,
+        series_number INTEGER NOT NULL,
+        explicit INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (worklist_key, series_number)
+    )
+    """,
     # 保管の確認の要求と画像ごとの結果（Phase 3c。8.3.3）
     """
     CREATE TABLE IF NOT EXISTS commitments (
@@ -117,6 +146,8 @@ class QueueJob(BaseModel):
     last_error: str
     num_files: int
     num_sent: int
+    # 件を作ったときの装置の AE タイトル。再送もこの AE タイトルで送る（docs/spec/12 の 8.2）
+    calling_ae_title: str = ""
     stale: bool = False  # 送信中のまま止まった件（8.2）
     commitment: str = ""  # 最後の保管の確認の状態。使わない件は空（8.3.3）
     commitment_error: str = ""
@@ -124,6 +155,21 @@ class QueueJob(BaseModel):
     patient_id: str = ""
     patient_name: str = ""
     study_datetime: str = ""
+
+
+class ExamRecord(BaseModel):
+    """予約の撮影の記録：最初の撮影の Study の値と、作ったシリーズの数（docs/spec/12 の 6.3）."""
+
+    model_config = {"frozen": True}
+
+    worklist_key: str
+    study_instance_uid: str
+    study_date: str
+    study_time: str
+    study_description: str
+    series_count: int
+    # 使ったシリーズ番号と、ルーチンに書いた番号か（True）自動か（False）（ADR-0025）
+    series_numbers: list[tuple[int, bool]] = []
 
 
 class CommitmentState(BaseModel):
@@ -145,7 +191,8 @@ class CommitmentState(BaseModel):
 class SendQueue:
     """待ち行列。1件は1つの検査（1つのフォルダ）を1つの送り先へ送ること."""
 
-    def __init__(self, db_path: Path) -> None:
+    def __init__(self, db_path: Path, legacy_ae_title: str = "") -> None:
+        """`legacy_ae_title` は、AE タイトルの列が無い前の版の行に入れる AE タイトル."""
         self._db_path = db_path
         try:
             db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -158,6 +205,14 @@ class SendQueue:
                     conn.execute(
                         "ALTER TABLE jobs ADD COLUMN send_token TEXT NOT NULL DEFAULT ''"
                     )
+                # 装置を切り替えられる前の版の待ち行列に足す。前の行は今の装置の AE タイトル
+                _add_ae_title_column(conn, "jobs", "calling_ae_title", legacy_ae_title)
+                _add_ae_title_column(conn, "commitments", "own_ae_title", legacy_ae_title)
+                # 撮影の記録が無かった前の版で撮った予約も、撮影済みとして移す（UID だけ）
+                conn.execute(
+                    "INSERT OR IGNORE INTO exam_records (worklist_key, study_instance_uid)"
+                    " SELECT worklist_key, study_instance_uid FROM generated_study_uids"
+                )
                 file_columns = {row[1] for row in conn.execute("PRAGMA table_info(job_files)")}
                 if "sop_class_uid" not in file_columns:
                     # 保管の確認の前の版の待ち行列に足す（Phase 3c）
@@ -171,14 +226,19 @@ class SendQueue:
             ) from exc
 
     def add_job(
-        self, folder: str, destination: str, files: Sequence[str], accession_number: str = ""
+        self,
+        folder: str,
+        destination: str,
+        files: Sequence[str],
+        accession_number: str = "",
+        calling_ae_title: str = "",
     ) -> int:
         now = _now()
         with self._connect() as conn:
             cursor = conn.execute(
                 "INSERT INTO jobs (created_at, updated_at, folder, destination, accession_number,"
-                " status) VALUES (?, ?, ?, ?, ?, 'pending')",
-                (now, now, folder, destination, accession_number),
+                " calling_ae_title, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')",
+                (now, now, folder, destination, accession_number, calling_ae_title),
             )
             job_id = int(cursor.lastrowid or 0)
             conn.executemany(
@@ -340,22 +400,132 @@ class SendQueue:
             row = conn.execute("SELECT value FROM counters WHERE name = ?", (name,)).fetchone()
         return int(row[0])
 
-    def generated_study_uid(self, worklist_key: str) -> str | None:
-        """予約に Study Instance UID が無く、この道具が作った UID（同じ予約で2回撮るとき用）."""
+    def exam_record(self, worklist_key: str) -> ExamRecord | None:
+        """予約の撮影の記録。撮っていなければ None（撮影済みの判定。docs/spec/12 の 6.3）."""
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT study_instance_uid FROM generated_study_uids WHERE worklist_key = ?",
+                "SELECT worklist_key, study_instance_uid, study_date, study_time,"
+                " study_description, series_count FROM exam_records WHERE worklist_key = ?",
                 (worklist_key,),
             ).fetchone()
-        return str(row[0]) if row else None
+            if row is None:
+                return None
+            numbers = _used_series_numbers(conn, worklist_key, row[5])
+        return ExamRecord(
+            worklist_key=row[0],
+            study_instance_uid=row[1],
+            study_date=row[2],
+            study_time=row[3],
+            study_description=row[4],
+            series_count=row[5],
+            series_numbers=numbers,
+        )
 
-    def remember_study_uid(self, worklist_key: str, study_instance_uid: str) -> None:
+    def claim_exam(self, worklist_key: str) -> str | None:
+        """予約の撮影の札を取り、札を返す。ほかが持っていれば None.
+
+        札の時刻は撮影の間 `touch_exam` で進める。進まないまま古くなった札（撮影の処理が
+        落ちた）は取り直せる。
+        """
+        token = secrets.token_hex(SEND_TOKEN_BYTES)
         with self._connect() as conn:
             conn.execute(
-                "INSERT OR IGNORE INTO generated_study_uids (worklist_key, study_instance_uid)"
-                " VALUES (?, ?)",
-                (worklist_key, study_instance_uid),
+                "DELETE FROM exam_locks WHERE worklist_key = ? AND locked_at < ?",
+                (worklist_key, _stale_cutoff()),
             )
+            cursor = conn.execute(
+                "INSERT OR IGNORE INTO exam_locks (worklist_key, token, locked_at)"
+                " VALUES (?, ?, ?)",
+                (worklist_key, token, _now()),
+            )
+        return token if cursor.rowcount == 1 else None
+
+    def touch_exam(self, worklist_key: str, token: str) -> None:
+        """撮影の間、札の時刻を進める（長い撮影を落ちたとみなさない）."""
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE exam_locks SET locked_at = ? WHERE worklist_key = ? AND token = ?",
+                (_now(), worklist_key, token),
+            )
+
+    def release_exam(self, worklist_key: str, token: str) -> None:
+        """自分の札だけを戻す（取り直されていたら、ほかの札は消さない）."""
+        with self._connect() as conn:
+            conn.execute(
+                "DELETE FROM exam_locks WHERE worklist_key = ? AND token = ?",
+                (worklist_key, token),
+            )
+
+    def taken_keys(self) -> set[str]:
+        """撮影済みの予約の鍵（一覧の印）."""
+        with self._connect() as conn:
+            rows = conn.execute("SELECT worklist_key FROM exam_records").fetchall()
+        return {str(row[0]) for row in rows}
+
+    def record_exam(
+        self,
+        worklist_key: str,
+        study_instance_uid: str,
+        study_date: str,
+        study_time: str,
+        study_description: str,
+        series_count: int,
+        series_numbers: list[tuple[int, bool]] | None = None,
+    ) -> None:
+        """撮影を終えた予約を記録する。2回目以降（追加撮影）はシリーズの数だけ足す.
+
+        前の版から移した記録（日時が空）は、移した後の最初の撮影の日時・説明で埋め、
+        その後の追加撮影をそろえる。`series_numbers`（使った番号と、書いた番号か）は
+        前の記録の後ろに足す。無ければ、続きの自動の番号を使ったとみなす。
+        """
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT series_count FROM exam_records WHERE worklist_key = ?", (worklist_key,)
+            ).fetchone()
+            before = _used_series_numbers(conn, worklist_key, row[0]) if row is not None else []
+            if series_numbers is None:
+                start = 1 + max((number for number, _ in before), default=0)
+                series_numbers = [(start + index, False) for index in range(series_count)]
+            # 前の版の記録（行が無い）は、自動で使った番号の行を先に作ってから足す
+            conn.executemany(
+                "INSERT OR IGNORE INTO exam_series_numbers (worklist_key, series_number, explicit)"
+                " VALUES (?, ?, ?)",
+                [
+                    (worklist_key, number, int(explicit))
+                    for number, explicit in before + series_numbers
+                ],
+            )
+            updated = conn.execute(
+                "UPDATE exam_records SET series_count = series_count + ?,"
+                " study_instance_uid = CASE WHEN study_instance_uid = '' THEN ?"
+                " ELSE study_instance_uid END,"
+                " study_time = CASE WHEN study_date = '' THEN ? ELSE study_time END,"
+                " study_description = CASE WHEN study_date = '' THEN ?"
+                " ELSE study_description END,"
+                " study_date = CASE WHEN study_date = '' THEN ? ELSE study_date END"
+                " WHERE worklist_key = ?",
+                (
+                    series_count,
+                    study_instance_uid,
+                    study_time,
+                    study_description,
+                    study_date,
+                    worklist_key,
+                ),
+            )
+            if updated.rowcount == 0:
+                conn.execute(
+                    "INSERT INTO exam_records (worklist_key, study_instance_uid, study_date,"
+                    " study_time, study_description, series_count) VALUES (?, ?, ?, ?, ?, ?)",
+                    (
+                        worklist_key,
+                        study_instance_uid,
+                        study_date,
+                        study_time,
+                        study_description,
+                        series_count,
+                    ),
+                )
 
     # --- 撮影に使った装置のプロファイル（docs/spec/13 の 8） ----------------------
 
@@ -394,15 +564,27 @@ class SendQueue:
         transaction_uid: str,
         references: Sequence[SopReference],
         timeout_seconds: float,
+        own_ae_title: str = "",
     ) -> None:
+        """要求を記録する。`own_ae_title` は要求を送った装置の AE タイトル（結果の宛先）."""
         now = datetime.now()
         deadline = (now + timedelta(seconds=timeout_seconds)).isoformat(timespec="seconds")
         stamp = now.isoformat(timespec="seconds")
         with self._connect() as conn:
             conn.execute(
                 "INSERT INTO commitments (transaction_uid, job_id, destination, peer_ae_title,"
-                " status, requested_at, updated_at, deadline) VALUES (?, ?, ?, ?, 'waiting', ?, ?, ?)",
-                (transaction_uid, job_id, destination, peer_ae_title, stamp, stamp, deadline),
+                " own_ae_title, status, requested_at, updated_at, deadline)"
+                " VALUES (?, ?, ?, ?, ?, 'waiting', ?, ?, ?)",
+                (
+                    transaction_uid,
+                    job_id,
+                    destination,
+                    peer_ae_title,
+                    own_ae_title,
+                    stamp,
+                    stamp,
+                    deadline,
+                ),
             )
             conn.executemany(
                 "INSERT OR IGNORE INTO commitment_items (transaction_uid, sop_class_uid,"
@@ -482,15 +664,19 @@ class SendQueue:
             )
         return True
 
-    def commitment_peer(self, transaction_uid: str) -> tuple[str, str] | None:
-        """要求の（状態, 送り先の AE タイトル）。知らない Transaction UID なら None."""
+    def commitment_peer(self, transaction_uid: str) -> tuple[str, str, str] | None:
+        """要求の（状態, 送り先の AE タイトル, 要求を送った装置の AE タイトル）.
+
+        知らない Transaction UID なら None。
+        """
         self.expire_commitments()
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT status, peer_ae_title FROM commitments WHERE transaction_uid = ?",
+                "SELECT status, peer_ae_title, own_ae_title FROM commitments"
+                " WHERE transaction_uid = ?",
                 (transaction_uid,),
             ).fetchone()
-        return (str(row[0]), str(row[1])) if row else None
+        return (str(row[0]), str(row[1]), str(row[2])) if row else None
 
     def get_commitment(self, transaction_uid: str) -> CommitmentState:
         self.expire_commitments()
@@ -541,7 +727,8 @@ class SendQueue:
             "SELECT j.id, j.created_at, j.updated_at, j.folder, j.destination, j.accession_number,"
             " j.status, j.attempts, j.last_error, COUNT(f.path),"
             " SUM(CASE WHEN f.status = 'sent' THEN 1 ELSE 0 END),"
-            f" {latest.format(column='status')}, {latest.format(column='error')}"
+            f" {latest.format(column='status')}, {latest.format(column='error')},"
+            " j.calling_ae_title"
             f" FROM jobs j LEFT JOIN job_files f ON f.job_id = j.id {where}"
             " GROUP BY j.id ORDER BY j.id"
         )
@@ -564,6 +751,7 @@ class SendQueue:
                 stale=row[6] == "sending" and row[2] < cutoff,
                 commitment=row[11] or "",
                 commitment_error=row[12] or "",
+                calling_ae_title=row[13] or "",
             )
             for row in rows
         ]
@@ -574,8 +762,33 @@ class SendQueue:
             yield conn
 
 
+def _used_series_numbers(
+    conn: sqlite3.Connection, worklist_key: str, series_count: int
+) -> list[tuple[int, bool]]:
+    """予約で使ったシリーズ番号。行が無い（前の版の記録）なら 1〜series_count を自動とみなす."""
+    rows = conn.execute(
+        "SELECT series_number, explicit FROM exam_series_numbers WHERE worklist_key = ?"
+        " ORDER BY series_number",
+        (worklist_key,),
+    ).fetchall()
+    if not rows:
+        return [(number, False) for number in range(1, series_count + 1)]
+    return [(int(number), bool(explicit)) for number, explicit in rows]
+
+
 def _now() -> str:
     return datetime.now().isoformat(timespec="seconds")
+
+
+def _add_ae_title_column(
+    conn: sqlite3.Connection, table: str, column: str, legacy_ae_title: str
+) -> None:
+    """AE タイトルの列が無ければ足し、前の行を `legacy_ae_title` で埋める（表と列は定数）."""
+    columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    if column in columns:
+        return
+    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT NOT NULL DEFAULT ''")
+    conn.execute(f"UPDATE {table} SET {column} = ?", (legacy_ae_title,))
 
 
 def _folder_key(folder: str) -> str:

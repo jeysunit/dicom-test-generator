@@ -37,13 +37,15 @@
    `--user "$(id -u):$(id -g)"` で動かすと、マウントした出力フォルダのファイルが
    ホストの利用者のものになり、ホスト側で権限を変える手順が要らない。`--user` を
    指定しないときは、今と同じ uid 10001 で動く
-4. **公開の workflow は `on: push: tags: ['v*']` だけで動かす。** 権限は
+4. **公開の workflow は `on: push: tags: ['v*']` と `workflow_dispatch` だけで動かす。**
+   手動の実行は、`v` で始まるタグを選んだときだけ進み、ほかの ref では最初の
+   ステップで失敗する。権限は
    `contents: read` と `packages: write` だけにする。actions は commit の SHA で固定する
    （checkout は ci.yml と同じ SHA。docker/setup-buildx-action v4.4.1・login-action
    v4.6.0・metadata-action v6.2.0・build-push-action v7.4.0）。タグは metadata-action の
    `type=semver,pattern={{version}}` と、版のタグのときに付く `latest` にする。
    `org.opencontainers.image.source` のラベルで、パッケージをこのリポジトリに結び付ける
-5. **ADR-0023 を作成する。** 配布の主な形をイメージにすることと、公開の条件を残す
+5. **ADR-0026 を作成する。** 配布の主な形をイメージにすることと、公開の条件を残す
 
 ## Risks / Trade-offs
 

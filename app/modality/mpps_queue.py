@@ -50,7 +50,8 @@ _SCHEMA = """
 _COLUMNS = (
     "id, created_at, updated_at, sop_instance_uid, accession_number, output_dir, state,"
     " create_sent, set_json != '', set_sent, attempts, last_error,"
-    " peer_ae_title, peer_host, peer_port, create_no_response, set_no_response"
+    " peer_ae_title, peer_host, peer_port, create_no_response, set_no_response,"
+    " calling_ae_title"
 )
 # 札を取ってからこの秒より長く経った行は、送る手順が落ちたとみなして札を取り直せる（8.4.1）
 STALE_SEND_TOKEN_SECONDS = 10 * 60
@@ -80,6 +81,8 @@ class MppsRecord(BaseModel):
     # 前に送って「応答なし」で終わったか（届いていたかもしれない。8.4.1）
     create_no_response: bool
     set_no_response: bool
+    # 撮影したときの装置の AE タイトル。送り直しもこの AE タイトルで送る（8.4.1）
+    calling_ae_title: str = ""
 
     @property
     def sent(self) -> bool:
@@ -88,12 +91,20 @@ class MppsRecord(BaseModel):
 
 
 class MppsQueue:
-    def __init__(self, db_path: Path) -> None:
+    def __init__(self, db_path: Path, legacy_ae_title: str = "") -> None:
+        """`legacy_ae_title` は、AE タイトルの列が無い前の版の行に入れる AE タイトル."""
         self._db_path = db_path
         try:
             db_path.parent.mkdir(parents=True, exist_ok=True)
             with self._connect() as conn:
                 conn.execute(_SCHEMA)
+                columns = {row[1] for row in conn.execute("PRAGMA table_info(mpps)")}
+                if "calling_ae_title" not in columns:
+                    # 装置を切り替えられる前の版に足す。前の行は今の装置の AE タイトル
+                    conn.execute(
+                        "ALTER TABLE mpps ADD COLUMN calling_ae_title TEXT NOT NULL DEFAULT ''"
+                    )
+                    conn.execute("UPDATE mpps SET calling_ae_title = ?", (legacy_ae_title,))
         except (OSError, sqlite3.Error) as exc:
             raise ModalityError(
                 f"Failed to open the MPPS queue: {db_path}",
@@ -106,16 +117,30 @@ class MppsQueue:
         accession_number: str,
         create: Dataset,
         peer: tuple[str, str, int],
+        calling_ae_title: str = "",
     ) -> int:
-        """N-CREATE の知らせを入れる。`peer` は（AE タイトル, 住所, ポート）で、行に固定する."""
+        """N-CREATE の知らせを入れる。`peer` は（AE タイトル, 住所, ポート）で、行に固定する.
+
+        `calling_ae_title`（撮影した装置の AE タイトル）も行に固定する。
+        """
         now = _now()
         ae_title, host, port = peer
         with self._connect() as conn:
             cursor = conn.execute(
                 "INSERT INTO mpps (created_at, updated_at, sop_instance_uid, accession_number,"
-                " state, create_json, peer_ae_title, peer_host, peer_port)"
-                " VALUES (?, ?, ?, ?, 'IN PROGRESS', ?, ?, ?, ?)",
-                (now, now, sop_instance_uid, accession_number, _to_json(create), ae_title, host, port),
+                " state, create_json, peer_ae_title, peer_host, peer_port, calling_ae_title)"
+                " VALUES (?, ?, ?, ?, 'IN PROGRESS', ?, ?, ?, ?, ?)",
+                (
+                    now,
+                    now,
+                    sop_instance_uid,
+                    accession_number,
+                    _to_json(create),
+                    ae_title,
+                    host,
+                    port,
+                    calling_ae_title,
+                ),
             )
             return int(cursor.lastrowid or 0)
 
@@ -222,6 +247,7 @@ class MppsQueue:
                 peer_port=row[14],
                 create_no_response=bool(row[15]),
                 set_no_response=bool(row[16]),
+                calling_ae_title=row[17] or "",
             )
             for row in rows
         ]

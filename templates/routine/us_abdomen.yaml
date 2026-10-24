@@ -1,0 +1,11 @@
+# US 腹部（US の既定のルーチン）。静止画 16 枚は、腹部超音波検診判定マニュアルが勧める
+# 記録の断面の数の下限（ADR-0025）。動画は無し
+name: "us_abdomen"
+label: "腹部"
+modality: "US"
+protocol_name: "ABDOMEN"
+default: true
+keywords: ["腹部", "ABDOMEN"]
+series:
+  - description: "Abdomen"
+    still_images: 16

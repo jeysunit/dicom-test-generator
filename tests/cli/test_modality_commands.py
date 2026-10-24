@@ -166,7 +166,7 @@ def test_exam_with_profile(monkeypatch, capsys, tmp_path, config) -> None:
     """exam --profile：装置のプロファイルを重ねる。無い名前は終了コード 2（docs/spec/13 の 8・9）."""
     code, out, _ = run_cli(
         monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0001",
-        "--patient-name", "KINKYU^TARO", "--profile", "dtg_synthetic_ct",
+        "--patient-name", "KINKYU^TARO", "--profile", "dtg_synthetic_ct", "-s", "1",
         "--pixel-mode", "simple_text", "--json",
     )
     assert code == 0
@@ -256,13 +256,37 @@ def test_send_queue_list_and_retry(
     assert [job["status"] for job in json.loads(out)] == ["sent"]
 
 
+def test_queue_retry_job_resends_a_sent_job_as_a_new_job(
+    monkeypatch, capsys, tmp_path, config, storage_scp
+) -> None:
+    """`queue retry --job` は送信完了の件も受け、新しい件として送る（8.2・11.5）."""
+    _, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0006",
+        "--patient-name", "RESEND^TEST", "-i", "2", "--pixel-mode", "simple_text", "--json",
+    )
+    folder = json.loads(out)["output_dir"]
+    _, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "send", folder, "--json")
+    first_job = json.loads(out)["job_id"]
+
+    code, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "queue", "retry", "--job", str(first_job), "--json"
+    )
+
+    assert code == 0
+    [result] = json.loads(out)
+    assert result["status"] == "sent" and result["job_id"] != first_job
+    code, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "queue", "list", "--json")
+    assert [job["status"] for job in json.loads(out)] == ["sent", "sent"]
+    assert len(storage_scp.received) == 4
+
+
 def test_send_unreachable_is_exit_5_and_recorded(
     monkeypatch, capsys, tmp_path, worklist_scp
 ) -> None:
     config = write_config(tmp_path, worklist_scp.port, free_port())
     _, out, _ = run_cli(
         monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0004",
-        "--patient-name", "SEND^TEST", "--pixel-mode", "simple_text", "--json",
+        "--patient-name", "SEND^TEST", "-s", "1", "--pixel-mode", "simple_text", "--json",
     )
     folder = json.loads(out)["output_dir"]
 
@@ -351,3 +375,93 @@ def test_worklist_output_neutralizes_control_chars(
     )
     assert "\x1b" not in out and "\u202e" not in out
     assert json.loads(out)["patient_name"] == "EVIL^\u202eNAME"
+
+
+def _two_station_config(tmp_path: Path, worklist_port: int, storage_port: int) -> Path:
+    path = write_config(tmp_path, worklist_port, storage_port)
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    modality = data["modality"]
+    del modality["ae_title"], modality["station_name"]
+    modality["stations"] = [
+        {"name": "CT1", "ae_title": "DTG_CT01", "station_name": "DTG_CT01"},
+        {"name": "MR1", "ae_title": "DTG_MR01", "station_name": "DTG_MR01"},
+    ]
+    path.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+    return path
+
+
+def test_station_option_applies_to_one_command(
+    monkeypatch, capsys, tmp_path, worklist_scp, storage_scp
+) -> None:
+    """`--station` \u306f\u305d\u306e\u30b3\u30de\u30f3\u30c9\u3060\u3051\u306b\u52b9\u304f\uff08docs/spec/12a \u306e 11 \u7ae0\u30fbADR-0023\uff09."""
+    config = _two_station_config(tmp_path, worklist_scp.port, storage_scp.port)
+    _, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0007",
+        "--patient-name", "STATION^TEST", "-s", "1", "--pixel-mode", "simple_text", "--json",
+        "--station", "MR1",
+    )
+    folder = json.loads(out)["output_dir"]
+    image = pydicom.dcmread(next(Path(folder).glob("*.dcm")), stop_before_pixels=True)
+    assert image.file_meta.SourceApplicationEntityTitle == "DTG_MR01"
+
+    # \u9001\u4fe1\u306f\u3001\u753b\u50cf\u3092\u4f5c\u3063\u305f\u88c5\u7f6e\uff08MR1\uff09\u306e AE \u30bf\u30a4\u30c8\u30eb\u3067\u540d\u4e57\u308b
+    code, _, _ = run_cli(monkeypatch, capsys, tmp_path, config, "send", folder)
+    assert code == 0
+    assert storage_scp.calling_ae_titles[-1] == "DTG_MR01"
+    # \u8a18\u9332\u306f\u5909\u3048\u3066\u3044\u306a\u3044\u306e\u3067\u3001\u307b\u304b\u306e\u30b3\u30de\u30f3\u30c9\u306f\u65e2\u5b9a\u306e\u88c5\u7f6e\uff08CT1\uff09\u3067\u540d\u4e57\u308b
+    code, _, _ = run_cli(monkeypatch, capsys, tmp_path, config, "worklist", "query")
+    assert code == 0
+    assert worklist_scp.calling_ae_titles[-1] == "DTG_CT01"
+
+
+def test_unknown_station_option_is_exit_2(
+    monkeypatch, capsys, tmp_path, worklist_scp, storage_scp
+) -> None:
+    config = _two_station_config(tmp_path, worklist_scp.port, storage_scp.port)
+
+    code, _, err = run_cli(
+        monkeypatch, capsys, tmp_path, config, "worklist", "query", "--station", "XR9"
+    )
+
+    assert code == 2
+    assert "Station not found" in err
+    assert worklist_scp.queries == []
+
+
+def _a0001_key(monkeypatch, capsys, tmp_path, config) -> str:
+    _, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "worklist", "query", "--json")
+    return next(i for i in json.loads(out)["items"] if i["accession_number"] == "A0001")["key"]
+
+
+def test_exam_twice_needs_append(monkeypatch, capsys, tmp_path, config) -> None:
+    """撮影済みの予約は `--append` で追加撮影する（docs/spec/12a の 11.4・ADR-0024）."""
+    key = _a0001_key(monkeypatch, capsys, tmp_path, config)
+    args = ("exam", "--from-worklist", key, "-s", "1", "--pixel-mode", "simple_text")
+
+    code, _, err = run_cli(monkeypatch, capsys, tmp_path, config, *args, "--append")
+    assert code == 4 and "まだ撮影していません" in err
+
+    assert run_cli(monkeypatch, capsys, tmp_path, config, *args)[0] == 0
+    code, _, err = run_cli(monkeypatch, capsys, tmp_path, config, *args)
+    assert code == 4 and "撮影済みです" in err
+    assert run_cli(monkeypatch, capsys, tmp_path, config, *args, "--append")[0] == 0
+
+    _, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "worklist", "query")
+    assert "撮影済み" in out
+
+
+def test_append_is_refused_in_new_order_mode(
+    monkeypatch, capsys, tmp_path, worklist_scp, storage_scp
+) -> None:
+    config = write_config(tmp_path, worklist_scp.port, storage_scp.port)
+    data = yaml.safe_load(config.read_text(encoding="utf-8"))
+    data["modality"]["retake_mode"] = "new_order"
+    config.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+    key = _a0001_key(monkeypatch, capsys, tmp_path, config)
+    args = ("exam", "--from-worklist", key, "-s", "1", "--pixel-mode", "simple_text")
+    assert run_cli(monkeypatch, capsys, tmp_path, config, *args)[0] == 0
+
+    code, _, err = run_cli(monkeypatch, capsys, tmp_path, config, *args, "--append")
+
+    assert code == 4
+    assert "撮り直しの予約が要ります" in err

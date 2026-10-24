@@ -12,8 +12,8 @@
 #   /app/logs（CLI のログ）
 
 # ベースイメージは digest で固定する（マルチアーキテクチャの manifest list の digest。
-# 2026-10-20 に docker buildx imagetools inspect で確認した）。更新するときも同じ方法で確認する
-ARG PYTHON_IMAGE=python:3.12-slim-trixie@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
+# 2026-10-24 に docker buildx imagetools inspect で確認した）。更新するときも同じ方法で確認する
+ARG PYTHON_IMAGE=python:3.12-slim-trixie@sha256:a0f57064cbdcd6285fa45f51237ab0b35ea8ebaed06a1f5973e89e19dfb86704
 
 FROM ${PYTHON_IMAGE}
 

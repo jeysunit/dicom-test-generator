@@ -9,11 +9,26 @@ from fastapi import Request
 from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
-from app.core.exceptions import DICOMGeneratorError
+from app.core.exceptions import (
+    DICOMGeneratorError,
+    WorklistItemGoneError,
+    WorklistItemNotFoundError,
+    WorklistRefreshTimeoutError,
+)
 from app.core.validation_text import describe_validation_error
 from app.modality.service import ModalityService
 
 logger = logging.getLogger(__name__)
+
+# 予約を探す・取得し直すときの失敗の知らせ（10.4・10.8）
+ITEM_NOT_FOUND_MESSAGE = (
+    "この予約は最後に取得した一覧にありません。「ワークリストを取得」からやり直してください"
+)
+ITEM_GONE_MESSAGE = (
+    "この予約はワークリストにもうありません{accession}。"
+    "RIS で取り消されたか、変更された可能性があります"
+)
+REFRESH_TIMEOUT_MESSAGE = "取得し直す途中で時間切れになりました（{seconds} 秒）。もう一度押してください"
 
 PAGES = (
     ("worklist", "/worklist", "ワークリスト"),
@@ -58,12 +73,35 @@ def error_text(exc: DICOMGeneratorError | ValidationError) -> str:
     return str(exc)
 
 
+def worklist_error_text(exc: DICOMGeneratorError | ValidationError) -> str:
+    """予約を探す・取得し直すときの失敗を、利用者向けの日本語にする（10.4・10.8）.
+
+    内部の予約の鍵と CLI 向けの hint は出さない。ほかの失敗は error_text のまま。
+    """
+    if isinstance(exc, WorklistItemNotFoundError):
+        return ITEM_NOT_FOUND_MESSAGE
+    if isinstance(exc, WorklistItemGoneError):
+        # 受付番号は、あるときだけ括弧で添える（緊急の予約などで空のことがある）
+        accession = exc.details.get("accession_number")
+        return ITEM_GONE_MESSAGE.format(accession=f"（受付番号 {accession}）" if accession else "")
+    if isinstance(exc, WorklistRefreshTimeoutError):
+        seconds = exc.details.get("timeout_seconds", "")
+        if isinstance(seconds, float) and seconds.is_integer():
+            seconds = int(seconds)
+        return REFRESH_TIMEOUT_MESSAGE.format(seconds=seconds)
+    return error_text(exc)
+
+
 def band_context(request: Request) -> dict[str, Any]:
-    """自分の帯：自分の AE・ワークリストの相手・既定の送り先・文字コード（10.3・7.1）."""
+    """自分の帯：装置・ワークリストの相手・既定の送り先・文字コード（10.3・7.1）."""
     service = service_of(request)
     config = service.config
+    station = service.current_station()
     band: dict[str, Any] = {
-        "own_ae": config.ae_title,
+        "own_ae": station.ae_title,
+        "station_name": station.name,
+        "stations": config.stations,
+        "station_notice": service.station_notice(),
         "worklist_ae": config.worklist.ae_title,
         "destination": config.default_destination,
         "worklist_charset": None,

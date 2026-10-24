@@ -8,12 +8,12 @@
 
 ## 2. 公開の workflow
 
-- [x] 2.1 `.github/workflows/publish.yml` を追加し（`v*` のタグの push だけで動く、権限は `contents: read`・`packages: write`、actions は SHA で固定）、`actionlint` か YAML の構文の確認で誤りが無いことを確認する
+- [x] 2.1 `.github/workflows/publish.yml` を追加し（`v*` のタグの push と手動の実行だけで動く。手動の実行は `v*` のタグ以外なら失敗する。権限は `contents: read`・`packages: write`、actions は SHA で固定）、`actionlint` か YAML の構文の確認で誤りが無いことを確認する
 - [x] 2.2 PR と `main` への push で publish.yml が動かないことを、PR の checks に publish のジョブが出ないことで確認する
 
 ## 3. ドキュメント
 
-- [x] 3.1 ADR-0023（Docker のイメージを主な配布の形にし、タグの push のときに GHCR に公開する）を作成して一覧に追加し、`python scripts/check_doc_dates.py origin/main..HEAD` が合格することを確認する
+- [x] 3.1 ADR-0026（Docker のイメージを主な配布の形にし、タグの push のときに GHCR に公開する）を作成して一覧に追加し、`python scripts/check_doc_dates.py origin/main..HEAD` が合格することを確認する
 - [x] 3.2 README のクイックスタートを Docker（パスワードのファイルの作成、イメージの取得と Web 画面の起動、ファイルの作成）にし、markdownlint が合格することを確認する
 - [x] 3.3 usage.md の 1 章を Docker から始め（公開の前の `docker build` も書く）、5.1・5.2・6・7 章の例を Docker で実行する形にし、Python の環境での起動を development.md に移し、リンクの検査で切れたリンクが無いことを確認する
 - [x] 3.4 development.md の CI の章に公開の workflow を、roadmap.md の「次に行うもの」から Docker の項目を削除して最初の公開（タグの push）を書き、markdownlint が合格することを確認する

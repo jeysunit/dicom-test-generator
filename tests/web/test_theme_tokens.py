@@ -33,9 +33,13 @@ def test_spec_table_has_all_color_tokens() -> None:
         "--color-label",
         "--color-value",
         "--color-border",
+        "--color-border-input",
         "--color-muted",
+        "--color-muted-strong",
+        "--color-chrome",
         "--color-primary",
         "--color-primary-foreground",
+        "--color-link",
         "--color-danger",
         "--color-success",
         "--color-warning",
@@ -57,3 +61,75 @@ def test_base_font_size_and_line_height() -> None:
     body = _block(css, "body")
     assert "font-size: 0.875rem" in body
     assert "line-height: 1.5" in body
+
+
+def _luminance(hex_color: str) -> float:
+    channels = [int(hex_color[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+    linear = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+
+def _contrast(a: str, b: str) -> float:
+    high, low = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (high + 0.05) / (low + 0.05)
+
+
+# 文字の色と、その文字が乗る地（WCAG 2.2 の AA：4.5:1 以上）
+_TEXT_PAIRS = [
+    ("--color-foreground", "--color-background"),
+    ("--color-foreground", "--color-surface"),
+    ("--color-foreground", "--color-muted"),
+    ("--color-foreground", "--color-muted-strong"),
+    ("--color-label", "--color-background"),
+    ("--color-label", "--color-surface"),
+    ("--color-label", "--color-muted"),
+    ("--color-label", "--color-muted-strong"),
+    ("--color-value", "--color-background"),
+    ("--color-value", "--color-surface"),
+    ("--color-link", "--color-background"),
+    ("--color-link", "--color-surface"),
+    ("--color-link", "--color-muted"),
+    ("--color-danger", "--color-background"),
+    ("--color-danger", "--color-surface"),
+    ("--color-primary-foreground", "--color-primary"),
+]
+
+
+def _themes() -> dict[str, dict[str, str]]:
+    css = INPUT_CSS.read_text(encoding="utf-8")
+    light = dict(_DECLARATION.findall(_block(css, "@theme")))
+    dark = {**light, **dict(_DECLARATION.findall(_block(css, ':root[data-theme="dark"]')))}
+    return {"light": light, "dark": dark}
+
+
+def test_text_contrast_is_at_least_aa() -> None:
+    for theme, tokens in _themes().items():
+        for foreground, background in _TEXT_PAIRS:
+            ratio = _contrast(tokens[foreground], tokens[background])
+            assert ratio >= 4.5, (theme, foreground, background, round(ratio, 2))
+
+
+def test_input_border_contrast_is_at_least_3_to_1() -> None:
+    for theme, tokens in _themes().items():
+        for background in ("--color-background", "--color-surface"):
+            ratio = _contrast(tokens["--color-border-input"], tokens[background])
+            assert ratio >= 3, (theme, background, round(ratio, 2))
+
+
+def test_greys_are_neutral() -> None:
+    names = (
+        "--color-background",
+        "--color-surface",
+        "--color-foreground",
+        "--color-label",
+        "--color-value",
+        "--color-border",
+        "--color-border-input",
+        "--color-muted",
+        "--color-muted-strong",
+        "--color-chrome",
+    )
+    for theme, tokens in _themes().items():
+        for name in names:
+            value = tokens[name]
+            assert value[1:3] == value[3:5] == value[5:7], (theme, name, value)

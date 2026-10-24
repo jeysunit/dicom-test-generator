@@ -106,10 +106,14 @@ def worklist_item_from_identifier(identifier: Dataset) -> WorklistItem:
         "study_instance_uid": text(identifier, "StudyInstanceUID"),
         "accession_number": text(identifier, "AccessionNumber"),
         "referring_physician_name": text(identifier, "ReferringPhysicianName"),
+        "requesting_physician": text(identifier, "RequestingPhysician"),
         "requested_procedure_id": text(identifier, "RequestedProcedureID"),
         "requested_procedure_description": text(identifier, "RequestedProcedureDescription"),
         "reason_for_requested_procedure": text(identifier, "ReasonForTheRequestedProcedure"),
         "institution_name": text(identifier, "InstitutionName"),
+        # 標準の MWL に無いので、RIS によって最上位か予約の項目のどちらかに入る
+        "body_part_examined": text(identifier, "BodyPartExamined")
+        or text(sps, "BodyPartExamined"),
         "scheduled_procedure_step_id": text(sps, "ScheduledProcedureStepID"),
         "scheduled_procedure_step_description": text(sps, "ScheduledProcedureStepDescription"),
         "scheduled_start_date": text(sps, "ScheduledProcedureStepStartDate"),
@@ -256,6 +260,8 @@ def apply_scheduled_context(ds: Dataset, ctx: ScheduledContext) -> None:
     ds.StudyID = ctx.study_id
     if ctx.study_description:
         ds.StudyDescription = ctx.study_description
+    elif ctx.study_description_fixed and "StudyDescription" in ds:
+        del ds.StudyDescription
 
     for keyword in _SCHEDULED_ONLY_ATTRIBUTES:
         if keyword in ds:
@@ -273,8 +279,17 @@ def apply_scheduled_context(ds: Dataset, ctx: ScheduledContext) -> None:
         reference.ReferencedSOPInstanceUID = ctx.performed_procedure_step_sop_instance_uid
         ds.ReferencedPerformedProcedureStepSequence = Sequence([reference])
     ds.PerformedProcedureStepID = ctx.performed_procedure_step_id
-    ds.PerformedProcedureStepStartDate = ds.get("StudyDate", "")
-    ds.PerformedProcedureStepStartTime = ds.get("StudyTime", "")
+    ds.PerformedProcedureStepStartDate = ctx.performed_procedure_step_start_date or ds.get(
+        "StudyDate", ""
+    )
+    ds.PerformedProcedureStepStartTime = ctx.performed_procedure_step_start_time or ds.get(
+        "StudyTime", ""
+    )
+    if ctx.performed_procedure_step_start_date and ctx.performed_procedure_step_start_time:
+        # Content Date・Time は画像を作った日時（PS3.3 C.7.6.1）。追加撮影では Study の
+        # 日時（最初の撮影）でなく、その撮影の日時にする
+        ds.ContentDate = ctx.performed_procedure_step_start_date
+        ds.ContentTime = ctx.performed_procedure_step_start_time
     if ctx.study_description:
         ds.PerformedProcedureStepDescription = ctx.study_description
 
@@ -282,6 +297,9 @@ def apply_scheduled_context(ds: Dataset, ctx: ScheduledContext) -> None:
         ds.InstitutionName = ctx.institution_name
     if ctx.source_ae_title and hasattr(ds, "file_meta"):
         ds.file_meta.SourceApplicationEntityTitle = ctx.source_ae_title
+    if ctx.station_name:
+        # 画像を作った装置の名前（PS3.3 C.7.5.1）。装置の設定の値を優先する
+        ds.StationName = ctx.station_name
 
 
 def ensure_modality_matches(item: WorklistItem, template_modality: str) -> None:

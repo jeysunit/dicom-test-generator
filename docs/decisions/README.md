@@ -29,7 +29,10 @@ ADR の一覧と、ADR に固有の書き方です。ドキュメントに共通
 | [0020](0020-mpps-optional-with-retry-queue.md) | MPPS を送信できなくても撮影を止めず、未送信の通知はキューに残して再送する | 採用 |
 | [0021](0021-test-only-commitment-and-mpps-peers.md) | 保管確認と MPPS の SCP は、テストの中だけで起動する | 採用 |
 | [0022](0022-remove-desktop-gui.md) | PySide6 のデスクトップ画面を削除し、ファイルの作成は CLI に任せる | 採用 |
-| [0023](0023-container-image-distribution.md) | Docker のイメージを主な配布の形にし、タグの push のときに GHCR に公開する | 採用 |
+| [0023](0023-switch-own-station.md) | 名乗る装置を設定に複数書き、画面と CLI で切り替える | 採用 |
+| [0024](0024-exam-once-and-retake.md) | 予約での撮影は1回で撮影済みにし、撮り直しの形は設定で選ぶ | 採用 |
+| [0025](0025-exam-routines.md) | 撮影は既定で予約に当てたルーチンの並びと枚数で行う | 採用 |
+| [0026](0026-container-image-distribution.md) | Docker のイメージを主な配布の形にし、タグの push と手動のときに GHCR に公開する | 採用 |
 
 0001〜0013 は、この形式を決める前に書いたものです。冒頭の行をこの形式に
 そろえ、本文は語の置き換えだけにとどめています。

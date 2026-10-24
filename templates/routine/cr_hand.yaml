@@ -1,0 +1,16 @@
+# CR 手。PA・斜位・側面。斜位は View Position の定義の語で近い RLO にした（ADR-0025）
+name: "cr_hand"
+label: "手"
+modality: "CR"
+protocol_name: "HAND"
+keywords: ["手", "HAND"]
+series:
+  - description: "Hand PA"
+    images: 1
+    views: ["PA"]
+  - description: "Hand OBL"
+    images: 1
+    views: ["RLO"]
+  - description: "Hand LAT"
+    images: 1
+    views: ["LL"]

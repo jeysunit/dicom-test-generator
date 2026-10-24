@@ -1,4 +1,7 @@
-{% if oob_band %}{% include "_band.html" %}{% endif %}
+{% if oob_band %}{% include "_band.html" %}
+{# 一覧を差し替えたら、詳細も選んだ行の値にする（選んでいなければ閉じる） #}
+<section id="detail" hx-swap-oob="true">{% if results.detail_item %}{% with item = results.detail_item, item_taken = results.detail_taken %}{% include "_worklist_detail.html" %}{% endwith %}{% endif %}</section>
+{% endif %}
 {% if results.notice %}
 <p role="status" class="notice notice-ok">{{ results.notice }}</p>
 {% endif %}
@@ -26,7 +29,6 @@
           <th scope="col">生年月日・性別</th>
           <th scope="col">受付番号</th>
           <th scope="col">検査の記述</th>
-          <th scope="col"><span class="sr-only">印</span></th>
         </tr>
       </thead>
       <tbody>
@@ -36,14 +38,15 @@
           <td><input type="radio" name="key" value="{{ item.key }}" required aria-label="この予約を選ぶ" hx-get="/worklist/item/{{ item.key }}" hx-target="#detail" hx-trigger="change"{% if item.key == results.selected %} checked{% endif %}></td>
           <td>{{ item.scheduled_start_time|time_label }}</td>
           <td class="font-mono">{{ item.patient_id }}</td>
-          <td>
+          {# 印（撮影済み・別の装置）は氏名の下に出す。狭い幅でも横にスクロールせずに見える #}
+          <td class="name-cell">
             <div class="font-semibold text-value">{{ ideographic or alphabetic }}</div>
             {% if phonetic or (ideographic and alphabetic) %}<div class="text-xs text-label">{{ phonetic or alphabetic }}</div>{% endif %}
+            {% if marks %}<div>{% for mark in marks %}<span class="badge">{{ mark }}</span>{% endfor %}</div>{% endif %}
           </td>
           <td>{{ item|birth_label }}</td>
           <td class="font-mono">{{ item.accession_number }}</td>
           <td>{{ item.requested_procedure_description }}</td>
-          <td>{% for mark in marks %}<span class="badge">{{ mark }}</span>{% endfor %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -54,7 +57,7 @@
     {% if results.partial_message %}<span role="status" class="text-xs text-danger">{{ results.partial_message }}</span>{% endif %}
     <div class="ml-auto flex flex-wrap gap-2">
       <a class="btn btn-ghost" href="/exam">緊急の患者で撮る</a>
-      <button type="button" class="btn btn-outline" hx-post="/worklist/refresh" hx-include="#pick" hx-target="#results">
+      <button type="button" class="btn btn-outline" data-needs-selection hx-post="/worklist/refresh" hx-include="#pick" hx-target="#results" hx-disabled-elt="this"{% if not results.has_selection %} disabled title="行を選ぶと押せます"{% endif %}>
         <span class="icon icon-refresh-cw" aria-hidden="true"></span>取得し直す
       </button>
       <button type="submit" class="btn btn-primary">選んで撮影へ</button>

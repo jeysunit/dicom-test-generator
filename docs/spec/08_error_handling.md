@@ -46,6 +46,9 @@ DICOMGeneratorError
     ├── ModalityConfigError      # modality: の節のエラー
     ├── AssociationError         # Association を確立できない・拒否された・切断された
     ├── WorklistQueryError       # C-FIND の失敗・タイムアウト
+    │   └── WorklistRefreshTimeoutError  # 予約を取得し直す C-FIND が時間切れで途中まで
+    ├── WorklistItemNotFoundError  # 最後に取得した一覧に予約の鍵が無い
+    ├── WorklistItemGoneError    # 取得し直した応答に予約がもう無い
     ├── WorklistMappingError     # 予約の値を転記できない（文字・長さ・モダリティ）
     ├── StoreError               # C-STORE の失敗
     ├── StorageCommitmentError   # 保管確認（Storage Commitment）の失敗・タイムアウト
@@ -124,7 +127,9 @@ reason=Permission denied)`
 | 5 | 通信エラー | AssociationError・WorklistQueryError・StoreError・StorageCommitmentError・MPPSError |
 
 - `ModalityConfigError` は 2（設定エラー）にする
-- ほかの `ModalityError`（例：最後に取得した結果に無い予約のキー）は 1
+- ほかの `ModalityError`（例：最後に取得した結果に無い予約のキー
+  `WorklistItemNotFoundError`、応答に無くなった予約 `WorklistItemGoneError`）は 1。
+  `WorklistRefreshTimeoutError` は `WorklistQueryError` の子なので 5
 - 上のどれでもない例外も 1
 
 判定は `ModalityConfigError`・`WorklistMappingError`・通信エラー・

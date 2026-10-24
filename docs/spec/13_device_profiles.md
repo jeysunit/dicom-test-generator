@@ -82,7 +82,7 @@ PACS・RIS・ビューアのテストで、**特定の装置が出力する形�
 | `device.manufacturers_model_name` | Manufacturer's Model Name (0008,1090) | Table N.9-5 | 実装済み |
 | `device.software_versions` | Software Versions (0018,1020)。複数の値は配列 | Table N.9-5 | 実装済み |
 | `device.device_serial_number` | Device Serial Number (0018,1000)。装置番号の**形式**だけを転記した合成の値（実機の番号を書かない） | Table N.9-5 | 実装済み |
-| `device.station_name` | Station Name (0008,1010) の既定値。病院テンプレートが指定すればそちら | Table N.9-5・N.6-1 | 実装済み |
+| `device.station_name` | Station Name (0008,1010) の既定値。病院テンプレートが指定すればそちら。モダリティエミュレーターで選んだ装置に Station Name があれば、それが先（spec/12 の 6.2・ADR-0023） | Table N.9-5・N.6-1 | 実装済み |
 | `device.implementation_version_name` | File Meta の Implementation Version Name (0002,0013) | N.7（Association の表）・N.1 | 実装済み |
 | `storage.sop_classes` | 装置が作成する（Create）Storage の SOP Class。最初の1つで作成する | Table N.1-1 | 実装済み |
 | `storage.transfer_syntaxes` | 装置が送信できる Transfer Syntax。並びは装置の優先順 | Table N.1-2・N.7-5 | 実装済み |

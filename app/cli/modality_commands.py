@@ -13,10 +13,15 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from app.cli.terminal import json_for_terminal, sanitize_for_terminal
-from app.core.exceptions import ConfigurationError, StorageCommitmentError, StoreError
+from app.core.exceptions import (
+    ConfigurationError,
+    StorageCommitmentError,
+    StoreError,
+    ValidationError,
+)
 from app.core.models import ScheduledPatient, WorklistItem
 from app.modality.config import load_modality_config
-from app.modality.service import ExamRequest, ModalityService, SendResult
+from app.modality.service import AUTO_ROUTINE, ExamRequest, ModalityService, SendResult
 from app.modality.worklist_scu import (
     WorklistQuery,
     WorklistQueryResult,
@@ -46,6 +51,10 @@ def register_modality_commands(
         "--log-file", default=default_log_file, help=f"ログファイル（default: {default_log_file}）"
     )
     common.add_argument("--json", action="store_true", help="結果を JSON で出す")
+    common.add_argument(
+        "--station",
+        help="このコマンドだけ使う装置の表示名（設定の stations。無ければ画面で選んだ装置）",
+    )
 
     echo_parser = subparsers.add_parser("echo", parents=[common], help="C-ECHO で疎通を確かめる")
     echo_target = echo_parser.add_mutually_exclusive_group()
@@ -78,6 +87,11 @@ def register_modality_commands(
     source.add_argument("--from-worklist", metavar="KEY", help="予約の鍵")
     source.add_argument("--emergency", action="store_true", help="予約なし（緊急の患者）")
     exam_parser.add_argument("--refresh", action="store_true", help="撮る前に予約を引き直す")
+    exam_parser.add_argument(
+        "--append",
+        action="store_true",
+        help="撮影済みの予約で追加撮影する（同じ Study に新しいシリーズ。retake_mode: append のとき）",
+    )
     exam_parser.add_argument("--patient-id", help="緊急の患者の ID")
     exam_parser.add_argument("--patient-name", help="緊急の患者の氏名（PN）")
     exam_parser.add_argument("--birth-date", help="緊急の患者の生年月日（YYYYMMDD）")
@@ -88,14 +102,29 @@ def register_modality_commands(
         "--profile", help="装置のプロファイル（docs/spec/13。default: 設定の default_profile）"
     )
     exam_parser.add_argument("--hospital", help="病院テンプレート")
-    exam_parser.add_argument("-s", "--series", type=int, default=1, help="シリーズ数")
+    exam_parser.add_argument(
+        "-s",
+        "--series",
+        type=int,
+        help=(
+            "シリーズ数（手で入れる）。-s・-i・--routine を省くと、予約に当てたルーチンで撮る"
+        ),
+    )
     exam_parser.add_argument(
         "-i",
         "--images",
         help=(
-            "各シリーズの画像数（カンマ区切り）。省くと、シリーズごとに"
+            "各シリーズの画像数（カンマ区切り。手で入れる）。-s だけなら、シリーズごとに"
             f"{DEFAULT_IMAGES_PER_SERIES} 画像"
         ),
+    )
+    exam_parser.add_argument(
+        "--routine",
+        help="撮影のルーチンの名前（templates/routine/。default: 予約に当てたルーチン）",
+    )
+    exam_parser.add_argument(
+        "--routine-images",
+        help="ルーチンの各シリーズの画像数（カンマ区切り。数はルーチンのシリーズの数と同じ）",
     )
     exam_parser.add_argument("--pixel-mode", choices=PIXEL_MODE_CHOICES, help="ピクセル")
     exam_parser.add_argument(
@@ -128,7 +157,9 @@ def register_modality_commands(
     retry_parser = queue_sub.add_parser("retry", parents=[common], help="失敗を再送する")
     retry_target = retry_parser.add_mutually_exclusive_group(required=True)
     retry_target.add_argument("--all", action="store_true", help="失敗の全部")
-    retry_target.add_argument("--job", type=int, help="送信ジョブの ID")
+    retry_target.add_argument(
+        "--job", type=int, help="送信ジョブの ID（送信完了の件は、新しい件として全部を送り直す）"
+    )
     retry_target.add_argument(
         "--stale", action="store_true", help="送信中のまま止まった件の全部（失敗に戻して送る）"
     )
@@ -206,9 +237,34 @@ def worklist_show_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def _exam_series_options(
+    args: argparse.Namespace,
+) -> tuple[list[int], str | None, list[int] | None]:
+    """撮るシリーズの指定を（手で入れる画像数, ルーチン, ルーチンの画像数）にする.
+
+    -s・-i を指定すれば今の手入力。-s・-i・--routine を省けば予約に当てたルーチン
+    （ADR-0025）。--routine と -s・-i を一緒に指定したら入力の誤り（終了コード 4）。
+    """
+    manual = args.series is not None or args.images is not None
+    if manual and (args.routine or args.routine_images):
+        raise ValidationError("--routine・--routine-images と -s・-i は一緒に使えません")
+    if manual:
+        series = args.series if args.series is not None else len(args.images.split(","))
+        return _parse_images(args.images, series), None, None
+    routine_images = None
+    if args.routine_images is not None:
+        try:
+            routine_images = [int(value.strip()) for value in args.routine_images.split(",")]
+        except ValueError as exc:
+            raise ValidationError(
+                "--routine-images は整数をカンマで区切って入れてください"
+            ) from exc
+    return [DEFAULT_IMAGES_PER_SERIES], args.routine or AUTO_ROUTINE, routine_images
+
+
 def exam_command(args: argparse.Namespace) -> int:
     service = _service(args)
-    images = _parse_images(args.images, args.series)
+    images, routine, routine_images = _exam_series_options(args)
     emergency_patient = None
     if args.emergency:
         if not args.patient_id or not args.patient_name:
@@ -237,6 +293,9 @@ def exam_command(args: argparse.Namespace) -> int:
             charset=args.charset,
             output_dir=args.output,
             mpps=args.mpps,
+            append=args.append,
+            routine=routine,
+            routine_images=routine_images,
         )
     )
     if result.mpps is not None and not result.mpps.sent:
@@ -255,9 +314,10 @@ def exam_command(args: argparse.Namespace) -> int:
     else:
         for notice in result.notices:
             _emit(f"[NOTICE] {notice}")
+        routine_label = f", routine: {result.routine}" if result.routine else ""
         _emit(
             f"Exam completed: {result.output_dir} ({len(result.files)} files, "
-            f"SpecificCharacterSet: {_charset_label(result.character_set)})"
+            f"SpecificCharacterSet: {_charset_label(result.character_set)}{routine_label})"
         )
         if send_result:
             _print_send_result(send_result)
@@ -360,13 +420,16 @@ def queue_retry_command(args: argparse.Namespace) -> int:
 def _service(args: argparse.Namespace) -> ModalityService:
     pynetdicom_level = logging.DEBUG if getattr(args, "verbose", False) else logging.WARNING
     logging.getLogger("pynetdicom").setLevel(pynetdicom_level)
-    return ModalityService(load_modality_config(Path(args.config)))
+    # `--station` はこのコマンドだけに効き、画面で選んだ装置の記録は変えない（ADR-0023）
+    return ModalityService(
+        load_modality_config(Path(args.config)), station=getattr(args, "station", None)
+    )
 
 
 def _build_query(service: ModalityService, args: argparse.Namespace) -> WorklistQuery:
     config = service.config
     modality = args.modality or service.template_modality(config.default_template)
-    station = args.station_aet or config.ae_title
+    station = args.station_aet or service.current_station().ae_title
     return WorklistQuery(
         date_range=parse_date_option(args.date, date.today()),
         modality="" if modality == ANY else modality,
@@ -402,13 +465,16 @@ def _print_worklist(service: ModalityService, result: WorklistQueryResult) -> No
 
 def _item_marks(service: ModalityService, item: WorklistItem) -> str:
     marks = []
-    if item.scheduled_station_ae_title and item.scheduled_station_ae_title != service.config.ae_title:
+    own_ae_title = service.current_station().ae_title
+    if item.scheduled_station_ae_title and item.scheduled_station_ae_title != own_ae_title:
         marks.append("別の装置")
     if item.unreadable_attributes:
         marks.append("読めない値")
     groups = item.patient_name.split("=")
     if len(groups) < 2 or not any(group for group in groups[1:]):
         marks.append("漢字・かなが空")
+    if service.is_taken(item.key):
+        marks.append("撮影済み")  # 画面の一覧と同じ（docs/spec/12 の 6.3）
     return f"  [{' / '.join(marks)}]" if marks else ""
 
 

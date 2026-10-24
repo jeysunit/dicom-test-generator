@@ -1,8 +1,8 @@
-# ADR-0023: Docker のイメージを主な配布の形にし、タグの push のときに GHCR に公開する
+# ADR-0026: Docker のイメージを主な配布の形にし、タグの push と手動のときに GHCR に公開する
 
 - 状態：採用
 - 作成日：2026-10-23
-- 最終更新日：2026-10-23
+- 最終更新日：2026-10-24
 
 ## 背景
 
@@ -16,9 +16,11 @@ DTG を使うには、Python の環境を作るか、`Dockerfile` から自分�
 
 1. 主な配布の形を Docker のイメージにする。README のクイックスタートと usage.md は
    Docker から始め、Python の環境での起動は開発する人向けに development.md に置く
-2. イメージは `ghcr.io/jeysunit/dicom-test-generator` に、`v` で始まるタグの push の
-   ときだけ公開する（`.github/workflows/publish.yml`）。タグは版と `latest`。
-   `main` への push と PR では公開しない。公開はタグを push する人が決める操作にする
+2. イメージは `ghcr.io/jeysunit/dicom-test-generator` に、`v` で始まるタグの push と、
+   手動の実行（`workflow_dispatch`）のときだけ公開する
+   （`.github/workflows/publish.yml`）。手動の実行は、`v` で始まるタグを選んだときだけ
+   進み、ほかの ref では失敗する。タグは版と `latest`。`main` への push と PR では
+   公開しない。公開はタグを push する人か、手動で実行する人が決める操作にする
 3. イメージの中の設定は、Web 画面を `0.0.0.0` で待ち受ける形にする。`0.0.0.0` では
    パスワードのファイルが必須なので（spec/12a の 10.9）、パスワード無しでは起動しない
 4. 書き込むフォルダ（`logs`・`modality_state`・`output`）は `1777` にし、

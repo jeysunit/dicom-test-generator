@@ -6,14 +6,21 @@
 
 ## ADDED Requirements
 
-### Requirement: タグの push のときだけイメージを公開する
+### Requirement: 版のタグの push と手動の実行のときだけイメージを公開する
 
-リポジトリに `v` で始まるタグが push されたときだけ、イメージを `ghcr.io/jeysunit/dicom-test-generator` に公開しなければならない（SHALL）。タグは、push されたタグの版と `latest` にする。`main` への push と PR では公開してはならない。
+リポジトリに `v` で始まるタグが push されたとき、または手動の実行で `v` で始まるタグが選ばれたときだけ、イメージを `ghcr.io/jeysunit/dicom-test-generator` に公開しなければならない（SHALL）。タグは、そのタグの版と `latest` にする。`main` への push と PR では公開してはならない。手動の実行で `v` で始まるタグ以外の ref が選ばれたときは、公開せずに失敗する。
 
 #### Scenario: 版のタグを push する
 
 - **WHEN** `v1.2.0` のタグが push される
 - **THEN** イメージが `ghcr.io/jeysunit/dicom-test-generator:1.2.0` と `:latest` で公開される
+
+#### Scenario: 手動の実行
+
+- **WHEN** 手動の実行で `v1.2.0` のタグが選ばれる
+- **THEN** イメージが `:1.2.0` と `:latest` で公開される
+- **WHEN** 手動の実行で `main` のブランチが選ばれる
+- **THEN** workflow はイメージを公開せずに失敗する
 
 #### Scenario: PR と main への push
 

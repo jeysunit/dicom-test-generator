@@ -61,8 +61,11 @@ docker build -t dicom-test-generator .
 1. ワークリストの画面で、予定日・モダリティ・AE タイトルを選び、「ワークリストを取得」を
    押す
 2. 一覧から予約を選び、「選んで撮影へ」を押す
-3. 撮影の画面で、予約の値（読み取り専用）を確認し、テンプレート・シリーズ数・
-   画像数・異常のデータを選ぶ
+3. 撮影の画面で、予約の値（読み取り専用）を確認する。「ルーチン」には、予約の検査の
+   記述（胸部・頭部・腹部など）に合うルーチンが選ばれ、シリーズの並びと画像数が
+   入っている。そのまま撮れる。変えるときは、ルーチンを選び直すか、画像数を直すか、
+   [外す] でシリーズを外す。外したシリーズは薄く表示され、[戻す] で元の画像数のまま
+   戻せる。「手で入れる」を選ぶと、シリーズ数と画像数を入れる欄になる
 4. [撮影して送る] を押す。DICOM ファイルを作成して出力フォルダに保存し、続けて
    既定の送信先（PACS）へ送信する。送信しないときは [撮影] を押す
 
@@ -70,6 +73,14 @@ docker build -t dicom-test-generator .
 `<受付番号か emergency>_<撮影の日時 YYYYMMDDHHMMSS>/` に保存される（出力
 フォルダは設定の `output_dir` で、既定は `output/modality`。1.1 の例では、ホストの
 `output/modality/` の下になる）。
+
+予約で1回撮影すると、その予約は撮影済みになり、[撮影]・[撮影して送る] は押せなく
+なる（一覧にも「撮影済み」の印が付く）。撮り直すときは、設定の `retake_mode` に従う。
+
+- `append`（既定）：[追加撮影] で、同じ Study に新しいシリーズとして撮る（IHE の
+  Append Case）。CLI では `exam --from-worklist <鍵> --append`
+- `new_order`：RIS で撮り直しの予約を作り、ワークリストを取得し直して、その予約で
+  撮る（受付番号と Study Instance UID は RIS が出す）
 
 ### 2.2 予約の無い患者で撮影する
 
@@ -86,6 +97,10 @@ PACS の画面の送信キューに、ジョブごとの状態（待機中・送
 
 - 送信失敗の行は、理由が表示される。[再送] で再送し、表の上の [失敗をすべて再送] で
   失敗したジョブをまとめて再送する
+- 送信完了の行の [再送] と、撮影の画面の送信の結果の下の [もう一度送る] で、同じ画像を
+  何回でも送り直せる。送るたびに新しいジョブになり、画像の UID は変わらない
+- 行の [詳細] で、元のファイル（出力フォルダ）・試行回数・名乗る AE タイトルが
+  浮かぶ枠に出る。枠の外を押すか Esc で閉じる
 - 送信先の一覧の [C-ECHO] で、送信先との疎通を確認できる
 
 ## 4. 保管確認（Storage Commitment）と MPPS を使う
@@ -135,8 +150,8 @@ Orthanc は MPPS を受け付けないので、MPPS を受け付けるテスト�
 
 ### 5.1 送信先とワークリストの取得先
 
-設定ファイルの `modality:` の節に、自分の AE タイトル、ワークリストの取得先（RIS）、
-送信先（PACS）を設定し、コンテナを起動し直す。ホスト名と IP アドレスは、コンテナから
+設定ファイルの `modality:` の節に、名乗る装置（`stations`）、ワークリストの取得先
+（RIS）、送信先（PACS）を設定し、コンテナを起動し直す。ホスト名と IP アドレスは、コンテナから
 到達できるものを書く。設定の画面は読み取り専用で、読み込んだ値を確認できる。項目の
 一覧は [spec/12](spec/12_modality_emulator.md) の 12 章にある。
 
@@ -151,7 +166,19 @@ docker run --rm ghcr.io/jeysunit/dicom-test-generator:latest cat config/app_conf
 1.1 の `docker run` に `-v "$PWD/app_config.yaml:/app/config/app_config.yaml:ro"` を
 追加して起動する。
 
-### 5.2 ネットワークに公開する
+### 5.2 装置を切り替える
+
+装置を2台以上設定すると（例 CT1 は `DTG_CT01`、MR1 は `DTG_MR01`）、情報バーの
+「装置」で切り替えられる。切り替えた装置の AE タイトルで、ワークリストの取得・送信・
+MPPS・保管確認を行い、画像の Station Name もその装置の値になる。選んだ装置は画面を
+再起動しても残り、CLI も同じ装置を使う（`--station <表示名>` でそのコマンドだけ
+変えられる）。
+
+- PACS・RIS には、使う装置の AE タイトルをすべて登録しておく。登録していない AE
+  タイトルで断られると、「相手が AE タイトル DTG_MR01 を受け付けませんでした」と出る
+- 切り替える前に作った送信の件と MPPS は、再送しても作ったときの AE タイトルで送る
+
+### 5.3 ネットワークに公開する
 
 1.1 の例は、ポートをホストの 127.0.0.1 にだけ公開している。ほかのマシンから
 開くときは、`-p 8080:8080` のようにホストのすべてのアドレスに公開する。コンテナの
@@ -172,7 +199,9 @@ Web 画面は HTTP Basic 認証が必須で（ユーザー名は `dtg`）、パ�
 |------|----------|
 | 疎通の確認 | `python -m app.cli echo --to PACS_TEST`・`echo --worklist` |
 | ワークリストの取得 | `python -m app.cli worklist query` |
-| 予約から撮影して送信 | `python -m app.cli exam --from-worklist <キー> -s 2 -i 1,20 --send` |
+| 予約から撮影して送信（予約に当てたルーチン） | `python -m app.cli exam --from-worklist <キー> --send` |
+| ルーチンを選んで撮影 | `python -m app.cli exam --from-worklist <キー> --routine ct_head_plain` |
+| シリーズ数と画像数を手で入れて撮影 | `python -m app.cli exam --from-worklist <キー> -s 2 -i 1,20` |
 | 予約の無い患者で撮影 | `python -m app.cli exam --emergency --patient-id E0001 --patient-name "KINKYU^TARO"` |
 | 送信キューの確認と再送 | `python -m app.cli queue list --status failed`・`queue retry --all` |
 | 保管確認の要求 | `python -m app.cli commit --job 1 --wait 60` |
@@ -182,6 +211,9 @@ Web 画面は HTTP Basic 認証が必須で（ユーザー名は `dtg`）、パ�
   確認済なら終了コード 0、それ以外は 5。Web 画面が同じポートで待ち受けているときは、
   終了コード 2 で停止する
 - `exam --mpps`・`--no-mpps` で、その撮影だけ MPPS の設定を上書きできる
+- 撮影のルーチンは `templates/routine/` の YAML（CT・MR・CR・DX・US の部位ごと）。
+  施設のルーチンは同じ形の YAML を足して作る。MR・CR・DX・US のルーチンは、それらの
+  画像を作れるようになるまで使えない
 
 ## 7. CLI だけでできること
 

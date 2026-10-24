@@ -1,0 +1,13 @@
+# CR 膝。AP と側面（ADR-0025）
+name: "cr_knee"
+label: "膝"
+modality: "CR"
+protocol_name: "KNEE"
+keywords: ["膝", "KNEE"]
+series:
+  - description: "Knee AP"
+    images: 1
+    views: ["AP"]
+  - description: "Knee LAT"
+    images: 1
+    views: ["LL"]

@@ -56,10 +56,11 @@ python scripts/check_doc_dates.py origin/main..HEAD
   書き出せること、イメージの中の設定のまま Web 画面が `0.0.0.0` で起動して HTTP Basic
   認証を求めること、パスワードのファイルが無ければ起動しないことを確認する
 
-`.github/workflows/publish.yml` は、`v` で始まるタグの push のときだけ動き、イメージを
-`ghcr.io/jeysunit/dicom-test-generator` に公開する（タグは版と `latest`。
-[ADR-0023](decisions/0023-container-image-distribution.md)）。`main` への push と PR
-では動かない。
+`.github/workflows/publish.yml` は、`v` で始まるタグの push と、手動の実行のときだけ
+動き、イメージを `ghcr.io/jeysunit/dicom-test-generator` に公開する（タグは版と
+`latest`。[ADR-0026](decisions/0026-container-image-distribution.md)）。手動で実行する
+ときは、実行する ref に `v` で始まるタグを選ぶ（ほかの ref では失敗する）。`main` への
+push と PR では動かない。
 
 ## 4. テスト
 

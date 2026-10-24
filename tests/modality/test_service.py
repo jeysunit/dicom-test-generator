@@ -7,7 +7,14 @@ from pathlib import Path
 import pytest
 from modality_peers import LOCALHOST
 
-from app.core.exceptions import GenerationError, WorklistMappingError, WorklistQueryError
+from app.core.exceptions import (
+    GenerationError,
+    WorklistItemGoneError,
+    WorklistItemNotFoundError,
+    WorklistMappingError,
+    WorklistQueryError,
+    WorklistRefreshTimeoutError,
+)
 from app.core.models import ScheduledPatient
 from app.modality.config import ModalityConfig
 from app.modality.service import ExamRequest, ModalityService
@@ -75,7 +82,24 @@ def test_refresh_with_partial_response_is_query_error(tmp_path, worklist_scp) ->
         service.exam(ExamRequest(worklist_key=item.key, refresh=True, pixel_mode="simple_text"))
 
     assert exc_info.value.details["worklist_key"] == item.key
+    assert isinstance(exc_info.value, WorklistRefreshTimeoutError)
     assert list((tmp_path / "output").rglob("*.dcm")) == []
+
+
+def test_refresh_errors_tell_the_kind(tmp_path, worklist_scp) -> None:
+    """取得し直せない理由を例外の種類で分ける（画面の知らせ。docs/spec/12a の 10.4）."""
+    service = _service(tmp_path, worklist_scp.port)
+    item = service.query_worklist(WorklistQuery()).items[0]
+
+    with pytest.raises(WorklistItemNotFoundError):
+        service.refresh_item("")
+    with pytest.raises(WorklistItemNotFoundError):
+        service.find_item("0000000000")
+
+    worklist_scp.items = []
+    with pytest.raises(WorklistItemGoneError) as exc_info:
+        service.refresh_item(item.key)
+    assert exc_info.value.details["accession_number"] == item.accession_number
 
 
 def test_failed_exam_removes_empty_output_folder(tmp_path, worklist_scp) -> None:

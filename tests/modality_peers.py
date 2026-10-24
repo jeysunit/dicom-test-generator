@@ -63,6 +63,11 @@ def write_service_profile(
     )
 
 
+def _calling_ae_title(event: Any) -> str:
+    """要求を送ってきた側（DTG）が名乗った AE タイトル."""
+    return str(event.assoc.requestor.ae_title).strip()
+
+
 def free_port() -> int:
     """空いているポートを1つ返す（閉じた後なので、つながらない先としても使える）."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
@@ -104,6 +109,8 @@ def build_worklist_dataset(raw: dict[str, Any], character_set: list[str]) -> Dat
     ds.StudyInstanceUID = raw.get("study_instance_uid", "")
     ds.AccessionNumber = raw.get("accession_number", "")
     ds.ReferringPhysicianName = raw.get("referring_physician_name", "")
+    if raw.get("requesting_physician"):
+        ds.RequestingPhysician = raw["requesting_physician"]
     ds.RequestedProcedureID = raw.get("requested_procedure_id", "")
     ds.RequestedProcedureDescription = raw.get("requested_procedure_description", "")
     ds.RequestedProcedureCodeSequence = _code_sequence(raw.get("requested_procedure_code"))
@@ -169,12 +176,15 @@ class WorklistSCP:
     repeat: int = 1
     big_value_bytes: int = 0
     queries: list[Dataset] = field(default_factory=list)
+    # 受けた要求の Calling AE Title（装置の切り替えの試験。docs/spec/12 の 12 章）
+    calling_ae_titles: list[str] = field(default_factory=list)
     cancelled: bool = False
     port: int = 0
 
     def handle_find(self, event: Any) -> Iterator[tuple[int, Dataset | None]]:
         query = event.identifier
         self.queries.append(query)
+        self.calling_ae_titles.append(_calling_ae_title(event))
         if self.first_response_delay:
             time.sleep(self.first_response_delay)
         if self.final_status != STATUS_SUCCESS:
@@ -214,12 +224,14 @@ class StorageRecorder:
     ae_title: str = "PACS_TEST"
     status: int = STATUS_SUCCESS
     received: list[Dataset] = field(default_factory=list)
+    calling_ae_titles: list[str] = field(default_factory=list)
     port: int = 0
 
     def handle_store(self, event: Any) -> int:
         ds = event.dataset
         ds.file_meta = event.file_meta
         self.received.append(ds)
+        self.calling_ae_titles.append(_calling_ae_title(event))
         return self.status
 
 
@@ -242,6 +254,7 @@ class CommitmentPACS(StorageRecorder):
     calling_ae_title: str | None = None  # 別の道で名乗る AE（None なら自分の AE）
     mutate_report: Callable[[Dataset], None] | None = None
     actions: list[Dataset] = field(default_factory=list)
+    action_calling_ae_titles: list[str] = field(default_factory=list)
     report_statuses: list[int] = field(default_factory=list)
     reported: threading.Event = field(default_factory=threading.Event)
     report_started: bool = False
@@ -249,6 +262,7 @@ class CommitmentPACS(StorageRecorder):
     def handle_action(self, event: Any) -> tuple[int, Dataset | None]:
         request = event.action_information
         self.actions.append(request)
+        self.action_calling_ae_titles.append(_calling_ae_title(event))
         if self.action_status != STATUS_SUCCESS:
             return self.action_status, None
         if self.report_path != "none":
@@ -328,9 +342,11 @@ class MppsRecorder:
     sets: list[tuple[str, Dataset]] = field(default_factory=list)
     events: list[tuple[str, str, int]] = field(default_factory=list)  # (操作, UID, 返した Status)
     finished: set[str] = field(default_factory=set)
+    calling_ae_titles: list[str] = field(default_factory=list)
     port: int = 0
 
     def handle_create(self, event: Any) -> tuple[int, Dataset | None]:
+        self.calling_ae_titles.append(_calling_ae_title(event))
         uid = str(event.request.AffectedSOPInstanceUID)
         if self.create_statuses:
             status = self.create_statuses.pop(0)
@@ -345,6 +361,7 @@ class MppsRecorder:
         return status, event.attribute_list if status == STATUS_SUCCESS else None
 
     def handle_set(self, event: Any) -> tuple[int, Dataset | None]:
+        self.calling_ae_titles.append(_calling_ae_title(event))
         uid = str(event.request.RequestedSOPInstanceUID)
         modification = event.modification_list
         if uid not in self.created:

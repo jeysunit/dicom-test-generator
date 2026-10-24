@@ -1,10 +1,12 @@
 name: Publish image
 
-# v で始まるタグの push のときだけ、イメージを GHCR に公開する（ADR-0023）。
+# v で始まるタグの push と、手動の実行のときだけ、イメージを GHCR に公開する
+# （ADR-0026）。手動の実行は、実行する ref に v で始まるタグを選ぶ。
 # main への push と PR では動かない（イメージの確認は ci.yml の Docker のジョブ）。
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,6 +22,14 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
+      - name: Require a v* tag
+        if: github.ref_type != 'tag' || !startsWith(github.ref_name, 'v')
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          echo "::error::公開できるのは v で始まるタグだけです（実行した ref: $REF）"
+          exit 1
+
       # actions/checkout v7.0.1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:

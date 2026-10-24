@@ -9,7 +9,7 @@
 
 ## What Changes
 
-- タグ（`v*`）の push のときだけ動く GitHub Actions の workflow を追加し、イメージを
+- タグ（`v*`）の push と手動の実行のときだけ動く GitHub Actions の workflow を追加し、イメージを
   `ghcr.io/jeysunit/dicom-test-generator` に公開する（`<版>` と `latest` のタグ）。
   `main` への push と PR では公開しない
 - イメージの中の設定ファイルは、Web 画面を全アドレス（`0.0.0.0`）で待ち受ける形にする。
@@ -41,7 +41,7 @@
   確認する形にする
 - `Dockerfile`：設定ファイルの `web.bind_address` を `0.0.0.0` にする。書き込む
   フォルダの権限を変える
-- ドキュメント：README・usage・development・roadmap、新しい ADR-0023
+- ドキュメント：README・usage・development・roadmap、新しい ADR-0026
 - 公開：この change はタグを push しない。最初の公開（タグの push）は、承認の後に
   別に行う。workflow が `GITHUB_TOKEN` で作るパッケージは、リポジトリの公開・非公開を
   引き継ぐ（GitHub の公式の文書）。最初の公開の後に、パッケージが公開になっていることを

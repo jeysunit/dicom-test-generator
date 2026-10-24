@@ -1,0 +1,39 @@
+# 肝臓 ダイナミック。画像数は 撮影範囲 ÷ スライス厚 の計算（範囲は肝臓 250mm・体の前後
+# 250mm の想定。ADR-0025）
+name: "ct_liver_dynamic"
+label: "肝臓 ダイナミック"
+modality: "CT"
+protocol_name: "LIVER DYNAMIC"
+keywords: ["ダイナミック", "肝臓", "肝", "LIVER"]
+series:
+  - kind: "localizer"
+    description: "Scout"
+    images: 1
+    views: ["frontal"]
+  - kind: "axial"
+    description: "AX 5mm"
+    images: 50
+    slice_thickness: 5.0
+  - kind: "axial"
+    description: "Arterial 3mm"
+    images: 83
+    slice_thickness: 3.0
+    contrast: true
+  - kind: "axial"
+    description: "Portal 3mm"
+    images: 83
+    slice_thickness: 3.0
+    contrast: true
+  - kind: "axial"
+    description: "Delayed 3mm"
+    images: 83
+    slice_thickness: 3.0
+    contrast: true
+  - kind: "coronal"
+    description: "COR Portal 3mm"
+    images: 83
+    slice_thickness: 3.0
+    contrast: true
+  - kind: "dose_report"
+    description: "Dose Report"
+    images: 1

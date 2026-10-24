@@ -1,23 +1,30 @@
 /*
  * Tailwind CSS v4 の入力（scripts/build_css.sh で app/web/static/app.css を作る）。
  * 色・文字の値は docs/spec/12a_web_screens_and_cli.md の 10.2 の表と同じ。
- * 出典：tsunagi-dicom（GitHub）の docs/spec.md 2 と src/app/globals.css（2026-10-18）。
+ * 出典：tsunagi-dicom（GitHub）の docs/spec.md 2 と src/app/globals.css（2026-10-24）。
  * 値がずれたら tests/web/test_theme_tokens.py が落ちる。
+ * border-input・muted-strong・chrome は、この画面ではまだ使わない（値の定義だけ。使うのは段 2）。
+ * 使わない値も app.css に残すため、`@theme static` にする。
  */
 @import "tailwindcss" source(none);
 @source "../templates";
 @source "../static/app.js";
 
-@theme {
+@theme static {
   --color-background: #ffffff;
-  --color-surface: #f6f8fa;
-  --color-foreground: #1f2328;
-  --color-label: #59636e;
-  --color-value: #1f2328;
-  --color-border: #d1d9e0;
-  --color-muted: #eff2f5;
-  --color-primary: #0969da;
+  --color-surface: #f6f6f6;
+  --color-foreground: #262626;
+  --color-label: #5f5f5f;
+  --color-value: #1a1a1a;
+  --color-border: #d2d2d2;
+  --color-border-input: #8c8c8c;
+  --color-muted: #eeeeee;
+  --color-muted-strong: #e2e2e2;
+  --color-chrome: #333333;
+  --color-primary: #4b4fbf;
   --color-primary-foreground: #ffffff;
+  /* リンク・フォーカスリング・強調の文字。ボタンの地（primary）とは別に持つ（暗い地では明るくする） */
+  --color-link: #4b4fbf;
   --color-danger: #d1242f;
   --color-success: #1a7f37;
   --color-warning: #9a6700;
@@ -26,15 +33,19 @@
 }
 
 :root[data-theme="dark"] {
-  --color-background: #121417;
-  --color-surface: #1a1d21;
-  --color-foreground: #e6edf3;
-  --color-label: #8a949e;
+  --color-background: #1b1b1b;
+  --color-surface: #242424;
+  --color-foreground: #e8e8e8;
+  --color-label: #a3a3a3;
   --color-value: #ffffff;
-  --color-border: #2a2f36;
-  --color-muted: #23272d;
-  --color-primary: #1f6feb;
+  --color-border: #3a3a3a;
+  --color-border-input: #777777;
+  --color-muted: #2d2d2d;
+  --color-muted-strong: #383838;
+  --color-chrome: #121212;
+  --color-primary: #4b4fbf;
   --color-primary-foreground: #ffffff;
+  --color-link: #a5a8ff;
   --color-danger: #ff7b72;
   --color-success: #3fb950;
   --color-warning: #d29922;
@@ -49,7 +60,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-primary);
+    outline: 2px solid var(--color-link);
     outline-offset: 2px;
   }
 }
@@ -74,7 +85,7 @@
     @apply inline-flex h-6 w-6 items-center justify-center rounded-md text-label hover:bg-muted;
   }
   .btn-icon.copied {
-    @apply text-primary;
+    @apply text-link;
   }
   .nav-link {
     @apply rounded-md px-3 py-1 text-label hover:bg-muted;
@@ -109,6 +120,10 @@
   .table tbody tr {
     @apply hover:bg-muted/50;
   }
+  /* 氏名の列は、狭い幅でも1文字幅まで潰さない（下に印を出すため） */
+  .table .name-cell {
+    @apply min-w-32;
+  }
   .values {
     @apply grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-[12rem_1fr];
   }
@@ -122,7 +137,7 @@
     @apply font-mono text-xs font-normal break-all text-label;
   }
   .badge {
-    @apply mr-1 inline-block rounded-md border border-border px-1.5 text-xs text-label;
+    @apply mr-1 inline-block rounded-md border border-border px-1.5 text-xs whitespace-nowrap text-label;
   }
   .status-sent {
     @apply text-value;
@@ -154,6 +169,28 @@
   }
   .link {
     @apply underline;
+  }
+  /* 撮影のルーチンで外した行。消さずに薄く出し、打ち消し線を付ける（薄さだけに頼らない。
+     [戻す] のボタンは薄くしない） */
+  .series-removed td:not(:last-child) {
+    @apply line-through opacity-60;
+  }
+  /* 送信ジョブの「詳細」。文字のボタンのまま、押せる範囲を 24px 四方より広くする */
+  .job-detail-button {
+    @apply inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center px-1 text-xs;
+  }
+  /* 送信ジョブの詳細の枠（popover）。位置は app.js が操作の欄の左に決める（10.6）。
+     popover に対応しないブラウザでは、枠はセルの中にそのまま出す */
+  .job-detail {
+    @apply rounded-md border border-border bg-background p-3 text-xs text-foreground shadow-md;
+  }
+  @supports selector(:popover-open) {
+    .job-detail {
+      position: fixed;
+      inset: auto;
+      margin: 0;
+      max-width: min(32rem, calc(100vw - 2rem));
+    }
   }
   /* 撮影・送信の途中の表示。htmx が要求の間、form に htmx-request を付ける。
      form の data-action（app.js が押したボタンから入れる）で文言を選ぶ */

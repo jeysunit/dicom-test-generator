@@ -16,7 +16,7 @@ from app.core.models import ScheduledPatient, WorklistItem
 from app.modality.service import ExamRequest, ExamResult, ModalityService, SendResult
 
 from ..display import exam_notices
-from ..rendering import error_text, render, render_error, service_of
+from ..rendering import error_text, render, service_of, worklist_error_text
 
 router = APIRouter()
 
@@ -35,6 +35,19 @@ MODE_EMERGENCY = "emergency"
 MAX_SERIES = 99
 MAX_IMAGES_PER_SERIES = 1000
 FormStr = Annotated[str, Form()]
+FormList = Annotated[list[str], Form()]
+# ルーチンの選択の「手で入れる」（今のシリーズ数・画像数の欄。ADR-0025）
+MANUAL_ROUTINE = "manual"
+SERIES_KIND_LABELS = {
+    "localizer": "位置決め",
+    "axial": "軸位",
+    "coronal": "冠状断",
+    "sagittal": "矢状断",
+    "dose_report": "線量の画面",
+    # MR のルーチン（位置決めは CT と同じ "localizer"）
+    "acquisition": "撮像",
+    "derived": "計算画像",
+}
 # 受け付け済みの撮影のトークンを覚える数（二重の受付を止める。古いものから忘れる）
 TOKEN_MEMORY = 512
 DUPLICATE_MESSAGE = (
@@ -87,7 +100,7 @@ def exam_page(request: Request, key: str = "") -> HTMLResponse:
         try:
             item = service.find_item(key)
         except DICOMGeneratorError as exc:
-            load_error = str(exc)
+            load_error = worklist_error_text(exc)
     try:
         templates = service.available_templates()
         profiles, profile_errors = service.available_profiles()
@@ -102,7 +115,7 @@ def exam_page(request: Request, key: str = "") -> HTMLResponse:
         item=item,
         key=key if item else "",
         load_error=load_error,
-        notices=exam_notices(item, service.config.ae_title) if item else [],
+        notices=exam_notices(item, service.current_station().ae_title) if item else [],
         templates=templates,
         profiles=profiles,
         profile_errors=[str(error) for error in profile_errors],
@@ -113,7 +126,76 @@ def exam_page(request: Request, key: str = "") -> HTMLResponse:
         sex_choices=SEX_CHOICES,
         blocker=_blocker(service, item, template, profile),
         exam_token=ExamTokens.issue(),
+        **_retake_context(service, item),
+        **_routine_context(service, item, template),
     )
+
+
+@router.get("/exam/routine", response_class=HTMLResponse)
+def exam_routine(
+    request: Request, key: str = "", template: str = "", routine: str = ""
+) -> HTMLResponse:
+    """ルーチンを選び直したとき・テンプレートを変えたときに、シリーズの欄を描き直す.
+
+    テンプレートを変えたとき（`routine` が無い）は、予約に当て直す。
+    """
+    service = service_of(request)
+    item: WorklistItem | None = None
+    if key:
+        try:
+            item = service.find_item(key)
+        except DICOMGeneratorError:
+            item = None
+    context = _routine_context(
+        service, item, template or service.config.default_template, routine or None
+    )
+    return render(request, "_routine_fields.html", **context)
+
+
+def _routine_context(
+    service: ModalityService,
+    item: WorklistItem | None,
+    template: str,
+    routine_name: str | None = None,
+) -> dict[str, object]:
+    """ルーチンの選択肢と、選んだルーチン（無ければ予約に当てたルーチン。ADR-0025）.
+
+    そのモダリティのルーチンが無ければ「手で入れる」にする。ルーチンが読めなければ、
+    「手で入れる」にしたうえで、読めない理由を出す（黙って手入力に切り替えない）。
+    """
+    context: dict[str, object] = {
+        "routine_choices": [],
+        "selected_routine": MANUAL_ROUTINE,
+        "routine": None,
+        "routine_error": "",
+        "manual_routine": MANUAL_ROUTINE,
+        "series_kind_labels": SERIES_KIND_LABELS,
+        "max_images_per_series": MAX_IMAGES_PER_SERIES,
+    }
+    try:
+        template_modality = service.template_modality(template)
+        choices = service.routines((item.modality if item else "") or template_modality)
+        if routine_name == MANUAL_ROUTINE or not choices:
+            return {**context, "routine_choices": choices}
+        selected = next((r for r in choices if r.name == routine_name), None)
+        if selected is None:
+            selected = service.matched_routine(item, template_modality)
+    except DICOMGeneratorError as exc:
+        return {**context, "routine_error": "ルーチンを読めません：" + error_text(exc)}
+    return {
+        **context,
+        "routine_choices": choices,
+        "selected_routine": selected.name,
+        "routine": selected,
+    }
+
+
+def _retake_context(service: ModalityService, item: WorklistItem | None) -> dict[str, object]:
+    """撮影済みの予約か、と撮り直しの形（ボタンの出し分け。10.5・ADR-0024）."""
+    return {
+        "taken": item is not None and service.is_taken(item.key),
+        "retake_mode": service.config.retake_mode,
+    }
 
 
 @router.get("/exam/check", response_class=HTMLResponse)
@@ -127,9 +209,16 @@ def exam_check(
         try:
             item = service.find_item(key)
         except DICOMGeneratorError as exc:
-            return render(request, "_exam_actions.html", blocker=str(exc))
+            return render(
+                request,
+                "_exam_actions.html",
+                blocker=worklist_error_text(exc),
+                **_retake_context(service, None),
+            )
     blocker = _blocker(service, item, template or service.config.default_template, profile)
-    return render(request, "_exam_actions.html", blocker=blocker)
+    return render(
+        request, "_exam_actions.html", blocker=blocker, **_retake_context(service, item)
+    )
 
 
 @router.post("/exam", response_class=HTMLResponse)
@@ -152,6 +241,11 @@ def exam_run(
     sex: FormStr = "",
     study_description: FormStr = "",
     exam_token: FormStr = "",
+    append: FormStr = "",
+    # 画面の既定はルーチン（ADR-0025）。欄の無い要求（スクリプトなど）は今のまま手で入れた値
+    routine: FormStr = MANUAL_ROUTINE,
+    routine_series: FormList = [],  # noqa: B006（FastAPI の Form の既定）
+    routine_images: FormList = [],  # noqa: B006
 ) -> HTMLResponse:
     service = service_of(request)
     tokens = tokens_of(request)
@@ -177,14 +271,17 @@ def exam_run(
             study_description=study_description.strip() if emergency_patient else "",
             template=template or None,
             profile=profile or None,
-            images_per_series=_parse_images(images, series),
+            **_series_request(routine, routine_series, routine_images, series, images),
             abnormal_level=abnormal_level,
             charset=charset or None,
+            # 撮影済みの予約の「追加撮影」（10.5・ADR-0024）。緊急の患者に付いていれば、
+            # 黙って普通に撮らずに断る（CLI と同じ文言）
+            append=bool(append),
         )
         result = service.exam(exam_request)
         accepted = True
     except (DICOMGeneratorError, ValidationError) as exc:
-        return render_error(request, exc)
+        return render(request, "_notice.html", error=worklist_error_text(exc))
     finally:
         if exam_token:
             tokens.finish(exam_token, accepted=accepted)
@@ -197,11 +294,12 @@ def exam_run(
 
 @router.post("/exam/send", response_class=HTMLResponse)
 def exam_send(request: Request, output_dir: FormStr = "") -> HTMLResponse:
-    """撮った後の [送る]。フォルダは出力の根の中だけを受ける（6.5）."""
+    """撮った後の [送る]・[もう一度送る]。フォルダは出力の根の中だけを受ける（6.5）."""
     send_result, send_error = _send(service_of(request), output_dir)
     if send_result is None:
         return render(request, "_notice.html", error=send_error)
-    return render(request, "_send_result.html", send=send_result)
+    # 結果の下に [もう一度送る] を出す。送るたびに新しい件になる（docs/spec/12 の 8.2）
+    return render(request, "_send_outcome.html", send=send_result, output_dir=output_dir)
 
 
 def _exam_result(
@@ -211,6 +309,7 @@ def _exam_result(
     send_error: str,
     next_token: str,
 ) -> HTMLResponse:
+    service = service_of(request)
     return render(
         request,
         "_exam_result.html",
@@ -218,6 +317,11 @@ def _exam_result(
         send=send,
         send_error=send_error,
         next_token=next_token,
+        # 予約で撮ったら撮影済みになるので、撮影のボタンを描き直す（10.5・ADR-0024）
+        refresh_actions=result.worklist_key is not None,
+        blocker="",
+        taken=result.worklist_key is not None and service.is_taken(result.worklist_key),
+        retake_mode=service.config.retake_mode,
     )
 
 
@@ -243,6 +347,26 @@ def _blocker(
     except DICOMGeneratorError as exc:
         return str(exc)
     return ""
+
+
+def _series_request(
+    routine: str,
+    routine_series: list[str],
+    routine_images: list[str],
+    series: str,
+    images: str,
+) -> dict[str, object]:
+    """撮るシリーズの指定を ExamRequest の値にする（ルーチンか、手で入れた値）."""
+    if routine == MANUAL_ROUTINE:
+        return {"images_per_series": _parse_images(images, series)}
+    try:
+        keep = [int(value) for value in routine_series]
+        counts = [int(value) for value in routine_images]
+    except ValueError as exc:
+        raise ConfigurationError("画像数は整数で入れてください") from exc
+    # 行の欄が無い要求（スクリプトの routine=auto など）は、ルーチンの全部を既定の数で撮る。
+    # 画面は最後の1行を外せない
+    return {"routine": routine, "routine_series": keep or None, "routine_images": counts or None}
 
 
 def _parse_images(images: str, series: str) -> list[int]:

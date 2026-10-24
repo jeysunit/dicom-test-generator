@@ -7,8 +7,17 @@ profiles:
 # モダリティのダミー（docs/spec/12_modality_emulator.md の 12 章）。
 # 例は手元の住所と例の名前だけ。試験用の PACS・RIS にだけつなぐ。
 modality:
-  ae_title: "DTG_CT01"
-  station_name: "DTG_CT01"
+  # 名乗る装置の一覧（AE タイトル・Station Name）。画面の情報バーで切り替える。
+  # 相手の PACS・RIS に、使う装置の AE タイトルを登録しておく。
+  # 1台だけなら、stations の代わりに ae_title・station_name だけを書いてもよい。
+  stations:
+    - name: "CT1"
+      ae_title: "DTG_CT01"
+      station_name: "DTG_CT01"
+    - name: "MR1"
+      ae_title: "DTG_MR01"
+      station_name: "DTG_MR01"
+  default_station: "CT1"
   listen:                         # 保管の確認の結果を受ける待ち受け（Phase 3c）
     bind_address: "127.0.0.1"
     port: 11113
@@ -44,6 +53,9 @@ modality:
   retry:
     max_attempts: 0               # 0 = 自動で再送しない
   max_images_per_exam: 2000       # 1回の撮影の合計の枚数の上限（docs/spec/12a の 10.5）
+  # 撮影済みの予約の撮り直し（docs/spec/12 の 6.3）。append：同じ予約で追加撮影（同じ
+  # Study に新しいシリーズ）。new_order：RIS で作った新しい予約で撮り直す
+  retake_mode: "append"
 
 # ウェブの画面（docs/spec/12a_web_screens_and_cli.md の 10.9、docs/spec/12_modality_emulator.md の 12 章）。既定は手元だけ。
 # 手元の外で待ち受けるときは、環境の変数 DTG_WEB_PASSWORD_FILE でパスワードの

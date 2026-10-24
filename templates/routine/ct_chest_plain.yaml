@@ -1,0 +1,32 @@
+# 胸部 単純（CT の既定のルーチン）。画像数は 撮影範囲 ÷ スライス厚 の計算
+# （範囲は胸部 300mm・体の前後 250mm の想定。ADR-0025）
+name: "ct_chest_plain"
+label: "胸部 単純"
+modality: "CT"
+protocol_name: "CHEST ROUTINE"
+default: true
+keywords: ["胸部", "CHEST"]
+series:
+  - kind: "localizer"
+    description: "Scout"
+    images: 1
+    views: ["frontal"]
+  - kind: "axial"
+    description: "Mediastinum 5mm"
+    images: 60
+    slice_thickness: 5.0
+  - kind: "axial"
+    description: "Lung 5mm"
+    images: 60
+    slice_thickness: 5.0
+  - kind: "axial"
+    description: "Lung 1mm"
+    images: 300
+    slice_thickness: 1.0
+  - kind: "coronal"
+    description: "COR 3mm"
+    images: 83
+    slice_thickness: 3.0
+  - kind: "dose_report"
+    description: "Dose Report"
+    images: 1
