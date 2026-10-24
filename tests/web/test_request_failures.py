@@ -27,7 +27,12 @@ def client(tmp_path):
     ("no response (timed out or aborted)",
      "送り先から応答がありませんでした。送り先の稼働状況を確かめてください"),
     ("status 0xA700", "送り先が画像を受け付けませんでした（状態 0xA700）。送り先の記録を確かめてください"),
-    ("unreadable file: <broken>", "送る画像のファイルを読めませんでした。元のファイルを確かめてください"),
+    ("unreadable file: <broken>", "送信する画像のファイルを読めませんでした。元のファイルを確かめてください"),
+    ("unreadable file: /output/山田/1.dcm",
+     "送信する画像のファイルを読めませんでした。元のファイルを確かめてください"),
+    ("Association failed: could not connect (refused, aborted or timed out) "
+     "(peer=中央_PACS, host=pacs.example.org, port=104)",
+     "接続できませんでした（中央_PACS・pacs.example.org:104）。送り先の電源とポートを確かめてください"),
     ("相手が AE タイトル DTG_CT01 を受け付けませんでした。登録してください",
      "相手が AE タイトル DTG_CT01 を受け付けませんでした。登録してください"),
     ("unexpected <error> " * 100, "送信に失敗しました"),

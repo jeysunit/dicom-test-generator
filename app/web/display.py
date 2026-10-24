@@ -33,8 +33,6 @@ DEFAULT_CHARSET_LABEL = "既定"
 
 def send_error_label(reason: str) -> str:
     """送信失敗の理由を日本語にする。原文は詳細の枠に残す（10.6）."""
-    if re.search(r"[ぁ-んァ-ヶ一-龯]", reason) and not reason.startswith("unreadable file:"):
-        return reason
     details = dict(re.findall(r"(?:\(|, )(peer|host|port)=([^,()]+)", reason))
     peer = details.get("peer", "")
     address = ":".join(details[key] for key in ("host", "port") if key in details)
@@ -53,7 +51,10 @@ def send_error_label(reason: str) -> str:
     if status:
         return f"送り先が画像を受け付けませんでした（状態 {status[1]}）。送り先の記録を確かめてください"
     if reason.startswith("unreadable file:"):
-        return "送る画像のファイルを読めませんでした。元のファイルを確かめてください"
+        return "送信する画像のファイルを読めませんでした。元のファイルを確かめてください"
+    if re.search(r"[ぁ-んァ-ヶ一-龯]", reason):
+        # 相手の AE タイトルを受け付けなかった知らせなど、すでに日本語の文
+        return reason
     return "送信に失敗しました"
 
 
