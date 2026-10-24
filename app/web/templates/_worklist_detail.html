@@ -2,7 +2,7 @@
   <h2 class="panel-title">予約の詳細</h2>
   {% if item_taken %}<p><span class="badge">撮影済み</span></p>{% endif %}
   <dl class="values">
-    <dt>氏名</dt><dd>{{ item.patient_name }}</dd>
+    <dt>氏名</dt><dd>{{ item.patient_name|name_display or "—" }}</dd>
     <dt>患者 ID</dt><dd class="font-mono">{{ item.patient_id }}{% if item.issuer_of_patient_id %}（{{ item.issuer_of_patient_id }}）{% endif %}</dd>
     <dt>生年月日・性別</dt><dd>{{ item|birth_label }}</dd>
     <dt>受付番号</dt><dd class="font-mono">{{ item.accession_number or "—" }}</dd>
@@ -11,8 +11,8 @@
     <dt>予定</dt><dd>{{ item.scheduled_start_date|date_label }} {{ item.scheduled_start_time|time_label }}・{{ item.modality }}</dd>
     <dt>予定の装置の AE タイトル</dt><dd class="font-mono">{{ item.scheduled_station_ae_title or "—" }}</dd>
     {# 依頼医は (0032,1032) Requesting Physician、紹介医は (0008,0090) Referring Physician's Name #}
-    <dt>依頼医</dt><dd>{{ item.requesting_physician|name_parts|select|join(" / ") or "—" }}</dd>
-    <dt>紹介医</dt><dd>{{ item.referring_physician_name|name_parts|select|join(" / ") or "—" }}</dd>
+    <dt>依頼医</dt><dd>{{ item.requesting_physician|name_display or "—" }}</dd>
+    <dt>紹介医</dt><dd>{{ item.referring_physician_name|name_display or "—" }}</dd>
     <dt>施設</dt><dd>{{ item.institution_name or "—" }}</dd>
     <dt>文字コード</dt><dd>{{ item.specific_character_set|charset_label }}</dd>
     <dt>Study Instance UID</dt><dd>{% with uid = item.study_instance_uid %}{% include "_uid.html" %}{% endwith %}</dd>

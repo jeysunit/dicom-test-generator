@@ -1,7 +1,6 @@
 /*
  * Tailwind CSS v4 の入力（scripts/build_css.sh で app/web/static/app.css を作る）。
- * 色・文字の値は docs/spec/12a_web_screens_and_cli.md の 10.2 の表と同じ。
- * 出典：tsunagi-dicom（GitHub）の docs/spec.md 2 と src/app/globals.css（2026-10-24）。
+ * 色・文字の値は docs/spec/12a_web_screens_and_cli.md の 10.2 の表と同じ（表が正本）。
  * 値がずれたら tests/web/test_theme_tokens.py が落ちる。
  * border-input・muted-strong・chrome は、この画面ではまだ使わない（値の定義だけ。使うのは段 2）。
  * 使わない値も app.css に残すため、`@theme static` にする。

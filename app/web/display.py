@@ -67,6 +67,12 @@ def name_parts(patient_name: str) -> tuple[str, str, str]:
     return alphabetic, ideographic, phonetic
 
 
+def name_display(person_name: str) -> str:
+    """PN を、一覧の氏名と同じ順（漢字・かな・英字）に ` / ` で区切って出す。空なら空の文字列."""
+    alphabetic, ideographic, phonetic = name_parts(person_name)
+    return " / ".join(part for part in (ideographic, phonetic, alphabetic) if part)
+
+
 def date_label(value: str) -> str:
     """`YYYYMMDD` を `YYYY/MM/DD` にする。形が違えばそのまま."""
     if len(value) == DATE_LENGTH and value.isdigit():

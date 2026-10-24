@@ -101,6 +101,21 @@ def _detail_row(html: str, label: str) -> str:
     return html.split(f"<dt>{label}</dt><dd>", 1)[1].split("</dd>", 1)[0]
 
 
+def test_detail_shows_names_in_the_list_order_without_raw_pn(client, worklist_scp) -> None:
+    """氏名・依頼医・紹介医は、`^` と `=` を出さず、一覧と同じ漢字・かな・英字の順にする（10.4）."""
+    item = dict(worklist_scp.items[0])
+    item["patient_name"] = "YAMADA^TARO=山田^太郎=やまだ^たろう"
+    item["requesting_physician"] = "SATO^ICHIRO=佐藤^一郎=さとう^いちろう"
+    item["referring_physician_name"] = "SUZUKI^HANAKO"
+    worklist_scp.items = [item, *worklist_scp.items[1:]]
+    html = _query(client)
+
+    detail = client.get(f"/worklist/item/{_key_for(html, 'A0001')}").text
+    assert _detail_row(detail, "氏名") == "山田 太郎 / やまだ たろう / YAMADA TARO"
+    assert _detail_row(detail, "依頼医") == "佐藤 一郎 / さとう いちろう / SATO ICHIRO"
+    assert _detail_row(detail, "紹介医") == "SUZUKI HANAKO"
+
+
 def test_detail_shows_requesting_and_referring_physicians(client, worklist_scp) -> None:
     """依頼医 (0032,1032) と紹介医 (0008,0090) を別の行に出す（docs/spec/12a の 10.4）."""
     item = dict(worklist_scp.items[0])
@@ -143,7 +158,7 @@ def test_exam_page_is_read_only_and_lists_profiles(client) -> None:
     assert 'name="patient_id"' not in html  # 予約の値は入力の欄にしない
     assert "dtg_synthetic_ct" in html
     assert "ct_generic" in html
-    assert "撮影して送る" in html
+    assert "撮影して送信" in html
     # 確かめ直しの GET は、CSRF の token を URL に載せない（要る欄だけを送る）
     assert 'hx-include="#exam-form"' not in html
     assert "disabled" not in html.split('id="actions"', 1)[1].split("</div>", 1)[0]
