@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import html as html_module
 import re
 from pathlib import Path
@@ -118,3 +119,54 @@ def test_cli_help_avoids_retired_words() -> None:
 def test_static_script_avoids_retired_words() -> None:
     script = Path(__file__).resolve().parents[2] / "app" / "web" / "static" / "app.js"
     _assert_no_retired_words("app.js", script.read_text(encoding="utf-8"))
+
+
+def _string_literals(path: Path) -> list[str]:
+    """ファイルの文字列リテラル（docstring を除く）."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    docstrings = {
+        id(node.body[0].value)
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        and node.body
+        and isinstance(node.body[0], ast.Expr)
+        and isinstance(node.body[0].value, ast.Constant)
+    }
+    return [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docstrings
+    ]
+
+
+def test_conditional_wording_in_sources_avoids_retired_words() -> None:
+    """条件つきで出る文言（エラー・MPPS の失敗・空の一覧など）も、元のファイルで確かめる."""
+    web = Path(__file__).resolve().parents[2] / "app" / "web"
+    cli = web.parent / "cli"
+    for template in sorted((web / "templates").glob("*.html")):
+        source = re.sub(r"\{#.*?#\}", "", template.read_text(encoding="utf-8"), flags=re.S)
+        _assert_no_retired_words(template.name, source)
+    for module in sorted([*web.rglob("*.py"), *cli.glob("*.py")]):
+        for literal in _string_literals(module):
+            _assert_no_retired_words(f"{module.name}: {literal[:30]}", literal)
+
+
+def test_worklist_detail_and_refresh_avoid_retired_words(client) -> None:
+    results = query_worklist(client)
+    key = key_for(results, "A0001")
+    token = csrf_token(client)
+    pages = {
+        "detail": client.get(f"/worklist/item/{key}").text,
+        "refresh": client.post(
+            "/worklist/refresh", data={"key": key}, headers=post_headers(token)
+        ).text,
+        "refresh unknown": client.post(
+            "/worklist/refresh", data={"key": "0123456789"}, headers=post_headers(token)
+        ).text,
+        "refresh no selection": client.post(
+            "/worklist/refresh", data={"key": ""}, headers=post_headers(token)
+        ).text,
+    }
+    assert "再検索しました" in pages["refresh"]
+    for label, page in pages.items():
+        _assert_no_retired_words(label, _visible_text(page))
