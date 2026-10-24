@@ -50,9 +50,10 @@ def pacs_retry(request: Request, job_id: int) -> HTMLResponse:
     except DICOMGeneratorError as exc:
         # 失敗しても表は消さず、表の上の知らせの場所に理由を出す
         return render(request, "_queue.html", **_queue_context(request, error=error_text(exc)))
-    return render(
-        request, "_queue.html", **_queue_context(request, _retry_notice(results, job_id))
-    )
+    notice, failed = _retry_notice(results, job_id)
+    return render(request, "_queue.html", **_queue_context(
+        request, notice="" if failed else notice, error=notice if failed else ""
+    ))
 
 
 @router.post("/pacs/retry-failed", response_class=HTMLResponse)
@@ -61,7 +62,10 @@ def pacs_retry_failed(request: Request) -> HTMLResponse:
         results = service_of(request).retry(all_failed=True)
     except DICOMGeneratorError as exc:
         return render(request, "_queue.html", **_queue_context(request, error=error_text(exc)))
-    return render(request, "_queue.html", **_queue_context(request, _retry_notice(results)))
+    notice, failed = _retry_notice(results)
+    return render(request, "_queue.html", **_queue_context(
+        request, notice="" if failed else notice, error=notice if failed else ""
+    ))
 
 
 def _queue_context(request: Request, notice: str = "", error: str = "") -> dict[str, object]:
@@ -73,12 +77,18 @@ def _queue_context(request: Request, notice: str = "", error: str = "") -> dict[
     return {**context, "jobs": list(reversed(jobs)), "queue_error": ""}
 
 
-def _retry_notice(results: list[SendResult], job_id: int | None = None) -> str:
+def _retry_notice(results: list[SendResult], job_id: int | None = None) -> tuple[str, bool]:
     if not results:
-        return "失敗の件はありません"
+        return "失敗の件はありません", False
+    failed = sum(1 for result in results if result.status == "failed")
     if job_id is not None and len(results) == 1 and results[0].job_id != job_id:
         # 送信完了の件の再送は新しい件になる。どの件になったかを出す（10.6）
         result = results[0]
-        return f"ジョブ {result.job_id} として再送しました（{STATUS_LABELS.get(result.status)}）"
+        return f"ジョブ {result.job_id} として再送しました（{STATUS_LABELS.get(result.status)}）", bool(failed)
     sent = sum(1 for result in results if result.status == "sent")
-    return f"{len(results)} 件を再送しました（送信完了 {sent} 件）"
+    if failed:
+        return (
+            f"{len(results)} 件を再送しましたが、まだ送信できていません"
+            f"（送信完了 {sent} 件・送信失敗 {failed} 件）", True
+        )
+    return f"{len(results)} 件を再送しました（送信完了 {sent} 件）", False

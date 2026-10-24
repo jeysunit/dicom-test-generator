@@ -44,3 +44,24 @@ def test_built_css_is_committed_and_has_the_tokens() -> None:
     css = (STATIC / "app.css").read_text(encoding="utf-8")
     assert "--color-primary:#4b4fbf" in css.replace(" ", "")
     assert ".btn-primary" in css
+
+
+def test_request_failures_share_the_result_place() -> None:
+    js = (STATIC / "app.js").read_text(encoding="utf-8")
+    place = js.split("function failurePlace(event)", 1)[1].split("function showFailure", 1)[0]
+    for name in ("query-form", "results", "exam-form", "result", "send-result", "queue-notice", "echo-"):
+        assert name in place
+    assert "requestConfig" in place and "detail.target" in place
+    assert "var place = failurePlace(event)" in js
+    assert '"htmx:sendError"' in js
+    assert "xhr.status === 401" in js and "shouldSwap = false" in js
+    assert "ログインが切れました。頁を読み込み直して、ログインし直してください" in js
+    assert "routineFailure(xhr.status === 401 ? LOGIN_EXPIRED_MESSAGE" in js
+    assert "xhr.status === 401 ? LOGIN_EXPIRED_MESSAGE" in js
+
+
+def test_queue_error_summary_has_a_width_limit() -> None:
+    css = INPUT_CSS.read_text(encoding="utf-8")
+    rule = css.split(".job-error-summary {", 1)[1].split("}", 1)[0]
+    for declaration in ("max-width:", "overflow: hidden", "white-space: nowrap", "text-overflow: ellipsis"):
+        assert declaration in rule
