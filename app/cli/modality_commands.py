@@ -90,8 +90,12 @@ def register_modality_commands(
     exam_parser.add_argument(
         "--append",
         action="store_true",
-        help="撮影済みの予約で追加撮影する（同じ Study に新しいシリーズ。retake_mode: append のとき）",
+        help=(
+            "撮影済みの検査で追加撮影する（同じ Study に新しいシリーズ）。"
+            "予約は retake_mode: append のとき。緊急の患者は --study-uid も指定"
+        ),
     )
+    exam_parser.add_argument("--study-uid", help="緊急の患者の追加撮影で使う前の Study Instance UID")
     exam_parser.add_argument("--patient-id", help="緊急の患者の ID")
     exam_parser.add_argument("--patient-name", help="緊急の患者の氏名（PN）")
     exam_parser.add_argument("--birth-date", help="緊急の患者の生年月日（YYYYMMDD）")
@@ -263,6 +267,10 @@ def _exam_series_options(
 
 
 def exam_command(args: argparse.Namespace) -> int:
+    if args.study_uid is not None and not (args.emergency and args.append):
+        raise ConfigurationError("--study-uid is only for --emergency --append")
+    if args.emergency and args.append and not args.study_uid:
+        raise ConfigurationError("--emergency --append requires --study-uid")
     service = _service(args)
     images, routine, routine_images = _exam_series_options(args)
     emergency_patient = None
@@ -294,6 +302,7 @@ def exam_command(args: argparse.Namespace) -> int:
             output_dir=args.output,
             mpps=args.mpps,
             append=args.append,
+            emergency_study_instance_uid=args.study_uid,
             routine=routine,
             routine_images=routine_images,
         )

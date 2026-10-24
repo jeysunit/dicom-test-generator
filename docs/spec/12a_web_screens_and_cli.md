@@ -583,7 +583,8 @@ python -m app.cli exam --emergency --patient-id E0001 \
 |-----------|------|-----------|
 | `--from-worklist KEY` | 予約のキー | — |
 | `--refresh` | 撮影の前にその予約を再取得する | false |
-| `--append` | 撮影済みの予約で追加撮影する（12 の 6.3。`retake_mode: append` のときだけ。撮影済みでない予約・`new_order` では終了コード 4） | false |
+| `--append` | 撮影済みの予約で追加撮影する（12 の 6.3。`retake_mode: append` のときだけ。撮影済みでない予約・`new_order` では終了コード 4）。`--emergency` と使うときは `--study-uid` が必須（12 の 6.3。`retake_mode` によらない） | false |
+| `--study-uid UID` | 緊急の患者の追加撮影で、前の緊急の撮影の Study Instance UID（`--emergency --append` のときだけ。ほかで指定すると終了コード 2） | — |
 | `--emergency` | 予約なし。`--patient-*` が必須 | false |
 | `-m, --modality NAME` | テンプレート | 設定の初期値 |
 | `--profile NAME` | 装置プロファイル（spec/13。画面の「装置」と同じ） | 設定の初期値（`default_profile`） |

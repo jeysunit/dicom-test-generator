@@ -81,7 +81,14 @@ from .mpps_scu import (
     MppsManager,
     MppsOutcome,
 )
-from .queue import QUEUE_DB_NAME, CommitmentState, ExamRecord, QueueJob, SendQueue
+from .queue import (
+    QUEUE_DB_NAME,
+    CommitmentState,
+    EmergencyExamRecord,
+    ExamRecord,
+    QueueJob,
+    SendQueue,
+)
 from .store_scu import EchoResult, StoreFileResult, echo, store_files
 from .worklist_scu import WorklistQuery, WorklistQueryResult, query_worklist
 
@@ -105,6 +112,8 @@ EXAM_BUSY_MESSAGE ="ほかの撮影が走っています。終わってから撮
 TAKEN_APPEND_MESSAGE = "この予約は撮影済みです。続けて撮るときは「追加撮影」を使ってください"
 TAKEN_NEW_ORDER_MESSAGE = "撮り直しの予約が要ります（RIS で新しい予約を作ってください）"
 NOT_TAKEN_MESSAGE = "この予約はまだ撮影していません。追加撮影は撮影済みの予約で行います"
+# 緊急の患者の追加撮影は、前の撮影の Study Instance UID を指定したときだけ受ける（CLI の
+# --study-uid。docs/spec/12 の 6.3）。指定の無い画面と CLI には、今までの文言で断る
 EMERGENCY_APPEND_MESSAGE = "緊急の患者（予約なし）では追加撮影はできません"
 ORDER_BUSY_MESSAGE = "この予約は、ほかで撮影しています。終わってから撮ってください"
 CLAIM_TOUCH_SECONDS = 60  # 撮影の間、予約の札の時刻を進める間（札は 30 分で古くなる）
@@ -203,6 +212,7 @@ class ExamRequest(BaseModel):
     mpps: bool | None = None  # None は設定（worklist.use_mpps）。8.4.1
     # 撮影済みの予約での追加撮影（IHE の Append Case。docs/spec/12 の 6.3・ADR-0024）
     append: bool = False
+    emergency_study_instance_uid: str | None = None
     # 撮影のルーチン（ADR-0025）。None は手で入れた images_per_series で撮る。"auto" は
     # 予約の検査名と部位に当てたルーチン。ほかはルーチンの名前
     routine: str | None = None
@@ -728,12 +738,23 @@ class ModalityService:
 
         ルーチンで撮るときの合計の画像数は、ルーチンを当てた後に確かめる。
         """
+        if request.emergency_study_instance_uid is not None and (
+            not request.append
+            or request.emergency_patient is None
+            or request.worklist_key is not None
+        ):
+            raise ValidationError("Study Instance UID は緊急の患者の追加撮影のときだけ使えます")
+        if request.emergency_patient is not None and request.append:
+            if not request.emergency_study_instance_uid:
+                raise ValidationError(EMERGENCY_APPEND_MESSAGE)
         if request.routine is None:
             self._check_total_images(sum(request.images_per_series))
         if not self._exam_lock.acquire(blocking=False):
             raise ModalityError(EXAM_BUSY_MESSAGE)
         try:
             key = request.worklist_key
+            if request.emergency_patient is not None and request.append:
+                key = f"emergency:{request.emergency_study_instance_uid}"
             if key is None:
                 return self._exam(request)
             # 同じ予約を、別のプロセス（CLI と画面など）が同時に撮らないようにする。撮影済みの
@@ -801,8 +822,6 @@ class ModalityService:
                     update["study_description_fixed"] = True
                 ctx = ctx.model_copy(update=update)
         else:
-            if request.append:
-                raise ValidationError(EMERGENCY_APPEND_MESSAGE)
             emergency_patient = request.emergency_patient
             if emergency_patient is None:
                 raise ConfigurationError("emergency_patient is required for an emergency exam")
@@ -822,8 +841,28 @@ class ModalityService:
             character_set = resolve_image_character_set(
                 choice, None, self.config.character_set_fallback
             )
-            study_number = self.queue.next_value(STUDY_ID_COUNTER)
-            study_id = f"{STUDY_ID_PREFIX}{study_number:0{COUNTER_WIDTH}d}"
+            previous = None
+            if request.append:
+                previous = self.queue.emergency_exam(request.emergency_study_instance_uid)
+                if previous is None:
+                    raise ValidationError("この Study Instance UID の緊急の撮影はありません")
+                if (previous.patient_id, previous.patient_name) != (
+                    emergency_patient.patient_id, emergency_patient.patient_name
+                ):
+                    raise ValidationError("前の撮影と患者ID・氏名が違うので、追加撮影はできません")
+                emergency_patient = ScheduledPatient(
+                    patient_id=previous.patient_id,
+                    patient_name=previous.patient_name,
+                    birth_date=previous.birth_date,
+                    sex=previous.sex,
+                )
+                record = self.queue.exam_record(f"emergency:{previous.study_instance_uid}")
+                if record is None:
+                    raise ValidationError("この Study Instance UID の緊急の撮影はありません")
+                study_id = previous.study_id
+            else:
+                study_number = self.queue.next_value(STUDY_ID_COUNTER)
+                study_id = f"{STUDY_ID_PREFIX}{study_number:0{COUNTER_WIDTH}d}"
             ctx = emergency_context(
                 emergency_patient,
                 study_id=study_id,
@@ -832,6 +871,14 @@ class ModalityService:
                 specific_character_set=character_set,
                 source_ae_title=station.ae_title,
             )
+            if previous is not None:
+                ctx = ctx.model_copy(
+                    update={
+                        "study_instance_uid": previous.study_instance_uid,
+                        "study_description": record.study_description,
+                        "study_description_fixed": True,
+                    }
+                )
             notices.append("予約なし（受付番号は空）")
             if not ctx.patient.birth_date:
                 notices.append("生年月日が空です")
@@ -848,8 +895,9 @@ class ModalityService:
             ctx = ctx.model_copy(update={"station_name": station.station_name})
         profile_name = request.profile or self.config.default_profile
         use_mpps = self._uses_mpps(request, profile_name)
-        if use_mpps and ctx.study_instance_uid is None:
-            # MPPS と画像の Study をそろえるため、N-CREATE より前に UID を作る（8.4.1）
+        if (use_mpps or not ctx.scheduled) and ctx.study_instance_uid is None:
+            # MPPS と画像の Study をそろえるため、N-CREATE より前に UID を作る（8.4.1）。
+            # 緊急の撮影は MPPS を使わなくても先に作る（追加撮影の記録の鍵にするため。6.3）
             ctx = ctx.model_copy(update={"study_instance_uid": UIDGenerator().generate_study_uid()})
         routine, series_list, explicit_numbers = self._exam_series(request, item, modality, record)
         self._check_total_images(sum(series.num_images for series in series_list))
@@ -894,11 +942,23 @@ class ModalityService:
         if profile_name:
             self.queue.remember_exam_profile(str(output_dir), profile_name)
         study_uid, study_description = self._read_study_values(files)
-        if request.worklist_key is not None:
+        exam_key = request.worklist_key
+        emergency_record = None
+        if request.emergency_patient is not None and study_uid:
+            exam_key = f"emergency:{study_uid}"
+            emergency_record = EmergencyExamRecord(
+                study_instance_uid=study_uid,
+                study_id=ctx.study_id,
+                patient_id=ctx.patient.patient_id,
+                patient_name=ctx.patient.patient_name,
+                birth_date=ctx.patient.birth_date,
+                sex=ctx.patient.sex,
+            )
+        if exam_key is not None:
             # 書き終えてから撮影済みにする（止まった撮影は記録しない。6.3）。説明は画像に
             # 入った値（テンプレートの説明を含む）を記録する
             self.queue.record_exam(
-                request.worklist_key,
+                exam_key,
                 study_uid or (ctx.study_instance_uid or ""),
                 config.study.study_date,
                 config.study.study_time,
@@ -908,6 +968,7 @@ class ModalityService:
                     (series.series_number, explicit)
                     for series, explicit in zip(series_list, explicit_numbers, strict=True)
                 ],
+                emergency=emergency_record,
             )
         logger.info(
             "Exam completed: worklist_key=%s accession=%r files=%s output_dir=%s",
