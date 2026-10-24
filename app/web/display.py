@@ -5,12 +5,8 @@
 
 from __future__ import annotations
 
-<<<<<<< HEAD
-from datetime import date, datetime
-=======
 import re
-from datetime import date
->>>>>>> origin/main
+from datetime import date, datetime
 
 from app.core.models import WorklistItem
 
@@ -35,7 +31,6 @@ COMMITMENT_STATUS_CLASSES = {
 DEFAULT_CHARSET_LABEL = "既定"
 
 
-<<<<<<< HEAD
 def utc_offset_label() -> str:
     """画面を動かすマシンの時刻の UTC からの差を `UTC+09:00` の形で返す.
 
@@ -44,7 +39,8 @@ def utc_offset_label() -> str:
     """
     offset = datetime.now().astimezone().strftime("%z")
     return f"UTC{offset[:3]}:{offset[3:]}"
-=======
+
+
 def send_error_label(reason: str) -> str:
     """送信失敗の理由を日本語にする。原文は詳細の枠に残す（10.6）."""
     details = dict(re.findall(r"(?:\(|, )(peer|host|port)=([^,()]+)", reason))
@@ -70,7 +66,6 @@ def send_error_label(reason: str) -> str:
         # 相手の AE タイトルを受け付けなかった知らせなど、すでに日本語の文
         return reason
     return "送信に失敗しました"
->>>>>>> origin/main
 
 
 def name_parts(patient_name: str) -> tuple[str, str, str]:
