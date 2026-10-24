@@ -53,7 +53,7 @@
     </table>
   </div>
   <div class="flex flex-wrap items-center gap-3">
-    <span class="text-xs text-label">{{ results.rows|length }} 件（{{ results.queried_at }} に取得）</span>
+    <span class="text-xs text-label">{{ results.rows|length }} 件（{{ results.queried_at }} {{ utc_offset() }} に取得）</span>
     {% if results.partial_message %}<span role="status" class="text-xs text-danger">{{ results.partial_message }}</span>{% endif %}
     <div class="ml-auto flex flex-wrap gap-2">
       <a class="btn btn-ghost" href="/exam">緊急の患者で撮る</a>
