@@ -148,9 +148,17 @@
       fields.querySelector("[name='routine']").focus();
       routineFocused = false;
     }
+    // 描き直せたので、前の失敗の印を外す
+    var form = fields.closest("form");
+    if (form) {
+      form.removeAttribute("data-routine-failed");
+    }
   });
   // ルーチンを描き直せなかったとき（断られた・届かなかった）は、選択のそばに知らせる。
-  // 描き直せないまま撮らないように、撮影のボタンも押せなくする
+  // 選んだルーチンと表の行がずれたまま撮らないように、描き直せるまで撮影の要求を止める
+  // （ボタンを押せなくするだけでは、htmx の後処理や撮影のボタンの描き直しで戻るため）
+  var ROUTINE_FAILED_MESSAGE =
+    "ルーチンを切り替えられませんでした。頁を読み込み直してから、もう一度選んでください";
   function routineFailure(message) {
     var fields = document.getElementById("routine-fields");
     if (!fields) {
@@ -160,19 +168,39 @@
     notice.setAttribute("role", "alert");
     notice.setAttribute("data-routine-alert", "");
     notice.className = "text-danger sm:col-span-3";
+    notice.tabIndex = -1;
     notice.textContent = message;
     fields.querySelector("label").after(notice);
-    document.querySelectorAll("#actions button").forEach(function (button) {
-      button.disabled = true;
-    });
+    var form = fields.closest("form");
+    if (form) {
+      form.setAttribute("data-routine-failed", "");
+    }
   }
+  document.addEventListener("htmx:beforeRequest", function (event) {
+    var form = event.detail.elt;
+    if (
+      form instanceof HTMLFormElement &&
+      form.id === "exam-form" &&
+      form.hasAttribute("data-routine-failed")
+    ) {
+      event.preventDefault();
+      var fields = document.getElementById("routine-fields");
+      var notice = fields && fields.querySelector("[data-routine-alert]");
+      if (notice) {
+        notice.focus();
+      }
+    }
+  });
   function isRoutineRequest(event) {
     var config = event.detail.requestConfig;
     return config && typeof config.path === "string" && config.path.indexOf("/exam/routine") === 0;
   }
-  document.addEventListener("htmx:responseError", function (event) {
-    if (isRoutineRequest(event)) {
-      routineFailure("ルーチンを切り替えられませんでした。頁を読み込み直してから、もう一度選んでください");
+  // 断られた応答（4xx・5xx）でルーチンの欄を差し替えない（差し替えると選択ごと消える）
+  document.addEventListener("htmx:beforeSwap", function (event) {
+    var xhr = event.detail.xhr;
+    if (isRoutineRequest(event) && xhr && xhr.status >= 400) {
+      event.detail.shouldSwap = false;
+      routineFailure(ROUTINE_FAILED_MESSAGE);
     }
   });
 
