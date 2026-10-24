@@ -14,6 +14,16 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+Python の環境で Web 画面と CLI を動かすときは、リポジトリのディレクトリで実行する。
+設定ファイルは `config/app_config.yaml` で、Web 画面は既定ではループバック
+（127.0.0.1）だけで待ち受け、認証は無い。ループバック以外で待ち受けるときは、
+コンテナと同じくパスワードのファイルを `DTG_WEB_PASSWORD_FILE` で指定する。
+
+```bash
+python -m app.web
+python -m app.cli quick -p P000001 -m ct_generic -s 1 -i 3 -o output/
+```
+
 ## 2. 確認のコマンド
 
 PR を作成する前に、次を実行する。
@@ -42,8 +52,16 @@ python scripts/check_doc_dates.py origin/main..HEAD
 - 画面の CSS：`scripts/build_css.sh` で作成し直し、commit した
   `app/web/static/app.css` と差分が無いことを確認する
 - Docker イメージ：`Dockerfile` からイメージをビルドし（push しない）、CLI が
-  root 以外のユーザーで動くこと、Web 画面が `0.0.0.0` で起動して HTTP Basic 認証を
-  求めること、パスワードのファイルが無ければ起動しないことを確認する
+  root 以外のユーザーで動くこと、`--user` でホストの利用者として出力フォルダに
+  書き出せること、イメージの中の設定のまま Web 画面が `0.0.0.0` で起動して HTTP Basic
+  認証を求めること、パスワードのファイルが無ければ起動しないことを確認する
+
+`.github/workflows/publish.yml` は、`v` で始まるタグの push と、手動の実行のときだけ
+動き、イメージを `ghcr.io/jeysunit/dicom-test-generator` に公開する（タグは版と
+`latest`。[ADR-0026](decisions/0026-container-image-distribution.md)）。手動で実行する
+ときは、実行する ref に `v1.2.0` の形のタグを選ぶ（ほかの ref と、この形でないタグ
+では失敗する）。`main` への
+push と PR では動かない。
 
 ## 4. テスト
 
