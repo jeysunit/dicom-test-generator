@@ -38,8 +38,9 @@
    ホストの利用者のものになり、ホスト側で権限を変える手順が要らない。`--user` を
    指定しないときは、今と同じ uid 10001 で動く
 4. **公開の workflow は `on: push: tags: ['v*']` と `workflow_dispatch` だけで動かす。**
-   手動の実行は、`v` で始まるタグを選んだときだけ進み、ほかの ref では最初の
-   ステップで失敗する。権限は
+   `v1.2.0` の形のタグでなければ最初のステップで
+   失敗する（metadata-action の `type=semver` は、`v1.2` のような形のタグからは
+   タグを作れず、`-rc.1` のつくタグには `latest` が付かないため）。権限は
    `contents: read` と `packages: write` だけにする。actions は commit の SHA で固定する
    （checkout は ci.yml と同じ SHA。docker/setup-buildx-action v4.4.1・login-action
    v4.6.0・metadata-action v6.2.0・build-push-action v7.4.0）。タグは metadata-action の

@@ -18,8 +18,9 @@ DTG を使うには、Python の環境を作るか、`Dockerfile` から自分�
    Docker から始め、Python の環境での起動は開発する人向けに development.md に置く
 2. イメージは `ghcr.io/jeysunit/dicom-test-generator` に、`v` で始まるタグの push と、
    手動の実行（`workflow_dispatch`）のときだけ公開する
-   （`.github/workflows/publish.yml`）。手動の実行は、`v` で始まるタグを選んだときだけ
-   進み、ほかの ref では失敗する。タグは版と `latest`。`main` への push と PR では
+   （`.github/workflows/publish.yml`）。公開できるのは `v1.2.0` の形
+   （`v` と 3 つの数）のタグだけで、タグの push も手動の実行も、ほかの ref と形では
+   最初のステップで失敗する。タグは版と `latest`。`main` への push と PR では
    公開しない。公開はタグを push する人か、手動で実行する人が決める操作にする
 3. イメージの中の設定は、Web 画面を `0.0.0.0` で待ち受ける形にする。`0.0.0.0` では
    パスワードのファイルが必須なので（spec/12a の 10.9）、パスワード無しでは起動しない

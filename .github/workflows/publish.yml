@@ -1,7 +1,8 @@
 name: Publish image
 
 # v で始まるタグの push と、手動の実行のときだけ、イメージを GHCR に公開する
-# （ADR-0026）。手動の実行は、実行する ref に v で始まるタグを選ぶ。
+# （ADR-0026）。手動の実行は、実行する ref に v1.2.0 の形のタグを選ぶ。
+# ほかの ref と、v1.2.0 の形でないタグ（v1.2・v1.2.0-rc.1 など）は、最初のステップで失敗する。
 # main への push と PR では動かない（イメージの確認は ci.yml の Docker のジョブ）。
 on:
   push:
@@ -22,13 +23,15 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - name: Require a v* tag
-        if: github.ref_type != 'tag' || !startsWith(github.ref_name, 'v')
+      - name: Require a version tag such as v1.2.0
         env:
-          REF: ${{ github.ref }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          echo "::error::公開できるのは v で始まるタグだけです（実行した ref: $REF）"
-          exit 1
+          if [[ "$REF_TYPE" != tag || ! "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::公開できるのは v1.2.0 の形のタグだけです（実行した ref: $REF_TYPE $REF_NAME）"
+            exit 1
+          fi
 
       # actions/checkout v7.0.1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

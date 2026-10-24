@@ -41,7 +41,7 @@ Docker で実行します。作業用のフォルダに、Web 画面のパスワ
 
 ```bash
 mkdir -p output
-docker run -d --name dtg --user "$(id -u):$(id -g)" -p 127.0.0.1:8080:8080 -v "$PWD/password.txt:/run/secrets/dtg_web_password:ro" -e DTG_WEB_PASSWORD_FILE=/run/secrets/dtg_web_password -v "$PWD/output:/app/output" ghcr.io/jeysunit/dicom-test-generator:latest
+docker run -d --name dtg --user "$(id -u):$(id -g)" -p 127.0.0.1:8080:8080 -v "$PWD/password.txt:/run/secrets/dtg_web_password:ro" -e DTG_WEB_PASSWORD_FILE=/run/secrets/dtg_web_password -v "$PWD/output:/app/output" -v dtg-state:/app/modality_state ghcr.io/jeysunit/dicom-test-generator:latest
 docker exec dtg python -m app.cli quick -p P000001 -m ct_generic -s 1 -i 3 -o /app/output
 ```
 

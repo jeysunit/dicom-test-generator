@@ -59,7 +59,8 @@ python scripts/check_doc_dates.py origin/main..HEAD
 `.github/workflows/publish.yml` は、`v` で始まるタグの push と、手動の実行のときだけ
 動き、イメージを `ghcr.io/jeysunit/dicom-test-generator` に公開する（タグは版と
 `latest`。[ADR-0026](decisions/0026-container-image-distribution.md)）。手動で実行する
-ときは、実行する ref に `v` で始まるタグを選ぶ（ほかの ref では失敗する）。`main` への
+ときは、実行する ref に `v1.2.0` の形のタグを選ぶ（ほかの ref と、この形でないタグ
+では失敗する）。`main` への
 push と PR では動かない。
 
 ## 4. テスト
