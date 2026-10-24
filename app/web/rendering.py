@@ -69,7 +69,7 @@ def render_error(request: Request, exc: DICOMGeneratorError | ValidationError) -
 def error_text(exc: DICOMGeneratorError | ValidationError) -> str:
     if isinstance(exc, ValidationError):
         # 項目の名前と原因だけ。入っていた値は出さない（docs/spec/12 の 12 章）
-        return "入力の値が正しくありません：" + describe_validation_error(exc)
+        return "入力を受け付けられません。次の項目を確かめてください：" + describe_validation_error(exc)
     return str(exc)
 
 
