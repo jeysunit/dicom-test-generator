@@ -40,7 +40,7 @@ def test_exam_page_has_busy_indicators_and_form_guards(client) -> None:
     # find は最初の1つだけを押せなくするので、全部のボタンを選ぶ書き方にする
     assert 'hx-disabled-elt="#actions button"' in html
     assert 'hx-sync="this:drop"' in html
-    assert "撮影して送っています" in html
+    assert "撮影して送信しています" in html
     # 既定はルーチンの行（ADR-0025）。「手で入れる」にすると今のシリーズ数・画像数の欄
     assert 'name="routine_images"' in html
     manual = client.get("/exam/routine?routine=manual").text

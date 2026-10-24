@@ -51,7 +51,7 @@ def test_exam_then_buttons_change_to_append(tmp_path, worklist_scp, storage_scp)
     token = csrf_token(client, f"/exam?key={key}")
     assert _enabled_buttons(_actions(client.get(f"/exam?key={key}").text)) == [
         "撮影",
-        "撮影して送る",
+        "撮影して送信",
     ]
 
     result = client.post("/exam", data=_form(key, "exam_send"), headers=post_headers(token)).text

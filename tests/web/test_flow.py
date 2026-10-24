@@ -61,7 +61,7 @@ def test_queue_table_shows_the_accession_number(client, worklist_scp, storage_sc
 
 
 def test_exam_with_profile_then_send_from_result(client, storage_scp) -> None:
-    """予約なしの緊急の患者を、装置を選んで撮り、結果の [送る] で送る.
+    """予約なしの緊急の患者を、装置を選んで撮り、結果の [送信] で送る.
 
     氏名は空白で区切って入れる（スクリプトが切れていてもサーバーで ^ にする。10.5）。
     """
@@ -181,13 +181,13 @@ def test_sending_job_has_no_resend_button(client) -> None:
 
 
 def test_exam_result_offers_send_again(client, worklist_scp, storage_scp) -> None:
-    """撮影の画面で、送信の結果の後も [もう一度送る] で何回でも送り直せる（10.5）."""
+    """撮影の画面で、送信の結果の後も [もう一度送信] で何回でも送り直せる（10.5）."""
     key = key_for(query_worklist(client), "A0001")
     token = csrf_token(client, f"/exam?key={key}")
     result = client.post(
         "/exam", data=_exam_form(key, "exam_send"), headers=post_headers(token)
     ).text
-    assert "もう一度送る" in result
+    assert "もう一度送信" in result
     output_dir = _OUTPUT_DIR_PATTERN.search(result).group(1)
 
     for job in (2, 3):
@@ -195,5 +195,5 @@ def test_exam_result_offers_send_again(client, worklist_scp, storage_scp) -> Non
             "/exam/send", data={"output_dir": output_dir}, headers=post_headers(token)
         ).text
         assert f"送信完了：PACS_TEST へ 3/3 画像（ジョブ {job}）" in again
-        assert "もう一度送る" in again and 'hx-disabled-elt="find button"' in again
+        assert "もう一度送信" in again and 'hx-disabled-elt="find button"' in again
     assert len(storage_scp.received) == 9

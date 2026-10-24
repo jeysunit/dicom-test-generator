@@ -1,7 +1,7 @@
 <div class="flex flex-wrap items-center justify-end gap-2">
   {% if blocker %}<p role="alert" class="mr-auto text-danger">{{ blocker }}</p>{% endif %}
   {% if taken %}
-  {# 撮影済みの予約（docs/spec/12a の 10.5・ADR-0024）。撮影・撮影して送るは押せない #}
+  {# 撮影済みの予約（docs/spec/12a の 10.5・ADR-0024）。撮影・撮影して送信は押せない #}
   {% if retake_mode == "new_order" %}
   <p id="taken-note" role="status" class="mr-auto text-label">撮影済み。撮り直しの予約が要ります（RIS で新しい予約を作ってください）</p>
   {% else %}
@@ -10,7 +10,7 @@
   {# 押せない理由を、ボタンにも結び付ける（title と aria-describedby） #}
   {% set taken_title = "撮影済みの予約は押せません。" ~ ("撮り直しの予約が要ります" if retake_mode == "new_order" else "続けて撮るときは「追加撮影」") %}
   <button type="button" class="btn btn-outline" disabled title="{{ taken_title }}" aria-describedby="taken-note">撮影</button>
-  <button type="button" class="btn btn-outline" disabled title="{{ taken_title }}" aria-describedby="taken-note">撮影して送る</button>
+  <button type="button" class="btn btn-outline" disabled title="{{ taken_title }}" aria-describedby="taken-note">撮影して送信</button>
   {% if retake_mode == "append" %}
   <input type="hidden" name="append" value="1">
   <button type="submit" name="action" value="exam" class="btn btn-primary"{% if blocker %} disabled{% endif %}>追加撮影</button>
@@ -18,7 +18,7 @@
   {% else %}
   <button type="submit" name="action" value="exam" class="btn btn-outline"{% if blocker %} disabled{% endif %}>撮影</button>
   <button type="submit" name="action" value="exam_send" class="btn btn-primary"{% if blocker %} disabled{% endif %}>
-    <span class="icon icon-send" aria-hidden="true"></span>撮影して送る
+    <span class="icon icon-send" aria-hidden="true"></span>撮影して送信
   </button>
   {% endif %}
 </div>

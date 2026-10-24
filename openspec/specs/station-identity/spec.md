@@ -79,7 +79,7 @@ DTG は、ワークリストの C-FIND、C-STORE、C-ECHO、MPPS の N-CREATE・
 
 #### Scenario: MR1号機で撮影して送る
 
-- **WHEN** `MR1号機` を選び、MPPS を使う設定で「撮影して送る」を押す
+- **WHEN** `MR1号機` を選び、MPPS を使う設定で「撮影して送信」を押す
 - **THEN** MPPS と C-STORE の Association の Calling AE Title が `DTG_MR01` になり、MPPS の Performed Station AE Title (0040,0241) が `DTG_MR01`、Performed Station Name (0040,0242) が MR1号機の Station Name になる
 
 #### Scenario: 予約の装置の印
