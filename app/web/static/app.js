@@ -266,9 +266,13 @@
       fields.inert = false;
       // 押したボタンは応答まで押せず、フォーカスが本文の先頭へ落ちる。応答の後は、
       // 結果の場所へフォーカスを移し、キーボードの人が位置を見失わないようにする。
-      // 結果の知らせは aria-live で読み上げられる
+      // 結果の知らせは aria-live で読み上げられる。応答を待つ間に別の欄へ移って入力して
+      // いるときは、その入力を邪魔しない（フォーカスが本文の先頭か、撮影のボタンの
+      // 並びにあるときだけ移す）
       var result = document.getElementById("result");
-      if (result) {
+      var active = document.activeElement;
+      var lost = !active || active === document.body || active.closest("#actions") !== null;
+      if (result && lost) {
         result.focus();
       }
     }

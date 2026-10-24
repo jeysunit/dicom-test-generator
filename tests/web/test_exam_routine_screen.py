@@ -107,6 +107,8 @@ def test_result_place_takes_focus_after_exam(client) -> None:
 
     assert '<section id="result" aria-live="polite" tabindex="-1">' in html
     assert 'document.getElementById("result")' in script and "result.focus()" in script
+    # 応答を待つ間に別の欄へ移って入力しているときは、フォーカスを奪わない
+    assert 'active === document.body || active.closest("#actions") !== null' in script
     assert 'getAttribute("aria-disabled") === "true"' in script
 
 

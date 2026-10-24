@@ -7,7 +7,7 @@
 ## 2. 表
 
 - [x] 2.1 PACS の再取得・再送の差し替えで、横スクロールの位置を保つ（`app.js`）
-- [x] 2.2 ルーチンの表を、幅 390px 前後でもはみ出さない幅にする（`input.css`・`_routine_fields.html`。`app.css` を作り直す）
+- [x] 2.2 ルーチンの表を、幅 390px 前後でもはみ出さない幅にする。狭い画面では「種類」の列を出さず、Series Description の下に出す（`input.css`・`_routine_fields.html`。`app.css` を作り直す）
 
 ## 3. 撮影の画面
 
