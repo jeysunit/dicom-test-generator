@@ -13,27 +13,31 @@
   {% if routine %}
   {% set one_row = routine.series|length == 1 %}
   <div class="sm:col-span-3 overflow-x-auto">
-    <table class="table" data-routine-series>
+    {# 押せない [外す] の理由。見えない文で、aria-describedby でボタンに結ぶ（キーボードと読み上げ用） #}
+    <span id="last-series-note" class="sr-only">最後の1行は外せません</span>
+    <table class="table routine-table" data-routine-series>
       <thead>
         <tr>
           <th scope="col" class="whitespace-nowrap">シリーズ</th>
           <th scope="col">Series Description</th>
-          <th scope="col" class="whitespace-nowrap">種類</th>
+          <th scope="col" class="hidden whitespace-nowrap sm:table-cell">種類</th>
           <th scope="col" class="whitespace-nowrap">画像数</th>
           <th scope="col"><span class="sr-only">外す</span></th>
         </tr>
       </thead>
       <tbody>
         {% for series in routine.series %}
+        {% set kind_label %}{% if series.kind is defined %}{{ series_kind_labels.get(series.kind, series.kind) }}{% elif series.views is defined %}{{ series.views|join("・") }}{% else %}静止画{% endif %}{% endset %}
         <tr>
           <td>{{ loop.index }}</td>
-          <td class="font-mono">{{ series.description }}</td>
-          <td class="whitespace-nowrap">{% if series.kind is defined %}{{ series_kind_labels.get(series.kind, series.kind) }}{% elif series.views is defined %}{{ series.views|join("・") }}{% else %}静止画{% endif %}</td>
+          {# 狭い画面では「種類」の列を出さず、Series Description の下に小さく出す（表を枠の幅に収めるため） #}
+          <td class="font-mono">{{ series.description }}<span class="block font-sans text-xs text-label sm:hidden">{{ kind_label }}</span></td>
+          <td class="hidden whitespace-nowrap sm:table-cell">{{ kind_label }}</td>
           <td>
             <input type="hidden" name="routine_series" value="{{ loop.index0 }}">
-            <input type="number" name="routine_images" value="{{ series.images }}" min="1" max="{{ max_images_per_series }}" class="input w-24" required aria-label="{{ series.description }} の画像数" data-count-label="{{ series.description }} の画像数">
+            <input type="number" name="routine_images" value="{{ series.images }}" min="1" max="{{ max_images_per_series }}" class="input w-20 sm:w-24" required aria-label="{{ series.description }} の画像数" data-count-label="{{ series.description }} の画像数">
           </td>
-          <td><button type="button" class="btn btn-outline" data-remove-series data-description="{{ series.description }}" aria-label="{{ series.description }} を外す"{% if one_row %} disabled title="最後の1行は外せません"{% endif %}>外す</button></td>
+          <td><button type="button" class="btn btn-outline" data-remove-series data-description="{{ series.description }}" aria-label="{{ series.description }} を外す"{% if one_row %} aria-disabled="true" aria-describedby="last-series-note" title="最後の1行は外せません"{% endif %}>外す</button></td>
         </tr>
         {% endfor %}
       </tbody>

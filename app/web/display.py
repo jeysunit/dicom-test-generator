@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import re
-from datetime import date
+from datetime import date, datetime
 
 from app.core.models import WorklistItem
 
@@ -29,6 +29,16 @@ COMMITMENT_STATUS_CLASSES = {
     "timed_out": "failed",
 }
 DEFAULT_CHARSET_LABEL = "既定"
+
+
+def utc_offset_label() -> str:
+    """画面を動かすマシンの時刻の UTC からの差を `UTC+09:00` の形で返す.
+
+    画面に出す取得・受付・完了・検査の時刻は、このマシンの時刻（タイムゾーンの表記が無い）。
+    どの時刻かが読めるように、時刻の見出しと取得の時刻に添える（10.4・10.6）。
+    """
+    offset = datetime.now().astimezone().strftime("%z")
+    return f"UTC{offset[:3]}:{offset[3:]}"
 
 
 def send_error_label(reason: str) -> str:
