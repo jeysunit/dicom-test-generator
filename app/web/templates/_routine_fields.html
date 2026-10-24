@@ -33,7 +33,7 @@
             <input type="hidden" name="routine_series" value="{{ loop.index0 }}">
             <input type="number" name="routine_images" value="{{ series.images }}" min="1" max="{{ max_images_per_series }}" class="input w-24" required aria-label="{{ series.description }} の画像数">
           </td>
-          <td><button type="button" class="btn btn-outline" data-remove-series aria-label="{{ series.description }} を外す"{% if one_row %} disabled title="最後の1行は外せません"{% endif %}>外す</button></td>
+          <td><button type="button" class="btn btn-outline" data-remove-series data-description="{{ series.description }}" aria-label="{{ series.description }} を外す"{% if one_row %} disabled title="最後の1行は外せません"{% endif %}>外す</button></td>
         </tr>
         {% endfor %}
       </tbody>
