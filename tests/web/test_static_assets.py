@@ -49,7 +49,7 @@ def test_built_css_is_committed_and_has_the_tokens() -> None:
 def test_request_failures_share_the_result_place() -> None:
     js = (STATIC / "app.js").read_text(encoding="utf-8")
     place = js.split("function failurePlace(event)", 1)[1].split("function showFailure", 1)[0]
-    for name in ("query-form", "results", "exam-form", "result", "send-result", "queue-notice", "echo-"):
+    for name in ("query-form", "results", "detail", "exam-form", "result", "send-result", "queue-notice", "echo-"):
         assert name in place
     assert "requestConfig" in place and "detail.target" in place
     assert "var place = failurePlace(event)" in js

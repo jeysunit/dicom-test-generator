@@ -265,7 +265,11 @@
       // PACS の画面の再送：表の上の知らせの場所に出す
       return document.getElementById("queue-notice");
     }
-    if (target && (target.id === "results" || target.id.indexOf("echo-") === 0)) {
+    // 一覧・予約の詳細（行を選んだとき）・C-ECHO の結果は、差し替える先にそのまま出す
+    if (
+      target &&
+      (target.id === "results" || target.id === "detail" || target.id.indexOf("echo-") === 0)
+    ) {
       return target;
     }
     if (form && form.id === "query-form") {
