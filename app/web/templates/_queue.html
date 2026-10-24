@@ -53,7 +53,7 @@
             {% endif %}
             {# 送信失敗は送れていない画像だけを、送信完了は新しい件として全部を送り直す（10.6） #}
             {% if job.status in ("failed", "sent") %}
-            <button type="button" class="btn btn-outline" data-resend hx-post="/pacs/retry/{{ job.id }}" hx-target="#queue" hx-disabled-elt="this">再送</button>
+            <button type="button" class="btn btn-outline" data-resend hx-post="/pacs/retry/{{ job.id }}" hx-target="#queue" hx-disabled-elt="#queue [data-resend], #retry-failed">再送</button>
             {% endif %}
             {# 詳細は表の外（最上位の層）に浮かぶ枠に出し、表の列の幅を変えない（10.6） #}
             <button type="button" class="link job-detail-button" popovertarget="job-detail-{{ job.id }}">詳細</button>
