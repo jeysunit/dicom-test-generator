@@ -465,3 +465,39 @@ def test_append_is_refused_in_new_order_mode(
 
     assert code == 4
     assert "撮り直しの予約が要ります" in err
+
+
+def test_emergency_append_study_uid_json(monkeypatch, capsys, tmp_path) -> None:
+    config = write_config(tmp_path, 104, 104)
+    args = ("exam", "--emergency", "--patient-id", "E1", "--patient-name", "UNKNOWN^ONE",
+            "-s", "1", "-i", "1", "--pixel-mode", "simple_text", "--json")
+    code, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, *args)
+    assert code == 0
+    uid = json.loads(out)["study_instance_uid"]
+    code, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, *args,
+                           "--append", "--study-uid", uid)
+    assert code == 0
+    data = json.loads(out)
+    assert data["study_instance_uid"] == uid
+    assert pydicom.dcmread(data["files"][0]).SeriesNumber == 2
+
+
+@pytest.mark.parametrize("source", [("--from-worklist", "some-key"), ("--emergency",)])
+def test_study_uid_requires_emergency_append(monkeypatch, capsys, tmp_path, source) -> None:
+    config = write_config(tmp_path, 104, 104)
+    code, _, err = run_cli(monkeypatch, capsys, tmp_path, config, "exam", *source,
+                           "--study-uid", "2.25.123")
+    assert code == 2
+    assert "--study-uid is only for --emergency --append" in err
+    assert list(tmp_path.rglob("*.dcm")) == []
+
+
+def test_emergency_append_requires_study_uid(monkeypatch, capsys, tmp_path) -> None:
+    config = write_config(tmp_path, 104, 104)
+    code, _, err = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--append",
+        "--patient-id", "E1", "--patient-name", "UNKNOWN^ONE",
+    )
+    assert code == 2
+    assert "--emergency --append requires --study-uid" in err
+    assert list(tmp_path.rglob("*.dcm")) == []
