@@ -4,8 +4,8 @@
   {% if retry_error %}{% with error = retry_error %}{% include "_notice.html" %}{% endwith %}{% else %}<p role="status" class="notice notice-ok mb-3">{{ notice }}</p>{% endif %}
 </div>
 {% endif %}
-{% if queue_error %}{% with error = queue_error %}{% include "_notice.html" %}{% endwith %}{% endif %}
-{% if not jobs %}
+{% if queue_error %}{% with error = queue_error %}{% include "_notice.html" %}{% endwith %}
+{% elif not jobs and not queue_error %}
 <p class="text-label">送信した検査はまだありません</p>
 {% else %}
 <div class="overflow-x-auto">
@@ -49,7 +49,7 @@
         <td>
           <div class="flex flex-wrap items-center gap-2">
             {% if job.status == "failed" %}
-            <span class="text-xs text-danger">{{ job.last_error }}</span>
+            <span class="job-error-summary text-xs text-danger">{{ job.last_error|send_error_label }}</span>
             {% endif %}
             {# 送信失敗は送れていない画像だけを、送信完了は新しい件として全部を送り直す（10.6） #}
             {% if job.status in ("failed", "sent") %}
@@ -59,6 +59,9 @@
             <button type="button" class="link job-detail-button" popovertarget="job-detail-{{ job.id }}">詳細</button>
             <div id="job-detail-{{ job.id }}" popover class="job-detail" role="group" aria-label="ジョブ {{ job.id }} の詳細">
               <dl class="values">
+                {% if job.status == "failed" %}
+                <dt>失敗の理由</dt><dd>{{ job.last_error|send_error_label }}<div class="font-mono">{{ job.last_error }}</div></dd>
+                {% endif %}
                 <dt>元のファイル</dt><dd>{% with uid = job.folder %}{% include "_uid.html" %}{% endwith %}</dd>
                 <dt>試行回数</dt><dd>{{ job.attempts }}</dd>
                 {# 再送もこの AE タイトルで名乗る（docs/spec/12 の 8.2・ADR-0023） #}

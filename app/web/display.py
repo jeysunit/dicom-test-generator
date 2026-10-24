@@ -5,7 +5,12 @@
 
 from __future__ import annotations
 
+<<<<<<< HEAD
 from datetime import date, datetime
+=======
+import re
+from datetime import date
+>>>>>>> origin/main
 
 from app.core.models import WorklistItem
 
@@ -30,6 +35,7 @@ COMMITMENT_STATUS_CLASSES = {
 DEFAULT_CHARSET_LABEL = "既定"
 
 
+<<<<<<< HEAD
 def utc_offset_label() -> str:
     """画面を動かすマシンの時刻の UTC からの差を `UTC+09:00` の形で返す.
 
@@ -38,6 +44,33 @@ def utc_offset_label() -> str:
     """
     offset = datetime.now().astimezone().strftime("%z")
     return f"UTC{offset[:3]}:{offset[3:]}"
+=======
+def send_error_label(reason: str) -> str:
+    """送信失敗の理由を日本語にする。原文は詳細の枠に残す（10.6）."""
+    details = dict(re.findall(r"(?:\(|, )(peer|host|port)=([^,()]+)", reason))
+    peer = details.get("peer", "")
+    address = ":".join(details[key] for key in ("host", "port") if key in details)
+    endpoint = "・".join(value for value in (peer, address) if value)
+    if reason.startswith("Association failed: could not connect"):
+        suffix = f"（{endpoint}）" if endpoint else ""
+        return f"接続できませんでした{suffix}。送り先の電源とポートを確かめてください"
+    if reason.startswith("Association failed: association rejected by the peer"):
+        suffix = f"（{peer}）" if peer else ""
+        return f"送り先に断られました{suffix}。AE タイトルの登録を確かめてください"
+    if reason == "association lost":
+        return "送信の途中で接続が切れました。送り先の接続を確かめてください"
+    if reason == "no response (timed out or aborted)":
+        return "送り先から応答がありませんでした。送り先の稼働状況を確かめてください"
+    status = re.fullmatch(r"status (0x[0-9A-Fa-f]{4})", reason)
+    if status:
+        return f"送り先が画像を受け付けませんでした（状態 {status[1]}）。送り先の記録を確かめてください"
+    if reason.startswith("unreadable file:"):
+        return "送信する画像のファイルを読めませんでした。元のファイルを確かめてください"
+    if re.search(r"[ぁ-んァ-ヶ一-龯]", reason):
+        # 相手の AE タイトルを受け付けなかった知らせなど、すでに日本語の文
+        return reason
+    return "送信に失敗しました"
+>>>>>>> origin/main
 
 
 def name_parts(patient_name: str) -> tuple[str, str, str]:

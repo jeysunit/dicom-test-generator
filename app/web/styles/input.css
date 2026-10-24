@@ -181,6 +181,14 @@
   .series-removed td:not(:last-child) {
     @apply line-through opacity-60;
   }
+  /* 送信失敗の理由の1文。長くても最後の列を広げないように、幅の上限で1行に切る（10.6） */
+  .job-error-summary {
+    display: inline-block;
+    max-width: 16rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
   /* 送信ジョブの「詳細」。文字のボタンのまま、押せる範囲を 24px 四方より広くする */
   .job-detail-button {
     @apply inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center px-1 text-xs;
