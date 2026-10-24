@@ -75,6 +75,135 @@
     images.value = new Array(count).fill(each >= 1 ? each : 1).join(",");
   });
 
+  // 撮影の画面のルーチン：[外す] でシリーズの行を外す。最後の1行は外せない
+  // （行が無い要求は、サーバーがルーチンの全部で撮るため。ADR-0025）。1行だけのルーチンは
+  // 画面が最初から押せない形で出す
+  var LAST_SERIES_TITLE = "最後の1行は外せません";
+  function lockLastSeries(table) {
+    var buttons = table.querySelectorAll("[data-remove-series]");
+    buttons.forEach(function (button) {
+      button.disabled = buttons.length <= 1;
+      if (button.disabled) {
+        button.title = LAST_SERIES_TITLE;
+      } else {
+        button.removeAttribute("title");
+      }
+    });
+  }
+  document.addEventListener("click", function (event) {
+    var button = event.target.closest("[data-remove-series]");
+    if (!button) {
+      return;
+    }
+    var table = button.closest("[data-routine-series]");
+    var rows = table ? table.querySelectorAll("tbody tr") : [];
+    if (rows.length <= 1) {
+      return;
+    }
+    // 外した後は、次の行（無ければ前の行）の [外す] にフォーカスを移す
+    var row = button.closest("tr");
+    var next = row.nextElementSibling || row.previousElementSibling;
+    row.remove();
+    lockLastSeries(table);
+    var focus = next && next.querySelector("[data-remove-series]");
+    if (focus && !focus.disabled) {
+      focus.focus();
+    } else if (next) {
+      next.querySelector("[name='routine_images']").focus();
+    }
+  });
+  // テンプレートを変えたら、ルーチンをそのテンプレートで当て直して描き直す（ルーチンの名前を
+  // 送らない）。テンプレートの確かめ直し（/exam/check）とは別の要求にする
+  document.addEventListener("change", function (event) {
+    var select = event.target;
+    var fields = document.getElementById("routine-fields");
+    if (!(select instanceof HTMLSelectElement) || select.id !== "exam-template" || !fields) {
+      return;
+    }
+    var key = select.form && select.form.elements.namedItem("key");
+    htmx.ajax("GET", "/exam/routine", {
+      source: fields,
+      target: fields,
+      swap: "outerHTML",
+      values: { template: select.value, key: key ? key.value : "" },
+    });
+  });
+  // ルーチンを選び直して描き直した後は、ルーチンの選択にフォーカスを戻す
+  var routineFocused = false;
+  document.addEventListener("htmx:beforeSwap", function (event) {
+    if (event.target.id === "routine-fields") {
+      routineFocused = document.activeElement && document.activeElement.name === "routine";
+    }
+  });
+  document.addEventListener("htmx:afterSettle", function (event) {
+    var fields = document.getElementById("routine-fields");
+    if (!fields || !(event.target === fields || fields.contains(event.target))) {
+      return;
+    }
+    var table = fields.querySelector("[data-routine-series]");
+    if (table) {
+      lockLastSeries(table);
+    }
+    if (routineFocused) {
+      fields.querySelector("[name='routine']").focus();
+      routineFocused = false;
+    }
+    // 描き直せたので、前の失敗の印を外す
+    var form = fields.closest("form");
+    if (form) {
+      form.removeAttribute("data-routine-failed");
+    }
+  });
+  // ルーチンを描き直せなかったとき（断られた・届かなかった）は、選択のそばに知らせる。
+  // 選んだルーチンと表の行がずれたまま撮らないように、描き直せるまで撮影の要求を止める
+  // （ボタンを押せなくするだけでは、htmx の後処理や撮影のボタンの描き直しで戻るため）
+  var ROUTINE_FAILED_MESSAGE =
+    "ルーチンを切り替えられませんでした。頁を読み込み直してから、もう一度選んでください";
+  function routineFailure(message) {
+    var fields = document.getElementById("routine-fields");
+    if (!fields) {
+      return;
+    }
+    var notice = fields.querySelector("[data-routine-alert]") || document.createElement("p");
+    notice.setAttribute("role", "alert");
+    notice.setAttribute("data-routine-alert", "");
+    notice.className = "text-danger sm:col-span-3";
+    notice.tabIndex = -1;
+    notice.textContent = message;
+    fields.querySelector("label").after(notice);
+    var form = fields.closest("form");
+    if (form) {
+      form.setAttribute("data-routine-failed", "");
+    }
+  }
+  document.addEventListener("htmx:beforeRequest", function (event) {
+    var form = event.detail.elt;
+    if (
+      form instanceof HTMLFormElement &&
+      form.id === "exam-form" &&
+      form.hasAttribute("data-routine-failed")
+    ) {
+      event.preventDefault();
+      var fields = document.getElementById("routine-fields");
+      var notice = fields && fields.querySelector("[data-routine-alert]");
+      if (notice) {
+        notice.focus();
+      }
+    }
+  });
+  function isRoutineRequest(event) {
+    var config = event.detail.requestConfig;
+    return config && typeof config.path === "string" && config.path.indexOf("/exam/routine") === 0;
+  }
+  // 断られた応答（4xx・5xx）でルーチンの欄を差し替えない（差し替えると選択ごと消える）
+  document.addEventListener("htmx:beforeSwap", function (event) {
+    var xhr = event.detail.xhr;
+    if (isRoutineRequest(event) && xhr && xhr.status >= 400) {
+      event.detail.shouldSwap = false;
+      routineFailure(ROUTINE_FAILED_MESSAGE);
+    }
+  });
+
   // 撮影・送信：押したボタンで途中の文言を選び、新しい要求の前に前の結果を消す。
   // 応答が返らなかったとき（通信の失敗）は、結果の場所に知らせる。
   document.addEventListener("click", function (event) {
@@ -146,6 +275,10 @@
     var message = "サーバーに届きませんでした。接続を確かめてから、もう一度押してください";
     if (isStationSelect(event.detail.elt)) {
       stationFailure(event.detail.elt, message);
+      return;
+    }
+    if (isRoutineRequest(event)) {
+      routineFailure(message);
       return;
     }
     showFailure(event, message);

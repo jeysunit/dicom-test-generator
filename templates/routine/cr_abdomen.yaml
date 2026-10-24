@@ -1,0 +1,13 @@
+# CR 腹部。臥位の AP と立位の PA（ADR-0025）
+name: "cr_abdomen"
+label: "腹部"
+modality: "CR"
+protocol_name: "ABDOMEN"
+keywords: ["腹部", "ABDOMEN"]
+series:
+  - description: "Abdomen AP supine"
+    images: 1
+    views: ["AP"]
+  - description: "Abdomen PA erect"
+    images: 1
+    views: ["PA"]

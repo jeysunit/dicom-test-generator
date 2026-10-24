@@ -1,0 +1,10 @@
+# DX 手。PA・斜位・側面。斜位は View Position の定義の語で近い RLO にした（ADR-0025）
+name: "dx_hand"
+label: "手"
+modality: "DX"
+protocol_name: "HAND"
+keywords: ["手", "HAND"]
+series:
+  - description: "Hand"
+    images: 3
+    views: ["PA", "RLO", "LL"]

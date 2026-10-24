@@ -56,6 +56,8 @@ _TOP_LEVEL_RETURN_KEYS = (
     "RequestedProcedureDescription",
     "ReasonForTheRequestedProcedure",
     "InstitutionName",
+    # 標準の MWL の返却の値ではない。返す RIS ならルーチンを当てるのに使う（ADR-0025）
+    "BodyPartExamined",
 )
 _TOP_LEVEL_RETURN_SEQUENCES = (
     "ReferencedStudySequence",

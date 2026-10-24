@@ -391,6 +391,8 @@ Pure な処理のモジュール。どれも通信・ファイル・ログを使
 | `person_name.py` | 手入力した氏名を PN の形式にする | [12a](12a_web_screens_and_cli.md) |
 | `text_safety.py` | 相手から来る値の制御文字を可視化する | [12a](12a_web_screens_and_cli.md) |
 | `validation_text.py` | Pydantic の検証エラーを、値を出さずにメッセージにする | [12](12_modality_emulator.md) の 12 章 |
+| `routine.py` | 撮影のルーチンのモデル（モダリティごとの形）、予約への当て方（`match_routine`）、シリーズ番号の決め方（`assign_series_numbers`） | [ADR-0025](../decisions/0025-exam-routines.md)、[12a](12a_web_screens_and_cli.md) の 10.5 |
+| `series_layout.py` | ルーチンのシリーズの種類ごとの Image Type・画像の位置と向き、線量の画面の文字の行。線量の画面は `DICOMBuilder.build_dose_report` が Secondary Capture にする | [06](06_dicom_rules.md) の 5.1 |
 
 ## 9. テスト
 

@@ -1,0 +1,35 @@
+# 胸腹部骨盤 造影。画像数は 撮影範囲 ÷ スライス厚 の計算（範囲は胸部 300mm・腹部骨盤
+# 400mm・体の前後 250mm・左右 350mm の想定。ADR-0025）
+name: "ct_chest_abdomen_pelvis_contrast"
+label: "胸腹部骨盤 造影"
+modality: "CT"
+protocol_name: "CHEST ABDOMEN PELVIS C+"
+keywords: ["胸腹部", "CHEST ABDOMEN"]
+series:
+  - kind: "localizer"
+    description: "Scout"
+    images: 1
+    views: ["frontal"]
+  - kind: "axial"
+    description: "Ax Chest 2mm +C"
+    images: 150
+    slice_thickness: 2.0
+    contrast: true
+  - kind: "axial"
+    description: "Ax A/P 3mm +C"
+    images: 133
+    slice_thickness: 3.0
+    contrast: true
+  - kind: "coronal"
+    description: "Cor 3mm +C"
+    images: 83
+    slice_thickness: 3.0
+    contrast: true
+  - kind: "sagittal"
+    description: "Sag 3mm +C"
+    images: 116
+    slice_thickness: 3.0
+    contrast: true
+  - kind: "dose_report"
+    description: "Dose Report"
+    images: 1

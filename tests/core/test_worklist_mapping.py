@@ -508,3 +508,13 @@ def test_scheduled_context_accepts_valid_study_instance_uid(uid: str) -> None:
     )
 
     assert _scheduled(item).study_instance_uid == uid
+
+
+def test_body_part_examined_is_read_from_either_level() -> None:
+    """部位 (0018,0015) は標準の MWL に無いので、最上位か予約の項目のどちらかを読む（ADR-0025）."""
+    assert worklist_item_from_identifier(_identifier()).body_part_examined == ""
+    top = worklist_item_from_identifier(_identifier(BodyPartExamined="CHEST"))
+    assert top.body_part_examined == "CHEST"
+    nested = _identifier()
+    nested.ScheduledProcedureStepSequence[0].BodyPartExamined = "HEAD"
+    assert worklist_item_from_identifier(nested).body_part_examined == "HEAD"

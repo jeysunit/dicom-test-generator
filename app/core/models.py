@@ -68,6 +68,10 @@ class StudyConfig(BaseModel):
     num_series: int = Field(..., ge=1, le=100, description="シリーズ数")
 
 
+CTSeriesKind = Literal["axial", "localizer", "coronal", "sagittal", "dose_report"]
+LocalizerView = Literal["frontal", "lateral"]
+
+
 class SeriesConfig(BaseModel):
     model_config = {"frozen": True}
 
@@ -78,6 +82,11 @@ class SeriesConfig(BaseModel):
     slice_thickness: float = Field(5.0, gt=0, description="スライス厚（mm）")
     slice_spacing: float = Field(5.0, gt=0, description="スライス間隔（mm）")
     start_z: float = Field(0.0, description="開始Z座標（mm）")
+    # 撮影のルーチンのシリーズの種類（docs/spec/03・ADR-0025）。既定の axial は今までの画像
+    kind: CTSeriesKind = Field("axial", description="シリーズの種類")
+    # 位置決めの画像ごとの方向。足りなければ先頭から繰り返す
+    views: list[LocalizerView] = Field(default_factory=lambda: ["frontal"], min_length=1)
+    contrast: bool = Field(False, description="造影のシリーズ（Contrast/Bolus Agent を入れる）")
 
 
 class InstanceConfig(BaseModel):
@@ -253,6 +262,9 @@ class WorklistItem(BaseModel):
     modality: str = ""
     scheduled_station_ae_title: str = ""
     institution_name: str = ""
+    # 部位 (0018,0015)。MWL の標準の返却の値ではなく、RIS が返したときだけ入る。ルーチンを
+    # 当てるのに使う（docs/spec/12 の 5.2・ADR-0025）
+    body_part_examined: str = ""
     specific_character_set: list[str] = Field(default_factory=list)
     sequences: DicomJsonSequences = Field(default_factory=dict)
     unreadable_attributes: list[str] = Field(default_factory=list)

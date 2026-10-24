@@ -414,8 +414,14 @@ def _field(html: str, name: str) -> str:
 def test_required_fields_are_marked(client) -> None:
     """必須の欄に「必須」の印と required（docs/spec/12a の 10.5）."""
     html = client.get("/exam").text
-    for name in ("patient_id", "name_alphabetic", "series", "images"):
+    for name in ("patient_id", "name_alphabetic"):
         field = _field(html, name)
+        assert "必須" in field, name
+        assert " required" in field, name
+    # シリーズ数・画像数は「手で入れる」のときの欄（既定はルーチン。ADR-0025）
+    manual = client.get("/exam/routine?routine=manual").text
+    for name in ("series", "images"):
+        field = _field(manual, name)
         assert "必須" in field, name
         assert " required" in field, name
     for name in ("name_ideographic", "name_phonetic", "birth_date", "study_description"):

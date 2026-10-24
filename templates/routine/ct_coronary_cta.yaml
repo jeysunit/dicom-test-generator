@@ -1,0 +1,24 @@
+# 冠動脈 CTA。画像数は 撮影範囲 ÷ スライス厚 の計算（範囲は心臓 140mm、石灰化スコアは
+# 120mm の想定。ADR-0025）
+name: "ct_coronary_cta"
+label: "冠動脈 CTA"
+modality: "CT"
+protocol_name: "CORONARY CTA"
+keywords: ["CTA", "冠動脈", "心臓", "CORONARY", "CARDIAC", "HEART"]
+series:
+  - kind: "localizer"
+    description: "Scout"
+    images: 1
+    views: ["frontal"]
+  - kind: "axial"
+    description: "Ca Score 3mm"
+    images: 40
+    slice_thickness: 3.0
+  - kind: "axial"
+    description: "CTA 0.5mm +C"
+    images: 280
+    slice_thickness: 0.5
+    contrast: true
+  - kind: "dose_report"
+    description: "Dose Report"
+    images: 1

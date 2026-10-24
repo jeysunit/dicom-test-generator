@@ -9,6 +9,7 @@ from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.valuerep import format_number_as_ds
 
 from .exceptions import DICOMBuildError
+from .series_layout import CONTRAST_AGENT, image_type
 from .models import (
     InstanceConfig,
     Patient,
@@ -20,6 +21,10 @@ from .models import (
 
 # CT Image Storage SOP Class UID
 CT_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.2"
+# Secondary Capture Image Storage（線量の画面。PS3.4 B.5・PS3.3 A.8.1）
+SECONDARY_CAPTURE_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.7"
+# SC Equipment Module の Conversion Type（PS3.3 C.8.6.1）。装置の画面を写した画像
+DOSE_REPORT_CONVERSION_TYPE = "WSD"
 
 # CT Image IOD の必須の属性の既定値（docs/spec/06 の「CT Image の必須の属性」）。
 # 装置のプロファイルの attributes.set で変えられる（docs/spec/13）
@@ -78,55 +83,29 @@ class DICOMBuilder:
                     tag="MediaStorageSOPInstanceUID",
                 )
 
-            ds = Dataset()
-            ds.file_meta = file_meta
-
-            # Patient Module
-            patient_name = patient.patient_name.to_dicom_pn(
-                use_ideographic=use_ideographic,
-                use_phonetic=use_phonetic,
+            ds = self._patient_study_series(
+                file_meta,
+                patient,
+                study_config,
+                series_config,
+                uid_context,
+                series_instance_uid,
+                specific_character_set,
+                use_ideographic,
+                use_phonetic,
             )
-            self._apply_character_set(ds, patient_name, specific_character_set)
-            ds.PatientName = patient_name
-            ds.PatientID = patient.patient_id
-            ds.PatientBirthDate = patient.birth_date
-            ds.PatientSex = patient.sex
-            ds.PatientAge = self._calculate_patient_age(
-                patient.birth_date,
-                study_config.study_date,
-            )
-            if patient.weight is not None:
-                ds.PatientWeight = format_ds(patient.weight)
-            if patient.size_in_meters is not None:
-                ds.PatientSize = format_ds(patient.size_in_meters)
-
-            # General Study Module
-            ds.StudyInstanceUID = uid_context.study_instance_uid
-            ds.StudyDate = study_config.study_date
-            ds.StudyTime = study_config.study_time
-            ds.AccessionNumber = study_config.accession_number
-            if study_config.study_description is not None:
-                ds.StudyDescription = study_config.study_description
-            # Type 2（PS3.3 C.7.2.1）。紹介医が無ければ空の値で出す
-            ds.ReferringPhysicianName = study_config.referring_physician_name or ""
-            ds.StudyID = ""
-
-            # General Series Module
-            ds.Modality = "CT"
-            ds.SeriesInstanceUID = series_instance_uid
-            ds.SeriesNumber = str(series_config.series_number)
-            if series_config.series_description is not None:
-                ds.SeriesDescription = series_config.series_description
-            if series_config.protocol_name is not None:
-                ds.ProtocolName = series_config.protocol_name
             ds.PatientPosition = DEFAULT_PATIENT_POSITION
 
             # Frame of Reference Module
             ds.FrameOfReferenceUID = uid_context.frame_of_reference_uid
             ds.PositionReferenceIndicator = DEFAULT_POSITION_REFERENCE_INDICATOR
 
-            # General Image Module・CT Image Module
-            ds.ImageType = list(DEFAULT_IMAGE_TYPE)
+            # General Image Module・CT Image Module。種類はルーチンのシリーズの種類
+            # （手で入れたシリーズは axial で、DEFAULT_IMAGE_TYPE と同じ）
+            ds.ImageType = image_type(series_config)
+            if series_config.contrast:
+                # Contrast/Bolus Module は造影を使ったときに要る（PS3.3 C.7.6.4）
+                ds.ContrastBolusAgent = CONTRAST_AGENT
             ds.InstanceNumber = str(instance_config.instance_number)
             ds.AcquisitionNumber = str(instance_config.acquisition_number)
             ds.ContentDate = study_config.study_date
@@ -161,6 +140,135 @@ class DICOMBuilder:
             if isinstance(exc, DICOMBuildError):
                 raise
             raise DICOMBuildError(f"Failed to build CT image dataset: {exc}") from exc
+
+    def build_dose_report(
+        self,
+        patient: Patient,
+        study_config: StudyConfig,
+        series_config: SeriesConfig,
+        instance_config: InstanceConfig,
+        uid_context: UIDContext,
+        pixel_data: np.ndarray,
+        file_meta: FileMetaDataset,
+        sop_instance_uid: str,
+        series_instance_uid: str,
+        specific_character_set: str | None = None,
+        use_ideographic: bool = True,
+        use_phonetic: bool = True,
+    ) -> Dataset:
+        """線量の画面を Secondary Capture Image Storage で構築（PS3.3 A.8.1）.
+
+        Modality は CT（装置が作った画面）。Frame of Reference・Image Plane・CT Image の
+        属性は持たない。画素は 8 ビットの MONOCHROME2。
+        """
+        try:
+            if str(getattr(file_meta, "MediaStorageSOPInstanceUID", "")) != sop_instance_uid:
+                raise DICOMBuildError(
+                    "SOP Instance UID mismatch between dataset and file meta",
+                    tag="MediaStorageSOPInstanceUID",
+                )
+            if pixel_data.dtype != np.uint8:
+                raise DICOMBuildError(
+                    f"Dose report pixel data must be uint8, got {pixel_data.dtype}",
+                    tag="PixelData",
+                )
+            ds = self._patient_study_series(
+                file_meta,
+                patient,
+                study_config,
+                series_config,
+                uid_context,
+                series_instance_uid,
+                specific_character_set,
+                use_ideographic,
+                use_phonetic,
+            )
+            # SC Equipment Module（PS3.3 C.8.6.1）
+            ds.ConversionType = DOSE_REPORT_CONVERSION_TYPE
+            # General Image Module。Patient Orientation は Type 2C で、Image Orientation
+            # (Patient) を持たない画像で要る。人体の向きの無い画面なので空（PS3.3 C.7.6.1）
+            ds.ImageType = image_type(series_config)
+            ds.InstanceNumber = str(instance_config.instance_number)
+            ds.PatientOrientation = ""
+            ds.ContentDate = study_config.study_date
+            ds.ContentTime = study_config.study_time
+            # SOP Common Module
+            ds.SOPClassUID = SECONDARY_CAPTURE_IMAGE_STORAGE
+            ds.SOPInstanceUID = sop_instance_uid
+            ds.InstanceCreatorUID = uid_context.instance_creator_uid
+            # Image Pixel Module（8 ビット。PS3.3 C.7.6.3）
+            rows, cols = pixel_data.shape
+            ds.Rows = rows
+            ds.Columns = cols
+            ds.SamplesPerPixel = 1
+            ds.PhotometricInterpretation = "MONOCHROME2"
+            ds.BitsAllocated = 8
+            ds.BitsStored = 8
+            ds.HighBit = 7
+            ds.PixelRepresentation = 0
+            ds.PixelData = pixel_data.tobytes()
+            self._apply_transfer_syntax(ds, file_meta)
+            return ds
+        except Exception as exc:
+            if isinstance(exc, DICOMBuildError):
+                raise
+            raise DICOMBuildError(f"Failed to build dose report dataset: {exc}") from exc
+
+    def _patient_study_series(
+        self,
+        file_meta: FileMetaDataset,
+        patient: Patient,
+        study_config: StudyConfig,
+        series_config: SeriesConfig,
+        uid_context: UIDContext,
+        series_instance_uid: str,
+        specific_character_set: str | None,
+        use_ideographic: bool,
+        use_phonetic: bool,
+    ) -> Dataset:
+        """Patient・General Study・General Series の Module（CT と線量の画面で共通）."""
+        ds = Dataset()
+        ds.file_meta = file_meta
+
+        # Patient Module
+        patient_name = patient.patient_name.to_dicom_pn(
+            use_ideographic=use_ideographic,
+            use_phonetic=use_phonetic,
+        )
+        self._apply_character_set(ds, patient_name, specific_character_set)
+        ds.PatientName = patient_name
+        ds.PatientID = patient.patient_id
+        ds.PatientBirthDate = patient.birth_date
+        ds.PatientSex = patient.sex
+        ds.PatientAge = self._calculate_patient_age(
+            patient.birth_date,
+            study_config.study_date,
+        )
+        if patient.weight is not None:
+            ds.PatientWeight = format_ds(patient.weight)
+        if patient.size_in_meters is not None:
+            ds.PatientSize = format_ds(patient.size_in_meters)
+
+        # General Study Module
+        ds.StudyInstanceUID = uid_context.study_instance_uid
+        ds.StudyDate = study_config.study_date
+        ds.StudyTime = study_config.study_time
+        ds.AccessionNumber = study_config.accession_number
+        if study_config.study_description is not None:
+            ds.StudyDescription = study_config.study_description
+        # Type 2（PS3.3 C.7.2.1）。紹介医が無ければ空の値で出す
+        ds.ReferringPhysicianName = study_config.referring_physician_name or ""
+        ds.StudyID = ""
+
+        # General Series Module
+        ds.Modality = "CT"
+        ds.SeriesInstanceUID = series_instance_uid
+        ds.SeriesNumber = str(series_config.series_number)
+        if series_config.series_description is not None:
+            ds.SeriesDescription = series_config.series_description
+        if series_config.protocol_name is not None:
+            ds.ProtocolName = series_config.protocol_name
+        return ds
 
     def _set_pixel_data(
         self, ds: Dataset, pixel_data: np.ndarray, bits_stored: int = 16

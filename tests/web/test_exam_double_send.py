@@ -41,8 +41,11 @@ def test_exam_page_has_busy_indicators_and_form_guards(client) -> None:
     assert 'hx-disabled-elt="#actions button"' in html
     assert 'hx-sync="this:drop"' in html
     assert "撮影して送っています" in html
-    assert "data-series-count" in html
-    assert "data-images-list" in html
+    # 既定はルーチンの行（ADR-0025）。「手で入れる」にすると今のシリーズ数・画像数の欄
+    assert 'name="routine_images"' in html
+    manual = client.get("/exam/routine?routine=manual").text
+    assert "data-series-count" in manual
+    assert "data-images-list" in manual
 
 
 def test_each_exam_page_gets_its_own_token(client) -> None:

@@ -1,0 +1,13 @@
+# CR 腰椎。AP と側面（ADR-0025）
+name: "cr_lumbar_spine"
+label: "腰椎"
+modality: "CR"
+protocol_name: "LUMBAR SPINE"
+keywords: ["腰椎", "L-SPINE", "LSPINE", "LUMBAR"]
+series:
+  - description: "L-Spine AP"
+    images: 1
+    views: ["AP"]
+  - description: "L-Spine LAT"
+    images: 1
+    views: ["LL"]

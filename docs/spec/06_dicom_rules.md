@@ -211,6 +211,30 @@ CT の Image Type の値 3 の Defined Terms は `AXIAL` と `LOCALIZER`
 （C.8.2.1.1.1。`AXIAL` は断層の画像を指し、横断に限らない）。DTG は
 断層の画像を作成するので、既定を `AXIAL` にする。
 
+### 5.1 撮影のルーチンのシリーズの種類
+
+撮影のルーチン（[ADR-0025](../decisions/0025-exam-routines.md)）で撮ったシリーズは、
+種類ごとに次の値にする。手で入れたシリーズは軸位で、上の表のとおり。
+
+| 種類 | SOP Class | Image Type | Image Orientation (Patient) | 画像の位置 |
+|------|-----------|------------|-----------------------------|------------|
+| 位置決め | CT Image Storage | `ORIGINAL\PRIMARY\LOCALIZER` | 正面 `1\0\0\0\0\-1`、側面 `0\1\0\0\0\-1`（ルーチンの `views` を画像ごとに繰り返す） | 原点 |
+| 軸位 | CT Image Storage | `ORIGINAL\PRIMARY\AXIAL` | `1\0\0\0\1\0` | z をスライス厚ずつ進める |
+| 冠状断 | CT Image Storage | `DERIVED\SECONDARY\AXIAL` | `1\0\0\0\0\-1` | y（前後）をスライス厚ずつ進める |
+| 矢状断 | CT Image Storage | `DERIVED\SECONDARY\AXIAL` | `0\1\0\0\0\-1` | x（左右）をスライス厚ずつ進める |
+| 線量の画面 | Secondary Capture Image Storage（1.2.840.10008.5.1.4.1.1.7） | `DERIVED\SECONDARY` | 無し | 無し |
+
+- Series Description (0008,103E) と Protocol Name (0018,1030) はルーチンの値。
+  Slice Thickness (0018,0050) と画像の位置の間隔はルーチンの `slice_thickness`
+- 造影のシリーズ（`contrast: true`）は Contrast/Bolus Agent (0018,0010) に
+  `IOPAMIDOL`（架空の値）を入れる（Contrast/Bolus Module。PS3.3 C.7.6.4）
+- 線量の画面（Secondary Capture Image IOD。PS3.3 A.8.1）：Modality は `CT`、
+  Conversion Type (0008,0064) は `WSD`（PS3.3 C.8.6.1）、Patient Orientation
+  (0020,0020) は空（Type 2C。PS3.3 C.7.6.1）。画素は 8 ビットの MONOCHROME2 で、
+  位置決めと軸位のシリーズごとの架空の CTDIvol・DLP を描く。Frame of Reference・
+  Image Plane・CT Image の属性は持たない（装置のプロファイルが足しても外す）
+- Image Type の値 4 と Source Image Sequence は付けない。RDSR は作らない
+
 ## 6. マルチスライスの空間座標
 
 ### 6.1 計算の規則
