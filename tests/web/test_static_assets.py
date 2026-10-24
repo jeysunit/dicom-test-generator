@@ -42,5 +42,5 @@ def test_every_icon_used_by_the_css_is_present_with_license() -> None:
 
 def test_built_css_is_committed_and_has_the_tokens() -> None:
     css = (STATIC / "app.css").read_text(encoding="utf-8")
-    assert "--color-primary:#0969da" in css.replace(" ", "")
+    assert "--color-primary:#4b4fbf" in css.replace(" ", "")
     assert ".btn-primary" in css
