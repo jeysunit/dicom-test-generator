@@ -75,6 +75,37 @@
     images.value = new Array(count).fill(each >= 1 ? each : 1).join(",");
   });
 
+  // 数の欄の検証の文言：ブラウザの検証の文言は、ブラウザの言語（英語など）で出る。
+  // 画面のほかの知らせと同じ日本語にする。欄の名前は data-count-label に置く。
+  // 範囲は欄の min・max から読む。値を直したら、次の検証まで文言を消す
+  document.addEventListener(
+    "invalid",
+    function (event) {
+      var input = event.target;
+      var label = input instanceof HTMLInputElement && input.getAttribute("data-count-label");
+      if (!label) {
+        return;
+      }
+      var state = input.validity;
+      var message = "";
+      if (state.valueMissing || state.badInput) {
+        message = label + "を入れてください";
+      } else if (state.rangeUnderflow || state.rangeOverflow) {
+        message = label + "は " + input.min + "〜" + input.max + " で入れてください";
+      } else if (state.stepMismatch) {
+        message = label + "は整数で入れてください";
+      }
+      input.setCustomValidity(message);
+    },
+    true
+  );
+  document.addEventListener("input", function (event) {
+    var input = event.target;
+    if (input instanceof HTMLInputElement && input.hasAttribute("data-count-label")) {
+      input.setCustomValidity("");
+    }
+  });
+
   // 撮影の画面のルーチン：[外す] で行を撮影の対象から外す。行は消さずに薄く出し、ボタンを
   // [戻す] に替える。[戻す] で外す前の画像数のまま対象に戻る。外した行の欄は押せなくし、
   // 要求に入れない。撮影の対象の最後の1行は外せない（対象の行が無い要求は、サーバーが
