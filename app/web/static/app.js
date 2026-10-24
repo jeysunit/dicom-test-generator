@@ -110,16 +110,28 @@
   // 撮影の画面のルーチン：[外す] で行を撮影の対象から外す。行は消さずに薄く出し、ボタンを
   // [戻す] に替える。[戻す] で外す前の画像数のまま対象に戻る。外した行の欄は押せなくし、
   // 要求に入れない。撮影の対象の最後の1行は外せない（対象の行が無い要求は、サーバーが
-  // ルーチンの全部で撮るため。ADR-0025）。1行だけのルーチンは画面が最初から押せない形で出す
+  // ルーチンの全部で撮るため。ADR-0025）。1行だけのルーチンは画面が最初から押せない形で出す。
+  // 押せないボタンは disabled にせず aria-disabled にする（disabled は Tab で止まらず、
+  // 理由がキーボードとタッチに届かない）。理由は aria-describedby で見えない文に結ぶ
   var LAST_SERIES_TITLE = "最後の1行は外せません";
+  var LAST_SERIES_NOTE_ID = "last-series-note";
+  function isLocked(button) {
+    return button.disabled || button.getAttribute("aria-disabled") === "true";
+  }
+  function unlock(button) {
+    button.removeAttribute("aria-disabled");
+    button.removeAttribute("aria-describedby");
+    button.removeAttribute("title");
+  }
   function lockLastSeries(table) {
     var active = table.querySelectorAll("tbody tr:not([data-removed]) [data-remove-series]");
     active.forEach(function (button) {
-      button.disabled = active.length <= 1;
-      if (button.disabled) {
+      if (active.length <= 1) {
+        button.setAttribute("aria-disabled", "true");
+        button.setAttribute("aria-describedby", LAST_SERIES_NOTE_ID);
         button.title = LAST_SERIES_TITLE;
       } else {
-        button.removeAttribute("title");
+        unlock(button);
       }
     });
   }
@@ -134,11 +146,11 @@
     button.textContent = removed ? "戻す" : "外す";
     button.setAttribute("aria-label", description + (removed ? " を戻す" : " を外す"));
     button.disabled = false;
-    button.removeAttribute("title");
+    unlock(button);
   }
   document.addEventListener("click", function (event) {
     var button = event.target.closest("[data-remove-series]");
-    if (!button || button.disabled) {
+    if (!button || isLocked(button)) {
       return;
     }
     var table = button.closest("[data-routine-series]");
@@ -284,6 +296,17 @@
     var fields = routineFieldsOf(event);
     if (fields) {
       fields.inert = false;
+      // 押したボタンは応答まで押せず、フォーカスが本文の先頭へ落ちる。応答の後は、
+      // 結果の場所へフォーカスを移し、キーボードの人が位置を見失わないようにする。
+      // 結果の知らせは aria-live で読み上げられる。応答を待つ間に別の欄へ移って入力して
+      // いるときは、その入力を邪魔しない（フォーカスが本文の先頭か、撮影のボタンの
+      // 並びにあるときだけ移す）
+      var result = document.getElementById("result");
+      var active = document.activeElement;
+      var lost = !active || active === document.body || active.closest("#actions") !== null;
+      if (result && lost) {
+        result.focus();
+      }
     }
   });
   function failurePlace(event) {
@@ -473,6 +496,12 @@
   // 差し替えなかったとき（再送の応答待ち）は afterSwap が来ず、次の beforeSwap で覚え直す
   var openJob = null;
   var focusedRole = null;
+  // 狭い画面で表を横にスクロールしている位置も、差し替えの後に戻す（差し替えると新しい
+  // 要素になり、左端に戻って、押そうとしていた右側の [再送]・[詳細] が動く）
+  var queueScroll = 0;
+  function queueWrap(queue) {
+    return queue.querySelector(".overflow-x-auto");
+  }
   function roleOf(element, queue) {
     if (!element || !queue.contains(element)) {
       return null;
@@ -497,6 +526,8 @@
       var popover = openDetail();
       openJob = popover ? popover.id : null;
       focusedRole = roleOf(document.activeElement, event.target);
+      var wrap = queueWrap(event.target);
+      queueScroll = wrap ? wrap.scrollLeft : 0;
     }
   });
   // 再送を押してから応答が返るまでは、2秒ごとの差し替えを止める（差し替えると、押せなく
@@ -522,6 +553,10 @@
   document.addEventListener("htmx:afterSwap", function (event) {
     if (event.target.id !== "queue") {
       return;
+    }
+    var wrap = queueWrap(event.target);
+    if (wrap) {
+      wrap.scrollLeft = queueScroll;
     }
     var popover = openJob ? document.getElementById(openJob) : null;
     if (popover && !popover.matches(":popover-open")) {
