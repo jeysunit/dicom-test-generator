@@ -111,6 +111,9 @@ def worklist_item_from_identifier(identifier: Dataset) -> WorklistItem:
         "requested_procedure_description": text(identifier, "RequestedProcedureDescription"),
         "reason_for_requested_procedure": text(identifier, "ReasonForTheRequestedProcedure"),
         "institution_name": text(identifier, "InstitutionName"),
+        # 標準の MWL に無いので、RIS によって最上位か予約の項目のどちらかに入る
+        "body_part_examined": text(identifier, "BodyPartExamined")
+        or text(sps, "BodyPartExamined"),
         "scheduled_procedure_step_id": text(sps, "ScheduledProcedureStepID"),
         "scheduled_procedure_step_description": text(sps, "ScheduledProcedureStepDescription"),
         "scheduled_start_date": text(sps, "ScheduledProcedureStepStartDate"),

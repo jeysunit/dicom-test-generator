@@ -1,0 +1,35 @@
+# 腰椎。画像数は 撮影範囲 ÷ スライス厚 の計算（範囲は腰椎の長さ 150mm・前後と左右
+# 60mm の想定。ADR-0025）。位置決めの2方向は推測（資料で確かめていない）
+name: "ct_lumbar_spine"
+label: "腰椎"
+modality: "CT"
+protocol_name: "LUMBAR SPINE"
+keywords: ["腰椎", "L-SPINE", "LSPINE", "LUMBAR"]
+series:
+  - kind: "localizer"
+    description: "Scout"
+    images: 2
+    views: ["frontal", "lateral"]
+  - kind: "axial"
+    description: "AX BONE 2mm"
+    images: 75
+    slice_thickness: 2.0
+  - kind: "sagittal"
+    description: "SAG BONE 2mm"
+    images: 30
+    slice_thickness: 2.0
+  - kind: "coronal"
+    description: "COR BONE 2mm"
+    images: 30
+    slice_thickness: 2.0
+  - kind: "axial"
+    description: "AX SOFT 2mm"
+    images: 75
+    slice_thickness: 2.0
+  - kind: "sagittal"
+    description: "SAG SOFT 2mm"
+    images: 30
+    slice_thickness: 2.0
+  - kind: "dose_report"
+    description: "Dose Report"
+    images: 1

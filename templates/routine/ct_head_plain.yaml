@@ -1,0 +1,22 @@
+# 頭部 単純。画像数は 撮影範囲 ÷ スライス厚 の計算（範囲は頭部 150mm の想定。ADR-0025）
+name: "ct_head_plain"
+label: "頭部 単純"
+modality: "CT"
+protocol_name: "HEAD ROUTINE"
+keywords: ["頭部", "HEAD", "BRAIN"]
+series:
+  - kind: "localizer"
+    description: "Scout"
+    images: 1
+    views: ["lateral"]
+  - kind: "axial"
+    description: "AX 5mm"
+    images: 30
+    slice_thickness: 5.0
+  - kind: "axial"
+    description: "AX BONE 2.5mm"
+    images: 60
+    slice_thickness: 2.5
+  - kind: "dose_report"
+    description: "Dose Report"
+    images: 1

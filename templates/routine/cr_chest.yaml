@@ -1,0 +1,15 @@
+# CR 胸部（CR の既定のルーチン）。PA と側面。CR は View Position がシリーズの値なので、
+# 方向ごとに1シリーズ1枚（PS3.3 C.8.1.1。ADR-0025）
+name: "cr_chest"
+label: "胸部"
+modality: "CR"
+protocol_name: "CHEST"
+default: true
+keywords: ["胸部", "CHEST"]
+series:
+  - description: "Chest PA"
+    images: 1
+    views: ["PA"]
+  - description: "Chest LAT"
+    images: 1
+    views: ["LL"]

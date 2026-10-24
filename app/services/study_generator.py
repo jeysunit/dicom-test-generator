@@ -28,7 +28,6 @@ from app.core import (
     PixelSpecCTRealistic,
     ProfileMismatchError,
     ScheduledContext,
-    SpatialCalculator,
     UIDContext,
     UIDGenerator,
     WorklistMappingError,
@@ -36,7 +35,12 @@ from app.core import (
     normalize_character_set,
 )
 from app.core.exceptions import DICOMValidationError
-from app.core.generator import RETIRED_TRANSFER_SYNTAXES
+from app.core.generator import (
+    DOSE_REPORT_CONVERSION_TYPE,
+    RETIRED_TRANSFER_SYNTAXES,
+    SECONDARY_CAPTURE_IMAGE_STORAGE,
+)
+from app.core.series_layout import dose_report_lines, series_spatial
 from app.core.path_safety import ensure_within, safe_path_component
 from app.core.worklist_charset import ensure_dataset_encodable
 from app.core.worklist_mapping import apply_scheduled_context
@@ -69,6 +73,28 @@ CT_IMAGE_TAG_MAP = {
 
 # simple_text の画像の Bits Stored（CT Image は 12〜16。PS3.3 C.8.2.1.1.5）
 SIMPLE_TEXT_BITS_STORED = 12
+
+# 線量の画面（Secondary Capture）から外す、CT の画像だけの属性（装置のプロファイルが
+# 足したものも外す。ADR-0025）
+CT_ONLY_KEYWORDS = (
+    "KVP",
+    "ExposureTime",
+    "XRayTubeCurrent",
+    "ConvolutionKernel",
+    "RescaleIntercept",
+    "RescaleSlope",
+    "WindowCenter",
+    "WindowWidth",
+    "SliceThickness",
+    "SliceLocation",
+    "ImagePositionPatient",
+    "ImageOrientationPatient",
+    "PixelSpacing",
+    "FrameOfReferenceUID",
+    "PositionReferenceIndicator",
+    "PatientPosition",
+    "AcquisitionNumber",
+)
 
 
 class StudyGeneratorService:
@@ -184,46 +210,50 @@ class StudyGeneratorService:
             file_sequence = 1
             for series_config in config.series_list:
                 series_uid = uid_generator.generate_series_uid()
-                spatial_calculator = SpatialCalculator(
-                    slice_thickness=series_config.slice_thickness,
-                    slice_spacing=series_config.slice_spacing,
-                    start_z=series_config.start_z,
-                )
-
+                dose_report = series_config.kind == "dose_report"
                 for image_index in range(series_config.num_images):
                     sop_uid = uid_generator.generate_sop_uid(
                         allow_invalid=config.abnormal.allow_invalid_sop_uid
                     )
-                    pixel_data, bits_stored = self._generate_pixel_data(config, sop_uid)
-
                     file_meta = self._file_meta_builder.build(
-                        sop_class_uid=sop_class_uid,
+                        sop_class_uid=(
+                            SECONDARY_CAPTURE_IMAGE_STORAGE if dose_report else sop_class_uid
+                        ),
                         sop_instance_uid=sop_uid,
                         transfer_syntax_uid=config.transfer_syntax.uid,
                         implementation_class_uid=uid_context.implementation_class_uid,
                         implementation_version_name=implementation_version_name,
                     )
-
                     instance_config = InstanceConfig(instance_number=image_index + 1)
-                    spatial = spatial_calculator.calculate(image_index)
-
-                    dataset = self._dicom_builder.build_ct_image(
-                        patient=config.patient,
-                        study_config=config.study,
-                        series_config=series_config,
-                        instance_config=instance_config,
-                        uid_context=uid_context,
-                        spatial=spatial,
-                        pixel_data=pixel_data,
-                        file_meta=file_meta,
-                        sop_instance_uid=sop_uid,
-                        series_instance_uid=series_uid,
-                        specific_character_set=specific_character_set,
-                        use_ideographic=use_ideographic,
-                        use_phonetic=use_phonetic,
-                        bits_stored=bits_stored,
-                    )
-                    self._apply_template_attributes(dataset, template)
+                    common = {
+                        "patient": config.patient,
+                        "study_config": config.study,
+                        "series_config": series_config,
+                        "instance_config": instance_config,
+                        "uid_context": uid_context,
+                        "file_meta": file_meta,
+                        "sop_instance_uid": sop_uid,
+                        "series_instance_uid": series_uid,
+                        "specific_character_set": specific_character_set,
+                        "use_ideographic": use_ideographic,
+                        "use_phonetic": use_phonetic,
+                    }
+                    if dose_report:
+                        dataset = self._dicom_builder.build_dose_report(
+                            pixel_data=self._pixel_generator.generate_text_lines(
+                                dose_report_lines(config.series_list, image_index)
+                            ),
+                            **common,
+                        )
+                    else:
+                        pixel_data, bits_stored = self._generate_pixel_data(config, sop_uid)
+                        dataset = self._dicom_builder.build_ct_image(
+                            spatial=series_spatial(series_config, image_index),
+                            pixel_data=pixel_data,
+                            bits_stored=bits_stored,
+                            **common,
+                        )
+                    self._apply_template_attributes(dataset, template, ct_image=not dose_report)
                     if scheduled is not None:
                         apply_scheduled_context(dataset, scheduled)
                     # 装置のプロファイルの attributes とプライベートタグは最後に当てる
@@ -232,6 +262,8 @@ class StudyGeneratorService:
                         apply_device_profile(
                             dataset, profile, apply_station_name=apply_station_name
                         )
+                    if dose_report:
+                        self._keep_secondary_capture_shape(dataset)
                     # 異常のデータは最後に当てる（予約・プロファイルの値にも効く。
                     # docs/spec/02 の AbnormalGenerator）。none では何も変えない
                     apply_abnormal_to_dataset(dataset, abnormal_generator)
@@ -282,6 +314,22 @@ class StudyGeneratorService:
                 exc_info=True,
             )
             raise GenerationError(f"Unexpected generation error: {exc}") from exc
+
+    @staticmethod
+    def _keep_secondary_capture_shape(dataset: Dataset) -> None:
+        """線量の画面に装置のプロファイルを重ねた後、Secondary Capture の形に戻す.
+
+        CT の画像だけの属性は外し、SC の必須の属性（Conversion Type は Type 1、Patient
+        Orientation は Type 2C。PS3.3 C.8.6.1・C.7.6.1）は、プロファイルが外しても戻す。
+        異常のデータはこの後に当てる。
+        """
+        for keyword in CT_ONLY_KEYWORDS:
+            if keyword in dataset:
+                delattr(dataset, keyword)
+        if not dataset.get("ConversionType"):
+            dataset.ConversionType = DOSE_REPORT_CONVERSION_TYPE
+        if "PatientOrientation" not in dataset:
+            dataset.PatientOrientation = ""
 
     @staticmethod
     def _reject_retired_transfer_syntax(transfer_syntax_uid: str) -> None:
@@ -449,14 +497,17 @@ class StudyGeneratorService:
     def _sequence_width(total_images: int) -> int:
         return max(4, len(str(total_images)))
 
-    def _apply_template_attributes(self, dataset: Dataset, template: dict) -> None:
+    def _apply_template_attributes(
+        self, dataset: Dataset, template: dict, ct_image: bool = True
+    ) -> None:
+        """テンプレートの装置の値と、`ct_image` なら CT の撮影の値を当てる."""
         general_equipment = template.get("general_equipment", {})
         if isinstance(general_equipment, dict):
             self._apply_attributes(dataset, general_equipment, GENERAL_EQUIPMENT_TAG_MAP)
 
-        ct_image = template.get("ct_image", {})
-        if isinstance(ct_image, dict):
-            self._apply_attributes(dataset, ct_image, CT_IMAGE_TAG_MAP)
+        ct_values = template.get("ct_image", {})
+        if ct_image and isinstance(ct_values, dict):
+            self._apply_attributes(dataset, ct_values, CT_IMAGE_TAG_MAP)
 
     def _apply_attributes(
         self, dataset: Dataset, source: dict, keyword_map: dict[str, str]

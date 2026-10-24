@@ -166,7 +166,7 @@ def test_exam_with_profile(monkeypatch, capsys, tmp_path, config) -> None:
     """exam --profile：装置のプロファイルを重ねる。無い名前は終了コード 2（docs/spec/13 の 8・9）."""
     code, out, _ = run_cli(
         monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0001",
-        "--patient-name", "KINKYU^TARO", "--profile", "dtg_synthetic_ct",
+        "--patient-name", "KINKYU^TARO", "--profile", "dtg_synthetic_ct", "-s", "1",
         "--pixel-mode", "simple_text", "--json",
     )
     assert code == 0
@@ -286,7 +286,7 @@ def test_send_unreachable_is_exit_5_and_recorded(
     config = write_config(tmp_path, worklist_scp.port, free_port())
     _, out, _ = run_cli(
         monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0004",
-        "--patient-name", "SEND^TEST", "--pixel-mode", "simple_text", "--json",
+        "--patient-name", "SEND^TEST", "-s", "1", "--pixel-mode", "simple_text", "--json",
     )
     folder = json.loads(out)["output_dir"]
 
@@ -397,7 +397,7 @@ def test_station_option_applies_to_one_command(
     config = _two_station_config(tmp_path, worklist_scp.port, storage_scp.port)
     _, out, _ = run_cli(
         monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0007",
-        "--patient-name", "STATION^TEST", "--pixel-mode", "simple_text", "--json",
+        "--patient-name", "STATION^TEST", "-s", "1", "--pixel-mode", "simple_text", "--json",
         "--station", "MR1",
     )
     folder = json.loads(out)["output_dir"]
@@ -436,7 +436,7 @@ def _a0001_key(monkeypatch, capsys, tmp_path, config) -> str:
 def test_exam_twice_needs_append(monkeypatch, capsys, tmp_path, config) -> None:
     """撮影済みの予約は `--append` で追加撮影する（docs/spec/12a の 11.4・ADR-0024）."""
     key = _a0001_key(monkeypatch, capsys, tmp_path, config)
-    args = ("exam", "--from-worklist", key, "--pixel-mode", "simple_text")
+    args = ("exam", "--from-worklist", key, "-s", "1", "--pixel-mode", "simple_text")
 
     code, _, err = run_cli(monkeypatch, capsys, tmp_path, config, *args, "--append")
     assert code == 4 and "まだ撮影していません" in err
@@ -458,7 +458,7 @@ def test_append_is_refused_in_new_order_mode(
     data["modality"]["retake_mode"] = "new_order"
     config.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
     key = _a0001_key(monkeypatch, capsys, tmp_path, config)
-    args = ("exam", "--from-worklist", key, "--pixel-mode", "simple_text")
+    args = ("exam", "--from-worklist", key, "-s", "1", "--pixel-mode", "simple_text")
     assert run_cli(monkeypatch, capsys, tmp_path, config, *args)[0] == 0
 
     code, _, err = run_cli(monkeypatch, capsys, tmp_path, config, *args, "--append")

@@ -124,7 +124,7 @@ def test_same_order_twice_adds_series_to_same_study(
     for extra in ([], ["--append"]):
         code, out = _run(
             monkeypatch, capsys, tmp_path, config, "exam", "--from-worklist", item["key"],
-            "--refresh", "--pixel-mode", "simple_text", "--send", "--json", *extra,
+            "--refresh", "-s", "1", "--pixel-mode", "simple_text", "--send", "--json", *extra,
         )
         assert code == 0
         notices = json.loads(out)["notices"]

@@ -1,0 +1,55 @@
+# MR 頭部（MR の既定のルーチン）。2D の撮像は Canon の脳梗塞のプロトコルの例の
+# 5mm／1mm・25 枚、MRA は 116 枚。ローカライザーは 3面×5枚（ADR-0025）
+name: "mr_head"
+label: "頭部"
+modality: "MR"
+protocol_name: "BRAIN ROUTINE"
+default: true
+keywords: ["頭部", "HEAD", "BRAIN", "脳"]
+series:
+  - kind: "localizer"
+    description: "Localizer"
+    images: 15
+    plane: "three_plane"
+    slice_thickness: 8.0
+  - kind: "acquisition"
+    description: "DWI b1000"
+    images: 25
+    plane: "axial"
+    slice_thickness: 5.0
+    spacing: 1.0
+  - kind: "derived"
+    description: "ADC"
+    images: 25
+    plane: "axial"
+    slice_thickness: 5.0
+    spacing: 1.0
+  - kind: "acquisition"
+    description: "T2*"
+    images: 25
+    plane: "axial"
+    slice_thickness: 5.0
+    spacing: 1.0
+  - kind: "acquisition"
+    description: "T1 SAG"
+    images: 25
+    plane: "sagittal"
+    slice_thickness: 5.0
+    spacing: 1.0
+  - kind: "acquisition"
+    description: "T2 AX"
+    images: 25
+    plane: "axial"
+    slice_thickness: 5.0
+    spacing: 1.0
+  - kind: "acquisition"
+    description: "FLAIR"
+    images: 25
+    plane: "axial"
+    slice_thickness: 5.0
+    spacing: 1.0
+  - kind: "acquisition"
+    description: "TOF MRA"
+    images: 116
+    plane: "axial"
+    slice_thickness: 1.3

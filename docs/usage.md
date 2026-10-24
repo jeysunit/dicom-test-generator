@@ -61,8 +61,10 @@ python -m app.web
 1. ワークリストの画面で、予定日・モダリティ・AE タイトルを選び、「ワークリストを取得」を
    押す
 2. 一覧から予約を選び、「選んで撮影へ」を押す
-3. 撮影の画面で、予約の値（読み取り専用）を確認し、テンプレート・シリーズ数・
-   画像数・異常のデータを選ぶ
+3. 撮影の画面で、予約の値（読み取り専用）を確認する。「ルーチン」には、予約の検査の
+   記述（胸部・頭部・腹部など）に合うルーチンが選ばれ、シリーズの並びと画像数が
+   入っている。そのまま撮れる。変えるときは、ルーチンを選び直すか、画像数を直すか、
+   [外す] でシリーズを外す。「手で入れる」を選ぶと、シリーズ数と画像数を入れる欄になる
 4. [撮影して送る] を押す。DICOM ファイルを作成して出力フォルダに保存し、続けて
    既定の送信先（PACS）へ送信する。送信しないときは [撮影] を押す
 
@@ -187,7 +189,9 @@ Docker で動かしているときは、`docker exec dtg python -m app.cli ...` 
 |------|----------|
 | 疎通の確認 | `python -m app.cli echo --to PACS_TEST`・`echo --worklist` |
 | ワークリストの取得 | `python -m app.cli worklist query` |
-| 予約から撮影して送信 | `python -m app.cli exam --from-worklist <キー> -s 2 -i 1,20 --send` |
+| 予約から撮影して送信（予約に当てたルーチン） | `python -m app.cli exam --from-worklist <キー> --send` |
+| ルーチンを選んで撮影 | `python -m app.cli exam --from-worklist <キー> --routine ct_head_plain` |
+| シリーズ数と画像数を手で入れて撮影 | `python -m app.cli exam --from-worklist <キー> -s 2 -i 1,20` |
 | 予約の無い患者で撮影 | `python -m app.cli exam --emergency --patient-id E0001 --patient-name "KINKYU^TARO"` |
 | 送信キューの確認と再送 | `python -m app.cli queue list --status failed`・`queue retry --all` |
 | 保管確認の要求 | `python -m app.cli commit --job 1 --wait 60` |
@@ -197,6 +201,9 @@ Docker で動かしているときは、`docker exec dtg python -m app.cli ...` 
   確認済なら終了コード 0、それ以外は 5。Web 画面が同じポートで待ち受けているときは、
   終了コード 2 で停止する
 - `exam --mpps`・`--no-mpps` で、その撮影だけ MPPS の設定を上書きできる
+- 撮影のルーチンは `templates/routine/` の YAML（CT・MR・CR・DX・US の部位ごと）。
+  施設のルーチンは同じ形の YAML を足して作る。MR・CR・DX・US のルーチンは、それらの
+  画像を作れるようになるまで使えない
 
 ## 7. CLI だけでできること
 

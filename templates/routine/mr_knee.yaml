@@ -1,0 +1,37 @@
+# MR 膝。画像数は 撮影範囲 ÷（厚さ＋間隔）の計算（3mm／0.3mm。範囲は 100mm の想定。
+# ADR-0025）
+name: "mr_knee"
+label: "膝"
+modality: "MR"
+protocol_name: "KNEE"
+keywords: ["膝", "KNEE"]
+series:
+  - kind: "localizer"
+    description: "Localizer"
+    images: 15
+    plane: "three_plane"
+    slice_thickness: 8.0
+  - kind: "acquisition"
+    description: "PD FS SAG"
+    images: 30
+    plane: "sagittal"
+    slice_thickness: 3.0
+    spacing: 0.3
+  - kind: "acquisition"
+    description: "T2 FS COR"
+    images: 30
+    plane: "coronal"
+    slice_thickness: 3.0
+    spacing: 0.3
+  - kind: "acquisition"
+    description: "PD FS AX"
+    images: 30
+    plane: "axial"
+    slice_thickness: 3.0
+    spacing: 0.3
+  - kind: "acquisition"
+    description: "T1 COR"
+    images: 30
+    plane: "coronal"
+    slice_thickness: 3.0
+    spacing: 0.3

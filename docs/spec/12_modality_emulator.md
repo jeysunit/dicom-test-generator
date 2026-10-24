@@ -208,6 +208,9 @@ RAD TF-2 Table 4.5-3 で、SCU が R+・R+* の値をすべて求める。主な
   Date・Patient's Sex・Patient's Weight・Patient's Size
 - Specific Character Set (0008,0005)
 - Institution Name（返ってくれば）
+- Body Part Examined (0018,0015)（返ってくれば）。MWL の標準の返却の値ではないので、
+  返さない RIS が多い。最上位か Scheduled Procedure Step Sequence の中のどちらかを
+  読み、撮影のルーチンを当てるのに使う（[ADR-0025](../decisions/0025-exam-routines.md)）
 
 Requesting Physician (0032,1032) は予約の詳細に「依頼医」として出すだけで、画像には
 転記しない（6.2 の表に無い。IHE RAD TF-2x Table A.1-1 の転記の対象でもない）。

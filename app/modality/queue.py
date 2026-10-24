@@ -83,6 +83,16 @@ _SCHEMA = (
         series_count INTEGER NOT NULL DEFAULT 0
     )
     """,
+    # 予約で使ったシリーズ番号と、ルーチンに書いた番号か（ADR-0025）。行の無い予約（前の
+    # 版の記録）は 1〜series_count を自動で使ったとみなす
+    """
+    CREATE TABLE IF NOT EXISTS exam_series_numbers (
+        worklist_key TEXT NOT NULL,
+        series_number INTEGER NOT NULL,
+        explicit INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (worklist_key, series_number)
+    )
+    """,
     # 保管の確認の要求と画像ごとの結果（Phase 3c。8.3.3）
     """
     CREATE TABLE IF NOT EXISTS commitments (
@@ -158,6 +168,8 @@ class ExamRecord(BaseModel):
     study_time: str
     study_description: str
     series_count: int
+    # 使ったシリーズ番号と、ルーチンに書いた番号か（True）自動か（False）（ADR-0025）
+    series_numbers: list[tuple[int, bool]] = []
 
 
 class CommitmentState(BaseModel):
@@ -396,8 +408,9 @@ class SendQueue:
                 " study_description, series_count FROM exam_records WHERE worklist_key = ?",
                 (worklist_key,),
             ).fetchone()
-        if row is None:
-            return None
+            if row is None:
+                return None
+            numbers = _used_series_numbers(conn, worklist_key, row[5])
         return ExamRecord(
             worklist_key=row[0],
             study_instance_uid=row[1],
@@ -405,6 +418,7 @@ class SendQueue:
             study_time=row[3],
             study_description=row[4],
             series_count=row[5],
+            series_numbers=numbers,
         )
 
     def claim_exam(self, worklist_key: str) -> str | None:
@@ -456,13 +470,31 @@ class SendQueue:
         study_time: str,
         study_description: str,
         series_count: int,
+        series_numbers: list[tuple[int, bool]] | None = None,
     ) -> None:
         """撮影を終えた予約を記録する。2回目以降（追加撮影）はシリーズの数だけ足す.
 
         前の版から移した記録（日時が空）は、移した後の最初の撮影の日時・説明で埋め、
-        その後の追加撮影をそろえる。
+        その後の追加撮影をそろえる。`series_numbers`（使った番号と、書いた番号か）は
+        前の記録の後ろに足す。無ければ、続きの自動の番号を使ったとみなす。
         """
         with self._connect() as conn:
+            row = conn.execute(
+                "SELECT series_count FROM exam_records WHERE worklist_key = ?", (worklist_key,)
+            ).fetchone()
+            before = _used_series_numbers(conn, worklist_key, row[0]) if row is not None else []
+            if series_numbers is None:
+                start = 1 + max((number for number, _ in before), default=0)
+                series_numbers = [(start + index, False) for index in range(series_count)]
+            # 前の版の記録（行が無い）は、自動で使った番号の行を先に作ってから足す
+            conn.executemany(
+                "INSERT OR IGNORE INTO exam_series_numbers (worklist_key, series_number, explicit)"
+                " VALUES (?, ?, ?)",
+                [
+                    (worklist_key, number, int(explicit))
+                    for number, explicit in before + series_numbers
+                ],
+            )
             updated = conn.execute(
                 "UPDATE exam_records SET series_count = series_count + ?,"
                 " study_instance_uid = CASE WHEN study_instance_uid = '' THEN ?"
@@ -728,6 +760,20 @@ class SendQueue:
     def _connect(self) -> Iterator[sqlite3.Connection]:
         with closing(sqlite3.connect(self._db_path)) as conn, conn:
             yield conn
+
+
+def _used_series_numbers(
+    conn: sqlite3.Connection, worklist_key: str, series_count: int
+) -> list[tuple[int, bool]]:
+    """予約で使ったシリーズ番号。行が無い（前の版の記録）なら 1〜series_count を自動とみなす."""
+    rows = conn.execute(
+        "SELECT series_number, explicit FROM exam_series_numbers WHERE worklist_key = ?"
+        " ORDER BY series_number",
+        (worklist_key,),
+    ).fetchall()
+    if not rows:
+        return [(number, False) for number in range(1, series_count + 1)]
+    return [(int(number), bool(explicit)) for number, explicit in rows]
 
 
 def _now() -> str:

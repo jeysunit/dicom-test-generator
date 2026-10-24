@@ -60,8 +60,16 @@ from app.core.worklist_mapping import (
     ensure_modality_matches,
     scheduled_context_from_item,
 )
+from app.core.routine import (
+    MAX_ROUTINE_IMAGES_PER_SERIES,
+    Routine,
+    assign_series_numbers,
+    ct_series_configs,
+    match_routine,
+)
 from app.services import ProfileLoaderService, StudyGeneratorService, TemplateLoaderService
 from app.services.profile_loader import profile_transfer_syntax
+from app.services.routine_loader import RoutineLoaderService
 
 from .commitment_scu import CommitmentListener, CommitmentManager
 from .config import DestinationConfig, ModalityConfig, StationConfig
@@ -100,6 +108,7 @@ NOT_TAKEN_MESSAGE = "この予約はまだ撮影していません。追加撮�
 EMERGENCY_APPEND_MESSAGE = "緊急の患者（予約なし）では追加撮影はできません"
 ORDER_BUSY_MESSAGE = "この予約は、ほかで撮影しています。終わってから撮ってください"
 CLAIM_TOUCH_SECONDS = 60  # 撮影の間、予約の札の時刻を進める間（札は 30 分で古くなる）
+AUTO_ROUTINE = "auto"  # 予約に当てたルーチンで撮る（ADR-0025）
 # DICOM の値の区切り（PS3.5 6.2）。LO・PN・SH の値に入れると VM が増える
 VALUE_DELIMITER = "\\"
 
@@ -194,6 +203,12 @@ class ExamRequest(BaseModel):
     mpps: bool | None = None  # None は設定（worklist.use_mpps）。8.4.1
     # 撮影済みの予約での追加撮影（IHE の Append Case。docs/spec/12 の 6.3・ADR-0024）
     append: bool = False
+    # 撮影のルーチン（ADR-0025）。None は手で入れた images_per_series で撮る。"auto" は
+    # 予約の検査の記述と部位に当てたルーチン。ほかはルーチンの名前
+    routine: str | None = None
+    # ルーチンのうち撮るシリーズの位置（0 始まり）と、その画像数。無ければ全部・既定の数
+    routine_series: list[int] | None = None
+    routine_images: list[int] | None = None
 
 
 class ExamResult(BaseModel):
@@ -207,6 +222,7 @@ class ExamResult(BaseModel):
     character_set: list[str]
     notices: list[str] = Field(default_factory=list)
     mpps: MppsOutcome | None = None  # MPPS を使わない撮影では None（11.4）
+    routine: str | None = None  # 使ったルーチンの名前。手で入れた撮影は None
 
 
 class SendResult(BaseModel):
@@ -252,6 +268,7 @@ class ModalityService:
         profile_loader: ProfileLoaderService | None = None,
         auto_commitment: bool = False,
         station: str | None = None,
+        routine_loader: RoutineLoaderService | None = None,
     ) -> None:
         """`station` はこの service だけで使う装置の表示名（CLI の `--station`）.
 
@@ -264,6 +281,7 @@ class ModalityService:
         self._profile_loader = profile_loader or ProfileLoaderService()
         self._generator = generator or StudyGeneratorService(self._profile_loader)
         self._template_loader = template_loader or TemplateLoaderService()
+        self._routine_loader = routine_loader or RoutineLoaderService()
         self._state_dir = Path(config.state_dir)
         self._queue: SendQueue | None = None
         self._mpps_queue: MppsQueue | None = None
@@ -607,6 +625,89 @@ class ModalityService:
                 {"profile": profile_name},
             )
 
+    # --- 撮影のルーチン（ADR-0025） ----------------------------------------
+
+    def routines(self, modality: str) -> list[Routine]:
+        """モダリティのルーチン（画面の選択肢の順：既定を先に、ほかは名前の順）."""
+        found = [r for r in self._routine_loader.list_routines() if r.modality == modality]
+        return sorted(found, key=lambda routine: (not routine.default, routine.name))
+
+    def routine(self, name: str) -> Routine:
+        return self._routine_loader.get(name)
+
+    def matched_routine(self, item: WorklistItem | None, template_modality: str) -> Routine:
+        """予約に当てるルーチン。緊急の患者（予約なし）はテンプレートのモダリティの既定.
+
+        予約の検査の記述（Requested Procedure Description、次に Scheduled Procedure Step
+        Description）と部位（Body Part Examined）に見出しの言葉を照らす。予約の
+        モダリティが空なら、テンプレートのモダリティのルーチンから当てる。
+        """
+        routines = self._routine_loader.list_routines()
+        if item is None:
+            return match_routine(routines, template_modality, [])
+        return match_routine(
+            routines,
+            item.modality or template_modality,
+            [
+                item.requested_procedure_description,
+                item.scheduled_procedure_step_description,
+                item.body_part_examined,
+            ],
+        )
+
+    def _exam_series(
+        self,
+        request: ExamRequest,
+        item: WorklistItem | None,
+        modality: str,
+        record: ExamRecord | None,
+    ) -> tuple[Routine | None, list[SeriesConfig], list[bool]]:
+        """撮るシリーズ・使ったルーチン・シリーズごとの「番号を書いたか」を決める."""
+        used = record.series_numbers if record is not None else []
+        if request.routine is None:
+            numbers = assign_series_numbers([None] * len(request.images_per_series), used)
+            series = [
+                SeriesConfig(series_number=number, num_images=count)
+                for number, count in zip(numbers, request.images_per_series, strict=True)
+            ]
+            return None, series, [False] * len(series)
+        routine = (
+            self.matched_routine(item, modality)
+            if request.routine == AUTO_ROUTINE
+            else self.routine(request.routine)
+        )
+        # 画面に出す文なので、内部の名前（details）を付けない
+        if routine.modality != modality:
+            raise ValidationError(f"ルーチンは {routine.modality}、テンプレートは {modality} です")
+        keep = (
+            list(range(len(routine.series)))
+            if request.routine_series is None
+            else request.routine_series
+        )
+        if not keep or len(set(keep)) != len(keep) or any(
+            not 0 <= index < len(routine.series) for index in keep
+        ):
+            raise ValidationError("撮るシリーズを1つ以上、ルーチンの中から選んでください")
+        images = (
+            [routine.series[index].images for index in keep]
+            if request.routine_images is None
+            else request.routine_images
+        )
+        if len(images) != len(keep):
+            raise ValidationError(
+                f"画像数の項目の数をシリーズの数（{len(keep)}）と同じにしてください"
+            )
+        for index, count in zip(keep, images, strict=True):
+            if not 1 <= count <= MAX_ROUTINE_IMAGES_PER_SERIES:
+                raise ValidationError(
+                    f"{routine.series[index].description} の画像数は "
+                    f"1〜{MAX_ROUTINE_IMAGES_PER_SERIES} にしてください"
+                )
+        wanted = [routine.series[index].series_number for index in keep]
+        numbers = assign_series_numbers(wanted, used)
+        series = ct_series_configs(routine, numbers, keep, images)
+        return routine, series, [number is not None for number in wanted]
+
     def template_modality(self, template_name: str) -> str:
         template = self._template_loader.load_modality_template(template_name)
         info = template.get("info", {})
@@ -614,15 +715,21 @@ class ModalityService:
             return info["modality"]
         return DEFAULT_TEMPLATE_MODALITY
 
-    def exam(self, request: ExamRequest) -> ExamResult:
-        """予約（または緊急の患者）で撮る。量の上限と、同時に1つだけを守る（10.5）."""
-        total = sum(request.images_per_series)
+    def _check_total_images(self, total: int) -> None:
         limit = self.config.max_images_per_exam
         if total > limit:
             raise ValidationError(
                 f"1回の撮影は合計 {limit} 画像までです（{total} 画像が指定されました）",
                 {"max_images_per_exam": limit, "requested": total},
             )
+
+    def exam(self, request: ExamRequest) -> ExamResult:
+        """予約（または緊急の患者）で撮る。量の上限と、同時に1つだけを守る（10.5）.
+
+        ルーチンで撮るときの合計の画像数は、ルーチンを当てた後に確かめる。
+        """
+        if request.routine is None:
+            self._check_total_images(sum(request.images_per_series))
         if not self._exam_lock.acquire(blocking=False):
             raise ModalityError(EXAM_BUSY_MESSAGE)
         try:
@@ -658,6 +765,7 @@ class ModalityService:
         notices: list[str] = []
         choice = request.charset or self.config.character_set
         record: ExamRecord | None = None
+        item: WorklistItem | None = None
 
         if request.worklist_key is not None:
             item = (
@@ -743,8 +851,12 @@ class ModalityService:
         if use_mpps and ctx.study_instance_uid is None:
             # MPPS と画像の Study をそろえるため、N-CREATE より前に UID を作る（8.4.1）
             ctx = ctx.model_copy(update={"study_instance_uid": UIDGenerator().generate_study_uid()})
+        routine, series_list, explicit_numbers = self._exam_series(request, item, modality, record)
+        self._check_total_images(sum(series.num_images for series in series_list))
         output_dir = self._exam_output_dir(request, ctx, now)
-        config = self._generation_config(request, ctx, template, output_dir, now, record)
+        config = self._generation_config(
+            request, ctx, template, output_dir, now, series_list, record
+        )
         mpps = self._mpps(station)
         mpps_id = mpps.start_exam(ctx, modality, now) if use_mpps else None
         if mpps_id is not None:
@@ -791,7 +903,11 @@ class ModalityService:
                 config.study.study_date,
                 config.study.study_time,
                 study_description,
-                len(request.images_per_series),
+                len(series_list),
+                [
+                    (series.series_number, explicit)
+                    for series, explicit in zip(series_list, explicit_numbers, strict=True)
+                ],
             )
         logger.info(
             "Exam completed: worklist_key=%s accession=%r files=%s output_dir=%s",
@@ -809,6 +925,7 @@ class ModalityService:
             character_set=character_set,
             notices=notices,
             mpps=mpps_outcome,
+            routine=routine.name if routine is not None else None,
         )
 
     # --- 送信 -----------------------------------------------------------
@@ -1008,10 +1125,14 @@ class ModalityService:
         template: str,
         output_dir: Path,
         now: datetime,
+        series_list: list[SeriesConfig],
         record: ExamRecord | None = None,
     ) -> GenerationConfig:
-        """`record` があれば追加撮影：Study Date・Time は最初の撮影の値（IHE-A.3.3）、
-        Series Number は前に作ったシリーズの続き（この仕様の決定。docs/spec/12 の 6.3）."""
+        """`record` があれば追加撮影：Study Date・Time は最初の撮影の値（IHE-A.3.3）.
+
+        `series_list` は番号を決めたシリーズ（追加撮影では前に作ったシリーズの続き。
+        docs/spec/12 の 6.3・ADR-0025）。
+        """
         pixel_mode = request.pixel_mode or self.config.default_pixel_mode
         if pixel_mode == "simple_text":
             pixel_spec: PixelSpecSimple | PixelSpecCTRealistic = PixelSpecSimple()
@@ -1021,7 +1142,6 @@ class ModalityService:
             raise ConfigurationError("Unsupported pixel mode", {"pixel_mode": pixel_mode})
         study_date = (record.study_date if record else "") or now.strftime("%Y%m%d")
         study_time = (record.study_time if record else "") or now.strftime("%H%M%S")
-        first_series = 1 + (record.series_count if record else 0)
         profile_name = request.profile or self.config.default_profile
         transfer_syntax = (
             profile_transfer_syntax(self._profile_loader.load(profile_name))
@@ -1036,12 +1156,9 @@ class ModalityService:
                 accession_number=ctx.accession_number,
                 study_date=study_date,
                 study_time=study_time,
-                num_series=len(request.images_per_series),
+                num_series=len(series_list),
             ),
-            series_list=[
-                SeriesConfig(series_number=first_series + index, num_images=count)
-                for index, count in enumerate(request.images_per_series)
-            ],
+            series_list=series_list,
             modality_template=template,
             device_profile=profile_name,
             hospital_template=request.hospital or self.config.default_hospital,

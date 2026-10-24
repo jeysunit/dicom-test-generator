@@ -70,7 +70,7 @@ def run_cli(monkeypatch, capsys, tmp_path: Path, config: Path, *args: str) -> tu
 def _emergency_send(monkeypatch, capsys, tmp_path, config, *extra: str) -> dict:
     code, out, err = run_cli(
         monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0001",
-        "--patient-name", "KINKYU^TARO", "--send", "--json", *extra,
+        "--patient-name", "KINKYU^TARO", "-s", "1", "--send", "--json", *extra,
     )
     assert code == 0, err
     return json.loads(out)
@@ -207,7 +207,7 @@ def test_exam_mpps_failure_warns_and_retry(monkeypatch, capsys, tmp_path, workli
     )
     code, out, err = run_cli(
         monkeypatch, capsys, tmp_path, down, "exam", "--emergency", "--patient-id", "E0001",
-        "--patient-name", "KINKYU^TARO",
+        "--patient-name", "KINKYU^TARO", "-s", "1",
     )
     assert code == 0
     assert "[WARN] MPPS" in err

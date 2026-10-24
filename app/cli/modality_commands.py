@@ -13,10 +13,15 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from app.cli.terminal import json_for_terminal, sanitize_for_terminal
-from app.core.exceptions import ConfigurationError, StorageCommitmentError, StoreError
+from app.core.exceptions import (
+    ConfigurationError,
+    StorageCommitmentError,
+    StoreError,
+    ValidationError,
+)
 from app.core.models import ScheduledPatient, WorklistItem
 from app.modality.config import load_modality_config
-from app.modality.service import ExamRequest, ModalityService, SendResult
+from app.modality.service import AUTO_ROUTINE, ExamRequest, ModalityService, SendResult
 from app.modality.worklist_scu import (
     WorklistQuery,
     WorklistQueryResult,
@@ -97,14 +102,29 @@ def register_modality_commands(
         "--profile", help="装置のプロファイル（docs/spec/13。default: 設定の default_profile）"
     )
     exam_parser.add_argument("--hospital", help="病院テンプレート")
-    exam_parser.add_argument("-s", "--series", type=int, default=1, help="シリーズ数")
+    exam_parser.add_argument(
+        "-s",
+        "--series",
+        type=int,
+        help=(
+            "シリーズ数（手で入れる）。-s・-i・--routine を省くと、予約に当てたルーチンで撮る"
+        ),
+    )
     exam_parser.add_argument(
         "-i",
         "--images",
         help=(
-            "各シリーズの画像数（カンマ区切り）。省くと、シリーズごとに"
+            "各シリーズの画像数（カンマ区切り。手で入れる）。-s だけなら、シリーズごとに"
             f"{DEFAULT_IMAGES_PER_SERIES} 画像"
         ),
+    )
+    exam_parser.add_argument(
+        "--routine",
+        help="撮影のルーチンの名前（templates/routine/。default: 予約に当てたルーチン）",
+    )
+    exam_parser.add_argument(
+        "--routine-images",
+        help="ルーチンの各シリーズの画像数（カンマ区切り。数はルーチンのシリーズの数と同じ）",
     )
     exam_parser.add_argument("--pixel-mode", choices=PIXEL_MODE_CHOICES, help="ピクセル")
     exam_parser.add_argument(
@@ -217,9 +237,34 @@ def worklist_show_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def _exam_series_options(
+    args: argparse.Namespace,
+) -> tuple[list[int], str | None, list[int] | None]:
+    """撮るシリーズの指定を（手で入れる画像数, ルーチン, ルーチンの画像数）にする.
+
+    -s・-i を指定すれば今の手入力。-s・-i・--routine を省けば予約に当てたルーチン
+    （ADR-0025）。--routine と -s・-i を一緒に指定したら入力の誤り（終了コード 4）。
+    """
+    manual = args.series is not None or args.images is not None
+    if manual and (args.routine or args.routine_images):
+        raise ValidationError("--routine・--routine-images と -s・-i は一緒に使えません")
+    if manual:
+        series = args.series if args.series is not None else len(args.images.split(","))
+        return _parse_images(args.images, series), None, None
+    routine_images = None
+    if args.routine_images is not None:
+        try:
+            routine_images = [int(value.strip()) for value in args.routine_images.split(",")]
+        except ValueError as exc:
+            raise ValidationError(
+                "--routine-images は整数をカンマで区切って入れてください"
+            ) from exc
+    return [DEFAULT_IMAGES_PER_SERIES], args.routine or AUTO_ROUTINE, routine_images
+
+
 def exam_command(args: argparse.Namespace) -> int:
     service = _service(args)
-    images = _parse_images(args.images, args.series)
+    images, routine, routine_images = _exam_series_options(args)
     emergency_patient = None
     if args.emergency:
         if not args.patient_id or not args.patient_name:
@@ -249,6 +294,8 @@ def exam_command(args: argparse.Namespace) -> int:
             output_dir=args.output,
             mpps=args.mpps,
             append=args.append,
+            routine=routine,
+            routine_images=routine_images,
         )
     )
     if result.mpps is not None and not result.mpps.sent:
@@ -267,9 +314,10 @@ def exam_command(args: argparse.Namespace) -> int:
     else:
         for notice in result.notices:
             _emit(f"[NOTICE] {notice}")
+        routine_label = f", routine: {result.routine}" if result.routine else ""
         _emit(
             f"Exam completed: {result.output_dir} ({len(result.files)} files, "
-            f"SpecificCharacterSet: {_charset_label(result.character_set)})"
+            f"SpecificCharacterSet: {_charset_label(result.character_set)}{routine_label})"
         )
         if send_result:
             _print_send_result(send_result)
