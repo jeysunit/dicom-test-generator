@@ -1,6 +1,6 @@
 """ModalityService の守り：送る前のファイルの確かめ・誤りの文に値を出さない・撮影の量と同時の数.
 
-docs/spec/12 の 8.2・12 章、docs/spec/12a の 10.5（2026-10-19 に決めた）。
+docs/spec/12 の 8.2・12 章、docs/spec/12a の 10.5。
 """
 
 from __future__ import annotations
