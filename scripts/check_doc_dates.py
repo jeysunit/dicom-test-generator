@@ -7,8 +7,9 @@
 範囲の中でその ADR を最後に変えた commit の中身を読む。
 冒頭の「- 最終更新日：YYYY-MM-DD」が無いか、その commit の日（committer の日付）より
 古ければ失敗する。途中の commit で付け忘れても、後の commit で直してあれば通る。
-「最後に変えた commit」は git log の履歴の単純化に従う。merge でどちらの親とも違う
-中身にしたときは、その merge を見る。
+merge の commit は数えない。main を取り込む merge（GitHub の「ブランチを更新」や
+衝突の解消を含む）は、取り込んだ側の ADR を変えたように見えるため。PR が自分で
+変えた ADR は、ふつうの commit に残る。
 終了コード：0=問題なし、1=古い・無い文書がある、2=引数や git の誤り。
 """
 
@@ -50,15 +51,17 @@ def last_updated(text: str) -> str | None:
 
 
 def changed_paths(revision_range: str) -> set[str]:
-    """範囲の commit が足した・直した・名前を変えたパス。merge は親ごとの差分を見る."""
-    output = git("log", "-m", "--format=", "--name-only", "-z", "--diff-filter=AMR", revision_range)
+    """範囲のふつうの commit が足した・直した・名前を変えたパス。merge は数えない."""
+    output = git(
+        "log", "--no-merges", "--format=", "--name-only", "-z", "--diff-filter=AMR", revision_range
+    )
     return {path.strip("\n") for path in output.split("\0") if path.strip("\n")}
 
 
 def last_change(revision_range: str, path: str) -> tuple[str, date] | None:
-    """範囲の中でそのパスを最後に変えた commit と、その commit の日."""
+    """範囲の中でそのパスを最後に変えたふつうの commit と、その commit の日."""
     output = git(
-        "--literal-pathspecs", "log", "-1", "--topo-order", "--format=%H %cs",
+        "--literal-pathspecs", "log", "-1", "--no-merges", "--topo-order", "--format=%H %cs",
         revision_range, "--", path,
     ).strip()
     if not output:

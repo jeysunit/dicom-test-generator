@@ -112,3 +112,47 @@ def test_bad_range_exits_with_2(repo: Path) -> None:
 
 def test_wrong_argument_count_exits_with_2() -> None:
     assert check_doc_dates.main([]) == 2
+
+
+def _merge_main_into_branch(repo: Path, main_adr: str, merge_date: str) -> None:
+    """base から main と branch を分け、main の ADR を branch に取り込む merge を作る."""
+    _git(repo, "checkout", "-q", "-b", "feature")
+    _commit(repo, {"app/x.py": "x = 1\n"}, "2026-10-01")
+    _git(repo, "checkout", "-q", "main")
+    _commit(repo, {main_adr: _doc("2026-10-02")}, "2026-10-02")
+    _git(repo, "checkout", "-q", "feature")
+    _git(repo, "merge", "-q", "--no-ff", "-m", "merge main", "main", date=merge_date)
+
+
+def test_merge_of_main_does_not_count_adrs_from_main(repo: Path) -> None:
+    _merge_main_into_branch(repo, "docs/decisions/0002-y.md", "2026-10-22")
+    assert check_doc_dates.check("base..HEAD") == []
+
+
+def test_stale_adr_in_ordinary_commit_after_merge_is_still_reported(repo: Path) -> None:
+    _merge_main_into_branch(repo, "docs/decisions/0002-y.md", "2026-10-22")
+    _commit(repo, {ADR_PATH: _doc("2026-01-01", "直した本文")}, "2026-10-23")
+    problems = check_doc_dates.check("base..HEAD")
+    assert len(problems) == 1
+    assert ADR_PATH in problems[0]
+
+
+def test_merge_of_main_with_base_at_main_tip_passes(repo: Path) -> None:
+    """GitHub の base.sha は取り込んだ後の main の先頭なので、範囲の外に main の commit が出る."""
+    _merge_main_into_branch(repo, "docs/decisions/0002-y.md", "2026-10-22")
+    assert check_doc_dates.check("main..HEAD") == []
+
+
+def test_auto_merged_adr_in_merge_commit_is_not_reported(repo: Path) -> None:
+    """両側が同じ ADR の日付の行を直して衝突し、手で直した merge は、どちらの親とも中身が違う."""
+    _git(repo, "checkout", "-q", "-b", "feature")
+    _commit(repo, {ADR_PATH: _doc("2026-10-01", "feature の本文")}, "2026-10-01")
+    _git(repo, "checkout", "-q", "main")
+    _commit(repo, {ADR_PATH: _doc("2026-10-02", "main の本文")}, "2026-10-02")
+    _git(repo, "checkout", "-q", "feature")
+    with pytest.raises(subprocess.CalledProcessError):
+        _git(repo, "merge", "-q", "--no-ff", "-m", "merge main", "main")
+    (repo / ADR_PATH).write_text(_doc("2026-10-02", "両方の本文"), encoding="utf-8")
+    _git(repo, "add", ADR_PATH)
+    _git(repo, "commit", "-q", "-m", "merge main", date="2026-10-22")
+    assert check_doc_dates.check("base..HEAD") == []
