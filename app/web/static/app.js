@@ -2,6 +2,7 @@
 (function () {
   var root = document.documentElement;
   var COPIED_MS = 1200;
+  var LOGIN_EXPIRED_MESSAGE = "ログインが切れました。頁を読み込み直して、ログインし直してください";
 
   document.addEventListener("click", function (event) {
     var toggle = event.target.closest("#theme-toggle");
@@ -241,7 +242,7 @@
     var xhr = event.detail.xhr;
     if (isRoutineRequest(event) && xhr && xhr.status >= 400) {
       event.detail.shouldSwap = false;
-      routineFailure(ROUTINE_FAILED_MESSAGE);
+      routineFailure(xhr.status === 401 ? LOGIN_EXPIRED_MESSAGE : ROUTINE_FAILED_MESSAGE);
     }
   });
 
@@ -285,18 +286,36 @@
       fields.inert = false;
     }
   });
-  function showFailure(event, message) {
-    var form = event.target;
-    var target = event.detail && event.detail.target;
-    var place;
+  function failurePlace(event) {
+    var detail = event.detail || {};
+    var config = detail.requestConfig || {};
+    var source = config.elt || detail.elt || event.target;
+    var form = source instanceof HTMLFormElement ? source : source.closest("form");
+    var target = detail.target;
     if (target && target.id === "queue") {
       // PACS の画面の再送：表の上の知らせの場所に出す
-      place = document.getElementById("queue-notice");
-    } else {
-      place =
-        form instanceof HTMLFormElement &&
-        document.getElementById(form.id === "exam-form" ? "result" : "send-result");
+      return document.getElementById("queue-notice");
     }
+    // 一覧・予約の詳細（行を選んだとき）・C-ECHO の結果は、差し替える先にそのまま出す
+    if (
+      target &&
+      (target.id === "results" || target.id === "detail" || target.id.indexOf("echo-") === 0)
+    ) {
+      return target;
+    }
+    if (form && form.id === "query-form") {
+      return document.getElementById("results");
+    }
+    if (form && form.id === "exam-form") {
+      return document.getElementById("result");
+    }
+    if (target && (target.id === "result" || target.id === "send-result")) {
+      return target;
+    }
+    return form ? document.getElementById("send-result") : null;
+  }
+  function showFailure(event, message) {
+    var place = failurePlace(event);
     if (!place) {
       return;
     }
@@ -331,8 +350,19 @@
       event.detail.shouldSwap = false;
       stationFailure(
         config.elt,
-        "装置を切り替えられませんでした。頁を読み込み直してから、もう一度選んでください"
+        xhr.status === 401 ? LOGIN_EXPIRED_MESSAGE :
+          "装置を切り替えられませんでした。頁を読み込み直してから、もう一度選んでください"
       );
+    }
+  });
+  document.addEventListener("htmx:beforeSwap", function (event) {
+    var xhr = event.detail.xhr;
+    if (xhr && xhr.status === 401) {
+      event.detail.shouldSwap = false;
+      var config = event.detail.requestConfig;
+      if (!(config && isStationSelect(config.elt)) && !isRoutineRequest(event)) {
+        showFailure(event, LOGIN_EXPIRED_MESSAGE);
+      }
     }
   });
   document.addEventListener("htmx:sendError", function (event) {
