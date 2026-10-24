@@ -92,7 +92,22 @@ def test_single_series_routine_cannot_lose_its_row(client) -> None:
 
     one = client.get("/exam/routine?template=ct_generic&routine=ct_head_plain").text
 
-    assert "disabled" in one.split("data-remove-series", 1)[1].split(">", 1)[0]
+    button = one.split("data-remove-series", 1)[1].split(">", 1)[0]
+    # 押せない理由が、キーボードと読み上げにも届く（disabled だと Tab で止まらない）
+    assert 'aria-disabled="true"' in button and 'aria-describedby="last-series-note"' in button
+    assert " disabled" not in button
+    assert '<span id="last-series-note" class="sr-only">最後の1行は外せません</span>' in one
+    assert 'class="table routine-table"' in one
+
+
+def test_result_place_takes_focus_after_exam(client) -> None:
+    """撮影の後にフォーカスを移せるよう、結果の場所は tabindex="-1" で、app.js が移す（#56）."""
+    html = client.get("/exam").text
+    script = client.get("/static/app.js").text
+
+    assert '<section id="result" aria-live="polite" tabindex="-1">' in html
+    assert 'document.getElementById("result")' in script and "result.focus()" in script
+    assert 'getAttribute("aria-disabled") === "true"' in script
 
 
 def test_remove_buttons_carry_the_series_name(client) -> None:

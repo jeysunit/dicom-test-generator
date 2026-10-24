@@ -69,7 +69,8 @@
   .btn {
     @apply inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-medium whitespace-nowrap;
   }
-  .btn:disabled {
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
     @apply cursor-not-allowed opacity-50;
   }
   .btn-primary {
@@ -123,6 +124,12 @@
   /* 氏名の列は、狭い幅でも1文字幅まで潰さない（下に印を出すため） */
   .table .name-cell {
     @apply min-w-32;
+  }
+  /* 撮影のルーチンの表：幅 390px 前後の画面でも、表の枠の中で横にはみ出さない幅にする。
+     はみ出すと、右端の [外す]・[戻す] を押したときに表が横に動き、先頭の列が切れる（10.5） */
+  .routine-table th,
+  .routine-table td {
+    @apply px-1 sm:px-2;
   }
   .values {
     @apply grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-[12rem_1fr];
