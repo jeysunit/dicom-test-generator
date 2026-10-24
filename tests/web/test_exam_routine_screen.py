@@ -95,6 +95,16 @@ def test_single_series_routine_cannot_lose_its_row(client) -> None:
     assert "disabled" in one.split("data-remove-series", 1)[1].split(">", 1)[0]
 
 
+def test_remove_buttons_carry_the_series_name(client) -> None:
+    """[外す]・[戻す] の読み上げの名前を、画面のスクリプトが行の名前から作る（#54）."""
+    html = client.get("/exam/routine?template=ct_generic&routine=ct_head_plain").text
+
+    buttons = re.findall(r"<button[^>]*data-remove-series[^>]*>", html)
+    assert len(buttons) == 4
+    assert 'data-description="Scout"' in buttons[0]
+    assert 'aria-label="Scout を外す"' in buttons[0]
+
+
 def test_exam_with_routine_rows(client) -> None:
     key = key_for(query_worklist(client), "A0001")
     token = csrf_token(client, f"/exam?key={key}")

@@ -159,6 +159,11 @@
   .link {
     @apply underline;
   }
+  /* 撮影のルーチンで外した行。消さずに薄く出し、打ち消し線を付ける（薄さだけに頼らない。
+     [戻す] のボタンは薄くしない） */
+  .series-removed td:not(:last-child) {
+    @apply line-through opacity-60;
+  }
   /* 送信ジョブの「詳細」。文字のボタンのまま、押せる範囲を 24px 四方より広くする */
   .job-detail-button {
     @apply inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center px-1 text-xs;

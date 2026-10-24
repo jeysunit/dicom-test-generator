@@ -75,14 +75,15 @@
     images.value = new Array(count).fill(each >= 1 ? each : 1).join(",");
   });
 
-  // 撮影の画面のルーチン：[外す] でシリーズの行を外す。最後の1行は外せない
-  // （行が無い要求は、サーバーがルーチンの全部で撮るため。ADR-0025）。1行だけのルーチンは
-  // 画面が最初から押せない形で出す
+  // 撮影の画面のルーチン：[外す] で行を撮影の対象から外す。行は消さずに薄く出し、ボタンを
+  // [戻す] に替える。[戻す] で外す前の画像数のまま対象に戻る。外した行の欄は押せなくし、
+  // 要求に入れない。撮影の対象の最後の1行は外せない（対象の行が無い要求は、サーバーが
+  // ルーチンの全部で撮るため。ADR-0025）。1行だけのルーチンは画面が最初から押せない形で出す
   var LAST_SERIES_TITLE = "最後の1行は外せません";
   function lockLastSeries(table) {
-    var buttons = table.querySelectorAll("[data-remove-series]");
-    buttons.forEach(function (button) {
-      button.disabled = buttons.length <= 1;
+    var active = table.querySelectorAll("tbody tr:not([data-removed]) [data-remove-series]");
+    active.forEach(function (button) {
+      button.disabled = active.length <= 1;
       if (button.disabled) {
         button.title = LAST_SERIES_TITLE;
       } else {
@@ -90,27 +91,36 @@
       }
     });
   }
+  function setRemoved(row, removed) {
+    var button = row.querySelector("[data-remove-series]");
+    var description = button.getAttribute("data-description");
+    row.toggleAttribute("data-removed", removed);
+    row.classList.toggle("series-removed", removed);
+    row.querySelectorAll("input").forEach(function (input) {
+      input.disabled = removed;
+    });
+    button.textContent = removed ? "戻す" : "外す";
+    button.setAttribute("aria-label", description + (removed ? " を戻す" : " を外す"));
+    button.disabled = false;
+    button.removeAttribute("title");
+  }
   document.addEventListener("click", function (event) {
     var button = event.target.closest("[data-remove-series]");
-    if (!button) {
+    if (!button || button.disabled) {
       return;
     }
     var table = button.closest("[data-routine-series]");
-    var rows = table ? table.querySelectorAll("tbody tr") : [];
-    if (rows.length <= 1) {
+    var row = button.closest("tr");
+    var removing = !row.hasAttribute("data-removed");
+    if (
+      removing &&
+      table.querySelectorAll("tbody tr:not([data-removed])").length <= 1
+    ) {
       return;
     }
-    // 外した後は、次の行（無ければ前の行）の [外す] にフォーカスを移す
-    var row = button.closest("tr");
-    var next = row.nextElementSibling || row.previousElementSibling;
-    row.remove();
+    // フォーカスは押したボタン（[外す]・[戻す] が入れ替わる）に残す
+    setRemoved(row, removing);
     lockLastSeries(table);
-    var focus = next && next.querySelector("[data-remove-series]");
-    if (focus && !focus.disabled) {
-      focus.focus();
-    } else if (next) {
-      next.querySelector("[name='routine_images']").focus();
-    }
   });
   // テンプレートを変えたら、ルーチンをそのテンプレートで当て直して描き直す（ルーチンの名前を
   // 送らない）。テンプレートの確かめ直し（/exam/check）とは別の要求にする
@@ -219,6 +229,29 @@
       if (result) {
         result.replaceChildren();
       }
+    }
+  });
+  // 撮影の要求を送ってから応答が返るまでは、ルーチンの欄を触れなくする（#53）。
+  // disabled にすると htmx が応答の後に戻し、外した行の欄まで押せる形に戻るので、
+  // inert（値は要求に入ったまま、操作だけを止める）を使う。送らなかった要求（止めた
+  // 要求）では beforeSend が来ないので、付けたままにならない
+  function routineFieldsOf(event) {
+    var form = event.detail.elt;
+    if (!(form instanceof HTMLFormElement) || form.id !== "exam-form") {
+      return null;
+    }
+    return document.getElementById("routine-fields");
+  }
+  document.addEventListener("htmx:beforeSend", function (event) {
+    var fields = routineFieldsOf(event);
+    if (fields) {
+      fields.inert = true;
+    }
+  });
+  document.addEventListener("htmx:afterRequest", function (event) {
+    var fields = routineFieldsOf(event);
+    if (fields) {
+      fields.inert = false;
     }
   });
   function showFailure(event, message) {
