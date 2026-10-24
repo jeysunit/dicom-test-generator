@@ -1,0 +1,68 @@
+name: Publish image
+
+# v で始まるタグの push と、手動の実行のときだけ、イメージを GHCR に公開する
+# （ADR-0026）。手動の実行は、実行する ref に v1.2.0 の形のタグを選ぶ。
+# ほかの ref と、v1.2.0 の形でないタグ（v1.2・v1.2.0-rc.1 など）は、最初のステップで失敗する。
+# main への push と PR では動かない（イメージの確認は ci.yml の Docker のジョブ）。
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build and push to ghcr.io
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Require a version tag such as v1.2.0
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [[ "$REF_TYPE" != tag || ! "$REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::公開できるのは v1.2.0 の形のタグだけです（実行した ref: $REF_TYPE $REF_NAME）"
+            exit 1
+          fi
+
+      # actions/checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      # docker/setup-buildx-action v4.4.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+
+      # docker/login-action v4.6.0
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # docker/metadata-action v6.2.0
+      # タグは版（例：1.2.0）と latest。org.opencontainers.image.source のラベルで
+      # パッケージをこのリポジトリに結び付ける
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+
+      # docker/build-push-action v7.4.0
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

@@ -11,48 +11,48 @@ CLI だけでできることは 6・7 章にまとめる。コマンドのオプ
 
 ## 1. 起動する
 
-### 1.1 Docker で起動する
+DTG は Docker のイメージ `ghcr.io/jeysunit/dicom-test-generator` で動かす。
+Python の環境で動かす方法は、開発する人向けに
+[development.md](development.md) の 1 章にある。
 
-`Dockerfile` で、CLI と Web 画面のイメージをビルドできる。コンテナは root 以外のユーザー（uid 10001）で動作する。
+### 1.1 Web 画面を起動する
 
-```bash
-docker build -t dicom-test-generator .
-```
-
-設定ファイルとパスワードのファイルはリポジトリの外（例：`~/dtg/`）に置き、
-コンテナにマウントする。コンテナの中では Web 画面が `0.0.0.0` にバインドするので、
-設定の `web.bind_address` を `"0.0.0.0"` にし、パスワードのファイルを渡す
-（5.3 節）。次の例は、ポートをホストの 127.0.0.1 にだけ公開する。
+コンテナの中の Web 画面はすべてのアドレスで待ち受けるので、パスワードが必須になる。
+作業用のフォルダ（例：`~/dtg/`）に、パスワードを1行だけ書いたファイル
+`password.txt` と、出力フォルダ `output/` を作り、そのフォルダで実行する。次の例は、
+ポートをホストの 127.0.0.1 にだけ公開する。
 
 ```bash
-docker run -d --name dtg -p 127.0.0.1:8080:8080 \
-  -v "$HOME/dtg/app_config.yaml:/app/config/app_config.yaml:ro" \
-  -v "$HOME/dtg/password.txt:/run/secrets/dtg_web_password:ro" \
+mkdir -p output
+docker run -d --name dtg --user "$(id -u):$(id -g)" -p 127.0.0.1:8080:8080 \
+  -v "$PWD/password.txt:/run/secrets/dtg_web_password:ro" \
   -e DTG_WEB_PASSWORD_FILE=/run/secrets/dtg_web_password \
-  -v dtg-state:/app/modality_state -v "$HOME/dtg/output:/app/output" \
-  dicom-test-generator
+  -v "$PWD/output:/app/output" -v dtg-state:/app/modality_state \
+  ghcr.io/jeysunit/dicom-test-generator:latest
 ```
-
-- 作成した DICOM ファイルは `/app/output` に、予約の結果と送信キューは
-  `/app/modality_state` に書き出す。残すときはマウントする
-- パスワードのファイルと、バインドマウントするホストのディレクトリは、uid 10001 が
-  読み書きできるようにする（例：`chmod 0644`）
-- イメージにヘルスチェックは入れていない
 
 ブラウザで <http://127.0.0.1:8080/> を開き、ユーザー名 `dtg` とパスワードで
 ログインする。
 
-### 1.2 Python で起動する
+- 作成した DICOM ファイルは `/app/output` に、予約の結果と送信キューは
+  `/app/modality_state` に書き出す。上の例は、出力をホストの `output/` に、予約の
+  結果と送信キューを名前付きボリューム `dtg-state` に残す
+- `--user "$(id -u):$(id -g)"` を付けると、作成したファイルの所有者がホストの
+  利用者になる。付けないときは、コンテナは uid 10001 で動く
+- パスワードのファイルが無いか空なら、コンテナは起動しない（終了コード 2）
+- 送信先を設定するときは、設定ファイルを `/app/config/app_config.yaml` にマウント
+  する（5.1 節）
+- イメージにヘルスチェックは入れていない
 
-Python 3.10 以上で、リポジトリのディレクトリで実行する。
+### 1.2 イメージをビルドする
+
+リポジトリの `Dockerfile` から、同じイメージをビルドできる。イメージが
+まだ公開されていないとき（最初のタグの push の前）は、ビルドしたイメージの名前を
+1.1 の `ghcr.io/jeysunit/dicom-test-generator:latest` の代わりに使う。
 
 ```bash
-pip install -r requirements.txt
-python -m app.web
+docker build -t dicom-test-generator .
 ```
-
-既定ではループバック（127.0.0.1）だけで待ち受け、認証は無い。ブラウザで
-<http://127.0.0.1:8080/> を開く。
 
 ## 2. Web 画面で撮影する
 
@@ -70,8 +70,9 @@ python -m app.web
    既定の送信先（PACS）へ送信する。送信しないときは [撮影] を押す
 
 作成した DICOM ファイルは、出力フォルダの
-`<受付番号か emergency>_<撮影の日時 YYYYMMDDHHMMSS>/` に保存される（既定の
-出力フォルダは `output/modality`、Docker では `/app/output` の下）。
+`<受付番号か emergency>_<撮影の日時 YYYYMMDDHHMMSS>/` に保存される（出力
+フォルダは設定の `output_dir` で、既定は `output/modality`。1.1 の例では、ホストの
+`output/modality/` の下になる）。
 
 予約で1回撮影すると、その予約は撮影済みになり、[撮影]・[撮影して送信] は押せなく
 なる（一覧にも「撮影済み」の印が付く）。撮り直すときは、設定の `retake_mode` に従う。
@@ -149,11 +150,21 @@ Orthanc は MPPS を受け付けないので、MPPS を受け付けるテスト�
 
 ### 5.1 送信先とワークリストの取得先
 
-`config/app_config.yaml` の `modality:` の節に、名乗る装置（`stations`）、ワークリストの
-取得先（RIS）、送信先（PACS）を設定し、画面を再起動する。設定の画面は読み取り専用で、
-読み込んだ値を確認できる。Docker で動かすときは、コンテナから到達できるホスト名か
-IP アドレスを設定する。項目の一覧は [spec/12](spec/12_modality_emulator.md) の
-12 章にある。
+設定ファイルの `modality:` の節に、名乗る装置（`stations`）、ワークリストの取得先
+（RIS）、送信先（PACS）を設定し、コンテナを起動し直す。ホスト名と IP アドレスは、コンテナから
+到達できるものを書く。設定の画面は読み取り専用で、読み込んだ値を確認できる。項目の
+一覧は [spec/12](spec/12_modality_emulator.md) の 12 章にある。
+
+イメージの中の設定ファイルを取り出して編集し、`/app/config/app_config.yaml` に
+マウントする。取り出した設定は、Web 画面がすべてのアドレスで待ち受ける形
+（`web.bind_address: "0.0.0.0"`）になっている。
+
+```bash
+docker run --rm ghcr.io/jeysunit/dicom-test-generator:latest cat config/app_config.yaml > app_config.yaml
+```
+
+1.1 の `docker run` に `-v "$PWD/app_config.yaml:/app/config/app_config.yaml:ro"` を
+追加して起動する。
 
 ### 5.2 装置を切り替える
 
@@ -169,22 +180,20 @@ MPPS・保管確認を行い、画像の Station Name もその装置の値に�
 
 ### 5.3 ネットワークに公開する
 
-`web.bind_address` をループバック以外（`0.0.0.0` など）にするときは、HTTP Basic
-認証が必須。パスワードを1行だけ書いたファイルを作成し、環境変数で指定する。
-ファイルが無いか空のときは起動しない（終了コード 2）。ユーザー名は `dtg`。
+1.1 の例は、ポートをホストの 127.0.0.1 にだけ公開している。ほかのマシンから
+開くときは、`-p 8080:8080` のようにホストのすべてのアドレスに公開する。コンテナの
+Web 画面は HTTP Basic 認証が必須で（ユーザー名は `dtg`）、パスワードは環境変数
+`DTG_WEB_PASSWORD_FILE` で指定したファイルから読む。パスワードは設定ファイルに
+書かない。
 
-```bash
-DTG_WEB_PASSWORD_FILE=/path/to/password.txt python -m app.web
-```
-
-パスワードは設定ファイルに書かない。この画面は HTTPS に対応していないので、
-ネットワークに公開するときは、前段のリバースプロキシで TLS を終端する
-（`Host` ヘッダーをそのまま渡す設定にする）。
+この画面は HTTPS に対応していないので、ネットワークに公開するときは、前段の
+リバースプロキシで TLS を終端する（`Host` ヘッダーをそのまま渡す設定にする）。
 
 ## 6. CLI で同じ操作をする
 
-2〜4 章の操作は CLI でも行える。自動テストから使うときは `--json` を付ける。
-Docker で動かしているときは、`docker exec dtg python -m app.cli ...` で実行する。
+2〜4 章の操作は CLI でも行える。1.1 で起動したコンテナの中で、表のコマンドを
+`docker exec dtg` に続けて実行する（例：`docker exec dtg python -m app.cli worklist query`）。
+自動テストから使うときは `--json` を付ける。
 
 | 操作 | コマンド |
 |------|----------|
@@ -208,22 +217,29 @@ Docker で動かしているときは、`docker exec dtg python -m app.cli ...` 
 
 ## 7. CLI だけでできること
 
-Web 画面に無い、細かい条件での作成は CLI で行う。
+Web 画面に無い、細かい条件での作成は CLI で行う。Web 画面を起動していなくても、
+`docker run --rm` でコマンドだけを実行できる。次の例は、作業用のフォルダの
+`output/` に書き出す。
 
 ```bash
-# Job YAML の設定を検証する（作成しない）
-python -m app.cli validate examples/job_minimal.yaml
-
-# Job YAML から作成する
-python -m app.cli generate examples/job_full.yaml -o output/
+mkdir -p output
+IMAGE=ghcr.io/jeysunit/dicom-test-generator:latest
+dtg() { docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/output:/app/output" "$@"; }
 
 # 引数だけで作成する
-python -m app.cli quick -p P000001 -m ct_generic -s 3 -i 1,20,20 -o output/
+dtg "$IMAGE" python -m app.cli quick -p P000001 -m ct_generic -s 3 -i 1,20,20 -o /app/output
+
+# イメージの中の Job YAML の例を検証する（作成しない）・例から作成する
+dtg "$IMAGE" python -m app.cli validate examples/job_minimal.yaml
+dtg "$IMAGE" python -m app.cli generate examples/job_full.yaml -o /app/output
+
+# 手元の Job YAML から作成する
+dtg -v "$PWD/job.yaml:/app/job.yaml:ro" "$IMAGE" python -m app.cli generate /app/job.yaml -o /app/output
 ```
 
 - Job YAML には、患者・検査・シリーズ・ピクセル・Transfer Syntax・文字コードを
-  細かく書ける。`examples/` に、最小の例（`job_minimal.yaml`）とすべての項目を
-  書いた例（`job_full.yaml`）がある
+  細かく書ける。イメージの `examples/` に、最小の例（`job_minimal.yaml`）とすべての
+  項目を書いた例（`job_full.yaml`）がある
 - 異常のデータを作成する：`--abnormal-level mild`（`none`・`mild`・`moderate`・
   `severe`）。指定しなければ規格どおりのデータを作成する
 - 装置プロファイルを重ねる：`--profile dtg_synthetic_ct`。読み込める装置

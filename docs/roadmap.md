@@ -16,9 +16,10 @@
 
 ## 2. 次に行うもの
 
-- **Docker を主にした使い方と、イメージの公開。** README のクイックスタートと
-  usage.md を Docker から始める形にし、イメージを GitHub Container Registry に
-  公開する
+- **イメージの最初の公開。** 公開の workflow（`v` で始まるタグの push と手動の
+  実行のときに GHCR に公開する）は用意したが、タグはまだ push していない。公開するまでは、
+  README の `docker pull` は失敗し、[usage.md](usage.md) の 1.2 のとおりイメージを
+  ビルドして使う。公開の後に、GHCR のパッケージが公開になっていることを確認する
 
 ## 3. 未実装のもの
 
