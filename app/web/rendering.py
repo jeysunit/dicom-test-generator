@@ -1,4 +1,4 @@
-"""頁と HTMX の部分を描く（docs/spec/12a_web_screens_and_cli.md 10.3）."""
+"""ページと HTMX の部分を描く（docs/spec/12a_web_screens_and_cli.md 10.3）."""
 
 from __future__ import annotations
 
@@ -20,15 +20,15 @@ from app.modality.service import ModalityService
 
 logger = logging.getLogger(__name__)
 
-# 予約を探す・取得し直すときの失敗の知らせ（10.4・10.8）
+# 予約を探す・再検索するときの失敗の知らせ（10.4・10.8）
 ITEM_NOT_FOUND_MESSAGE = (
-    "この予約は最後に取得した一覧にありません。「ワークリストを取得」からやり直してください"
+    "この予約は最後に取得した一覧にありません。「ワークリスト検索」からやり直してください"
 )
 ITEM_GONE_MESSAGE = (
     "この予約はワークリストにもうありません{accession}。"
     "RIS で取り消されたか、変更された可能性があります"
 )
-REFRESH_TIMEOUT_MESSAGE = "取得し直す途中で時間切れになりました（{seconds} 秒）。もう一度押してください"
+REFRESH_TIMEOUT_MESSAGE = "再検索の途中で時間切れになりました（{seconds} 秒）。もう一度押してください"
 
 PAGES = (
     ("worklist", "/worklist", "ワークリスト"),
@@ -46,7 +46,7 @@ def service_of(request: Request) -> ModalityService:
 def render(
     request: Request, template: str, page: str | None = None, **context: Any
 ) -> HTMLResponse:
-    """テンプレートを描く。頁（`page` あり）と帯の差し替えには、見出しと帯の値も渡す."""
+    """テンプレートを描く。ページ（`page` あり）と帯の差し替えには、見出しと帯の値も渡す."""
     env = request.app.state.templates
     values: dict[str, Any] = {
         "csrf_token": request.app.state.csrf_token,
@@ -74,7 +74,7 @@ def error_text(exc: DICOMGeneratorError | ValidationError) -> str:
 
 
 def worklist_error_text(exc: DICOMGeneratorError | ValidationError) -> str:
-    """予約を探す・取得し直すときの失敗を、利用者向けの日本語にする（10.4・10.8）.
+    """予約を探す・再検索するときの失敗を、利用者向けの日本語にする（10.4・10.8）.
 
     内部の予約の鍵と CLI 向けの hint は出さない。ほかの失敗は error_text のまま。
     """
@@ -93,7 +93,7 @@ def worklist_error_text(exc: DICOMGeneratorError | ValidationError) -> str:
 
 
 def band_context(request: Request) -> dict[str, Any]:
-    """自分の帯：装置・ワークリストの相手・既定の送り先・文字コード（10.3・7.1）."""
+    """自分の帯：装置・ワークリストの相手・標準の送信先・文字コード（10.3・7.1）."""
     service = service_of(request)
     config = service.config
     station = service.current_station()

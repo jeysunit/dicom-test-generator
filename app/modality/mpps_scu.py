@@ -271,9 +271,9 @@ class MppsManager:
     def start(self, create: Dataset, accession_number: str) -> int:
         """N-CREATE（IN PROGRESS）を残して送る。送れなくても撮影は止めない."""
         uid = UIDGenerator().generate_sop_uid()
-        # 送り先は行に固定する（設定を後で変えても、送り直しは同じ相手へ。8.4.1）
+        # 送信先は行に固定する（設定を後で変えても、送り直しは同じ相手へ。8.4.1）
         peer = (self._peer.ae_title, self._peer.host, self._peer.port)
-        # 撮影した装置の AE タイトルも行に固定し、送り直しもその AE タイトルで送る
+        # 撮影した装置の AEタイトルも行に固定し、送り直しもその AEタイトルで送る
         record_id = self._queue.add(uid, accession_number, create, peer, self._own_ae_title)
         self._with_claim(record_id, lambda: self._send_create(record_id))
         return record_id
@@ -392,7 +392,7 @@ class MppsManager:
 
 
 def _peer_of(record: MppsRecord) -> NodeConfig:
-    """行に固定した送り先（8.4.1）."""
+    """行に固定した送信先（8.4.1）."""
     return NodeConfig(ae_title=record.peer_ae_title, host=record.peer_host, port=record.peer_port)
 
 

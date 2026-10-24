@@ -174,7 +174,7 @@ def _sent_emergency_job(service: ModalityService, images: int = 2) -> tuple[int,
 
 
 def test_resend_of_a_sent_job_makes_a_new_job(tmp_path, worklist_scp, storage_scp) -> None:
-    """送信完了の件の再送は、同じフォルダ・同じ送信先の新しい件（docs/spec/12 の 8.2）."""
+    """送信完了の件の再送信は、同じフォルダ・同じ送信先の新しい件（docs/spec/12 の 8.2）."""
     service = _service(tmp_path, worklist_scp.port, storage_scp.port)
     job_id, exam = _sent_emergency_job(service)
     first_uids = [ds.SOPInstanceUID for ds in storage_scp.received]

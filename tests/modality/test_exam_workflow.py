@@ -121,7 +121,7 @@ def test_exam_makes_the_order_taken_and_refuses_a_second_exam(tmp_path, worklist
     assert service.is_taken(key)
     with pytest.raises(ValidationError, match=TAKEN_APPEND_MESSAGE):
         _exam(service, key)
-    # 予約を取得し直しても撮影済みは残る
+    # 予約を再検索しても撮影済みは残る
     assert service.is_taken(_key(service))
 
 

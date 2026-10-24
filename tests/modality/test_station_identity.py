@@ -1,7 +1,7 @@
 """DTG が名乗る装置の切り替え（docs/spec/12 の 12 章・ADR-0023）の試験.
 
 手元の偽の RIS・PACS・MPPS の相手（tests/modality_peers.py）が受けた要求の Calling AE
-Title を見て、選んだ装置の AE タイトルで名乗ることを確かめる。
+Title を見て、選んだ装置の AEタイトルで名乗ることを確かめる。
 """
 
 from __future__ import annotations
@@ -85,7 +85,7 @@ def _emergency(service: ModalityService):
 def test_selected_station_is_recorded_and_read_back(tmp_path, worklist_scp, storage_scp) -> None:
     config = _config(tmp_path, worklist_scp.port, storage_scp.port)
     service = ModalityService(config)
-    assert service.current_station().name == "CT1号機"  # 既定は一覧の先頭
+    assert service.current_station().name == "CT1号機"  # 標準は一覧の先頭
 
     service.select_station("MR1号機")
     # 一時のファイルに書いてから置き換えるので、書きかけのファイルは残らない
@@ -190,7 +190,7 @@ def test_station_name_of_the_station_wins_over_the_profile(
 def test_images_are_sent_as_the_station_that_made_them(
     tmp_path, worklist_scp, storage_scp
 ) -> None:
-    """撮った後に切り替えても、画像を作った装置の AE タイトルで送る（8.2・ADR-0023）."""
+    """撮った後に切り替えても、画像を作った装置の AEタイトルで送る（8.2・ADR-0023）."""
     service = ModalityService(_config(tmp_path, worklist_scp.port, storage_scp.port))
     exam = _emergency(service)  # CT1号機で撮る
     service.select_station("MR1号機")
@@ -228,7 +228,7 @@ def test_resend_after_switching_uses_the_ae_of_the_job(tmp_path, worklist_scp, s
     service.select_station("MR1号機")
     storage_scp.status = 0x0000
     [retried] = service.retry(job_id=failed.job_id)
-    [resent] = service.retry(job_id=retried.job_id)  # 送信完了の件の再送（新しい件）
+    [resent] = service.retry(job_id=retried.job_id)  # 送信完了の件の再送信（新しい件）
 
     assert retried.status == "sent" and resent.status == "sent"
     assert set(storage_scp.calling_ae_titles) == {"DTG_CT01"}
@@ -253,7 +253,7 @@ def test_mpps_retry_after_switching_uses_the_ae_of_the_exam(tmp_path, worklist_s
 
 
 def test_old_queue_rows_get_the_default_ae_title(tmp_path) -> None:
-    """AE タイトルの列が無い前の版の待ち行列は、既定の装置の AE タイトルで埋める."""
+    """AEタイトルの列が無い前の版の待ち行列は、標準の装置の AEタイトルで埋める."""
     db_path = tmp_path / QUEUE_DB_NAME
     with closing(sqlite3.connect(db_path)) as conn, conn:
         conn.execute(
@@ -346,7 +346,7 @@ def test_unregistered_calling_ae_title_is_told(tmp_path, worklist_scp) -> None:
         server.shutdown()
 
     assert result.status == "failed"
-    assert "相手が AE タイトル DTG_MR01 を受け付けませんでした" in result.error
-    assert "この装置の AE タイトルを登録してください" in result.error
+    assert "相手が AEタイトル DTG_MR01 を受け付けませんでした" in result.error
+    assert "この装置の AEタイトルを登録してください" in result.error
     assert "peer=" not in result.error  # 利用者が読む知らせに内部の値を付けない
     assert pacs.received == []

@@ -82,13 +82,13 @@ def _retry_notice(results: list[SendResult], job_id: int | None = None) -> tuple
         return "失敗の件はありません", False
     failed = sum(1 for result in results if result.status == "failed")
     if job_id is not None and len(results) == 1 and results[0].job_id != job_id:
-        # 送信完了の件の再送は新しい件になる。どの件になったかを出す（10.6）
+        # 送信完了の件の再送信は新しい件になる。どの件になったかを出す（10.6）
         result = results[0]
-        return f"ジョブ {result.job_id} として再送しました（{STATUS_LABELS.get(result.status)}）", bool(failed)
+        return f"ジョブ {result.job_id} として再送信しました（{STATUS_LABELS.get(result.status)}）", bool(failed)
     sent = sum(1 for result in results if result.status == "sent")
     if failed:
         return (
-            f"{len(results)} 件を再送しましたが、まだ送信できていません"
+            f"{len(results)} 件を再送信しましたが、まだ送信できていません"
             f"（送信完了 {sent} 件・送信失敗 {failed} 件）", True
         )
-    return f"{len(results)} 件を再送しました（送信完了 {sent} 件）", False
+    return f"{len(results)} 件を再送信しました（送信完了 {sent} 件）", False

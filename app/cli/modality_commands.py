@@ -58,7 +58,7 @@ def register_modality_commands(
 
     echo_parser = subparsers.add_parser("echo", parents=[common], help="C-ECHO で疎通を確かめる")
     echo_target = echo_parser.add_mutually_exclusive_group()
-    echo_target.add_argument("--to", help="送り先の名前（default: 既定の送り先）")
+    echo_target.add_argument("--to", help="送信先の名前（default: 標準の送信先）")
     echo_target.add_argument("--worklist", action="store_true", help="ワークリストの相手に送る")
     echo_parser.set_defaults(func=echo_command)
 
@@ -69,8 +69,8 @@ def register_modality_commands(
         "--date", default="today", help="today・YYYYMMDD・YYYYMMDD-YYYYMMDD（default: today）"
     )
     query_parser.add_argument("--modality", help="モダリティ。any で条件にしない")
-    query_parser.add_argument("--station-aet", help="予定の AE タイトル。any で条件にしない")
-    query_parser.add_argument("--patient-id", help="患者 ID")
+    query_parser.add_argument("--station-aet", help="予定の AEタイトル。any で条件にしない")
+    query_parser.add_argument("--patient-id", help="患者ID")
     query_parser.add_argument("--patient-name", help="氏名（各成分の末尾に * を足す）")
     query_parser.add_argument("--accession", help="受付番号")
     query_parser.set_defaults(func=worklist_query_command)
@@ -96,7 +96,7 @@ def register_modality_commands(
     exam_parser.add_argument("--patient-name", help="緊急の患者の氏名（PN）")
     exam_parser.add_argument("--birth-date", help="緊急の患者の生年月日（YYYYMMDD）")
     exam_parser.add_argument("--sex", choices=("M", "F", "O"), help="緊急の患者の性別")
-    exam_parser.add_argument("--study-description", help="検査の記述（--emergency のとき）")
+    exam_parser.add_argument("--study-description", help="検査名（--emergency のとき）")
     exam_parser.add_argument("-m", "--modality", help="モダリティテンプレート")
     exam_parser.add_argument(
         "--profile", help="装置のプロファイル（docs/spec/13。default: 設定の default_profile）"
@@ -133,7 +133,7 @@ def register_modality_commands(
     exam_parser.add_argument("--charset", choices=CHARSET_CHOICES, help="画像の文字コード")
     exam_parser.add_argument("-o", "--output", help="出力のフォルダ")
     exam_parser.add_argument("--send", action="store_true", help="作った後に送る")
-    exam_parser.add_argument("--to", help="--send の送り先（default: 既定の送り先）")
+    exam_parser.add_argument("--to", help="--send の送信先（default: 標準の送信先）")
     exam_parser.add_argument(
         "--mpps",
         action=argparse.BooleanOptionalAction,
@@ -146,7 +146,7 @@ def register_modality_commands(
         "send", parents=[common], help="出力のフォルダの画像を送る"
     )
     send_parser.add_argument("folder", help="画像のフォルダ")
-    send_parser.add_argument("--to", help="送り先の名前（default: 既定の送り先）")
+    send_parser.add_argument("--to", help="送信先の名前（default: 標準の送信先）")
     send_parser.set_defaults(func=send_command)
 
     queue_parser = subparsers.add_parser("queue", help="送信ジョブ")
@@ -154,7 +154,7 @@ def register_modality_commands(
     list_parser = queue_sub.add_parser("list", parents=[common], help="送信ジョブと履歴を出す")
     list_parser.add_argument("--status", choices=QUEUE_STATUS_CHOICES, help="状態で絞る")
     list_parser.set_defaults(func=queue_list_command)
-    retry_parser = queue_sub.add_parser("retry", parents=[common], help="失敗を再送する")
+    retry_parser = queue_sub.add_parser("retry", parents=[common], help="失敗を再送信する")
     retry_target = retry_parser.add_mutually_exclusive_group(required=True)
     retry_target.add_argument("--all", action="store_true", help="失敗の全部")
     retry_target.add_argument(
@@ -172,7 +172,7 @@ def register_modality_commands(
     commit_parser.add_argument(
         "--wait",
         type=_positive_seconds,
-        help="結果を待つ秒（default: 送り先の commitment_timeout_seconds）",
+        help="結果を待つ秒（default: 送信先の commitment_timeout_seconds）",
     )
     commit_parser.set_defaults(func=commit_command)
 
@@ -181,14 +181,14 @@ def register_modality_commands(
     mpps_list_parser = mpps_sub.add_parser("list", parents=[common], help="MPPS の知らせを出す")
     mpps_list_parser.set_defaults(func=mpps_list_command)
     mpps_retry_parser = mpps_sub.add_parser(
-        "retry", parents=[common], help="送信に失敗した MPPS を再送する"
+        "retry", parents=[common], help="送信に失敗した MPPS を再送信する"
     )
     mpps_retry_parser.set_defaults(func=mpps_retry_command)
 
 
 ZERO_ITEMS_MESSAGE = "予約はありません。条件を広げるか、緊急の患者で撮ってください"
 NON_ASCII_HINT = (
-    "日本語の条件は相手の文字コードの扱いに左右されます。患者 ID か受付番号でも取得してください"
+    "日本語の条件は相手の文字コードの扱いに左右されます。患者ID か受付番号でも取得してください"
 )
 
 
@@ -200,7 +200,7 @@ def echo_command(args: argparse.Namespace) -> int:
     else:
         _emit(
             f"C-ECHO {result.ae_title} ({result.host}:{result.port}): "
-            f"つながった（{result.elapsed_ms} ms）"
+            f"接続できました（{result.elapsed_ms} ms）"
         )
     return 0
 

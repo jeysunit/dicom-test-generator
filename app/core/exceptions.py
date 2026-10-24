@@ -186,7 +186,7 @@ class WorklistQueryError(ModalityError):
 
 
 class WorklistRefreshTimeoutError(WorklistQueryError):
-    """予約を取得し直す C-FIND が、時間の上限で途中までになった."""
+    """予約を再検索する C-FIND が、時間の上限で途中までになった."""
 
 
 class WorklistItemNotFoundError(ModalityError):
@@ -194,7 +194,7 @@ class WorklistItemNotFoundError(ModalityError):
 
 
 class WorklistItemGoneError(ModalityError):
-    """取得し直した応答に、その予約がもう無い."""
+    """再検索した応答に、その予約がもう無い."""
 
 
 class WorklistMappingError(ModalityError):

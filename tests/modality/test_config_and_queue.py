@@ -90,7 +90,7 @@ def test_config_reads_two_stations(tmp_path) -> None:
     assert [station.name for station in config.stations] == ["CT1号機", "MR1号機"]
     assert config.default_station == "MR1号機"
     assert config.station("MR1号機").ae_title == "DTG_MR01"
-    # 既定の装置の値は、今までの ae_title・station_name としても読める
+    # 標準の装置の値は、今までの ae_title・station_name としても読める
     assert (config.ae_title, config.station_name) == ("DTG_MR01", "DTG_MR01")
 
 
@@ -113,7 +113,7 @@ def test_config_without_stations_is_one_station(tmp_path) -> None:
 @pytest.mark.parametrize(
     "raw",
     [
-        _stations(CT1, {**MR1, "ae_title": "DTG_CT01"}),  # AE タイトルの重複
+        _stations(CT1, {**MR1, "ae_title": "DTG_CT01"}),  # AEタイトルの重複
         _stations(CT1, {**MR1, "name": "CT1号機"}),  # 表示名の重複
         _stations(CT1, default="XR9号機"),  # 一覧に無い既定
         _stations({**CT1, "ae_title": "A" * 17}),  # AE の VR に合わない
@@ -130,7 +130,7 @@ def test_invalid_stations_are_config_errors(tmp_path, raw) -> None:
 
 
 def test_station_ae_titles_are_compared_without_padding(tmp_path) -> None:
-    """装置の AE タイトルの前後の空白はそろえる（PS3.5 の AE）。空白だけ違うものは重複."""
+    """装置の AEタイトルの前後の空白はそろえる（PS3.5 の AE）。空白だけ違うものは重複."""
     config = load_modality_config(_write(tmp_path, _stations({**CT1, "ae_title": " DTG_CT01 "})))
     assert config.stations[0].ae_title == "DTG_CT01"
 

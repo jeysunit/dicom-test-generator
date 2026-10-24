@@ -113,7 +113,7 @@ def test_send_from_result_refuses_outside_output_root(client, tmp_path) -> None:
 
 
 def test_failed_send_is_retried_from_pacs(tmp_path, worklist_scp, storage_scp) -> None:
-    """送れなかった件を PACS の画面の [再送] で送り直す（10.6）."""
+    """送れなかった件を PACS の画面の [もう一度送る] で送り直す（10.6）."""
     unreachable = make_client(tmp_path, worklist_scp.port, free_port())
     key = key_for(query_worklist(unreachable), "A0001")
     token = csrf_token(unreachable, f"/exam?key={key}")
@@ -121,7 +121,7 @@ def test_failed_send_is_retried_from_pacs(tmp_path, worklist_scp, storage_scp) -
         "/exam", data=_exam_form(key, "exam_send"), headers=post_headers(token)
     )
     assert "失敗" in failed.text
-    assert "再送" in unreachable.get("/pacs/queue").text
+    assert "もう一度送る" in unreachable.get("/pacs/queue").text
 
     reachable = make_client(tmp_path, worklist_scp.port, storage_scp.port)
     token = csrf_token(reachable, "/pacs")
@@ -137,7 +137,7 @@ def _resend_buttons(html: str) -> list[str]:
 
 
 def test_sent_job_is_resent_from_pacs_as_a_new_job(client, worklist_scp, storage_scp) -> None:
-    """送信完了の件にも [再送] を出し、押すと新しい件として送る（10.6）."""
+    """送信完了の件にも [もう一度送る] を出し、押すと新しい件として送る（10.6）."""
     key = key_for(query_worklist(client), "A0001")
     token = csrf_token(client, f"/exam?key={key}")
     client.post("/exam", data=_exam_form(key, "exam_send"), headers=post_headers(token))
@@ -148,7 +148,7 @@ def test_sent_job_is_resent_from_pacs_as_a_new_job(client, worklist_scp, storage
 
     # どの件になったかを、表の外（2 秒ごとの再取得で消えない場所）に出す
     notice = resent.split('<div id="queue-notice" hx-swap-oob="true">', 1)[1].split("</div>", 1)[0]
-    assert "ジョブ 2 として再送しました（送信完了）" in notice
+    assert "ジョブ 2 として再送信しました（送信完了）" in notice
     assert sorted(_resend_buttons(resent)) == ["1", "2"]
     assert "queue-notice" not in client.get("/pacs/queue").text  # 再取得では知らせを消さない
     assert len(storage_scp.received) == 6
@@ -172,7 +172,7 @@ def test_sending_job_has_no_resend_button(client) -> None:
 
     assert _resend_buttons(client.get("/pacs/queue").text) == []
 
-    # 送信中の件の再送の要求は断り、表を残して理由を表の上に出す
+    # 送信中の件の再送信の要求は断り、表を残して理由を表の上に出す
     token = csrf_token(client, "/pacs")
     refused = client.post(f"/pacs/retry/{job_id}", headers=post_headers(token)).text
     notice = refused.split('<div id="queue-notice" hx-swap-oob="true">', 1)[1]
@@ -181,13 +181,13 @@ def test_sending_job_has_no_resend_button(client) -> None:
 
 
 def test_exam_result_offers_send_again(client, worklist_scp, storage_scp) -> None:
-    """撮影の画面で、送信の結果の後も [もう一度送信] で何回でも送り直せる（10.5）."""
+    """撮影の画面で、送信の結果の後も [もう一度送る] で何回でも送り直せる（10.5）."""
     key = key_for(query_worklist(client), "A0001")
     token = csrf_token(client, f"/exam?key={key}")
     result = client.post(
         "/exam", data=_exam_form(key, "exam_send"), headers=post_headers(token)
     ).text
-    assert "もう一度送信" in result
+    assert "もう一度送る" in result
     output_dir = _OUTPUT_DIR_PATTERN.search(result).group(1)
 
     for job in (2, 3):
@@ -195,5 +195,5 @@ def test_exam_result_offers_send_again(client, worklist_scp, storage_scp) -> Non
             "/exam/send", data={"output_dir": output_dir}, headers=post_headers(token)
         ).text
         assert f"送信完了：PACS_TEST へ 3/3 画像（ジョブ {job}）" in again
-        assert "もう一度送信" in again and 'hx-disabled-elt="find button"' in again
+        assert "もう一度送る" in again and 'hx-disabled-elt="find button"' in again
     assert len(storage_scp.received) == 9

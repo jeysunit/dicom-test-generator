@@ -1,7 +1,7 @@
 <div id="band"{% if oob_band %} hx-swap-oob="true"{% endif %} class="border-t border-border">
   <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-1.5 text-xs text-label">
     {% if band.stations|length > 1 %}
-    {# 装置の切り替え（docs/spec/12a の 10.3・ADR-0023）。切り替えたら頁を読み込み直す #}
+    {# 装置の切り替え（docs/spec/12a の 10.3・ADR-0023）。切り替えたらページを読み込み直す #}
     <label class="flex items-center gap-1">
       <span>装置:</span>
       <select name="station" class="input" hx-post="/station" hx-trigger="change" hx-target="#band" hx-swap="outerHTML" hx-disabled-elt="this">
@@ -14,7 +14,7 @@
     <span>自分: {{ band.own_ae }}</span>
     {% endif %}
     <span>ワークリスト: {{ band.worklist_ae }}</span>
-    <span>送り先: {{ band.destination }}</span>
+    <span>送信先: {{ band.destination }}</span>
     <span>文字: {% if band.worklist_charset is none %}未取得{% else %}{{ band.worklist_charset|charset_label }}{% endif %} → {{ band.image_charset|charset_label }}</span>
     {% if band.station_notice %}<span role="status" class="text-danger">{{ band.station_notice }}</span>{% endif %}
     {% if band.error %}<span role="alert" class="text-danger">{{ band.error }}</span>{% endif %}

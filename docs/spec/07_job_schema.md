@@ -161,7 +161,7 @@ character_set:
 
 | フィールド | 型 | 必須 | 説明 | 例 |
 |-----------|-----|------|------|-----|
-| `patient_id` | string | ○ | 患者 ID（16 文字以内） | `"P000001"` |
+| `patient_id` | string | ○ | 患者ID（16 文字以内） | `"P000001"` |
 | `patient_name` | object | ○ | 患者名（3.3） | - |
 | `birth_date` | string | ○ | 生年月日（YYYYMMDD。実在する日付） | `"19800115"` |
 | `sex` | string | ○ | 性別（`M` / `F` / `O`） | `"M"` |

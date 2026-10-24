@@ -46,9 +46,9 @@ DICOMGeneratorError
     ├── ModalityConfigError      # modality: の節のエラー
     ├── AssociationError         # Association を確立できない・拒否された・切断された
     ├── WorklistQueryError       # C-FIND の失敗・タイムアウト
-    │   └── WorklistRefreshTimeoutError  # 予約を取得し直す C-FIND が時間切れで途中まで
+    │   └── WorklistRefreshTimeoutError  # 予約を再検索する C-FIND が時間切れで途中まで
     ├── WorklistItemNotFoundError  # 最後に取得した一覧に予約の鍵が無い
-    ├── WorklistItemGoneError    # 取得し直した応答に予約がもう無い
+    ├── WorklistItemGoneError    # 再検索した応答に予約がもう無い
     ├── WorklistMappingError     # 予約の値を転記できない（文字・長さ・モダリティ）
     ├── StoreError               # C-STORE の失敗
     ├── StorageCommitmentError   # 保管確認（Storage Commitment）の失敗・タイムアウト

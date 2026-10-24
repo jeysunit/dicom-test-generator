@@ -146,7 +146,7 @@ class QueueJob(BaseModel):
     last_error: str
     num_files: int
     num_sent: int
-    # 件を作ったときの装置の AE タイトル。再送もこの AE タイトルで送る（docs/spec/12 の 8.2）
+    # 件を作ったときの装置の AEタイトル。再送信もこの AEタイトルで送る（docs/spec/12 の 8.2）
     calling_ae_title: str = ""
     stale: bool = False  # 送信中のまま止まった件（8.2）
     commitment: str = ""  # 最後の保管の確認の状態。使わない件は空（8.3.3）
@@ -189,10 +189,10 @@ class CommitmentState(BaseModel):
 
 
 class SendQueue:
-    """待ち行列。1件は1つの検査（1つのフォルダ）を1つの送り先へ送ること."""
+    """待ち行列。1件は1つの検査（1つのフォルダ）を1つの送信先へ送ること."""
 
     def __init__(self, db_path: Path, legacy_ae_title: str = "") -> None:
-        """`legacy_ae_title` は、AE タイトルの列が無い前の版の行に入れる AE タイトル."""
+        """`legacy_ae_title` は、AEタイトルの列が無い前の版の行に入れる AEタイトル."""
         self._db_path = db_path
         try:
             db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -205,7 +205,7 @@ class SendQueue:
                     conn.execute(
                         "ALTER TABLE jobs ADD COLUMN send_token TEXT NOT NULL DEFAULT ''"
                     )
-                # 装置を切り替えられる前の版の待ち行列に足す。前の行は今の装置の AE タイトル
+                # 装置を切り替えられる前の版の待ち行列に足す。前の行は今の装置の AEタイトル
                 _add_ae_title_column(conn, "jobs", "calling_ae_title", legacy_ae_title)
                 _add_ae_title_column(conn, "commitments", "own_ae_title", legacy_ae_title)
                 # 撮影の記録が無かった前の版で撮った予約も、撮影済みとして移す（UID だけ）
@@ -566,7 +566,7 @@ class SendQueue:
         timeout_seconds: float,
         own_ae_title: str = "",
     ) -> None:
-        """要求を記録する。`own_ae_title` は要求を送った装置の AE タイトル（結果の宛先）."""
+        """要求を記録する。`own_ae_title` は要求を送った装置の AEタイトル（結果の宛先）."""
         now = datetime.now()
         deadline = (now + timedelta(seconds=timeout_seconds)).isoformat(timespec="seconds")
         stamp = now.isoformat(timespec="seconds")
@@ -665,7 +665,7 @@ class SendQueue:
         return True
 
     def commitment_peer(self, transaction_uid: str) -> tuple[str, str, str] | None:
-        """要求の（状態, 送り先の AE タイトル, 要求を送った装置の AE タイトル）.
+        """要求の（状態, 送信先の AEタイトル, 要求を送った装置の AEタイトル）.
 
         知らない Transaction UID なら None。
         """
@@ -783,7 +783,7 @@ def _now() -> str:
 def _add_ae_title_column(
     conn: sqlite3.Connection, table: str, column: str, legacy_ae_title: str
 ) -> None:
-    """AE タイトルの列が無ければ足し、前の行を `legacy_ae_title` で埋める（表と列は定数）."""
+    """AEタイトルの列が無ければ足し、前の行を `legacy_ae_title` で埋める（表と列は定数）."""
     columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
     if column in columns:
         return

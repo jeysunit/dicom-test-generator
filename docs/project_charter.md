@@ -9,7 +9,7 @@ DICOM Test Data Generator（リポジトリ名 `dicom-test-generator`。以下 D
 1. **主な機能**：DICOM 画像を作成して、フォルダにファイルとして保存する。多様な
    メタデータを持つ画像を作成でき、規格どおりのデータと、あえて規格に違反した
    データ（異常のデータ）の両方を作成できる
-2. **補助の機能**：モダリティのように振る舞う。RIS からワークリストを取得して予約の
+2. **補助の機能**：モダリティのように振る舞う。RIS からワークリストを検索して予約の
    内容で画像を作成し、PACS へ送信する。保管確認（Storage Commitment）と MPPS も使える。操作は CLI と
    Web 画面で行う
 
@@ -45,7 +45,7 @@ hl7.org、IHE の Technical Framework）で確認し、spec か ADR に規格の
 | 日本語の患者名 | Specific Character Set と、PN の英字・漢字・かなの表記 | [06](spec/06_dicom_rules.md) |
 | ピクセルの作成 | 簡易モード（UID の文字列を描画する）と CT モード（16 ビットの HU 値）。どちらも実際の画像ではない | [02](spec/02_core_engine.md)・[06](spec/06_dicom_rules.md) |
 | 異常のデータの作成 | 必須タグの欠落、VR の違反、文字数の超過、不正な UID、Pixel Data の欠落。レベル（none・mild・moderate・severe）で選ぶ | [02](spec/02_core_engine.md)・[06](spec/06_dicom_rules.md) |
-| モダリティエミュレーター | ワークリスト（MWL）の取得、予約からの撮影、予約の無い緊急の患者の入力、C-STORE での送信、疎通確認（C-ECHO）、送信失敗時のキューと再送、保管確認、MPPS | [12](spec/12_modality_emulator.md) |
+| モダリティエミュレーター | ワークリスト（MWL）の取得、予約からの撮影、予約の無い緊急の患者の入力、C-STORE での送信、疎通確認（C-ECHO）、送信失敗時のキューと再送信、保管確認、MPPS | [12](spec/12_modality_emulator.md) |
 | 装置プロファイル | 装置のコンフォーマンスステートメントの内容を転記し、その装置の DICOM の出力（製造元・機種・属性・プライベートタグ）をテンプレートに重ねて再現する | [13](spec/13_device_profiles.md) |
 | CLI | 作成・検証・簡易作成と、モダリティエミュレーターの操作 | [04](spec/04_cli.md)・[12a](spec/12a_web_screens_and_cli.md) |
 | Web 画面 | ワークリスト・撮影・PACS・設定の画面（FastAPI・Jinja2・HTMX） | [12a](spec/12a_web_screens_and_cli.md) |

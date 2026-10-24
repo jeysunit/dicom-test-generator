@@ -84,7 +84,7 @@ def test_send_refuses_symlink_inside_the_folder_too(tmp_path, storage_scp) -> No
 
 
 def test_retry_rechecks_files(tmp_path, storage_scp) -> None:
-    """再送でも確かめる：失敗の後にファイルを外を指す link に替えても送らない."""
+    """再送信でも確かめる：失敗の後にファイルを外を指す link に替えても送らない."""
     unreachable = _service(tmp_path, free_port())
     folder = Path(_exam(unreachable))
     failed = unreachable.send(str(folder))

@@ -64,12 +64,12 @@ def write_service_profile(
 
 
 def _calling_ae_title(event: Any) -> str:
-    """要求を送ってきた側（DTG）が名乗った AE タイトル."""
+    """要求を送ってきた側（DTG）が名乗った AEタイトル."""
     return str(event.assoc.requestor.ae_title).strip()
 
 
 def free_port() -> int:
-    """空いているポートを1つ返す（閉じた後なので、つながらない先としても使える）."""
+    """空いているポートを1つ返す（閉じた後なので、接続できない先としても使える）."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind((LOCALHOST, 0))
         return int(sock.getsockname()[1])

@@ -60,7 +60,7 @@ def _series(files: list[str]) -> list[tuple[int, str, int]]:
 
 
 def test_auto_routine_from_the_order_description(tmp_path, worklist_scp) -> None:
-    """検査の記述「胸部 CT」→ 胸部 単純。画像数を減らして撮る（並びはルーチンのまま）."""
+    """検査名「胸部 CT」→ 胸部 単純。画像数を減らして撮る（並びはルーチンのまま）."""
     service = _service(tmp_path, worklist_scp.port)
 
     result = service.exam(
@@ -83,7 +83,7 @@ def test_auto_routine_from_the_order_description(tmp_path, worklist_scp) -> None
 
 
 def test_auto_routine_defaults_cover_every_series(tmp_path, worklist_scp) -> None:
-    """何も変えなければ、ルーチンの既定の画像数で全部のシリーズを撮る（作る前の並び）."""
+    """何も変えなければ、ルーチンの標準の画像数で全部のシリーズを撮る（作る前の並び）."""
     service = _service(tmp_path, worklist_scp.port)
     item = service.find_item(_key(service, "A0002"))  # 頭部 CT
 

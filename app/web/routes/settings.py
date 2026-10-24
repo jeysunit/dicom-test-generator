@@ -27,7 +27,7 @@ def settings_page(request: Request) -> HTMLResponse:
 
 @router.post("/station", response_class=HTMLResponse)
 def select_station(request: Request, station: Annotated[str, Form()] = "") -> HTMLResponse:
-    """情報バーで装置を切り替える。切り替えたら頁を読み込み直す（ADR-0023）."""
+    """情報バーで装置を切り替える。切り替えたらページを読み込み直す（ADR-0023）."""
     try:
         service_of(request).select_station(station)
     except DICOMGeneratorError as exc:

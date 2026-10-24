@@ -204,7 +204,7 @@ def test_peer_down_keeps_messages_and_retry_sends_in_order(tmp_path, worklist_sc
     assert "Association" in result.mpps.error
     assert [(r.state, r.sent) for r in service.list_mpps()] == [("COMPLETED", False)]
 
-    # 落ちていた相手が同じポートで戻る（送り先は行に固定。8.4.1）
+    # 落ちていた相手が同じポートで戻る（送信先は行に固定。8.4.1）
     back, server = start_mpps_recorder(down_port)
     try:
         retried = service.retry_mpps()
@@ -223,7 +223,7 @@ def test_peer_down_keeps_messages_and_retry_sends_in_order(tmp_path, worklist_sc
 def test_retry_goes_to_the_original_peer_after_config_change(
     tmp_path, worklist_scp, mpps_scp
 ) -> None:
-    """設定の送り先を替えても、送り直しは行に固定した元の相手へ送る（新しい相手には送らない）."""
+    """設定の送信先を替えても、送り直しは行に固定した元の相手へ送る（新しい相手には送らない）."""
     down_port = free_port()
     _scheduled_exam(_service(tmp_path, worklist_scp.port, down_port))
     changed = _service(tmp_path, worklist_scp.port, mpps_scp.port)

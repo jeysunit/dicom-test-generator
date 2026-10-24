@@ -39,7 +39,7 @@ RetakeMode = Literal["append", "new_order"]
 
 
 def validate_ae_title(value: str) -> str:
-    """AE タイトル：16 文字以内・空白だけは不可・表示できる ASCII で `\\` 無し（PS3.5 AE）."""
+    """AEタイトル：16 文字以内・空白だけは不可・表示できる ASCII で `\\` 無し（PS3.5 AE）."""
     if not value.strip():
         raise ValueError("AE title must not be empty or spaces only")
     if len(value) > AE_TITLE_MAX_LENGTH:
@@ -52,7 +52,7 @@ def validate_ae_title(value: str) -> str:
 
 
 class NodeConfig(BaseModel):
-    """相手の AE（ワークリストの相手・送り先）."""
+    """相手の AE（ワークリストの相手・送信先）."""
 
     model_config = {"frozen": True}
 
@@ -88,7 +88,7 @@ class DestinationConfig(NodeConfig):
 
 
 class MppsPeerConfig(NodeConfig):
-    """MPPS の送り先（Phase 3c。8.4.1）。書かなければワークリストの相手へ送る."""
+    """MPPS の送信先（Phase 3c。8.4.1）。書かなければワークリストの相手へ送る."""
 
     timeout_seconds: float = Field(DEFAULT_TIMEOUT_SECONDS, gt=0)
 
@@ -107,7 +107,7 @@ class RetryConfig(BaseModel):
 
 
 class StationConfig(BaseModel):
-    """DTG が名乗る装置の1つ：表示名・AE タイトル・Station Name（docs/spec/12 の 12 章）."""
+    """DTG が名乗る装置の1つ：表示名・AEタイトル・Station Name（docs/spec/12 の 12 章）."""
 
     model_config = {"frozen": True}
 
@@ -118,7 +118,7 @@ class StationConfig(BaseModel):
     @field_validator("ae_title")
     @classmethod
     def _check_ae_title(cls, value: str) -> str:
-        # 前後の空白は AE タイトルの値に含めない（PS3.5 の AE）。比べる前にそろえる
+        # 前後の空白は AEタイトルの値に含めない（PS3.5 の AE）。比べる前にそろえる
         return validate_ae_title(value).strip()
 
     @field_validator("station_name")
@@ -137,7 +137,7 @@ class StationConfig(BaseModel):
 class ModalityConfig(BaseModel):
     model_config = {"frozen": True}
 
-    # 装置の一覧（docs/spec/12 の 12 章）。`ae_title`・`station_name` は既定の装置の値で、
+    # 装置の一覧（docs/spec/12 の 12 章）。`ae_title`・`station_name` は標準の装置の値で、
     # 一覧を書かない今の形の設定では、この2つから装置1つの一覧を作る
     stations: list[StationConfig] = Field(..., min_length=1)
     default_station: str
@@ -169,7 +169,7 @@ class ModalityConfig(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _normalize_stations(cls, data: object) -> object:
-        """今の形（`ae_title` だけ）を装置1つの一覧にし、既定の装置の値を写す."""
+        """今の形（`ae_title` だけ）を装置1つの一覧にし、標準の装置の値を写す."""
         if not isinstance(data, dict):
             return data
         raw = dict(data)
@@ -202,7 +202,7 @@ class ModalityConfig(BaseModel):
             raise ValueError(f"default_station '{default_name}' is not in stations")
         raw["ae_title"] = default.get("ae_title")
         raw["station_name"] = default.get("station_name", "")
-        # 一覧と今の形の両方を書くのは、既定の装置の値と同じとき（読み直した値）だけ
+        # 一覧と今の形の両方を書くのは、標準の装置の値と同じとき（読み直した値）だけ
         if any(raw[key] != value for key, value in mirrored.items()):
             raise ValueError("write either stations or ae_title/station_name, not both")
         return raw
@@ -218,7 +218,7 @@ class ModalityConfig(BaseModel):
         return self
 
     def station(self, name: str | None = None) -> StationConfig:
-        """名前の装置を返す。名前が無ければ既定の装置."""
+        """名前の装置を返す。名前が無ければ標準の装置."""
         wanted = name or self.default_station
         for station in self.stations:
             if station.name == wanted:
@@ -240,11 +240,11 @@ class ModalityConfig(BaseModel):
         return self
 
     def mpps_peer(self) -> MppsPeerConfig | WorklistPeerConfig:
-        """MPPS の送り先：`mpps:` の相手、無ければワークリストの相手（8.4.1）."""
+        """MPPS の送信先：`mpps:` の相手、無ければワークリストの相手（8.4.1）."""
         return self.mpps if self.mpps is not None else self.worklist
 
     def destination(self, name: str | None = None) -> DestinationConfig:
-        """名前の送り先を返す。名前が無ければ既定の送り先."""
+        """名前の送信先を返す。名前が無ければ標準の送信先."""
         wanted = name or self.default_destination
         for destination in self.destinations:
             if destination.name == wanted:

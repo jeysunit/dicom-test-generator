@@ -87,7 +87,7 @@ def test_refresh_with_partial_response_is_query_error(tmp_path, worklist_scp) ->
 
 
 def test_refresh_errors_tell_the_kind(tmp_path, worklist_scp) -> None:
-    """取得し直せない理由を例外の種類で分ける（画面の知らせ。docs/spec/12a の 10.4）."""
+    """再検索できない理由を例外の種類で分ける（画面の知らせ。docs/spec/12a の 10.4）."""
     service = _service(tmp_path, worklist_scp.port)
     item = service.query_worklist(WorklistQuery()).items[0]
 

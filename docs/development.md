@@ -114,7 +114,7 @@ DTG の機能ではない。スタブは `tests/modality_peers.py` にある。
 | MWL | `tests/modality/test_worklist_scu.py` | 検索条件の組み合わせ、Pending の打ち切り、タイムアウト、文字コードの読み取り |
 | 送信 | `tests/modality/test_store_scu.py` | C-STORE・C-ECHO の成功・Warning・Failure・接続失敗 |
 | 保管確認 | `tests/modality/test_commitment_scu.py` | 結果が別の Association で返る形と、同じ Association で返る形。要求から結果までのキューの状態、一部失敗、タイムアウト、遅れて届いた結果、相手が停止している、不正な値（未知の Transaction UID・UID の形式でない・未知の Event Type・要求に無い組・別の AE からの結果） |
-| MPPS | `tests/modality/test_mpps_scu.py` | N-CREATE・N-SET の値（予約あり・予約なし）。IN PROGRESS から COMPLETED、撮影が止まったときの DISCONTINUED、相手が停止していたときにキューに残して `mpps retry` で送信する、相手が拒否する、応答なしの後の `0x0111`・`0x0110`、送信先の固定、2つの処理が同時に再送しても重複しない、プロファイルの `services.mpps: false` |
+| MPPS | `tests/modality/test_mpps_scu.py` | N-CREATE・N-SET の値（予約あり・予約なし）。IN PROGRESS から COMPLETED、撮影が止まったときの DISCONTINUED、相手が停止していたときにキューに残して `mpps retry` で送信する、相手が拒否する、応答なしの後の `0x0111`・`0x0110`、送信先の固定、2つの処理が同時に再送信しても重複しない、プロファイルの `services.mpps: false` |
 | 統合 | `tests/integration/test_modality_flow.py` | MWL の SCP → `exam --from-worklist --send` → Storage の SCP のスタブが受信する。受信した画像の値が予約と一致する |
 | Web | `tests/web/` | ページが表示される、HTMX の部分応答、ループバック以外で待ち受けて認証が無ければ起動しない、`Origin` と CSRF トークンの検証、相手から来る値（`<script>`・制御文字）のエスケープ、画面から「取得→選択→撮影→送信」の一連の流れ、CSS の `@theme` の値が [spec/12a](spec/12a_web_screens_and_cli.md) の 10.2 の表と一致すること（`tests/web/test_theme_tokens.py`） |
 | 装置プロファイル | `tests/core/test_device_profile.py` ほか | [spec/13](spec/13_device_profiles.md) の 10 章 |

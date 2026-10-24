@@ -55,7 +55,7 @@ def test_request_failures_share_the_result_place() -> None:
     assert "var place = failurePlace(event)" in js
     assert '"htmx:sendError"' in js
     assert "xhr.status === 401" in js and "shouldSwap = false" in js
-    assert "ログインが切れました。頁を読み込み直して、ログインし直してください" in js
+    assert "ログインが切れました。ページを読み込み直して、ログインし直してください" in js
     assert "routineFailure(xhr.status === 401 ? LOGIN_EXPIRED_MESSAGE" in js
     assert "xhr.status === 401 ? LOGIN_EXPIRED_MESSAGE" in js
 

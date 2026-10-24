@@ -1,7 +1,7 @@
 """保管の確認（Storage Commitment Push Model）の SCU と結果の待ち受け（docs/spec/12 の 8.3）.
 
-- N-ACTION（Action Type 1）で、送れた画像の組を送り先に問う
-- 結果（N-EVENT-REPORT）は、同じ Association（送り先の `commitment_wait_seconds` を
+- N-ACTION（Action Type 1）で、送れた画像の組を送信先に問う
+- 結果（N-EVENT-REPORT）は、同じ Association（送信先の `commitment_wait_seconds` を
   入れたときだけ待つ）か、待ち受け（別の Association）で受ける（8.3.1）
 - 結果の値は相手から来る信用できない値として読む（8.3.2）。ここでは形を確かめて
   読むだけにし、どの要求の結果かを確かめて書くのは呼ぶ側（ModalityService）
@@ -53,7 +53,7 @@ RECEIVABLE_STATUSES = ("waiting", "timed_out")
 _DECODE_ERRORS = (AttributeError, KeyError, TypeError, ValueError, IndexError)
 
 SopReference = tuple[str, str]  # (SOP Class UID, SOP Instance UID)
-# 結果を受けたときに呼ぶ：(相手の AE タイトル, 自分の側の AE タイトル, Event Type,
+# 結果を受けたときに呼ぶ：(相手の AEタイトル, 自分の側の AEタイトル, Event Type,
 # Event Information) → 返す Status
 ReportHandler = Callable[[str, str, int | None, Dataset], int]
 
@@ -139,7 +139,7 @@ def request_commitment(
 ) -> None:
     """N-ACTION で問う。送れなければ AssociationError・StorageCommitmentError.
 
-    送り先の `commitment_wait_seconds` が 0 でなければ、その秒まで同じ Association を
+    送信先の `commitment_wait_seconds` が 0 でなければ、その秒まで同じ Association を
     開けたまま、そこで来る結果を待つ（8.3.1 の例外）。0 ならすぐに離す。
     """
     ae = make_ae(own_ae_title, node.timeout_seconds)
@@ -202,7 +202,7 @@ class CommitmentListener:
         port: int,
         on_report: ReportHandler,
     ) -> None:
-        """`ae_titles` は受ける AE タイトル（設定の装置の全部）。ほかあては断る（8.3.1）."""
+        """`ae_titles` は受ける AEタイトル（設定の装置の全部）。ほかあては断る（8.3.1）."""
         if not ae_titles:
             raise ModalityConfigError("No AE title to listen on for storage commitment")
         self._address = (bind_address, port)
@@ -210,8 +210,8 @@ class CommitmentListener:
         self._ae_titles = {title.strip() for title in ae_titles}
         self._server: Any = None
         ae = AE(ae_title=ae_titles[0])
-        # 呼ばれる AE タイトルが装置の AE タイトルのどれかかは、EVT_REQUESTED で確かめる
-        # （require_called_aet は1つの AE タイトルにしか効かない）
+        # 呼ばれる AEタイトルが装置の AEタイトルのどれかかは、EVT_REQUESTED で確かめる
+        # （require_called_aet は1つの AEタイトルにしか効かない）
         ae.maximum_associations = LISTENER_MAX_ASSOCIATIONS
         # 相手が SCP の役を求める役の交渉を受ける（別の道。PS3.4 J.3.3）
         ae.add_supported_context(StorageCommitmentPushModel, scu_role=True, scp_role=True)
@@ -252,7 +252,7 @@ class CommitmentListener:
             self._server = None
 
     def _check_called_ae_title(self, event: Any) -> None:
-        """装置の AE タイトルでないあての Association を、理由 7 で断る（PS3.8 9.3.4）."""
+        """装置の AEタイトルでないあての Association を、理由 7 で断る（PS3.8 9.3.4）."""
         assoc = event.assoc
         called = str(assoc.requestor.primitive.called_ae_title).strip()
         if called not in self._ae_titles:
@@ -263,7 +263,7 @@ class CommitmentListener:
             # pynetdicom が自分で断るときと同じく、送った後に Association を閉じる
             assoc.kill()
             return
-        # 受けた側の AE タイトルを、呼ばれた AE タイトルにする（結果の宛先を確かめるため）
+        # 受けた側の AEタイトルを、呼ばれた AEタイトルにする（結果の宛先を確かめるため）
         assoc.acceptor.ae_title = called
 
     def _handle(self, event: Any) -> tuple[int, None]:
@@ -282,7 +282,7 @@ class CommitmentManager:
     ) -> CommitmentState:
         """送れた画像の組で N-ACTION を送り、要求の状態を返す。送れなければ「確認の失敗」.
 
-        `own_ae_title` は要求を送る装置の AE タイトル（件を作った装置。無ければ既定）。
+        `own_ae_title` は要求を送る装置の AEタイトル（件を作った装置。無ければ既定）。
         """
         references = self._queue.sent_references(job_id)
         if not references:
@@ -314,7 +314,7 @@ class CommitmentManager:
     ) -> int:
         """結果を確かめて書く。返す値は相手に返す Status（8.3.2）.
 
-        `own_ae_title` は結果が届いた自分の側の AE タイトル。要求を送った装置の AE
+        `own_ae_title` は結果が届いた自分の側の AEタイトル。要求を送った装置の AE
         タイトルと違えば、その要求の結果にしない。
         """
         # 先に Event Type・Transaction UID・相手の AE だけを確かめ、合ったときだけ参照を読む
@@ -339,7 +339,7 @@ class CommitmentManager:
                 expected_ae_title,
             )
             return STATUS_PROCESSING_FAILURE
-        # AE タイトルの前後の空白は、比べる前にそろえる（PS3.5 の AE は空白を値に含めない）
+        # AEタイトルの前後の空白は、比べる前にそろえる（PS3.5 の AE は空白を値に含めない）
         if requested_by and own_ae_title.strip() != requested_by.strip():
             logger.warning(
                 "Storage commitment report to another station: got=%r expected=%r",

@@ -71,7 +71,7 @@ def test_echo_ok_and_json(monkeypatch, capsys, tmp_path, config) -> None:
 
     code, out, _ = run_cli(monkeypatch, capsys, tmp_path, config, "echo", "--worklist")
     assert code == 0
-    assert "つながった" in out
+    assert "接続できました" in out
 
 
 def test_echo_unreachable_is_exit_5(monkeypatch, capsys, tmp_path) -> None:

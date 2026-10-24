@@ -2,7 +2,7 @@
 (function () {
   var root = document.documentElement;
   var COPIED_MS = 1200;
-  var LOGIN_EXPIRED_MESSAGE = "ログインが切れました。頁を読み込み直して、ログインし直してください";
+  var LOGIN_EXPIRED_MESSAGE = "ログインが切れました。ページを読み込み直して、ログインし直してください";
 
   document.addEventListener("click", function (event) {
     var toggle = event.target.closest("#theme-toggle");
@@ -12,7 +12,7 @@
       try {
         window.localStorage.setItem("dtg-theme", next);
       } catch (error) {
-        // 覚えられなくても、いまの頁の地は変わる
+        // 覚えられなくても、いまのページの地は変わる
       }
       return;
     }
@@ -38,7 +38,7 @@
     input.value = input.value.trim().replace(/\s*\^\s*/g, "^").replace(/\s+/g, "^");
   });
 
-  // ワークリストの一覧：行を選んだら「取得し直す」を押せるようにする（docs/spec/12a の
+  // ワークリストの一覧：行を選んだら「再検索」を押せるようにする（docs/spec/12a の
   // 10.4）。行を選ばずに届いた要求は、サーバーの側でも問い合わせずに断る。
   document.addEventListener("change", function (event) {
     var input = event.target;
@@ -212,7 +212,7 @@
   // 選んだルーチンと表の行がずれたまま撮らないように、描き直せるまで撮影の要求を止める
   // （ボタンを押せなくするだけでは、htmx の後処理や撮影のボタンの描き直しで戻るため）
   var ROUTINE_FAILED_MESSAGE =
-    "ルーチンを切り替えられませんでした。頁を読み込み直してから、もう一度選んでください";
+    "ルーチンを切り替えられませんでした。ページを読み込み直してから、もう一度選んでください";
   function routineFailure(message) {
     var fields = document.getElementById("routine-fields");
     if (!fields) {
@@ -316,10 +316,10 @@
     var form = source instanceof HTMLFormElement ? source : source.closest("form");
     var target = detail.target;
     if (target && target.id === "queue") {
-      // PACS の画面の再送：表の上の知らせの場所に出す
+      // PACS の画面の再送信：表の上の知らせの場所に出す
       return document.getElementById("queue-notice");
     }
-    // 一覧・予約の詳細（行を選んだとき）・C-ECHO の結果は、差し替える先にそのまま出す
+    // 一覧・予約の詳細（行を選んだとき）・接続確認の結果は、差し替える先にそのまま出す
     if (
       target &&
       (target.id === "results" || target.id === "detail" || target.id.indexOf("echo-") === 0)
@@ -374,7 +374,7 @@
       stationFailure(
         config.elt,
         xhr.status === 401 ? LOGIN_EXPIRED_MESSAGE :
-          "装置を切り替えられませんでした。頁を読み込み直してから、もう一度選んでください"
+          "装置を切り替えられませんでした。ページを読み込み直してから、もう一度選んでください"
       );
     }
   });
@@ -403,7 +403,7 @@
 
   // PACS の送信ジョブの「詳細」は、押したボタンのそばに浮かぶ枠（popover）に出す。
   // 枠は最上位の層に出るので、表の列の幅は変わらない。枠は操作の欄の左に出し、どの行の
-  // 「詳細」「再送」も覆わない。左に収まらない狭い画面では、ボタンの下に出す。
+  // 「詳細」「もう一度送る」も覆わない。左に収まらない狭い画面では、ボタンの下に出す。
   // popover に対応しないブラウザでは、枠はセルの中にそのまま出る（下の処理は動かさない）
   var SUPPORTS_POPOVER = typeof HTMLElement.prototype.showPopover === "function";
   var DETAIL_GAP = 4;
@@ -417,7 +417,7 @@
       return;
     }
     var rect = button.getBoundingClientRect();
-    // 左に出すときは、同じ行の「再送」も覆わないように、ボタンのある欄の左に出す
+    // 左に出すときは、同じ行の「もう一度送る」も覆わないように、ボタンのある欄の左に出す
     var cell = (button.closest("td") || button).getBoundingClientRect();
     var vw = window.innerWidth;
     popover.style.left = "";
@@ -493,11 +493,11 @@
   });
   // 2秒ごとに表を差し替えても、開いた枠は開いたままにし、フォーカスも同じ役割の要素に
   // 戻す。差し替えと開き直しは同じ描画の前に終わるので、閉じた枠は描かれない。
-  // 差し替えなかったとき（再送の応答待ち）は afterSwap が来ず、次の beforeSwap で覚え直す
+  // 差し替えなかったとき（再送信の応答待ち）は afterSwap が来ず、次の beforeSwap で覚え直す
   var openJob = null;
   var focusedRole = null;
   // 狭い画面で表を横にスクロールしている位置も、差し替えの後に戻す（差し替えると新しい
-  // 要素になり、左端に戻って、押そうとしていた右側の [再送]・[詳細] が動く）
+  // 要素になり、左端に戻って、押そうとしていた右側の [もう一度送る]・[詳細] が動く）
   var queueScroll = 0;
   function queueWrap(queue) {
     return queue.querySelector(".overflow-x-auto");
@@ -530,7 +530,7 @@
       queueScroll = wrap ? wrap.scrollLeft : 0;
     }
   });
-  // 再送を押してから応答が返るまでは、2秒ごとの差し替えを止める（差し替えると、押せなく
+  // 再送信を押してから応答が返るまでは、2秒ごとの差し替えを止める（差し替えると、押せなく
   // したボタンが押せる形で描き直される）。
   // 送信中のボタンは htmx が htmx-request の印を付け、応答の後（表を差し替えて消えたときも）
   // 印は残らない。
@@ -542,7 +542,7 @@
       event.preventDefault();
     }
   });
-  // 再送を押す直前に出ていた再取得（GET）の応答も、再送の応答が返るまでは差し替えない。
+  // 再送信を押す直前に出ていた再取得（GET）の応答も、再送信の応答が返るまでは差し替えない。
   // 差し替えの知らせは差し替える先（#queue）で出るので、再取得かは要求の動詞で見分ける
   document.addEventListener("htmx:beforeSwap", function (event) {
     var config = event.detail.requestConfig;
