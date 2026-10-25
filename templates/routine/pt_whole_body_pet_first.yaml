@@ -1,0 +1,33 @@
+# PET/CT 全身（PT を先に送る並び）。pt_whole_body と同じシリーズで、PT のシリーズを先に
+# 作る。PACS が検査の Modality を最初に届いたシリーズの順に並べるとき、PT\CT と CT\PT の
+# 両方の検査を試せる（ADR-0030）。見出しの言葉は持たず、ルーチンを選んで使う
+name: "pt_whole_body_pet_first"
+label: "全身 PET/CT（PT を先）"
+modality: "PT"
+protocol_name: "WB PETCT"
+keywords: []
+series:
+  - modality: "PT"
+    kind: "pet_ac"
+    description: "PET WB AC"
+    images: 300
+    slice_thickness: 3.27
+  - modality: "PT"
+    kind: "pet_nac"
+    description: "PET WB NAC"
+    images: 300
+    slice_thickness: 3.27
+  - modality: "CT"
+    kind: "localizer"
+    description: "Topogram"
+    images: 1
+    views: ["frontal"]
+  - modality: "CT"
+    kind: "axial"
+    description: "CT WB 3mm"
+    images: 333
+    slice_thickness: 3.0
+  - modality: "CT"
+    kind: "dose_report"
+    description: "Dose Report"
+    images: 1

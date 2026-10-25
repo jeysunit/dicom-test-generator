@@ -1,0 +1,31 @@
+# Modality Template: petct_generic
+# 一般の PET/CT のテンプレート。装置の名前は架空（docs/decisions/0016-generic-template-names.md）。
+# モダリティは PT（予約の Scheduled Procedure Step の Modality と合わせる）。同じ検査に
+# CT のシリーズ（CT Image Storage）と PT のシリーズ（PET Image Storage）が入る（ADR-0030）
+
+info:
+  name: "petct_generic"
+  manufacturer: "DTG Synthetic"
+  model_name: "DTG Synthetic PET/CT"
+  modality: "PT"
+  version: "1.0"
+  description: "一般の PET/CT テンプレート（合成）"
+
+file_meta:
+  media_storage_sop_class_uid: "1.2.840.10008.5.1.4.1.1.128"
+  transfer_syntax_uid: "1.2.840.10008.1.2"
+  implementation_version_name: "DICOM_GEN_1.1"
+
+general_equipment:
+  manufacturer: "DTG Synthetic"
+  institution_name: ""
+  station_name: "DTG_PETCT"
+  manufacturers_model_name: "DTG Synthetic PET/CT"
+  software_versions: "V4.0"
+
+# CT のシリーズの撮影の値
+ct_image:
+  kvp: "120"
+  exposure_time: "500"
+  x_ray_tube_current: "80"
+  convolution_kernel: "STANDARD"

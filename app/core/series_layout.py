@@ -18,7 +18,13 @@ IMAGE_TYPES: dict[str, tuple[str, ...]] = {
     "coronal": ("DERIVED", "SECONDARY", "AXIAL"),
     "sagittal": ("DERIVED", "SECONDARY", "AXIAL"),
     "dose_report": ("DERIVED", "SECONDARY"),
+    # PET Image：再構成した画像は ORIGINAL\PRIMARY（PS3.3 C.8.9.4.1.1 の Note）
+    "pet_ac": ("ORIGINAL", "PRIMARY"),
+    "pet_nac": ("ORIGINAL", "PRIMARY"),
 }
+# PET の画像の行列（架空）と視野（mm）。画素間隔は 視野 ÷ 行列
+PET_MATRIX_SIZE = 128
+PET_FIELD_OF_VIEW_MM = 700.0
 # MR Image の Image Type は Type 1 で値の定めは無い（PS3.3 C.8.3.1.1.1）。装置が出す形に
 # 合わせ、撮像した画像は M（強度画像）・ND（再構成の補正なし）、計算で作った画像は
 # DERIVED\SECONDARY にする

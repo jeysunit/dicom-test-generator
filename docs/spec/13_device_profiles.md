@@ -175,14 +175,20 @@ services:
   Spacing・Slice Thickness・KVP・Rescale Intercept/Slope・Image Type・
   Patient Position・Position Reference Indicator・Instance Creator UID、
   MR の Scanning Sequence・Sequence Variant・Scan Options・MR Acquisition
-  Type・Repetition Time・Inversion Time・Echo Time・Echo Train Length）
+  Type・Repetition Time・Inversion Time・Echo Time・Echo Train Length、
+  PET の Series Date/Time・Units・Counts Source・Series Type・Number of
+  Slices・Corrected Image・Decay Correction・Decay Factor・Collimator
+  Type・Frame Reference Time・Image Index・Acquisition Date/Time・Actual
+  Frame Duration）
   を削除できない（Patient Position は 2C で CT Image Storage では必須。
   PS3.3 C.7.3.1。spec/06 の「CT Image の必須の属性」）。必須の属性を欠いた
   画像は、異常のデータ（`abnormal`）で作成する
 - `empty` と空の `set`（空文字列・空文字列だけの並び）では、DTG が CT Image で
   出力する Type 1 の属性（Image Type・Image Position/Orientation
   (Patient)・Pixel Spacing・Rescale Intercept/Slope、MR の Scanning
-  Sequence・Sequence Variant）を空にできない
+  Sequence・Sequence Variant、PET の Series Date/Time・Units・Counts
+  Source・Series Type・Number of Slices・Decay Correction・Frame Reference
+  Time・Image Index）を空にできない
   （PS3.3 C.7.3.1・C.7.6.2・C.8.2.1）
 - `set` では、上の Type 1 の属性に規格に合わない値を書けない（読み込みの誤りに
   なる。PS3.3 C.7.6.2・C.8.2.1・C.8.2.1.1.1）。Image Type は 2 値以上で、
@@ -251,8 +257,8 @@ services:
 - 重ねた後の文字コードが `character_set.supported` に無い
   （`supported` が空なら検証しない）
 - `storage.sop_classes` の最初の SOP Class を、DTG がまだ作成できない
-  （現在作成できるのは CT Image Storage と MR Image Storage。
-  [ADR-0028](../decisions/0028-mr-images.md)）
+  （現在作成できるのは CT Image Storage・MR Image Storage・PET Image Storage。
+  [ADR-0028](../decisions/0028-mr-images.md)・[ADR-0030](../decisions/0030-pet-ct-studies.md)）
 
 文字コードの比較方法：値を `\` で分け、前後の空白を除く。値 1 が空なら
 `ISO 2022 IR 6` とみなす（PS3.3 C.12.1.1.2）。値が無い（空・属性なし）ときは
@@ -461,7 +467,7 @@ Device profile not found: abc (searched=/a, /b, /repo/profiles/examples)
 | モデル・読み込み・検証・重ね方（装置の値・Transfer Syntax・文字コード・属性・プライベートタグ）・CLI | 実装済み（10 章のテスト） |
 | `exam --profile`・`modality.default_profile`・撮影の画面の「装置」 | 実装済み |
 | `services.mpps`・`services.storage_commitment` を MPPS・保管確認に反映する（[12_modality_emulator.md](12_modality_emulator.md) の 8.3.3・8.4.1） | 実装済み。`services.modality_worklist` は反映しない |
-| `uid`・`pixel`・`series` のフィールド。CT・MR 以外の SOP Class | 未実装。モデルにフィールドが無く、作成できる SOP Class は CT Image Storage と MR Image Storage だけ |
+| `uid`・`pixel`・`series` のフィールド。CT・MR・PT 以外の SOP Class | 未実装。モデルにフィールドが無く、作成できる SOP Class は CT Image Storage・MR Image Storage・PET Image Storage だけ |
 | `worklist` フィールド | 未実装 |
 
 未実装のものは [roadmap.md](../roadmap.md) にもある。

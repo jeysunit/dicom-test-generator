@@ -312,6 +312,46 @@ X-Ray Radiation Dose SR（1.2.840.10008.5.1.4.1.1.88.67。[ADR-0029](../decision
   `{ratio}`・`{X-Ray sources}`）。文字はすべて ASCII
 - 画素・Frame of Reference は持たない。装置のプロファイルが足した画像の属性は外す
 
+### 5.4 PET Image の属性
+
+PET/CT のテンプレート（モダリティ `PT`。[ADR-0030](../decisions/0030-pet-ct-studies.md)）の
+PT のシリーズは、Positron Emission Tomography Image Storage
+（1.2.840.10008.5.1.4.1.1.128）で作る。Modality (0008,0060) は `PT`。同じ検査の CT の
+シリーズは 5.1 のとおり CT Image Storage で、Study Instance UID と Frame of Reference
+UID を PT と共有する。PET Image IOD（PS3.3 A.21）の必須のモジュールを持ち、値は次の
+とおり（架空）。
+
+| 属性 | Type | 値 |
+|------|------|----|
+| Series Date / Time (0008,0021・0031) | 1 | 検査の日時（PET では Type 1。C.8.9.1.1.2） |
+| Units (0054,1001) | 1 | `BQML` |
+| Counts Source (0054,1002) | 1 | `EMISSION` |
+| Series Type (0054,1000) | 1 | `WHOLE BODY\IMAGE` |
+| Number of Slices (0054,0081) | 1 | シリーズの画像数 |
+| Corrected Image (0028,0051) | 2 | 補正あり（`pet_ac`）：`DECY\ATTN\SCAT\DTIM\RAN\NORM`、補正なし（`pet_nac`）：`DECY\DTIM\RAN\NORM` |
+| Decay Correction (0054,1102) | 1 | `START` |
+| Collimator Type (0018,1181) | 2 | `NONE` |
+| Radiopharmaceutical Information Sequence (0054,0016) | 2 | 1 項目：F-18 `(77004003, SCT, "^18^Fluorine")`、FDG `(35321007, SCT, "Fluorodeoxyglucose F^18^")`、投与の日時（撮影の 60 分前）、総量 370 MBq、半減期 6586.2 s、陽電子率 0.97 |
+| Patient Orientation Code Sequence・Patient Gantry Relationship Code Sequence (0054,0410・0414) | 2 | 空 |
+| Image Type (0008,0008) | 1 | `ORIGINAL\PRIMARY` |
+| Samples per Pixel / Photometric Interpretation | 1 | `1` / `MONOCHROME2` |
+| Bits Allocated / Bits Stored / High Bit | 1 | `16` / `16` / `15`。Pixel Representation は `0` |
+| Rescale Intercept / Slope (0028,1052・1053) | 1 | `0` / `1`（PET では Intercept は常に 0。C.8.9.4） |
+| Frame Reference Time (0054,1300) | 1 | `0` |
+| Image Index (0054,1330) | 1 | シリーズの中の画像の番号（1 始まり） |
+| Acquisition Date / Time (0008,0022・0032) | 2 | 検査の日時 |
+| Actual Frame Duration (0018,1242) | 2 | 120000 ms |
+| Decay Factor (0054,1321) | 1C | 投与から撮影までの 60 分の減衰 `2^(3600 / 半減期)` |
+
+- 行列は 128 × 128、視野は 700 mm（Pixel Spacing は 700 ÷ 128）。ジョブの画素の大きさ
+  には従わない。`ct_realistic` は 16 ビットの上限までの値、`simple_text` は 0〜32767 に
+  伸ばす
+- Image Position (Patient)・Image Orientation (Patient)・Slice Location・Slice
+  Thickness は CT の軸位と同じ軸（z）に、スライス厚ずつ進める。PET のスライス厚は
+  3.27 mm（ルーチン）
+- PET の再構成（`pet_ac`・`pet_nac`）は別のシリーズ（C.8.9.1 の Note）。Series
+  Description と Protocol Name はルーチンの値
+
 ## 6. マルチスライスの空間座標
 
 ### 6.1 計算の規則

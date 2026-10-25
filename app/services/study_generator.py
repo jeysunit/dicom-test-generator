@@ -38,13 +38,19 @@ from app.core.exceptions import DICOMValidationError
 from app.core.generator import (
     DOSE_REPORT_CONVERSION_TYPE,
     MR_IMAGE_STORAGE,
+    PT_IMAGE_STORAGE,
     RETIRED_TRANSFER_SYNTAXES,
     SECONDARY_CAPTURE_IMAGE_STORAGE,
 )
 from app.core.models import SeriesConfig
 from pydantic import ValidationError as PydanticValidationError
 from app.core.dose_sr import XRAY_RADIATION_DOSE_SR_STORAGE, dose_events_of
-from app.core.series_layout import dose_events, dose_report_lines, series_spatial
+from app.core.series_layout import (
+    PET_MATRIX_SIZE,
+    dose_events,
+    dose_report_lines,
+    series_spatial,
+)
 from app.core.path_safety import ensure_within, safe_path_component
 from app.core.worklist_charset import ensure_dataset_encodable
 from app.core.worklist_mapping import apply_scheduled_context
@@ -82,13 +88,17 @@ MR_IMAGE_TAG_MAP = {
 }
 
 # この道具が画像を作れるモダリティ（シリーズの Modality。ADR-0028）
-GENERATABLE_MODALITIES = ("CT", "MR")
+GENERATABLE_MODALITIES = ("CT", "MR", "PT")
 # テンプレートと違うモダリティのシリーズに使う SOP Class
 MODALITY_SOP_CLASSES = {
     "CT": CT_IMAGE_STORAGE,
     "MR": MR_IMAGE_STORAGE,
+    "PT": PT_IMAGE_STORAGE,
     "SR": XRAY_RADIATION_DOSE_SR_STORAGE,
 }
+
+# PET の ct_realistic の画素の符号なし 16 ビットの上限を決める Bits（PS3.3 C.8.9.4）
+PET_PIXEL_BITS = 16
 
 # simple_text の画像の Bits Stored（CT Image は 12〜16。PS3.3 C.8.2.1.1.5）
 SIMPLE_TEXT_BITS_STORED = 12
@@ -120,7 +130,9 @@ class StudyGeneratorService:
     """DICOMスタディ生成を担うService Layer."""
 
     # 装置のプロファイルで作れる SOP Class（docs/spec/13 の 4.3。P1 は CT だけ）
-    PROFILE_CREATABLE_SOP_CLASSES = frozenset({CT_IMAGE_STORAGE, MR_IMAGE_STORAGE})
+    PROFILE_CREATABLE_SOP_CLASSES = frozenset(
+        {CT_IMAGE_STORAGE, MR_IMAGE_STORAGE, PT_IMAGE_STORAGE}
+    )
 
     def __init__(self, profile_loader: ProfileLoaderService | None = None) -> None:
         self._template_loader = TemplateLoaderService()
@@ -248,6 +260,7 @@ class StudyGeneratorService:
                 dose_report = series_config.kind == "dose_report"
                 dose_sr = series_config.kind == "dose_sr"
                 mr_series = series_config.modality == "MR"
+                pt_series = series_config.modality == "PT"
                 for image_index in range(series_config.num_images):
                     sop_uid = uid_generator.generate_sop_uid(
                         allow_invalid=config.abnormal.allow_invalid_sop_uid
@@ -291,22 +304,32 @@ class StudyGeneratorService:
                             events=dose_sr_events, **common
                         )
                     else:
-                        pixel_data, bits_stored = self._generate_pixel_data(config, sop_uid)
-                        build = (
-                            self._dicom_builder.build_mr_image
-                            if mr_series
-                            else self._dicom_builder.build_ct_image
-                        )
-                        dataset = build(
-                            spatial=series_spatial(series_config, image_index),
-                            pixel_data=pixel_data,
-                            bits_stored=bits_stored,
-                            **common,
-                        )
+                        spatial = series_spatial(series_config, image_index)
+                        if pt_series:
+                            dataset = self._dicom_builder.build_pt_image(
+                                spatial=spatial,
+                                pixel_data=self._generate_pet_pixels(config, sop_uid),
+                                **common,
+                            )
+                        else:
+                            pixel_data, bits_stored = self._generate_pixel_data(config, sop_uid)
+                            build = (
+                                self._dicom_builder.build_mr_image
+                                if mr_series
+                                else self._dicom_builder.build_ct_image
+                            )
+                            dataset = build(
+                                spatial=spatial,
+                                pixel_data=pixel_data,
+                                bits_stored=bits_stored,
+                                **common,
+                            )
                     self._apply_template_attributes(
                         dataset,
                         template,
-                        ct_image=not (dose_report or dose_sr or mr_series),
+                        # テンプレートのモダリティが PET/CT の PT でも、CT のシリーズには
+                        # テンプレートの CT の撮影の値を当てる
+                        ct_image=series_config.modality == "CT" and not dose_report,
                         mr_image=mr_series,
                     )
                     if scheduled is not None:
@@ -538,6 +561,19 @@ class StudyGeneratorService:
         # 文字の画像も CT の 16 ビットで書く（PS3.3 C.8.2.1.1.5。DICOMBuilder が広げる）
         return pixels, SIMPLE_TEXT_BITS_STORED
 
+    def _generate_pet_pixels(self, config: GenerationConfig, sop_uid: str) -> np.ndarray:
+        """PET の画素。行列は PET の大きさ（128）で、ジョブの画素の大きさには従わない."""
+        if isinstance(config.pixel_spec, PixelSpecCTRealistic):
+            return self._pixel_generator.generate_ct_realistic(
+                width=PET_MATRIX_SIZE,
+                height=PET_MATRIX_SIZE,
+                pattern=config.pixel_spec.pattern,
+                bits_stored=PET_PIXEL_BITS,
+            )
+        return self._pixel_generator.generate_simple_text(
+            sop_instance_uid=sop_uid, width=PET_MATRIX_SIZE, height=PET_MATRIX_SIZE
+        )
+
     @staticmethod
     def _ensure_encodable(dataset: Dataset, scheduled: bool) -> None:
         """文字の属性が Specific Character Set で表せるかを確かめる.
@@ -583,6 +619,12 @@ class StudyGeneratorService:
         update: dict[str, object] = {"modality": template_modality}
         if template_modality == "MR" and series.kind == "axial":
             update["kind"] = "acquisition"
+        elif template_modality == "PT" and series.kind == "axial":
+            # PET/CT のテンプレートで手で入れたシリーズは、減弱補正ありの PET にする
+            update["kind"] = "pet_ac"
+        elif template_modality == "PT" and series.kind in ("localizer", "dose_report"):
+            # 位置決めと線量の画面は CT の画像
+            update["modality"] = "CT"
         try:
             # 組み合わせの検証（MR に冠状断など）をやり直す
             return SeriesConfig.model_validate({**series.model_dump(), **update})

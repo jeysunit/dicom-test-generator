@@ -36,6 +36,7 @@ ADR の一覧と、ADR に固有の書き方です。ドキュメントに共通
 | [0027](0027-emergency-append.md) | 緊急の患者の追加撮影は、前の撮影の Study Instance UID と同じ患者を CLI で指定したときだけ受ける | 採用 |
 | [0028](0028-mr-images.md) | MR の画像は、シリーズのモダリティで MR Image Storage として作る | 採用 |
 | [0029](0029-dose-report-sr.md) | CT の線量の報告は、線量の画面のほかに X-Ray Radiation Dose SR のシリーズでも作れる | 採用 |
+| [0030](0030-pet-ct-studies.md) | PET/CT の検査は、同じ Study に CT と PT のシリーズを入れて作る | 採用 |
 
 0001〜0013 は、この形式を決める前に書いたものです。冒頭の行をこの形式に
 そろえ、本文は語の置き換えだけにとどめています。

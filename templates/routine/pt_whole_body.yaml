@@ -1,0 +1,35 @@
+# PET/CT 全身（PET/CT の既定のルーチン）。CT のシリーズ（位置決め・減弱補正用の CT・
+# 線量の画面）と PT のシリーズ（補正あり・補正なし）が同じ検査に入る。CT を先に撮り、
+# PT を後に撮る並び。画像数は 撮影範囲（頭頂から大腿の付け根まで 1000mm の想定）÷
+# スライス厚（ADR-0030）
+name: "pt_whole_body"
+label: "全身 PET/CT"
+modality: "PT"
+protocol_name: "WB PETCT"
+default: true
+keywords: ["PET", "FDG", "全身", "WHOLE BODY"]
+series:
+  - modality: "CT"
+    kind: "localizer"
+    description: "Topogram"
+    images: 1
+    views: ["frontal"]
+  - modality: "CT"
+    kind: "axial"
+    description: "CT WB 3mm"
+    images: 333
+    slice_thickness: 3.0
+  - modality: "PT"
+    kind: "pet_ac"
+    description: "PET WB AC"
+    images: 300
+    slice_thickness: 3.27
+  - modality: "PT"
+    kind: "pet_nac"
+    description: "PET WB NAC"
+    images: 300
+    slice_thickness: 3.27
+  - modality: "CT"
+    kind: "dose_report"
+    description: "Dose Report"
+    images: 1
