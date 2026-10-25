@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Form, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from app.core.exceptions import DICOMGeneratorError
 from app.modality.queue import QueueJob
@@ -22,6 +23,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 QUEUE_POLL_TRIGGER = "every 2s"
+HTTP_NO_CONTENT = 204
+# すべての相手への接続確認は、同時に 1 つだけ（重ねて押されても C-ECHO を重ねて送らない）
+CHECK_ALL_LOCK = threading.Lock()
 
 # 検索の帯の「期間」。値は画面と要求の取り決め
 PERIOD_CHOICES = (("all", "すべて"), ("today", "今日"), ("week", "1 週間"))
@@ -170,9 +174,18 @@ def _conn_context(request: Request) -> dict[str, Any]:
 
 
 @router.post("/link/check", response_class=HTMLResponse)
-def link_check(request: Request) -> HTMLResponse:
-    """上の帯の接続の状態の「接続確認」：ワークリストの取得先とすべての送信先に C-ECHO を送る（10.3）."""
-    _check_all(request)
+def link_check(request: Request) -> Response:
+    """上の帯の接続の状態の「接続確認」：ワークリストの取得先とすべての送信先に C-ECHO を送る（10.3）.
+
+    確かめている最中にもう一度届いたら（別の応答で中身が差し替わり、押せるボタンが戻ったとき）、
+    重ねて送らず 204 で何も差し替えない。
+    """
+    if not CHECK_ALL_LOCK.acquire(blocking=False):
+        return Response(status_code=HTTP_NO_CONTENT)
+    try:
+        _check_all(request)
+    finally:
+        CHECK_ALL_LOCK.release()
     # 中身（#band）を結果で差し替え、全体の状態の札も同じ応答で差し替える
     return render(request, "_link_check.html", oob_band=True)
 
