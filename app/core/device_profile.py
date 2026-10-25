@@ -55,6 +55,7 @@ PROTECTED_KEYWORDS: frozenset[str] = frozenset(
         "SoftwareVersions",
         "DeviceSerialNumber",
         "StationName",
+        "Modality",
     }
 )
 
@@ -90,10 +91,10 @@ OMIT_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
 
 # attributes.empty と空の attributes.set で空にできない属性（docs/spec/13 の 3.3）。
 # この道具が CT Image で出す Type 1 の属性で、PROTECTED_KEYWORDS に無いもの
-# （PS3.3 C.7.3.1・C.7.6.2・C.8.2.1）。Type 1 は空の値を許さない
+# （PS3.3 C.7.3.1・C.7.6.2・C.8.2.1）。Type 1 は空の値を許さない。
+# Modality は device.modality が決めるので PROTECTED_KEYWORDS に入れている
 EMPTY_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
     {
-        "Modality",
         "ImageType",
         "ImagePositionPatient",
         "ImageOrientationPatient",
@@ -102,6 +103,19 @@ EMPTY_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
         "RescaleSlope",
     }
 )
+
+# attributes.set で Type 1 の属性に書ける値の数（VM）。Image Type は 2 以上、ほかは固定
+# （PS3.3 C.7.6.2・C.8.2.1）
+_TYPE1_VALUE_COUNTS: dict[str, int] = {
+    "ImagePositionPatient": 3,
+    "ImageOrientationPatient": 6,
+    "PixelSpacing": 2,
+    "RescaleIntercept": 1,
+    "RescaleSlope": 1,
+}
+_IMAGE_TYPE_MIN_VALUES = 2
+# Image Type の値 1（PS3.3 C.8.2.1.1.1）
+_IMAGE_TYPE_FIRST_VALUES = frozenset({"ORIGINAL", "DERIVED"})
 
 # 数の値だけを受ける VR（バイナリの数）
 _BINARY_NUMBER_VRS = frozenset({"US", "UL", "SS", "SL", "FL", "FD"})
@@ -162,6 +176,40 @@ def _check_value_for_vr(value: AttributeValue, vr: str, label: str) -> None:
         except ValueError as exc:
             reason = str(exc).split(" Please see")[0]
             raise ValueError(f"{label}: {reason}") from exc
+
+
+def _check_type1_value(keyword: str, value: AttributeValue) -> None:
+    """Type 1 の属性に、規格に合わない値（値の数・先頭の値・0）を書かせない.
+
+    意図して壊した画像は異常のデータ（abnormal）の仕事で、プロファイルは
+    正しい装置の写しにする。空の値は呼び出し側が先に断っている。
+    """
+    values = value if isinstance(value, list) else [value]
+    if keyword == "ImageType":
+        if len(values) < _IMAGE_TYPE_MIN_VALUES:
+            raise ValueError(
+                f"{keyword} is a Type 1 attribute with at least "
+                f"{_IMAGE_TYPE_MIN_VALUES} values (PS3.3 C.8.2.1.1.1)"
+            )
+        if values[0] not in _IMAGE_TYPE_FIRST_VALUES:
+            raise ValueError(
+                f"{keyword}: the first value must be ORIGINAL or DERIVED "
+                "(PS3.3 C.8.2.1.1.1)"
+            )
+        return
+    count = _TYPE1_VALUE_COUNTS[keyword]
+    if len(values) != count:
+        raise ValueError(
+            f"{keyword} is a Type 1 attribute that needs exactly {count} "
+            f"value(s), got {len(values)}"
+        )
+    for item in values:
+        try:
+            number = float(item)
+        except ValueError:
+            raise ValueError(f"{keyword}: {item!r} is not a number") from None
+        if keyword == "RescaleSlope" and number == 0:
+            raise ValueError(f"{keyword} must not be 0 (it cannot convert pixels)")
 
 
 class _StrictModel(BaseModel):
@@ -304,6 +352,8 @@ class ProfileAttributes(_StrictModel):
                     if " or " in vr:
                         raise ValueError(f"{keyword}: VR {vr} is ambiguous")
                     _check_value_for_vr(self.set_values[keyword], vr, keyword)
+                    if keyword == "ImageType" or keyword in _TYPE1_VALUE_COUNTS:
+                        _check_type1_value(keyword, self.set_values[keyword])
         return self
 
 

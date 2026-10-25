@@ -139,7 +139,6 @@ def _profile(attributes: dict) -> dict:
         {"set": {"ImageType": ""}},
         {"set": {"ImageType": []}},
         {"set": {"ImageType": ["", ""]}},
-        {"empty": ["Modality"]},
         {"empty": ["PixelSpacing"]},
         {"set": {"RescaleSlope": " "}},
     ],
@@ -148,6 +147,58 @@ def test_profile_cannot_empty_type1_attributes(attributes: dict) -> None:
     # Type 1 は空の値を許さない（PS3.3 C.8.2.1・C.7.3.1・C.7.6.2）
     with pytest.raises(ValidationError, match="Type 1"):
         DeviceProfile.model_validate(_profile(attributes))
+
+
+@pytest.mark.parametrize(
+    "attributes",
+    [
+        {"empty": ["Modality"]},
+        {"set": {"Modality": "MR"}},
+        {"set": {"Modality": "CT"}},
+    ],
+)
+def test_profile_cannot_touch_modality(attributes: dict) -> None:
+    # Modality は device.modality が決める。set で別の値にも空にもできない
+    with pytest.raises(ValidationError, match="Modality cannot be changed"):
+        DeviceProfile.model_validate(_profile(attributes))
+
+
+@pytest.mark.parametrize(
+    ("attributes", "fragment"),
+    [
+        ({"set": {"ImageType": "FOO"}}, "at least 2 values"),
+        ({"set": {"ImageType": ["ORIGINAL"]}}, "at least 2 values"),
+        ({"set": {"ImageType": ["FOO", "PRIMARY"]}}, "ORIGINAL or DERIVED"),
+        ({"set": {"PixelSpacing": 0.5}}, "exactly 2"),
+        ({"set": {"PixelSpacing": [0.5, 0.5, 0.5]}}, "exactly 2"),
+        ({"set": {"ImageOrientationPatient": [1, 0, 0]}}, "exactly 6"),
+        ({"set": {"ImagePositionPatient": [0, 0]}}, "exactly 3"),
+        ({"set": {"RescaleIntercept": [0, 1]}}, "exactly 1"),
+        ({"set": {"RescaleSlope": 0}}, "must not be 0"),
+        ({"set": {"RescaleSlope": "0.0"}}, "must not be 0"),
+    ],
+)
+def test_profile_cannot_set_wrong_type1_values(attributes: dict, fragment: str) -> None:
+    # Type 1 に、値の数や先頭の値が規格に合わない値を書かせない
+    # （PS3.3 C.7.6.2・C.8.2.1・C.8.2.1.1.1）。壊した画像は abnormal の仕事
+    with pytest.raises(ValidationError, match=fragment):
+        DeviceProfile.model_validate(_profile(attributes))
+
+
+@pytest.mark.parametrize(
+    "attributes",
+    [
+        {"set": {"ImageType": ["ORIGINAL", "PRIMARY"]}},
+        {"set": {"ImageType": ["DERIVED", "SECONDARY", "AXIAL", "EXTRA"]}},
+        {"set": {"PixelSpacing": [0.5, 0.75]}},
+        {"set": {"ImageOrientationPatient": [1, 0, 0, 0, 1, 0]}},
+        {"set": {"ImagePositionPatient": [-100.5, -100.5, 0]}},
+        {"set": {"RescaleIntercept": -1024, "RescaleSlope": 1}},
+        {"set": {"RescaleSlope": "2"}},
+    ],
+)
+def test_profile_can_set_valid_type1_values(attributes: dict) -> None:
+    DeviceProfile.model_validate(_profile(attributes))
 
 
 @pytest.mark.parametrize(

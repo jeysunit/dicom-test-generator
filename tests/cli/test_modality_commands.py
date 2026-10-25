@@ -189,7 +189,9 @@ def test_exam_emergency_unrepresentable_char_is_exit_4(
     )
 
     assert code == 4
-    assert "髙" in err
+    # どの属性かは出すが、表せない字そのもの（氏名の一部）は出さない
+    assert "PatientName" in err
+    assert "髙" not in err
     assert list((tmp_path / "output").rglob("*.dcm")) == []
 
 

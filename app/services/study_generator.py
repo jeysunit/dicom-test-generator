@@ -477,16 +477,19 @@ class StudyGeneratorService:
         Job の値（紹介医名・検査の説明など）も、宣言の無い字のまま書けば
         受け手で `?` や別の字に化ける。
         """
-        if scheduled:
-            ensure_dataset_encodable(dataset)
-            return
         try:
             ensure_dataset_encodable(dataset)
         except WorklistMappingError as exc:
-            # 表せない字そのもの（氏名の一部など）は文にもログにも出さない。
-            # 元の例外は字を含むので、つながりを切る（ログの exc_info に出るため）
+            # 表せない字そのもの（氏名の一部など）は、どちらの経路も文・details・
+            # ログに出さない。元の例外は字を含むので、つながりを切る
+            # （ログの exc_info に出るため）
             attribute = str(exc.details.get("attribute", ""))
             character_set = str(exc.details.get("character_set", ""))
+            if scheduled:
+                raise WorklistMappingError(
+                    f"{attribute} に {character_set} で表せない字があります",
+                    {"attribute": attribute, "character_set": character_set},
+                ) from None
             raise DICOMValidationError(
                 f"{attribute} に {character_set} で表せない字があります。"
                 "Job の character_set か病院テンプレートの文字コードを見直してください",
