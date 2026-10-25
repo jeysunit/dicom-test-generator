@@ -1,5 +1,5 @@
 {% if result %}
-<span role="status" class="text-value">成功（{{ result.elapsed_ms }} ms）</span>
+<span role="status" class="inline-flex items-center gap-1 text-value"><span class="st" data-k="ok">成功</span>{{ result.elapsed_ms }} ms</span>
 {% else %}
-<span role="alert" class="text-danger">失敗（{{ error }}）</span>
+<span role="alert" class="inline-flex items-center gap-1 text-foreground"><span class="st" data-k="ng">失敗</span>{{ error }}</span>
 {% endif %}

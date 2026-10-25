@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% block title %}PACS{% endblock %}
 {% block content %}
-<section class="panel">
-  <h2 class="panel-title">送信先</h2>
-  <div class="overflow-x-auto">
+<div class="pagehead"><h1>PACS</h1></div>
+<section class="sec">
+  <h2 class="sec-title">送信先</h2>
+  <div class="sec-body overflow-x-auto">
     <table class="table">
       <thead>
         <tr>
@@ -23,7 +24,7 @@
           <td class="font-mono">{{ destination.host }}:{{ destination.port }}</td>
           <td>{{ "使う" if destination.storage_commitment else "使わない" }}</td>
           <td>
-            <button type="button" class="btn btn-outline" hx-post="/pacs/echo/{{ destination.name|urlencode }}" hx-target="#echo-{{ loop.index }}" hx-disabled-elt="this">
+            <button type="button" class="btn btn-outline btn-row" hx-post="/pacs/echo/{{ destination.name|urlencode }}" hx-target="#echo-{{ loop.index }}" hx-disabled-elt="this">
               <span class="icon icon-activity" aria-hidden="true"></span>接続確認
             </button>
           </td>
@@ -34,17 +35,19 @@
     </table>
   </div>
 </section>
-<section class="panel">
-  <div class="mb-4 flex flex-wrap items-center gap-3">
-    <h2 class="panel-title mb-0">送信ジョブと履歴</h2>
+<section class="sec">
+  <div class="sec-head">
+    <h2>送信ジョブと履歴</h2>
     {# 再送信の応答を待つ間は、どの行の [もう一度送る] も [失敗をすべて再送信] も押せない（10.6） #}
-    <button type="button" id="retry-failed" class="btn btn-outline ml-auto" hx-post="/pacs/retry-failed" hx-target="#queue" hx-disabled-elt="#queue [data-resend], #retry-failed">
+    <button type="button" id="retry-failed" class="btn btn-outline" hx-post="/pacs/retry-failed" hx-target="#queue" hx-disabled-elt="#queue [data-resend], #retry-failed">
       <span class="icon icon-refresh-cw" aria-hidden="true"></span>失敗をすべて再送信
     </button>
   </div>
-  <div id="queue-notice" aria-live="polite"></div>
-  <div id="queue" hx-get="/pacs/queue" hx-trigger="{{ poll_trigger }}">
-    {% include "_queue.html" %}
+  <div class="sec-body">
+    <div id="queue-notice" aria-live="polite"></div>
+    <div id="queue" hx-get="/pacs/queue" hx-trigger="{{ poll_trigger }}">
+      {% include "_queue.html" %}
+    </div>
   </div>
 </section>
 {% endblock %}

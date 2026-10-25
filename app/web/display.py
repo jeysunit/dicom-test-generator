@@ -15,18 +15,20 @@ TIME_MIN_LENGTH = 4
 PN_GROUPS = 3
 SEX_LABELS = {"M": "男", "F": "女", "O": "その他"}
 STATUS_LABELS = {"pending": "送信待ち", "sending": "送信中", "sent": "送信完了", "failed": "送信失敗"}
-# 保管の確認の状態（10.6・10.8）と、出すときの色の印（送信ジョブの状態と同じ CSS を使う）
+# 状態の札の種類（`.st` の `data-k`。枠と印は画面の決まりの状態の札と同じ）
+STATUS_KINDS = {"pending": "plan", "sending": "wait", "sent": "ok", "failed": "ng"}
+# 保管の確認の状態（10.6・10.8）と、出すときの札の種類（送信ジョブの状態と同じ札を使う）
 COMMITMENT_LABELS = {
     "waiting": "確認待ち",
     "confirmed": "確認済",
     "failed": "確認の失敗",
     "timed_out": "確認の時間切れ",
 }
-COMMITMENT_STATUS_CLASSES = {
-    "waiting": "pending",
-    "confirmed": "sent",
-    "failed": "failed",
-    "timed_out": "failed",
+COMMITMENT_KINDS = {
+    "waiting": "wait",
+    "confirmed": "ok",
+    "failed": "ng",
+    "timed_out": "ng",
 }
 DEFAULT_CHARSET_LABEL = "初期設定"
 
