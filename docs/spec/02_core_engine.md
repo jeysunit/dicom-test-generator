@@ -349,7 +349,8 @@ def apply_abnormal_to_dataset(
 - **定義の範囲**：異常のデータで作成する規格の違反は、上の表のタグの壊し方・
   Pixel Data の削除・`allow_invalid_sop_uid` の SOP Instance UID の 0 始まり
   だけ。Transfer Syntax・画素値・File Meta は定義に含まれない（廃止された
-  Explicit VR Big Endian は異常のデータでも作成しない）。通常の経路の規格の
+  Explicit VR Big Endian は異常のデータでも作成しない。`apply_abnormal_to_dataset`
+  に直に渡されても、入口で `DICOMValidationError` で断る）。通常の経路の規格の
   チェックは、この定義の壊し方を妨げない（[06_dicom_rules.md](06_dicom_rules.md)
   の「通常の経路と異常のデータの経路」、
   [ADR-0014](../decisions/0014-separate-normal-and-abnormal-paths.md)）

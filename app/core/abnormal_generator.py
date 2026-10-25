@@ -11,7 +11,7 @@ from pydicom.dataelem import RawDataElement
 from pydicom.dataset import Dataset
 from pydicom.tag import Tag
 
-from .exceptions import GenerationError
+from .exceptions import DICOMValidationError, GenerationError
 
 ABNORMAL_LEVELS = ("none", "mild", "moderate", "severe")
 DEFAULT_APPEND_LENGTH = 8
@@ -156,6 +156,8 @@ ABNORMAL_TARGET_TAGS: tuple[tuple[str, str, int, int | None], ...] = (
 )
 
 _NUMERIC_STRING_VRS = frozenset({"IS", "DS"})
+# 廃止の転送の形（PS3.5 A.3）。異常のデータでも扱わないので、入口で断る
+_EXPLICIT_VR_BIG_ENDIAN = "1.2.840.10008.1.2.2"
 
 
 def apply_abnormal_to_dataset(dataset: Dataset, generator: AbnormalGenerator) -> None:
@@ -168,13 +170,22 @@ def apply_abnormal_to_dataset(dataset: Dataset, generator: AbnormalGenerator) ->
     pydicom が代入や書き出しで受けない壊し方は、書ける形に直す。
     数値の VR（IS・DS）の不正な文字列は、検証を通らない生の値として入れる。
     文字列の VR に入る整数は、文字列にして入れる。
+
+    廃止の Explicit VR Big Endian（PS3.5 A.3）の Dataset は、レベルにかかわらず
+    ``DICOMValidationError`` で断る（Dataset は変えない）。生の値は常に
+    リトルエンディアンで作る。
     """
+    transfer_syntax = str(getattr(dataset.file_meta, "TransferSyntaxUID", ""))
+    if transfer_syntax == _EXPLICIT_VR_BIG_ENDIAN:
+        raise DICOMValidationError(
+            f"Explicit VR Big Endian ({transfer_syntax}) is retired and is not "
+            "handled by abnormal data (PS3.5 A.3)",
+            details={"tag": "TransferSyntaxUID"},
+        )
     if generator.level == "none":
         return
 
-    transfer_syntax = str(getattr(dataset.file_meta, "TransferSyntaxUID", ""))
     is_implicit = transfer_syntax == "1.2.840.10008.1.2"
-    is_little = transfer_syntax != "1.2.840.10008.1.2.2"
 
     for keyword, vr, tag_type, max_length in ABNORMAL_TARGET_TAGS:
         if keyword not in dataset:
@@ -192,7 +203,7 @@ def apply_abnormal_to_dataset(dataset: Dataset, generator: AbnormalGenerator) ->
             raw = broken.encode("ascii", errors="replace")
             if len(raw) % 2:
                 raw += b" "
-            dataset[tag] = RawDataElement(tag, vr, len(raw), raw, 0, is_implicit, is_little)
+            dataset[tag] = RawDataElement(tag, vr, len(raw), raw, 0, is_implicit, True)
         else:
             # わざと壊した値なので、pydicom の「VR に合わない」警告は出さない
             with warnings.catch_warnings():

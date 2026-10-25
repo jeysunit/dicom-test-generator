@@ -4,9 +4,11 @@ import re
 from unittest.mock import patch
 
 import pytest
+from pydicom.dataelem import RawDataElement
+from pydicom.dataset import Dataset, FileMetaDataset
 
-from app.core.abnormal_generator import AbnormalGenerator
-from app.core.exceptions import GenerationError
+from app.core.abnormal_generator import AbnormalGenerator, apply_abnormal_to_dataset
+from app.core.exceptions import DICOMValidationError, GenerationError
 
 
 def test_none_level_returns_normal_value() -> None:
@@ -162,3 +164,39 @@ def test_level_property() -> None:
     generator = AbnormalGenerator(level="moderate")
 
     assert generator.level == "moderate"
+
+
+@pytest.mark.parametrize("level", ["none", "mild", "moderate", "severe"])
+def test_apply_to_dataset_rejects_retired_big_endian(level: str) -> None:
+    # 廃止の Explicit VR Big Endian（PS3.5 A.3）は、異常のデータの約束に無い。
+    # 公開した関数に直に渡されても、入口で断って何も変えない
+    dataset = Dataset()
+    dataset.file_meta = FileMetaDataset()
+    dataset.file_meta.TransferSyntaxUID = "1.2.840.10008.1.2.2"
+    dataset.PatientID = "P000001"
+    dataset.InstanceNumber = "1"
+
+    with pytest.raises(DICOMValidationError, match="retired"):
+        apply_abnormal_to_dataset(dataset, AbnormalGenerator(level=level))
+
+    assert dataset.PatientID == "P000001"
+    assert dataset.InstanceNumber == "1"
+
+
+@pytest.mark.parametrize(
+    ("uid", "implicit"),
+    [("1.2.840.10008.1.2", True), ("1.2.840.10008.1.2.1", False)],
+)
+def test_apply_to_dataset_writes_little_endian_raw_values(uid: str, implicit: bool) -> None:
+    # IS・DS の壊した値は、リトルエンディアンの生の値として入る
+    dataset = Dataset()
+    dataset.file_meta = FileMetaDataset()
+    dataset.file_meta.TransferSyntaxUID = uid
+    dataset.InstanceNumber = "1"
+
+    apply_abnormal_to_dataset(dataset, AbnormalGenerator(level="mild"))
+
+    raw = dataset.get_item("InstanceNumber")
+    assert isinstance(raw, RawDataElement)
+    assert raw.is_little_endian is True
+    assert raw.is_implicit_VR is implicit
