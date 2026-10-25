@@ -8,6 +8,7 @@ from modality_peers import free_port
 from web_helpers import csrf_token, make_client, post_headers, query_worklist
 
 from app.web.link_status import LinkStatus
+from app.web.routes.pacs import CHECK_ALL_LOCK
 
 _BADGE = re.compile(r'<span id="conn-state" class="st" data-k="(\w+)">([^<]+)</span>')
 
@@ -139,3 +140,18 @@ def test_link_check_marks_a_peer_that_does_not_answer(tmp_path, worklist_scp) ->
     assert 'data-k="ok">成功</span>' in checked
     assert 'data-k="ng">失敗</span>' in checked
     assert re.search(r'<span id="conn-state" hx-swap-oob="true" class="st" data-k="ng">', checked)
+
+
+def test_link_check_does_not_overlap_a_running_check(tmp_path, worklist_scp, storage_scp) -> None:
+    # 確かめている最中に、差し替わった中身の新しいボタンから重ねて届いても、C-ECHO を重ねない
+    client = make_client(tmp_path, worklist_scp.port, storage_scp.port)
+    token = csrf_token(client, "/worklist")
+
+    with CHECK_ALL_LOCK:
+        overlapped = client.post("/link/check", headers=post_headers(token))
+
+    assert overlapped.status_code == 204
+    assert overlapped.text == ""
+    assert client.app.state.link_status.worklist is None
+    # 前の確認が終われば、また確かめられる
+    assert client.post("/link/check", headers=post_headers(token)).status_code == 200
