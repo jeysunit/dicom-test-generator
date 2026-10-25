@@ -34,7 +34,13 @@
     <dt>文字コード</dt>
     <dd>{% if band.worklist_charset is none %}未取得{% else %}{{ band.worklist_charset|charset_label }}{% endif %} → {{ band.image_charset|charset_label }}</dd>
   </dl>
-  <p class="text-xs text-label">送信先の接続確認は、左のナビの PACS の画面で行う。</p>
+  {# ワークリストの取得先とすべての送信先に C-ECHO を送り、この中身を結果で差し替える #}
+  <div class="ft">
+    <button type="button" class="btn btn-sm" hx-post="/link/check" hx-target="#band" hx-swap="outerHTML" hx-disabled-elt="this">
+      <span class="icon icon-activity" aria-hidden="true"></span>接続確認
+    </button>
+    <a class="btn btn-sm" href="/pacs">PACS を開く</a>
+  </div>
   {% if band.station_notice %}<p role="status" class="text-xs text-danger">{{ band.station_notice }}</p>{% endif %}
   {% if band.error %}<p role="alert" class="text-xs text-danger">{{ band.error }}</p>{% endif %}
 </div>

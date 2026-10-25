@@ -238,13 +238,18 @@ form.htmx-request .busy-send {
   mask: var(--icon) center / contain no-repeat;
 }
 .icon-activity { --icon: url("/static/icons/activity.svg"); }
+.icon-camera { --icon: url("/static/icons/camera.svg"); }
 .icon-check { --icon: url("/static/icons/check.svg"); }
 .icon-copy { --icon: url("/static/icons/copy.svg"); }
 .icon-info { --icon: url("/static/icons/info.svg"); }
+.icon-list { --icon: url("/static/icons/list.svg"); }
 .icon-moon { --icon: url("/static/icons/moon.svg"); }
+.icon-panel-left { --icon: url("/static/icons/panel-left.svg"); }
 .icon-refresh-cw { --icon: url("/static/icons/refresh-cw.svg"); }
 .icon-search { --icon: url("/static/icons/search.svg"); }
 .icon-send { --icon: url("/static/icons/send.svg"); }
+.icon-server { --icon: url("/static/icons/server.svg"); }
+.icon-settings { --icon: url("/static/icons/settings.svg"); }
 .icon-sun { --icon: url("/static/icons/sun.svg"); }
 .icon-triangle-alert { --icon: url("/static/icons/triangle-alert.svg"); }
 

@@ -109,6 +109,26 @@ def pacs_echo(request: Request, name: str) -> HTMLResponse:
     return render(request, "_echo_result.html", oob_band=True, result=result, error="")
 
 
+@router.post("/link/check", response_class=HTMLResponse)
+def link_check(request: Request) -> HTMLResponse:
+    """上の帯の接続の状態の「接続確認」：ワークリストの取得先とすべての送信先に C-ECHO を送る（10.3）."""
+    link = request.app.state.link_status
+    service = service_of(request)
+    try:
+        service.echo(worklist=True)
+        link.record_worklist(True)
+    except DICOMGeneratorError:
+        link.record_worklist(False)
+    for destination in service.config.destinations:
+        try:
+            service.echo(destination=destination.name)
+            link.record_destination(destination.name, True)
+        except DICOMGeneratorError:
+            link.record_destination(destination.name, False)
+    # 中身（#band）を結果で差し替え、全体の状態の札も同じ応答で差し替える
+    return render(request, "_link_check.html", oob_band=True)
+
+
 @router.post("/pacs/retry/{job_id}", response_class=HTMLResponse)
 def pacs_retry(request: Request, job_id: int, filters: FromForm) -> HTMLResponse:
     try:
