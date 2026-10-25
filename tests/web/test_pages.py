@@ -89,7 +89,9 @@ def test_worklist_query_partial_lists_items_and_marks(client) -> None:
 
 def test_worklist_zero_items_offers_emergency(client) -> None:
     html = _query(client, patient_id="NOBODY")
-    assert "予約はありません。条件を広げるか、緊急の患者で撮ってください" in html
+    # 空の状態：1 行目に事実、2 行目に次の手（CLI の文言は変えない）
+    assert "<b>予約はありません。</b>" in html
+    assert "<span>条件を広げるか、緊急の患者で撮ってください</span>" in html
     assert 'href="/exam"' in html
 
 

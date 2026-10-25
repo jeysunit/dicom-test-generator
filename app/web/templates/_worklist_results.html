@@ -11,13 +11,20 @@
 {% if not results.queried %}
 <p class="text-label">まだ取得していません。条件を選んで「ワークリスト検索」を押してください。</p>
 {% elif not results.rows %}
-<div class="panel space-y-3">
-  <p>{{ results.zero_message }}</p>
-  {% if results.non_ascii_hint %}<p class="text-xs text-label">{{ results.non_ascii_hint }}</p>{% endif %}
+{# 空の状態：1 行目に事実、2 行目に次の手（操作は 1 つまで） #}
+<div class="empty">
+  <b>{{ results.zero_fact }}</b>
+  <span>{{ results.zero_next }}</span>
+  {% if results.non_ascii_hint %}<span class="text-xs">{{ results.non_ascii_hint }}</span>{% endif %}
   <a class="btn btn-outline" href="/exam">緊急の患者で撮る</a>
 </div>
 {% else %}
 <form id="pick" action="/exam" method="get" class="panel space-y-4">
+  {# 件数の行：件数と取得の時刻。一覧の上に置く #}
+  <div class="count-row">
+    <span><b class="count-n">{{ results.rows|length }}</b> 件（{{ results.queried_at }} {{ utc_offset() }} に取得）</span>
+    {% if results.partial_message %}<span role="status" class="text-xs text-danger">{{ results.partial_message }}</span>{% endif %}
+  </div>
   <div class="overflow-x-auto">
     <table class="table">
       <thead>
@@ -42,7 +49,7 @@
           <td class="name-cell">
             <div class="font-semibold text-value">{{ ideographic or alphabetic }}</div>
             {% if phonetic or (ideographic and alphabetic) %}<div class="text-xs text-label">{{ phonetic or alphabetic }}</div>{% endif %}
-            {% if marks %}<div>{% for mark in marks %}<span class="badge">{{ mark }}</span>{% endfor %}</div>{% endif %}
+            {% if marks %}<div>{% for mark in marks %}<span class="st" data-k="note">{{ mark }}</span>{% endfor %}</div>{% endif %}
           </td>
           <td>{{ item|birth_label }}</td>
           <td class="font-mono">{{ item.accession_number }}</td>
@@ -53,8 +60,6 @@
     </table>
   </div>
   <div class="flex flex-wrap items-center gap-3">
-    <span class="text-xs text-label">{{ results.rows|length }} 件（{{ results.queried_at }} {{ utc_offset() }} に取得）</span>
-    {% if results.partial_message %}<span role="status" class="text-xs text-danger">{{ results.partial_message }}</span>{% endif %}
     <div class="ml-auto flex flex-wrap gap-2">
       <a class="btn btn-ghost" href="/exam">緊急の患者で撮る</a>
       <button type="button" class="btn btn-outline" data-needs-selection hx-post="/worklist/refresh" hx-include="#pick" hx-target="#results" hx-disabled-elt="this"{% if not results.has_selection %} disabled title="行を選ぶと押せます"{% endif %}>

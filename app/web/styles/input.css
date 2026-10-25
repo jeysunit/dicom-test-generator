@@ -160,6 +160,10 @@
   .req {
     @apply ml-1 font-bold text-foreground;
   }
+  /* 検索の帯：主な条件を 1 行に（収まらなければ折り返す）。地は muted-strong */
+  .searchband {
+    @apply flex flex-wrap items-end gap-3 rounded-md bg-muted-strong px-4 py-3;
+  }
   /* 患者バナー：氏名・患者ID・生年月日・受付番号・検査名。右端に札 */
   .banner {
     @apply flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md border border-border bg-surface px-4 py-2;
