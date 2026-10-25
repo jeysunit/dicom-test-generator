@@ -4,12 +4,19 @@
   {% if retry_error %}{% with error = retry_error %}{% include "_notice.html" %}{% endwith %}{% else %}<p role="status" class="notice notice-ok mb-3">{{ notice }}</p>{% endif %}
 </div>
 {% endif %}
+{# 状態の要約と、区画の見出しの右の再送信の件数は、この応答で同時に差し替える（画面を開いたときは、画面の側に置く） #}
+{% if not first_render %}
+{% with oob_parts = true %}{% include "_queue_sum.html" %}{% include "_retry_slot.html" %}{% endwith %}
+{% endif %}
+{# 状態の絞り込みと選んだ行は、検索の帯（#queue-filter）の欄として、読み直しのたびに送る #}
+<input type="hidden" form="queue-filter" name="status" value="{{ filters.status }}">
+<input type="hidden" form="queue-filter" name="selected" value="{{ selected_job.id if selected_job else '' }}">
 {% if queue_error %}{% with error = queue_error %}{% include "_notice.html" %}{% endwith %}
 {% else %}
 {# 件数の行：件数と、自動更新の補足。空でも位置を変えない #}
 <div class="count-row">
   <span><b class="count-n">{{ jobs|length }}</b> 件</span>
-  <span class="text-xs text-label">2 秒ごとに自動更新</span>
+  <span class="text-xs text-label">新しい順・2 秒ごとに自動更新</span>
 </div>
 <div class="overflow-x-auto">
   <table class="table">
@@ -32,7 +39,7 @@
     <tbody>
       {% for job in jobs %}
       {% set alphabetic, ideographic, phonetic = job.patient_name|name_parts %}
-      <tr>
+      <tr aria-selected="{{ 'true' if selected_job and selected_job.id == job.id else 'false' }}">
         <td>{{ job.id }}</td>
         <td class="font-mono">{{ job.patient_id or "—" }}</td>
         <td>{{ ideographic or alphabetic or "—" }}</td>
@@ -56,21 +63,10 @@
             {% endif %}
             {# 送信失敗は送れていない画像だけを、送信完了は新しい件として全部を送り直す（10.6） #}
             {% if job.status in ("failed", "sent") %}
-            <button type="button" class="btn btn-outline btn-row" data-resend hx-post="/pacs/retry/{{ job.id }}" hx-target="#queue" hx-disabled-elt="#queue [data-resend], #retry-failed">もう一度送る</button>
+            <button type="button" class="btn btn-outline btn-row" data-resend hx-post="/pacs/retry/{{ job.id }}" hx-target="#queue" hx-include="#queue-filter" hx-disabled-elt="#queue [data-resend], #retry-failed">もう一度送る</button>
             {% endif %}
-            {# 詳細は表の外（最上位の層）に浮かぶ枠に出し、表の列の幅を変えない（10.6） #}
-            <button type="button" class="link job-detail-button" popovertarget="job-detail-{{ job.id }}">詳細</button>
-            <div id="job-detail-{{ job.id }}" popover class="job-detail" role="group" aria-label="ジョブ {{ job.id }} の詳細">
-              <dl class="values">
-                {% if job.status == "failed" %}
-                <dt>失敗の理由</dt><dd>{{ job.last_error|send_error_label }}<div class="font-mono">{{ job.last_error }}</div></dd>
-                {% endif %}
-                <dt>元のファイル</dt><dd>{% with uid = job.folder %}{% include "_uid.html" %}{% endwith %}</dd>
-                <dt>試行回数</dt><dd>{{ job.attempts }}</dd>
-                {# 再送信もこの AEタイトルで名乗る（docs/spec/12 の 8.2・ADR-0023） #}
-                <dt>名乗る AEタイトル</dt><dd class="font-mono">{{ job.calling_ae_title or "—" }}</dd>
-              </dl>
-            </div>
+            {# 詳細は表の下に出す（選んだ行の詳細。10.6） #}
+            <button type="button" class="link job-detail-button" data-focus-key="detail-{{ job.id }}" data-queue-action hx-sync="#queue:replace" hx-get="/pacs/queue" hx-target="#queue" hx-include="#queue-filter" hx-vals='{"selected": "{{ job.id }}"}'>詳細</button>
           </div>
         </td>
       </tr>
@@ -80,9 +76,19 @@
 </div>
 {# 空の状態：1 行目に事実、2 行目に次の手。表の枠と見出しの行は出したままにする #}
 {% if not jobs %}
+{% if filters.period != "all" or filters.destination or filters.patient_id or filters.status != "all" %}
+<div class="empty">
+  <b>条件に合う送信ジョブはありません。</b>
+  <span>条件を変えて、もう一度検索してください。</span>
+</div>
+{% else %}
 <div class="empty">
   <b>送信ジョブはまだありません。</b>
   <span>撮影して送信すると、ここに出ます。</span>
 </div>
+{% endif %}
+{% endif %}
+{% if selected_job %}
+{% with job = selected_job %}{% include "_job_detail.html" %}{% endwith %}
 {% endif %}
 {% endif %}

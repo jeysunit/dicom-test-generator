@@ -78,9 +78,10 @@ def test_pacs_job_table_shows_patient_not_folder(client) -> None:
     assert "E0001" in body
     assert "緊急^太郎" not in body
     assert "緊急 太郎" in body
-    # フォルダは行の「詳細」の枠の「元のファイル」に残す
-    assert "popovertarget=" in body and "元のファイル" in body
-    assert "emergency_" in body
+    # フォルダは、行の「詳細」で選んだ行の詳細の「元のファイル」に残す
+    assert 'data-focus-key="detail-1"' in body and "元のファイル" not in body
+    detail = client.get("/pacs/queue?selected=1").text.split('<section id="job-detail"', 1)[1]
+    assert "元のファイル" in detail and "emergency_" in detail
 
 
 @pytest.mark.parametrize("path",["/worklist", "/exam", "/pacs", "/settings"])

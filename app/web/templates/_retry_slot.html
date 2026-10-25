@@ -1,0 +1,12 @@
+{# 区画の見出しの右：失敗のまとめての再送信。失敗の件数は条件で絞らない。応答に同梱して差し替えるときは oob_parts #}
+<span id="retry-slot"{% if oob_parts %} hx-swap-oob="true"{% endif %}>
+  {% if failed_total %}
+  <button type="button" class="btn btn-outline" data-dialog-open="dlg-resend">
+    <span class="icon icon-refresh-cw" aria-hidden="true"></span>失敗 {{ failed_total }} 件を再送信
+  </button>
+  {% else %}
+  <button type="button" class="btn btn-outline" disabled>
+    <span class="icon icon-refresh-cw" aria-hidden="true"></span>失敗をすべて再送信
+  </button>
+  {% endif %}
+</span>

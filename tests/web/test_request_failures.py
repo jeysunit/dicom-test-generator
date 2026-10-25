@@ -46,8 +46,9 @@ def test_send_error_label_and_detail(client, reason, expected) -> None:
     ))
     job_id = service.queue.add_job(exam.output_dir, "PACS_TEST", exam.files)
     service.queue.record_job_failure(job_id, reason)
-    html = client.get("/pacs/queue").text
-    outside, detail = html.split(f'<div id="job-detail-{job_id}" popover', 1)
+    # 詳細は、選んだ行の詳細として表の下に出る（一覧の応答に selected を添える）
+    html = client.get(f"/pacs/queue?selected={job_id}").text
+    outside, detail = html.split('<section id="job-detail"', 1)
     assert f'class="job-error-summary text-xs text-danger">{escape(expected)}<' in outside
     assert "<dt>失敗の理由</dt>" in detail
     assert escape(expected) in detail

@@ -92,7 +92,7 @@ def test_queue_details_show_the_calling_ae_title(tmp_path, worklist_scp, storage
     )
     service.send(exam.output_dir)
 
-    html = client.get("/pacs/queue").text
+    html = client.get("/pacs/queue?selected=1").text
 
     assert '<dt>名乗る AEタイトル</dt><dd class="font-mono">DTG_CT01</dd>' in html
 
