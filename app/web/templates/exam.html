@@ -60,15 +60,18 @@
       <div class="grid gap-4 sm:grid-cols-3">
         <label class="field">
           <span class="field-label">患者ID<span class="req">必須</span></span>
-          <input type="text" name="patient_id" class="input" maxlength="16" required aria-required="true">
+          <input type="text" name="patient_id" class="input" maxlength="16" required aria-required="true" data-check="patient-id" data-message="{{ input_messages['patient-id'] }}" aria-describedby="error-patient-id">
+          <span class="mt-2 text-xs text-danger" id="error-patient-id" hidden></span>
         </label>
         <label class="field">
           <span class="field-label">氏名（英字。例 KINKYU TARO）<span class="req">必須</span></span>
-          <input type="text" name="name_alphabetic" class="input" maxlength="64" data-person-name required aria-required="true">
+          <input type="text" name="name_alphabetic" class="input" maxlength="64" data-person-name required aria-required="true" data-check="alphabetic" data-message="{{ input_messages['alphabetic'] }}" aria-describedby="error-alphabetic">
+          <span class="mt-2 text-xs text-danger" id="error-alphabetic" hidden></span>
         </label>
         <label class="field">
           <span class="field-label">氏名（漢字。例 緊急 太郎）</span>
-          <input type="text" name="name_ideographic" class="input" maxlength="64" data-person-name>
+          <input type="text" name="name_ideographic" class="input" maxlength="64" data-person-name data-check="ideographic" data-message="{{ input_messages['ideographic'] }}" aria-describedby="error-ideographic">
+          <span class="mt-2 text-xs text-danger" id="error-ideographic" hidden></span>
         </label>
         <label class="field">
           <span class="field-label">氏名（かな）</span>
@@ -76,7 +79,8 @@
         </label>
         <label class="field">
           <span class="field-label">生年月日</span>
-          <input type="date" name="birth_date" class="input">
+          <input type="date" name="birth_date" class="input" data-check="birth-date" data-message="{{ input_messages['birth-date'] }}" aria-describedby="error-birth-date">
+          <span class="mt-2 text-xs text-danger" id="error-birth-date" hidden></span>
         </label>
         <label class="field">
           <span class="field-label">性別</span>

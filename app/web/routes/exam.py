@@ -12,7 +12,14 @@ from fastapi.responses import HTMLResponse
 from pydantic import ValidationError
 
 from app.core.exceptions import ConfigurationError, DICOMGeneratorError
-from app.core.models import ScheduledPatient, WorklistItem
+from app.core.models import WorklistItem
+from app.core.patient_input import (
+    ALPHABETIC_MESSAGE,
+    BIRTH_DATE_FUTURE_MESSAGE,
+    IDEOGRAPHIC_MESSAGE,
+    PATIENT_ID_MESSAGE,
+    build_emergency_patient,
+)
 from app.modality.service import ExamRequest, ExamResult, ModalityService, SendResult
 
 from ..display import exam_notices
@@ -28,6 +35,13 @@ ABNORMAL_CHOICES = (
     ("severe", "強い"),
 )
 SEX_CHOICES = (("", "空"), ("M", "男"), ("F", "女"), ("O", "その他"))
+# 緊急の患者の欄の下に出す誤りの文（スクリプトが入力のたびに確かめる。サーバーも同じ文で断る）
+INPUT_MESSAGES = {
+    "patient-id": PATIENT_ID_MESSAGE,
+    "alphabetic": ALPHABETIC_MESSAGE,
+    "ideographic": IDEOGRAPHIC_MESSAGE,
+    "birth-date": BIRTH_DATE_FUTURE_MESSAGE,
+}
 ACTION_EXAM = "exam"
 ACTION_EXAM_SEND = "exam_send"
 MODE_EMERGENCY = "emergency"
@@ -124,6 +138,7 @@ def exam_page(request: Request, key: str = "") -> HTMLResponse:
         charset_choices=CHARSET_CHOICES,
         abnormal_choices=ABNORMAL_CHOICES,
         sex_choices=SEX_CHOICES,
+        input_messages=INPUT_MESSAGES,
         blocker=_blocker(service, item, template, profile),
         exam_token=ExamTokens.issue(),
         **_retake_context(service, item),
@@ -256,7 +271,7 @@ def exam_run(
     try:
         emergency_patient = None
         if mode == MODE_EMERGENCY:
-            emergency_patient = ScheduledPatient(
+            emergency_patient = build_emergency_patient(
                 patient_id=patient_id.strip(),
                 # 空白を ^ にする置き換えはサーバーの側で必ず行う（スクリプトは補助。10.5）
                 patient_name=service.emergency_person_name(

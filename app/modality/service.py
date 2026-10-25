@@ -50,6 +50,7 @@ from app.core.models import (
     WorklistItem,
 )
 from app.core.path_safety import ensure_within, safe_path_component
+from app.core.patient_input import validate_emergency_patient
 from app.core.person_name import GROUP_SEPARATOR, compose_person_name
 from app.core.uid_generator import UIDGenerator
 from app.core.validation_text import describe_validation_error
@@ -838,6 +839,8 @@ class ModalityService:
                     ("検査の説明", request.study_description),
                 )
             )
+            # 画面・CLI を通らない呼び出し（API）にも、同じ確かめを効かせる
+            validate_emergency_patient(emergency_patient, request.study_description)
             character_set = resolve_image_character_set(
                 choice, None, self.config.character_set_fallback
             )

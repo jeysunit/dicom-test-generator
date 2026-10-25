@@ -19,7 +19,8 @@ from app.core.exceptions import (
     StoreError,
     ValidationError,
 )
-from app.core.models import ScheduledPatient, WorklistItem
+from app.core.models import WorklistItem
+from app.core.patient_input import build_emergency_patient
 from app.modality.config import load_modality_config
 from app.modality.service import AUTO_ROUTINE, ExamRequest, ModalityService, SendResult
 from app.modality.worklist_scu import (
@@ -277,7 +278,7 @@ def exam_command(args: argparse.Namespace) -> int:
     if args.emergency:
         if not args.patient_id or not args.patient_name:
             raise ConfigurationError("--emergency requires --patient-id and --patient-name")
-        emergency_patient = ScheduledPatient(
+        emergency_patient = build_emergency_patient(
             patient_id=args.patient_id,
             patient_name=args.patient_name,
             birth_date=args.birth_date or "",

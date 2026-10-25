@@ -189,8 +189,8 @@ def test_exam_emergency_unrepresentable_char_is_exit_4(
     )
 
     assert code == 4
-    # どの属性かは出すが、表せない字そのもの（氏名の一部）は出さない
-    assert "PatientName" in err
+    # どの欄かは出すが、表せない字そのもの（氏名の一部）は出さない
+    assert "氏名（漢字）" in err
     assert "髙" not in err
     assert list((tmp_path / "output").rglob("*.dcm")) == []
 
@@ -503,3 +503,29 @@ def test_emergency_append_requires_study_uid(monkeypatch, capsys, tmp_path) -> N
     assert code == 2
     assert "--emergency --append requires --study-uid" in err
     assert list(tmp_path.rglob("*.dcm")) == []
+
+
+@pytest.mark.parametrize(
+    ("extra", "message"),
+    [
+        (["--patient-name", "山田^太郎"], "氏名（英字）は半角の英字"),
+        (["--patient-name", "YAMADA^TARO=ﾔﾏﾀﾞ"], "氏名（漢字）に使えない字"),
+        (["--patient-name", "YAMADA^TARO", "--patient-id", "患者01"], "患者ID は半角の英数字"),
+        (["--patient-name", "YAMADA^TARO", "--birth-date", "20230229"], "暦にある日付"),
+        (["--patient-name", "YAMADA^TARO", "--birth-date", "20991231"], "今日以前"),
+        (["--patient-name", "A" * 65], "64 字以内"),
+        (["--patient-name", "YAMADA^TARO", "--study-description", "あ" * 65], "検査名は 64 字以内"),
+    ],
+)
+def test_exam_emergency_bad_input_is_refused_in_japanese(
+    monkeypatch, capsys, tmp_path, config, extra, message
+) -> None:
+    args = ["--patient-id", "E0009", *extra]
+    code, _, err = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", *args,
+        "--pixel-mode", "simple_text",
+    )
+
+    assert code == 4
+    assert message in err
+    assert list((tmp_path / "output").rglob("*.dcm")) == []
