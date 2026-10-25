@@ -1,6 +1,6 @@
 {% set sent_count = send.results|selectattr("sent")|list|length %}
 {% set done = send.status == "sent" %}
-<div {% if done %}role="status" class="notice notice-ok"{% else %}role="alert" class="notice notice-error"{% endif %}>
+<div class="notice" {% if done %}role="status" data-k="ok"{% else %}role="alert" data-k="err"{% endif %}>
   <span class="icon {% if done %}icon-check{% else %}icon-triangle-alert{% endif %}" aria-hidden="true"></span>
   <span>
     <span class="font-semibold">{{ STATUS_LABELS.get(send.status, send.status) }}：{{ send.destination }} へ {{ sent_count }}/{{ send.results|length }} 画像（ジョブ {{ send.job_id }}）</span>

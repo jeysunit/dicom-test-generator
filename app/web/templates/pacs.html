@@ -4,9 +4,9 @@
 {# 画面の型 F（区画＋下に一覧）：上に送信先の区画、下に送信ジョブの一覧（12a の 10.6） #}
 <div class="pagehead"><h1>PACS</h1></div>
 <section class="sec">
-  <h2 class="sec-title">送信先</h2>
-  <div class="sec-body overflow-x-auto">
-    <table class="table">
+  <h2>送信先</h2>
+  <div class="in flush overflow-x-auto">
+    <table class="tbl">
       <thead>
         <tr>
           <th scope="col">名称</th>
@@ -27,7 +27,7 @@
           <td class="font-mono">{{ destination.port }}</td>
           <td>{{ "使う" if destination.storage_commitment else "使わない" }}</td>
           <td>
-            <button type="button" class="btn btn-outline btn-row" hx-post="/pacs/echo/{{ destination.name|urlencode }}" hx-target="#echo-{{ loop.index }}" hx-disabled-elt="this">
+            <button type="button" class="btn btn-sm row-open" hx-post="/pacs/echo/{{ destination.name|urlencode }}" hx-target="#echo-{{ loop.index }}" hx-disabled-elt="this">
               <span class="icon icon-activity" aria-hidden="true"></span>接続確認
             </button>
           </td>
@@ -41,26 +41,25 @@
   </div>
 </section>
 <section class="sec">
-  <div class="sec-head">
-    <h2>送信ジョブ</h2>
+  <h2 class="hd">送信ジョブ
     {# 失敗の件数は 2 秒ごとの再取得で差し替える（#retry-slot）。押すと確認の窓を出す #}
-    {% include "_retry_slot.html" %}
-  </div>
-  <div class="sec-body flex flex-col gap-3">
+    <span class="acts">{% include "_retry_slot.html" %}</span>
+  </h2>
+  <div class="in flex flex-col gap-3">
     <div id="queue-notice" aria-live="polite"></div>
     {% include "_queue_sum.html" %}
     <form id="queue-filter" class="searchband" role="search" aria-label="条件" data-queue-action hx-sync="#queue:replace" hx-get="/pacs/queue" hx-target="#queue">
       <label class="field">
-        <span class="field-label">期間</span>
-        <select name="period" class="input w-36">
+        <span class="l">期間</span>
+        <select name="period" class="select w-36">
           {% for value, label in period_choices %}
           <option value="{{ value }}"{% if value == filters.period %} selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </label>
       <label class="field">
-        <span class="field-label">送信先</span>
-        <select name="destination" class="input w-44">
+        <span class="l">送信先</span>
+        <select name="destination" class="select w-44">
           <option value="">すべて</option>
           {% for destination in destinations %}
           <option value="{{ destination.name }}"{% if destination.name == filters.destination %} selected{% endif %}>{{ destination.name }}</option>
@@ -68,14 +67,14 @@
         </select>
       </label>
       <label class="field">
-        <span class="field-label">患者ID</span>
+        <span class="l">患者ID</span>
         <input type="text" name="patient_id" value="{{ filters.patient_id }}" class="input w-40" maxlength="64">
       </label>
-      <div class="flex items-center gap-2">
+      <div class="acts">
         <button type="submit" class="btn btn-primary">
           <span class="icon icon-search" aria-hidden="true"></span>検索
         </button>
-        <a href="/pacs" class="btn btn-outline">条件をクリア</a>
+        <a href="/pacs" class="btn">条件をクリア</a>
       </div>
     </form>
     {# 2 秒ごとに、条件の帯の値を添えて読み直す。状態と選んだ行は #queue の中の隠した欄が持つ #}
@@ -86,10 +85,10 @@
 </section>
 {# 失敗のまとめての再送信の確認。押すまで何も送らない #}
 <dialog id="dlg-resend" class="dlg" aria-labelledby="dlg-resend-title">
-  <h2 id="dlg-resend-title" class="text-base font-bold text-value">失敗の件を再送信しますか？</h2>
-  <p class="mt-2">送れていない画像だけをもう一度送ります。送信先に同じ画像が重なることがあります。</p>
-  <div class="mt-4 flex justify-end gap-2">
-    <button type="button" class="btn btn-outline" data-dialog-close>キャンセル</button>
+  <h2 id="dlg-resend-title">失敗の件を再送信しますか？</h2>
+  <p>送れていない画像だけをもう一度送ります。送信先に同じ画像が重なることがあります。</p>
+  <div class="ft">
+    <button type="button" class="btn" data-dialog-close>キャンセル</button>
     {# 再送信の応答を待つ間は、どの行の [もう一度送る] も [再送信する] も押せない（10.6） #}
     <button type="button" id="retry-failed" class="btn btn-primary" data-dialog-close hx-post="/pacs/retry-failed" hx-target="#queue" hx-include="#queue-filter" hx-disabled-elt="#queue [data-resend], #retry-failed">再送信する</button>
   </div>

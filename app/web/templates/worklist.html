@@ -8,41 +8,41 @@
 <form id="query-form" hx-post="/worklist/query" hx-target="#results" hx-disabled-elt="find button" class="searchband" aria-label="条件">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <label class="field">
-    <span class="field-label">予定の日</span>
-    <select name="day" class="input w-36">
+    <span class="l">予定の日</span>
+    <select name="day" class="select w-36">
       {% for value, label in day_choices %}
       <option value="{{ value }}"{% if value == "today" %} selected{% endif %}>{{ label }}</option>
       {% endfor %}
     </select>
   </label>
   <label class="field">
-    <span class="field-label">日付（日付を指定のとき）</span>
+    <span class="l">日付（日付を指定のとき）</span>
     <input type="date" name="date" class="input w-44">
   </label>
   <label class="field">
-    <span class="field-label">モダリティ（空で絞らない）</span>
+    <span class="l">モダリティ（空で絞らない）</span>
     <input type="text" name="modality" value="{{ default_modality }}" class="input w-44" maxlength="16">
   </label>
   <label class="field">
-    <span class="field-label">装置の AEタイトル</span>
-    <select name="station" class="input w-64">
+    <span class="l">装置の AEタイトル</span>
+    <select name="station" class="select w-64">
       <option value="own" selected>この装置で絞る（{{ band.own_ae }}）</option>
       <option value="any">絞らない</option>
     </select>
   </label>
   <label class="field">
-    <span class="field-label">患者ID</span>
+    <span class="l">患者ID</span>
     <input type="text" name="patient_id" class="input w-40" maxlength="64">
   </label>
   <label class="field">
-    <span class="field-label">氏名</span>
+    <span class="l">氏名</span>
     <input type="text" name="patient_name" class="input w-40" maxlength="64">
   </label>
   <label class="field">
-    <span class="field-label">受付番号</span>
+    <span class="l">受付番号</span>
     <input type="text" name="accession" class="input w-40" maxlength="16">
   </label>
-  <button type="submit" class="btn btn-outline">
+  <button type="submit" class="btn">
     <span class="icon icon-search" aria-hidden="true"></span>ワークリスト検索
   </button>
 </form>

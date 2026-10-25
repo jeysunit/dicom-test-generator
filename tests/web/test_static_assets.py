@@ -40,10 +40,24 @@ def test_every_icon_used_by_the_css_is_present_with_license() -> None:
     assert "ISC" in (STATIC / "icons" / "LICENSE").read_text(encoding="utf-8")
 
 
-def test_built_css_is_committed_and_has_the_tokens() -> None:
+def test_built_css_is_committed_and_uses_the_kit_tokens() -> None:
+    # 値と部品は ui-kit の写し、作った CSS は Tailwind の色の名前を ui-kit の変数で使う
     css = (STATIC / "app.css").read_text(encoding="utf-8")
-    assert "--color-primary:#4b4fbf" in css.replace(" ", "")
-    assert ".btn-primary" in css
+    assert ".text-label{color:var(--color-label)!important}" in css.replace(" ", "")
+    kit = STATIC / "ui-kit"
+    assert (kit / "VERSION").read_text(encoding="utf-8").strip() == "1.0.0"
+    assert "--color-primary: #4B4FBF;" in (kit / "tokens.css").read_text(encoding="utf-8")
+    assert ".btn-primary{" in (kit / "components.css").read_text(encoding="utf-8")
+
+
+def test_pages_read_the_kit_before_the_product_css() -> None:
+    base = (ROOT / "app" / "web" / "templates" / "base.html").read_text(encoding="utf-8")
+    order = [
+        base.index('href="/static/ui-kit/tokens.css"'),
+        base.index('href="/static/ui-kit/components.css"'),
+        base.index('href="/static/app.css"'),
+    ]
+    assert order == sorted(order)
 
 
 def test_request_failures_share_the_result_place() -> None:
