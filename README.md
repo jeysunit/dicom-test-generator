@@ -33,6 +33,12 @@ flowchart LR
   AI の学習には使えません
 - 本番の PACS には送信せず、テスト用の PACS・RIS にだけ接続してください
 - 本ソフトウェアの使用によって生じたいかなる損害についても、作者は責任を負いません
+- 画像に書く Implementation Class UID と Instance Creator UID は、2.25（UUID 派生）の
+  固定の値を使っています（`app/services/study_generator.py` の
+  `IMPLEMENTATION_CLASS_UID`・`INSTANCE_CREATOR_UID`）。DICOM PS3.5 の
+  [B.2](https://dicom.nema.org/medical/dicom/current/output/chtml/part05/sect_B.2.html)
+  は、設計時に決める固定の UID には、UUID 派生を通常は勧めていません。製品として配る
+  ときは、登録した根（例：IANA の Private Enterprise Number）に替える予定です
 
 ## クイックスタート
 
