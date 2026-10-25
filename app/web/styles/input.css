@@ -68,7 +68,7 @@
 
 @layer components {
   .btn {
-    @apply inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-medium whitespace-nowrap;
+    @apply inline-flex h-8 items-center gap-1.5 rounded-sm px-3 text-sm font-medium whitespace-nowrap;
   }
   .btn:disabled,
   .btn[aria-disabled="true"] {
@@ -78,7 +78,7 @@
     @apply bg-primary text-primary-foreground;
   }
   .btn-outline {
-    @apply border border-border bg-background hover:bg-muted;
+    @apply border border-border-input bg-background hover:bg-muted;
   }
   .btn-ghost {
     @apply hover:bg-muted;
@@ -114,6 +114,70 @@
   .panel-title {
     @apply mb-4 font-semibold text-value;
   }
+  /* 見出しの行（題）とパンくず（患者や検査の下の画面だけ） */
+  .pagehead {
+    @apply flex flex-wrap items-center justify-between gap-3;
+  }
+  .pagehead h1 {
+    @apply flex items-baseline gap-2 text-xl font-bold text-value;
+  }
+  .crumbs {
+    @apply flex flex-wrap gap-1 text-xs text-label;
+  }
+  .crumbs a {
+    @apply text-label underline;
+  }
+  .crumbs li + li::before {
+    content: "/";
+    margin-right: 0.25rem;
+  }
+  .crumbs [aria-current] {
+    @apply text-foreground;
+  }
+  /* 入力の画面（型 C）：区画（見出しと中身）と操作の行。幅は最大 900px */
+  .form-col {
+    @apply max-w-[900px] space-y-3;
+  }
+  .sec {
+    @apply rounded-md border border-border bg-background;
+  }
+  .sec-title {
+    @apply rounded-t-md border-b border-border bg-surface px-3 py-2 text-base font-bold text-value;
+  }
+  .sec-body {
+    @apply px-4 py-3;
+  }
+  .formbar {
+    @apply flex flex-wrap items-center justify-end gap-2 rounded-md border border-border bg-surface px-4 py-3;
+  }
+  .req {
+    @apply ml-1 font-bold text-foreground;
+  }
+  /* 患者バナー：氏名・患者ID・生年月日・受付番号・検査名。右端に札 */
+  .banner {
+    @apply flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md border border-border bg-surface px-4 py-2;
+  }
+  .banner-name {
+    @apply min-w-36;
+  }
+  .banner-n {
+    @apply text-base font-bold text-value;
+  }
+  .banner-k {
+    @apply text-xs text-label;
+  }
+  .banner-f {
+    @apply min-w-0;
+  }
+  .banner-f .l {
+    @apply text-xs text-label;
+  }
+  .banner-f .v {
+    @apply font-bold text-value;
+  }
+  .banner-end {
+    @apply ml-auto flex items-center gap-2;
+  }
   .field {
     @apply flex flex-col gap-1;
   }
@@ -121,7 +185,7 @@
     @apply text-xs text-label;
   }
   .input {
-    @apply h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground;
+    @apply h-8 rounded-sm border border-border-input bg-background px-2 text-sm text-foreground;
   }
   .table {
     @apply w-full border-collapse text-left;
@@ -170,23 +234,27 @@
   .status-sending {
     @apply text-label;
   }
+  /* 知らせ：左に 4px の状態の色、印と文字。文字は本文の色のまま */
   .notice {
-    @apply flex items-start gap-2 rounded-md border px-3 py-2;
+    @apply flex items-start gap-2 rounded-sm border border-l-4 border-border bg-surface px-3 py-2 text-foreground;
   }
   .notice-ok {
-    @apply border-success bg-surface text-foreground;
+    @apply border-l-success;
   }
   .notice-ok .icon {
     @apply text-success;
   }
   .notice-warn {
-    @apply border-warning bg-surface text-foreground;
+    @apply border-l-warning;
   }
   .notice-warn .icon {
     @apply text-warning;
   }
   .notice-error {
-    @apply border-danger text-danger;
+    @apply border-l-danger;
+  }
+  .notice-error .icon {
+    @apply text-danger;
   }
   .link {
     @apply underline;

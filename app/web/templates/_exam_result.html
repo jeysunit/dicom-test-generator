@@ -1,6 +1,8 @@
 {% if next_token %}<input type="hidden" id="exam-token" name="exam_token" value="{{ next_token }}" hx-swap-oob="true">{% endif %}
 {% if refresh_actions %}<div id="actions" hx-swap-oob="true">{% include "_exam_actions.html" %}</div>{% endif %}
-<div class="panel space-y-3">
+<section class="sec">
+<h2 class="sec-title">結果</h2>
+<div class="sec-body space-y-3">
   <p role="status" class="notice notice-ok font-semibold text-value">
     <span class="icon icon-check" aria-hidden="true"></span>
     <span>撮影完了：{{ result.files|length }} 画像</span>
@@ -41,3 +43,4 @@
     {% endif %}
   </div>
 </div>
+</section>
