@@ -55,13 +55,23 @@ def validate_emergency_patient(patient: ScheduledPatient, study_description: str
 
 
 def build_emergency_patient(
-    patient_id: str, patient_name: str, birth_date: str = "", sex: str = ""
+    patient_id: str,
+    patient_name: str,
+    birth_date: str = "",
+    sex: str = "",
+    *,
+    strict: bool = True,
 ) -> ScheduledPatient:
-    """値を確かめてから `ScheduledPatient` にする。pydantic の英語の文より先に日本語の文で断る."""
-    validate_patient_id(patient_id)
-    validate_person_name(patient_name)
-    validate_birth_date(birth_date)
-    validate_sex(sex)
+    """値を確かめてから `ScheduledPatient` にする。pydantic の英語の文より先に日本語の文で断る.
+
+    追加撮影（`strict=False`）は確かめない。前の撮影と患者ID・氏名が一致するかをサービスが
+    確かめるので、以前に受け付けた値の患者にも追加撮影できる。
+    """
+    if strict:
+        validate_patient_id(patient_id)
+        validate_person_name(patient_name)
+        validate_birth_date(birth_date)
+        validate_sex(sex)
     return ScheduledPatient(
         patient_id=patient_id, patient_name=patient_name, birth_date=birth_date, sex=sex
     )

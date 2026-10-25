@@ -279,6 +279,7 @@ def exam_run(
                 ),
                 birth_date=birth_date.replace("-", "").strip(),
                 sex=sex,
+                strict=not append,
             )
         exam_request = ExamRequest(
             worklist_key=None if emergency_patient else key,

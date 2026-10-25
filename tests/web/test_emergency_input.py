@@ -140,3 +140,10 @@ def test_script_checks_on_input_and_blocks_submit_while_invalid() -> None:
     script = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
     for marker in ("data-check", "data-message", "setCustomValidity", "aria-invalid", "patient-id"):
         assert marker in script, marker
+
+
+def test_script_rechecks_a_field_after_the_blur_correction() -> None:
+    """空白を ^ に補正した後（値の代入では input が起きない）に、欄の確かめを直す."""
+    script = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
+    focusout = script.split('addEventListener("focusout"', 1)[1].split("});", 1)[0]
+    assert focusout.index('replace(/\\s+/g, "^")') < focusout.index("checkField(input)")

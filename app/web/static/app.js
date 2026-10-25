@@ -36,6 +36,8 @@
       return;
     }
     input.value = input.value.trim().replace(/\s*\^\s*/g, "^").replace(/\s+/g, "^");
+    // 補正した後の値で、欄の誤りの表示と送信の可否を確かめ直す（値の代入では input が起きない）
+    checkField(input);
   });
 
   // 緊急の患者の欄：入力のたびに確かめ、誤りの文を欄の下に出す（読み上げない。画面の上の
@@ -75,7 +77,7 @@
       return ALPHABETIC_CHARS.test(text);
     }
     if (kind === "ideographic") {
-      return isIdeographic(value);
+      return isIdeographic(text);
     }
     if (kind === "birth-date") {
       return !value || value <= today();
