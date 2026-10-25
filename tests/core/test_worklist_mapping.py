@@ -214,7 +214,7 @@ def test_scheduled_context_rejects_unreadable_item() -> None:
 @pytest.mark.parametrize(
     ("keyword", "value", "attribute"),
     [
-        ("PatientID", "P" * 17, "PatientID"),
+        ("PatientID", "P" * 65, "PatientID"),
         ("AccessionNumber", "A" * 17, "AccessionNumber"),
         ("RequestedProcedureDescription", "X" * 65, "RequestedProcedureDescription"),
     ],
@@ -343,7 +343,8 @@ def test_emergency_patient_validates_values() -> None:
     with pytest.raises(ValueError):
         ScheduledPatient(patient_id="E0001", patient_name="A", sex="X")
     with pytest.raises(ValueError):
-        ScheduledPatient(patient_id="E" * 17, patient_name="A")
+        ScheduledPatient(patient_id="E" * 65, patient_name="A")
+    ScheduledPatient(patient_id="E" * 64, patient_name="A")
 
 
 def test_ensure_modality_matches() -> None:

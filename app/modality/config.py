@@ -152,6 +152,9 @@ class ModalityConfig(BaseModel):
     default_profile: str | None = None  # 装置のプロファイル（docs/spec/13 の 8）。None は重ねない
     default_hospital: str | None = None
     default_pixel_mode: PixelMode = "ct_realistic"
+    # 試験の形：緊急の患者の氏名（かな）を確かめず、直さず、そのまま DICOM に出す（半角カナ・
+    # ひらがな・混ざった値の受け側の試験用。docs/spec/12a の 10.5）。false が通常
+    patient_input_test_mode: bool = False
     worklist: WorklistPeerConfig
     mpps: MppsPeerConfig | None = None  # Phase 3c。None はワークリストの相手
     destinations: list[DestinationConfig] = Field(..., min_length=1)

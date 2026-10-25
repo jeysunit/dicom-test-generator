@@ -9,16 +9,22 @@ import shutil
 import subprocess
 
 import pytest
-from web_helpers import csrf_token, post_headers
+from fastapi.testclient import TestClient
+from web_helpers import BASE_URL, csrf_token, modality_config, post_headers
 
 from app.core.patient_input import (
     ALPHABETIC_MESSAGE,
     BIRTH_DATE_FUTURE_MESSAGE,
     IDEOGRAPHIC_MESSAGE,
     PATIENT_ID_MESSAGE,
+    PHONETIC_MESSAGE,
     check_ideographic_group,
 )
-from app.web.app import STATIC_DIR
+from app.modality.config import ModalityConfig
+from app.web.app import STATIC_DIR, create_app
+from app.web.settings import WebConfig
+
+JIS = ["", "ISO 2022 IR 87"]
 
 
 def _post(client, **fields: str) -> str:
@@ -54,13 +60,17 @@ def test_valid_emergency_patient_is_accepted(client) -> None:
         ({"name_alphabetic": "山田 太郎"}, ALPHABETIC_MESSAGE),
         ({"name_alphabetic": "ＹＡＭＡＤＡ ＴＡＲＯ"}, ALPHABETIC_MESSAGE),
         ({"name_alphabetic": "TARO 1"}, ALPHABETIC_MESSAGE),
-        ({"name_ideographic": "髙橋 太郎"}, IDEOGRAPHIC_MESSAGE),
-        ({"name_ideographic": "ﾔﾏﾀﾞ"}, IDEOGRAPHIC_MESSAGE),
+        ({"name_ideographic": "髙橋 太郎", "charset": "jis"}, IDEOGRAPHIC_MESSAGE),
+        ({"name_ideographic": "山﨑 太郎", "charset": "jis_kana"}, IDEOGRAPHIC_MESSAGE),
+        ({"name_ideographic": "ﾔﾏﾀﾞ", "charset": "jis"}, IDEOGRAPHIC_MESSAGE),
+        ({"name_phonetic": "ﾔﾏﾀﾞ"}, PHONETIC_MESSAGE),
+        ({"name_phonetic": "ヤマダ 山田"}, PHONETIC_MESSAGE),
+        ({"name_phonetic": "Yamada"}, PHONETIC_MESSAGE),
         ({"patient_id": "患者01"}, PATIENT_ID_MESSAGE),
         ({"patient_id": "E\\1"}, PATIENT_ID_MESSAGE),
-        ({"patient_id": "A" * 17}, "16 字以内"),
+        ({"patient_id": "A" * 65}, "64 字以内"),
         ({"name_alphabetic": "A" * 65}, "64 字以内"),
-        ({"name_phonetic": "あ" * 65}, "氏名（かな）は 64 字以内"),
+        ({"name_phonetic": "ア" * 65}, "氏名（かな）は 64 字以内"),
         ({"birth_date": "2999-01-01"}, BIRTH_DATE_FUTURE_MESSAGE),
         ({"birth_date": "2023-02-29"}, "暦にある日付"),
         ({"sex": "X"}, "性別"),
@@ -76,30 +86,102 @@ def test_bad_values_are_refused_with_a_japanese_message(client, tmp_path, fields
 
 
 def test_refusal_message_does_not_echo_the_value(client) -> None:
-    page = _post(client, name_ideographic="髙橋 太郎")
+    page = _post(client, name_ideographic="髙橋 太郎", charset="jis")
     assert "髙" not in page
     page = _post(client, patient_id="患者01")
     assert "患者01" not in page
 
 
-def test_exam_page_marks_each_field_for_the_script(client) -> None:
-    """入力した時に分かるよう、欄に確かめの種類・文・誤りの置き場を持たせる."""
+@pytest.mark.parametrize("charset", ["", "auto", "utf8"])
+@pytest.mark.parametrize("name", ["髙橋 太郎", "山﨑 太郎"])
+def test_utf8_accepts_characters_outside_jis_x_0208(client, tmp_path, charset, name) -> None:
+    """文字コードが UTF-8（auto の既定も UTF-8）なら、漢字の氏名を JIS X 0208 で断らない."""
+    page = _post(client, name_ideographic=name, charset=charset)
+    assert 'role="alert"' not in page
+    assert list((tmp_path / "output").rglob("*.dcm"))
+
+
+def test_hiragana_in_the_phonetic_name_is_written_as_katakana(client, tmp_path) -> None:
+    from pydicom import dcmread
+
+    page = _post(client, name_phonetic="きんきゅう たろう")
+    assert 'role="alert"' not in page
+    file = next((tmp_path / "output").rglob("*.dcm"))
+    assert dcmread(file).PatientName.phonetic == "キンキュウ^タロウ"
+
+
+def test_server_error_names_the_field_for_the_script(client) -> None:
+    """サーバーで断った誤りは、欄の名前を持たせて返す（スクリプトが同じ欄の下に結ぶ）."""
+    page = _post(client, name_phonetic="ﾔﾏﾀﾞ")
+    assert 'data-error-field="name_phonetic"' in page
+    page = _post(client, name_ideographic="髙", charset="jis")
+    assert 'data-error-field="name_ideographic"' in page
+    page = _post(client, patient_id="患者")
+    assert 'data-error-field="patient_id"' in page
+    # 欄に結べない誤りは、欄の名前を付けない
+    assert "data-error-field" not in _post(client, series="0")
+
+
+def _test_mode_client(tmp_path, worklist_scp, storage_scp):
+    data = modality_config(tmp_path, worklist_scp.port, storage_scp.port).model_dump()
+    data["patient_input_test_mode"] = True
+    app = create_app(
+        ModalityConfig.model_validate(data),
+        config_path=tmp_path / "app_config.yaml",
+        web=WebConfig(),
+        password=None,
+    )
+    return TestClient(app, base_url=BASE_URL)
+
+
+def test_test_mode_passes_kana_values_through_to_dicom(tmp_path, worklist_scp, storage_scp) -> None:
+    from pydicom import dcmread
+
+    client = _test_mode_client(tmp_path, worklist_scp, storage_scp)
+    page = _post(client, name_phonetic="ﾔﾏﾀﾞ^きん^キン")
+    assert 'role="alert"' not in page
+    file = next((tmp_path / "output").rglob("*.dcm"))
+    assert dcmread(file).PatientName.phonetic == "ﾔﾏﾀﾞ^きん^キン"
+    # 試験の形でも、長さと禁止の字は見る
+    assert 'role="alert"' in _post(client, name_phonetic="ﾔ" * 65)
+    # 画面は今の形を示す
+    assert "かなの確かめ：試験の形" in html_lib.unescape(client.get("/exam").text)
+    assert "data-test-mode" in client.get("/exam").text
+
+
+def test_page_shows_the_normal_form_by_default(client) -> None:
     page = html_lib.unescape(client.get("/exam").text)
+    assert "かなの確かめ：全角カタカナ" in page
+    assert "data-test-mode" not in page
+
+
+def test_exam_page_marks_each_field_for_the_script(client) -> None:
+    """入力した時に分かるよう、欄に確かめの種類・文・誤りの行を結ぶ。誤りの行は label の外の直下."""
+    page = html_lib.unescape(client.get("/exam").text)
+    assert re.search(r'<form id="exam-form"[^>]* novalidate', page)
     for name, kind, message in (
         ("patient_id", "patient-id", PATIENT_ID_MESSAGE),
         ("name_alphabetic", "alphabetic", ALPHABETIC_MESSAGE),
         ("name_ideographic", "ideographic", IDEOGRAPHIC_MESSAGE),
+        ("name_phonetic", "phonetic", PHONETIC_MESSAGE),
         ("birth_date", "birth-date", BIRTH_DATE_FUTURE_MESSAGE),
     ):
         end = page.index(f'name="{name}"')
-        label = page[page.rindex("<label", 0, end) : page.index("</label>", end)]
+        label_end = page.index("</label>", end)
+        label = page[page.rindex("<label", 0, end) : label_end]
         assert f'data-check="{kind}"' in label, name
         assert f'data-message="{message}"' in label, name
-        note_id = f"error-{kind}"
-        assert f'aria-describedby="{note_id}"' in label, name
-        # 欄の下の誤りは読み上げない（画面の上の知らせだけが role="alert"）
-        assert f'id="{note_id}"' in label and "hidden" in label, name
-        assert 'role="alert"' not in label, name
+        assert f'aria-describedby="error-{name}' in label, name
+        # 誤りの行は label の外の直下。読み上げない（画面の上の知らせだけが role="alert"）
+        assert f'id="error-{name}"' not in label, name
+        after = page[label_end + len("</label>") :].lstrip()
+        assert after.startswith(f'<p class="mt-2 text-xs text-danger" id="error-{name}" hidden>'), name
+        assert 'role="alert"' not in after[: after.index("</p>")], name
+    for name in ("sex", "study_description"):
+        assert f'id="error-{name}"' in page
+    # 患者ID は先頭の欄で、上限は 64 字（VR LO）
+    patient_id = page[page.index('name="patient_id"') : page.index(">", page.index('name="patient_id"'))]
+    assert "autofocus" in patient_id and 'maxlength="64"' in patient_id
 
 
 def test_script_range_covers_every_jis_x_0208_character() -> None:
@@ -110,7 +192,7 @@ def test_script_range_covers_every_jis_x_0208_character() -> None:
     jis = [
         chr(code)
         for code in range(0x80, 0x10000)
-        if not check_ideographic_group(chr(code)) and not 0xD800 <= code <= 0xDFFF
+        if not check_ideographic_group(chr(code), JIS) and not 0xD800 <= code <= 0xDFFF
     ]
     assert "ゞ" in jis and "ヾ" in jis and "髙" not in jis and len(jis) > 6000
     source = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
@@ -133,13 +215,17 @@ def test_script_range_covers_every_jis_x_0208_character() -> None:
 
 
 def test_server_accepts_iteration_marks() -> None:
-    assert check_ideographic_group("すゞき^スヾキ") == ""
+    assert check_ideographic_group("すゞき^スヾキ", JIS) == ""
 
 
-def test_script_checks_on_input_and_blocks_submit_while_invalid() -> None:
+def test_script_uses_inline_errors_not_browser_bubbles() -> None:
     script = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
-    for marker in ("data-check", "data-message", "setCustomValidity", "aria-invalid", "patient-id"):
+    for marker in ("data-check", "data-message", "aria-invalid", "patient-id", "htmx:beforeRequest",
+                   "data-error-field", "convertPhonetic", "data-test-mode"):
         assert marker in script, marker
+    # form は novalidate。ブラウザの吹き出し（二重になる）は使わない
+    assert "setCustomValidity(message" not in script.split("数の欄の検証の文言", 1)[0]
+    assert "reportValidity" not in script
 
 
 def test_script_rechecks_a_field_after_the_blur_correction() -> None:
@@ -147,3 +233,41 @@ def test_script_rechecks_a_field_after_the_blur_correction() -> None:
     script = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
     focusout = script.split('addEventListener("focusout"', 1)[1].split("});", 1)[0]
     assert focusout.index('replace(/\\s+/g, "^")') < focusout.index("checkField(input)")
+
+
+def test_script_phonetic_rules_match_the_server(tmp_path) -> None:
+    """画面のかなの確かめと、ひらがなの直しは、サーバーと同じ字を通し、同じ字に直す."""
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node が無いので、画面のスクリプトを動かせない")
+    from app.core.patient_input import check_phonetic_group, to_katakana
+
+    chars = [chr(code) for code in range(0x20, 0x10000) if not 0xD800 <= code <= 0xDFFF]
+    chars_file = tmp_path / "chars.json"
+    chars_file.write_text(json.dumps(chars), encoding="utf-8")
+    script = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
+    pieces = [
+        re.search(pattern, script).group(0)
+        for pattern in (
+            r"var PHONETIC_CHARS = .*?;\n",
+            r"var HIRAGANA = .*?;\n",
+            r"var HIRAGANA_TO_KATAKANA = .*?;\n",
+        )
+    ]
+    program = "".join(pieces) + (
+        "var chars = JSON.parse(require('fs').readFileSync(process.argv[1], 'utf8'));\n"
+        "console.log(JSON.stringify({"
+        "accepted: chars.filter(function (c) { return PHONETIC_CHARS.test(c); }),"
+        "converted: chars.map(function (c) {"
+        "  return c.replace(HIRAGANA, function (h) {"
+        "    return String.fromCharCode(h.charCodeAt(0) + HIRAGANA_TO_KATAKANA); }); })}));"
+    )
+    result = subprocess.run(
+        [node, "-e", program, str(chars_file)], capture_output=True, text=True, check=True
+    )
+    data = json.loads(result.stdout)
+    # 画面は成分の区切り ^ も通す。サーバーは群を ^ で分けてから確かめる
+    assert sorted(data["accepted"]) == sorted(
+        c for c in chars if c == "^" or not check_phonetic_group(c)
+    )
+    assert data["converted"] == [to_katakana(c) for c in chars]

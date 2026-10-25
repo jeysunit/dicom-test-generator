@@ -284,6 +284,8 @@ def exam_command(args: argparse.Namespace) -> int:
             birth_date=args.birth_date or "",
             sex=args.sex or "",
             strict=not args.append,
+            character_set=service.image_character_set(None, args.charset),
+            test_mode=service.config.patient_input_test_mode,
         )
     elif args.study_description:
         raise ConfigurationError("--study-description is only for --emergency")

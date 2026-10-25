@@ -841,13 +841,18 @@ class ModalityService:
             )
             # 画面・CLI を通らない呼び出し（API）にも、同じ確かめを効かせる。追加撮影は、前の撮影と
             # 患者ID・氏名が一致するかで確かめる（以前に受け付けた値の患者にも追加撮影できるように）
-            if request.append:
-                validate_study_description(request.study_description)
-            else:
-                validate_emergency_patient(emergency_patient, request.study_description)
             character_set = resolve_image_character_set(
                 choice, None, self.config.character_set_fallback
             )
+            if request.append:
+                validate_study_description(request.study_description)
+            else:
+                validate_emergency_patient(
+                    emergency_patient,
+                    request.study_description,
+                    character_set,
+                    test_mode=self.config.patient_input_test_mode,
+                )
             previous = None
             if request.append:
                 previous = self.queue.emergency_exam(request.emergency_study_instance_uid)

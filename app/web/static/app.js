@@ -36,14 +36,17 @@
       return;
     }
     input.value = input.value.trim().replace(/\s*\^\s*/g, "^").replace(/\s+/g, "^");
-    // 補正した後の値で、欄の誤りの表示と送信の可否を確かめ直す（値の代入では input が起きない）
+    convertPhonetic(input);
+    // 補正した後の値で、欄の誤りの表示を確かめ直す（値の代入では input が起きない）
     checkField(input);
   });
 
-  // 緊急の患者の欄：入力のたびに確かめ、誤りの文を欄の下に出す（読み上げない。画面の上の
-  // 知らせだけが読み上げる）。文は data-message（サーバーと同じ文。app/core/patient_input.py）。
-  // 漢字の氏名は JIS X 0208 の字かどうかの近似（半角カナ・拡張の字を断る）で、最後の判定は
-  // サーバーが行う。誤りがあるうちは setCustomValidity で送信を止める
+  // 緊急の患者の欄：入力のたびに確かめ、誤りの文を欄（label）の外の直下に 1 行出す。欄は
+  // aria-invalid と aria-describedby で結ぶ（欄の下の文は読み上げない。画面の上の知らせだけが
+  // 読み上げる）。文は data-message（サーバーと同じ文。app/core/patient_input.py）。ブラウザの
+  // 検証の吹き出しは使わない（form は novalidate）。送る前に全部を確かめ、誤りがあれば送らずに
+  // 最初の誤りの欄へ移る。漢字の氏名は、文字コードが JIS のときだけ JIS X 0208 の字かどうかを
+  // 確かめる（UTF-8 なら制限しない）。範囲は含みすぎてよく、最後の判定はサーバーが行う
   var PATIENT_ID_CHARS = /^[\x20-\x7E]*$/;
   var PATIENT_ID_DELIMITERS = /[\\^~&|]/;
   var ALPHABETIC_CHARS = /^[A-Za-z' ^-]*$/;
@@ -68,7 +71,20 @@
     var day = ("0" + now.getDate()).slice(-2);
     return now.getFullYear() + "-" + month + "-" + day;
   }
-  function isAcceptable(kind, value) {
+  var PHONETIC_CHARS = /^[ァ-ヺ・-ヾ^ ]*$/;
+  var HIRAGANA = /[ぁ-ゖゝゞ]/g;
+  var HIRAGANA_TO_KATAKANA = 0x60;
+  function charsetIsJis(input) {
+    var form = input.form;
+    var select = form && form.elements.namedItem("charset");
+    var value = select ? select.value : "auto";
+    if (value === "auto" || value === "") {
+      var holder = form && form.querySelector("[data-charset-fallback]");
+      value = holder ? holder.getAttribute("data-charset-fallback") : "utf8";
+    }
+    return value === "jis" || value === "jis_kana";
+  }
+  function isAcceptable(input, kind, value) {
     var text = value.replace(/\s+/g, " ");
     if (kind === "patient-id") {
       return PATIENT_ID_CHARS.test(value) && !PATIENT_ID_DELIMITERS.test(value);
@@ -77,38 +93,110 @@
       return ALPHABETIC_CHARS.test(text);
     }
     if (kind === "ideographic") {
-      return isIdeographic(text);
+      return !charsetIsJis(input) || isIdeographic(text);
+    }
+    if (kind === "phonetic") {
+      return input.hasAttribute("data-test-mode") || PHONETIC_CHARS.test(text);
     }
     if (kind === "birth-date") {
       return !value || value <= today();
     }
     return true;
   }
+  function showFieldError(input, message) {
+    var line = document.getElementById("error-" + input.name);
+    if (line) {
+      line.textContent = message;
+      line.hidden = !message;
+    }
+    if (message) {
+      input.setAttribute("aria-invalid", "true");
+    } else {
+      input.removeAttribute("aria-invalid");
+    }
+  }
   function checkField(input) {
     var kind = input.getAttribute("data-check");
-    var note = document.getElementById(input.getAttribute("aria-describedby"));
-    if (!kind || !note) {
+    if (!kind) {
+      return true;
+    }
+    var message = "";
+    if (input.required && input.value.trim() === "") {
+      message = input.getAttribute("data-required-message") || "";
+    } else if (!isAcceptable(input, kind, input.value)) {
+      message = input.getAttribute("data-message") || "";
+    }
+    showFieldError(input, message);
+    return !message;
+  }
+  // かな：ひらがなをカタカナに直し、直したことを欄の下に知らせる（試験の形では直さない）
+  function convertPhonetic(input) {
+    if (input.getAttribute("data-check") !== "phonetic" || input.hasAttribute("data-test-mode")) {
       return;
     }
-    var ok = isAcceptable(kind, input.value);
-    var message = ok ? "" : input.getAttribute("data-message");
-    input.setCustomValidity(message);
-    if (ok) {
-      input.removeAttribute("aria-invalid");
-    } else {
-      input.setAttribute("aria-invalid", "true");
+    var note = document.getElementById("note-" + input.name);
+    var converted = input.value.replace(HIRAGANA, function (char) {
+      return String.fromCharCode(char.charCodeAt(0) + HIRAGANA_TO_KATAKANA);
+    });
+    var changed = converted !== input.value;
+    input.value = converted;
+    if (note) {
+      note.textContent = changed ? input.getAttribute("data-note") || "" : "";
+      note.hidden = !changed;
     }
-    note.textContent = message;
-    note.hidden = ok;
   }
   document.addEventListener("input", function (event) {
-    if (event.target instanceof HTMLInputElement) {
-      checkField(event.target);
+    var input = event.target;
+    if (input instanceof HTMLInputElement) {
+      var note = document.getElementById("note-" + input.name);
+      if (note && input.getAttribute("data-check") === "phonetic") {
+        note.hidden = true;
+      }
+      checkField(input);
     }
   });
   document.addEventListener("change", function (event) {
-    if (event.target instanceof HTMLInputElement) {
-      checkField(event.target);
+    var input = event.target;
+    if (input instanceof HTMLInputElement) {
+      checkField(input);
+    } else if (input instanceof HTMLSelectElement && input.name === "charset" && input.form) {
+      // 文字コードを変えたら、漢字の氏名を確かめ直す
+      var name = input.form.elements.namedItem("name_ideographic");
+      if (name instanceof HTMLInputElement) {
+        checkField(name);
+      }
+    }
+  });
+  // 送る前に全部を確かめる。誤りがあれば送らず、最初の誤りの欄へ移る
+  document.addEventListener("htmx:beforeRequest", function (event) {
+    var form = event.detail.elt;
+    if (!(form instanceof HTMLFormElement) || form.id !== "exam-form") {
+      return;
+    }
+    var first = null;
+    form.querySelectorAll("[data-check]").forEach(function (input) {
+      if (input instanceof HTMLInputElement) {
+        convertPhonetic(input);
+        if (!checkField(input) && !first) {
+          first = input;
+        }
+      }
+    });
+    if (first) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+  // サーバーで断った誤りも、その欄の下に結ぶ
+  document.addEventListener("htmx:afterSwap", function (event) {
+    var notice = event.target.querySelector
+      ? event.target.querySelector("[data-error-field]")
+      : null;
+    var form = document.getElementById("exam-form");
+    var field = notice && form && form.elements.namedItem(notice.getAttribute("data-error-field"));
+    if (field && field.name) {
+      showFieldError(field, notice.textContent.trim());
+      field.focus();
     }
   });
 

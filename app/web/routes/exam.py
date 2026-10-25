@@ -18,6 +18,9 @@ from app.core.patient_input import (
     BIRTH_DATE_FUTURE_MESSAGE,
     IDEOGRAPHIC_MESSAGE,
     PATIENT_ID_MESSAGE,
+    PHONETIC_CONVERTED_NOTE,
+    PHONETIC_MESSAGE,
+    REQUIRED_MESSAGES,
     build_emergency_patient,
 )
 from app.modality.service import ExamRequest, ExamResult, ModalityService, SendResult
@@ -41,6 +44,7 @@ INPUT_MESSAGES = {
     "alphabetic": ALPHABETIC_MESSAGE,
     "ideographic": IDEOGRAPHIC_MESSAGE,
     "birth-date": BIRTH_DATE_FUTURE_MESSAGE,
+    "phonetic": PHONETIC_MESSAGE,
 }
 ACTION_EXAM = "exam"
 ACTION_EXAM_SEND = "exam_send"
@@ -139,6 +143,8 @@ def exam_page(request: Request, key: str = "") -> HTMLResponse:
         abnormal_choices=ABNORMAL_CHOICES,
         sex_choices=SEX_CHOICES,
         input_messages=INPUT_MESSAGES,
+        required_messages=REQUIRED_MESSAGES,
+        phonetic_converted_note=PHONETIC_CONVERTED_NOTE,
         blocker=_blocker(service, item, template, profile),
         exam_token=ExamTokens.issue(),
         **_retake_context(service, item),
@@ -280,6 +286,8 @@ def exam_run(
                 birth_date=birth_date.replace("-", "").strip(),
                 sex=sex,
                 strict=not append,
+                character_set=service.image_character_set(None, charset or None),
+                test_mode=service.config.patient_input_test_mode,
             )
         exam_request = ExamRequest(
             worklist_key=None if emergency_patient else key,
@@ -297,7 +305,13 @@ def exam_run(
         result = service.exam(exam_request)
         accepted = True
     except (DICOMGeneratorError, ValidationError) as exc:
-        return render(request, "_notice.html", error=worklist_error_text(exc))
+        # 欄の誤りは、その欄の下にも結ぶ（スクリプトが error_field を読む）
+        return render(
+            request,
+            "_notice.html",
+            error=worklist_error_text(exc),
+            error_field=getattr(exc, "field", ""),
+        )
     finally:
         if exam_token:
             tokens.finish(exam_token, accepted=accepted)

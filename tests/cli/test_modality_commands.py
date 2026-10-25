@@ -509,7 +509,9 @@ def test_emergency_append_requires_study_uid(monkeypatch, capsys, tmp_path) -> N
     ("extra", "message"),
     [
         (["--patient-name", "山田^太郎"], "氏名（英字）は半角の英字"),
-        (["--patient-name", "YAMADA^TARO=ﾔﾏﾀﾞ"], "氏名（漢字）に使えない字"),
+        (["--patient-name", "YAMADA^TARO=ﾔﾏﾀﾞ", "--charset", "jis"], "この文字コードでは表せない字"),
+        (["--patient-name", "YAMADA^TARO==ﾔﾏﾀﾞ"], "氏名（かな）は全角のカタカナ"),
+        (["--patient-name", "YAMADA^TARO==Yamada"], "氏名（かな）は全角のカタカナ"),
         (["--patient-name", "YAMADA^TARO", "--patient-id", "患者01"], "患者ID は半角の英数字"),
         (["--patient-name", "YAMADA^TARO", "--birth-date", "20230229"], "暦にある日付"),
         (["--patient-name", "YAMADA^TARO", "--birth-date", "20991231"], "今日以前"),
@@ -529,3 +531,19 @@ def test_exam_emergency_bad_input_is_refused_in_japanese(
     assert code == 4
     assert message in err
     assert list((tmp_path / "output").rglob("*.dcm")) == []
+
+
+def test_exam_emergency_utf8_accepts_names_outside_jis_and_hiragana_becomes_katakana(
+    monkeypatch, capsys, tmp_path, config
+) -> None:
+    """文字コードが UTF-8（auto の既定）なら「髙橋」を受け、かなのひらがなはカタカナに直す."""
+    code, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0010",
+        "--patient-name", "TAKAHASHI^TARO=髙橋^太郎=たかはし^たろう", "--pixel-mode", "simple_text",
+        "--json",
+    )
+
+    assert code == 0
+    ds = pydicom.dcmread(json.loads(out)["files"][0])
+    assert ds.PatientName.ideographic == "髙橋^太郎"
+    assert ds.PatientName.phonetic == "タカハシ^タロウ"
