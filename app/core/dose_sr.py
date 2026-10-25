@@ -44,6 +44,8 @@ EXPOSURE_TIME_PER_ROTATION_S = 0.5
 # Code Sequence の三つ組（値・体系・意味）
 Code = tuple[str, str, str]
 PROCEDURE_REPORTED: Code = ("121058", CODE_DCM, "Procedure reported")
+HAS_INTENT: Code = ("363703001", CODE_SCT, "Has Intent")
+DIAGNOSTIC_INTENT: Code = ("261004008", CODE_SCT, "Diagnostic Intent")
 CT_XRAY: Code = ("77477000", CODE_SCT, "Computed Tomography X-Ray")
 REPORT_TITLE: Code = ("113701", CODE_DCM, "X-Ray Radiation Dose Report")
 OBSERVER_TYPE: Code = ("121005", CODE_DCM, "Observer Type")
@@ -282,11 +284,14 @@ def dose_sr_content(
     template.MappingResource = TEMPLATE_RESOURCE
     template.TemplateIdentifier = TEMPLATE_ID
     root.ContentTemplateSequence = Sequence([template])
+    # Procedure reported の下に Has Intent（TID 10011 の行 2・3。CID 3629）
+    procedure = _code_item("HAS CONCEPT MOD", PROCEDURE_REPORTED, CT_XRAY)
+    _children(procedure, [_code_item("HAS CONCEPT MOD", HAS_INTENT, DIAGNOSTIC_INTENT)])
     scope = _code_item("HAS OBS CONTEXT", SCOPE_OF_ACCUMULATION, SCOPE_STUDY)
     _children(scope, [_uidref("HAS PROPERTIES", STUDY_INSTANCE_UID, study_instance_uid)])
     root.ContentSequence = Sequence(
         [
-            _code_item("HAS CONCEPT MOD", PROCEDURE_REPORTED, CT_XRAY),
+            procedure,
             _code_item("HAS OBS CONTEXT", OBSERVER_TYPE, DEVICE),
             _uidref("HAS OBS CONTEXT", DEVICE_OBSERVER_UID, device_observer_uid),
             _datetime("HAS OBS CONTEXT", START_OF_IRRADIATION, start),

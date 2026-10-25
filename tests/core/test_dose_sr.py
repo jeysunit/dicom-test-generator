@@ -88,6 +88,17 @@ def test_tid_10011_mandatory_rows_are_under_the_root() -> None:
     assert DEVICE_OBSERVER_UID[0] == "121012"
 
 
+def test_procedure_reported_has_the_intent_row() -> None:
+    """TID 10011 の行 3（Has Intent。M。値は CID 3629）."""
+    (procedure,) = _find(_content(), "Procedure reported")
+
+    (intent,) = procedure.ContentSequence
+    assert intent.RelationshipType == "HAS CONCEPT MOD"
+    assert intent.ValueType == "CODE"
+    assert intent.ConceptNameCodeSequence[0].CodeValue == "363703001"
+    assert intent.ConceptCodeSequence[0].CodeValue == "261004008"  # Diagnostic Intent
+
+
 def test_scope_of_accumulation_is_the_study_with_its_uid() -> None:
     (scope,) = _find(_content(), "Scope of Accumulation")
 

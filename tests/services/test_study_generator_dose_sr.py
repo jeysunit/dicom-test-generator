@@ -177,6 +177,20 @@ def test_sr_series_without_an_exposure_is_refused(tmp_path: Path) -> None:
         _generate(tmp_path, series_list=_series(with_exposure=False))
 
 
+def test_empty_equipment_values_are_filled_for_the_sr() -> None:
+    """Enhanced General Equipment は Type 1。テンプレートが空にしても空では出さない."""
+    ds = pydicom.Dataset()
+    ds.Manufacturer = ""
+    ds.SoftwareVersions = "V1"
+
+    StudyGeneratorService._keep_sr_shape(ds)
+
+    assert ds.Manufacturer == "DTG Synthetic"
+    assert ds.ManufacturerModelName == "DTG Synthetic"
+    assert ds.DeviceSerialNumber == "DTG0001"
+    assert ds.SoftwareVersions == "V1"  # 入っている値は変えない
+
+
 def test_sr_with_a_device_profile_drops_image_attributes(tmp_path: Path) -> None:
     study = _generate(tmp_path, series_list=_series(), profile="dtg_synthetic_ct")
 
