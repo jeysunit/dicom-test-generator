@@ -328,6 +328,11 @@ YAMADA^TARO=山田^太郎=ヤマダ^タロウ
 | `hospital_a` | `ISO 2022 IR 6\ISO 2022 IR 87` | `YAMADA^TARO=山田^太郎=ヤマダ^タロウ` |
 | `hospital_b` | （書かない） | `YAMADA^TARO` |
 
+`ISO 2022 IR 6\ISO 2022 IR 87`（`hospital_a` と、Job の `specific_character_set` の既定）の
+画像は、Orthanc 1.13.0 が漢字・かなを読み崩す。Orthanc は最初の値が空でない複数の値を、
+最初の値だけで全体を読むため。Orthanc へ送る Job では、`\ISO 2022 IR 87`（値 1 が空）か
+`ISO_IR 192` にする（確かめた結果は [spec/12](12_modality_emulator.md) の 14.4）。
+
 ### 7.4 表現できない文字
 
 Specific Character Set は、デフォルトの文字セット（ASCII）に無い文字を使う

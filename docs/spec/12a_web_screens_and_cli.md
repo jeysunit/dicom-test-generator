@@ -479,7 +479,7 @@ standalone の実行ファイル）にする。** 選んだ理由は ADR-0011 �
 | 自分 | 装置の一覧（表示名・AEタイトル・Station Name。標準と使っている装置に印）・待ち受けのポート（保管確認の結果を受ける） |
 | ワークリストの取得先 | AEタイトル・ホスト・ポート・タイムアウト・MPPS を使うか |
 | 送信先 | 一覧・標準の送信先・保管確認を使うか |
-| 文字コード | 初期設定（`auto`・`utf8`・`jis`・`jis_kana`） |
+| 文字コード | 初期設定（`auto`・`utf8`・`jis`・`jis_kana`）。Orthanc 1.13.0 は `jis_kana` の画像の漢字・かなを読み崩す（[spec/12](12_modality_emulator.md) の 14.4） |
 | 撮影 | 標準のテンプレート・病院・ピクセル・出力フォルダ |
 
 - **設定の画面は読み取り専用にする。** 上の表の値と、読み込んだ設定ファイルの
@@ -662,7 +662,7 @@ python -m app.cli exam --emergency --patient-id E0001 \
 | `--routine-images LIST` | ルーチンの各シリーズの画像数（数はルーチンのシリーズの数と同じ） | ルーチンの標準の数 |
 | `--pixel-mode MODE` | ピクセル | 設定の初期値 |
 | `--abnormal-level L` | 異常のデータ | none |
-| `--charset C` | `auto`・`utf8`・`jis`・`jis_kana` | 設定の初期値 |
+| `--charset C` | `auto`・`utf8`・`jis`・`jis_kana`（Orthanc 1.13.0 へ送る画像は `utf8` か `jis`。[spec/12](12_modality_emulator.md) の 14.4） | 設定の初期値 |
 | `-o, --output DIR` | 出力フォルダ | 設定の初期値 |
 | `--send` | 作成した後に標準の送信先へ送信する | false |
 | `--to NAME` | `--send` の送信先 | 標準の送信先 |
