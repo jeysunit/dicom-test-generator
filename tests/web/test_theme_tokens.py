@@ -36,6 +36,7 @@ def test_spec_table_has_all_color_tokens() -> None:
         "--color-border-input",
         "--color-muted",
         "--color-muted-strong",
+        "--color-selected",
         "--color-chrome",
         "--color-primary",
         "--color-primary-foreground",
@@ -86,6 +87,10 @@ _TEXT_PAIRS = [
     ("--color-label", "--color-muted-strong"),
     ("--color-value", "--color-background"),
     ("--color-value", "--color-surface"),
+    ("--color-value", "--color-muted"),
+    # 現在のナビの項目（値の色・太字）と、選んだ行
+    ("--color-value", "--color-selected"),
+    ("--color-foreground", "--color-selected"),
     ("--color-link", "--color-background"),
     ("--color-link", "--color-surface"),
     ("--color-link", "--color-muted"),

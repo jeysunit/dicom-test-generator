@@ -1,5 +1,5 @@
 <div id="band"{% if oob_band %} hx-swap-oob="true"{% endif %} class="border-t border-border">
-  <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-1.5 text-xs text-label">
+  <div class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-1.5 text-xs text-label">
     {% if band.stations|length > 1 %}
     {# 装置の切り替え（docs/spec/12a の 10.3・ADR-0023）。切り替えたらページを読み込み直す #}
     <label class="flex items-center gap-1">

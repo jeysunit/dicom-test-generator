@@ -19,6 +19,7 @@
   --color-border-input: #8c8c8c;
   --color-muted: #eeeeee;
   --color-muted-strong: #e2e2e2;
+  --color-selected: #ededf9;
   --color-chrome: #333333;
   --color-primary: #4b4fbf;
   --color-primary-foreground: #ffffff;
@@ -41,6 +42,7 @@
   --color-border-input: #777777;
   --color-muted: #2d2d2d;
   --color-muted-strong: #383838;
+  --color-selected: #272844;
   --color-chrome: #121212;
   --color-primary: #4b4fbf;
   --color-primary-foreground: #ffffff;
@@ -87,11 +89,24 @@
   .btn-icon.copied {
     @apply text-link;
   }
-  .nav-link {
-    @apply rounded-md px-3 py-1 text-label hover:bg-muted;
+  /* 外枠：左のナビ（幅 208px）と本文。幅が 768px 未満のときは、ナビを本文の上の 1 行にする（10.3） */
+  .shell {
+    @apply flex-1 md:grid md:grid-cols-[13rem_minmax(0,1fr)];
   }
-  .nav-active {
-    @apply bg-muted font-medium text-value;
+  .sidenav {
+    @apply flex flex-wrap items-center gap-1 border-b border-border bg-surface p-2 md:block md:border-r md:border-b-0;
+  }
+  .nav-group {
+    @apply hidden px-2 pt-3 pb-1 text-xs text-label first:pt-1 md:block;
+  }
+  /* 現在のページは、地（selected）・左の線 3px・太字で示す（色だけにしない） */
+  .nav-item {
+    @apply flex h-8 items-center rounded-sm px-2 text-foreground hover:bg-muted hover:text-value;
+    box-shadow: inset 3px 0 0 transparent;
+  }
+  .nav-item[aria-current="page"] {
+    @apply bg-selected font-bold text-value;
+    box-shadow: inset 3px 0 0 var(--color-link);
   }
   .panel {
     @apply rounded-md border border-border bg-background p-4 sm:p-6;

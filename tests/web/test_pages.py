@@ -40,6 +40,40 @@ def test_pages_open_with_header_and_band(client, path, text) -> None:
     assert '<html lang="ja"' in html
 
 
+_NAV = re.compile(r'<nav class="sidenav" aria-label="ページ">(.*?)</nav>', re.DOTALL)
+_NAV_ITEM = re.compile(r'<a href="([^"]+)" class="nav-item"( aria-current="page")?>([^<]+)</a>')
+
+
+@pytest.mark.parametrize(
+    ("path", "current"),
+    [("/worklist", "ワークリスト"), ("/exam", "撮影"), ("/pacs", "PACS"), ("/settings", "設定")],
+)
+def test_left_nav_groups_items_and_current_page(client, path, current) -> None:
+    html = client.get(path).text
+    match = _NAV.search(html)
+    assert match, "左のナビがある"
+    nav = match.group(1)
+
+    # 群は 業務・接続・管理 の順。項目は各ページの題と同じ名前で、群の中の順に並ぶ
+    assert re.findall(r'<p class="nav-group">([^<]+)</p>', nav) == ["業務", "接続", "管理"]
+    items = _NAV_ITEM.findall(nav)
+    assert [(href, label) for href, _, label in items] == [
+        ("/worklist", "ワークリスト"),
+        ("/exam", "撮影"),
+        ("/pacs", "PACS"),
+        ("/settings", "設定"),
+    ]
+    # 現在のページだけに aria-current が付く
+    assert [label for _, flag, label in items if flag] == [current]
+
+    # ページへの入り口は左のナビだけ。上の帯（ヘッダー）にタブを置かない
+    header = html[html.index("<header") : html.index("</header>")]
+    assert 'href="/exam"' not in header and 'href="/pacs"' not in header
+    assert 'href="/settings"' not in header
+    # ナビは、ヘッダー（帯と情報バー）の後、本文の前
+    assert html.index("</header>") < html.index('class="sidenav"') < html.index("<main")
+
+
 def test_worklist_query_partial_lists_items_and_marks(client) -> None:
     html = _query(client, station="any", modality="")
 
