@@ -121,6 +121,9 @@
   .pagehead h1 {
     @apply flex items-baseline gap-2 text-xl font-bold text-value;
   }
+  .pagehead h1 small {
+    @apply text-sm font-normal text-label;
+  }
   .crumbs {
     @apply flex flex-wrap gap-1 text-xs text-label;
   }
@@ -137,6 +140,10 @@
   /* 入力の画面（型 C）：区画（見出しと中身）と操作の行。幅は最大 900px */
   .form-col {
     @apply max-w-[900px] space-y-3;
+  }
+  /* 設定の画面（型 D）：区画は 1 列、幅は最大 560px */
+  .settings-col {
+    @apply max-w-[560px] space-y-3;
   }
   .sec {
     @apply rounded-md border border-border bg-background;

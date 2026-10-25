@@ -47,3 +47,14 @@ def test_action_row_puts_secondary_before_primary(client) -> None:
 
     buttons = re.findall(r'<button[^>]*class="(btn [^"]+)"', actions)
     assert buttons == ["btn btn-outline", "btn btn-primary"]
+
+
+def test_settings_follows_screen_type_d_read_only(client) -> None:
+    """設定（読むだけ）：見出しの行、区画の見出しと項目名・値の対、1 列で最大 560px の幅."""
+    html = client.get("/settings").text
+
+    assert '<div class="pagehead"><h1>設定 <small>読むだけ</small></h1></div>' in html
+    assert '<div class="settings-col">' in html
+    titles = re.findall(r'<h2 class="sec-title">([^<]+)</h2>', html)
+    assert titles == ["自分", "ワークリストの相手", "送信先", "文字コードと撮影"]
+    assert 'class="panel' not in html and "<form" not in html
