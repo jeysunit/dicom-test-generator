@@ -35,15 +35,15 @@ def _counts(html: str) -> dict[str, str]:
 def test_page_puts_the_destination_section_above_the_job_list(client) -> None:
     html = client.get("/pacs").text
 
-    destinations = html.index('<h2 class="sec-title">送信先</h2>')
-    jobs = html.index("<h2>送信ジョブ</h2>")
+    destinations = html.index("<h2>送信先</h2>")
+    jobs = html.index('<h2 class="hd">送信ジョブ')
     assert destinations < jobs
     # 下段は、状態の要約 → 検索の帯 → 件数の行 → 一覧の順
     order = [
         html.index('id="queue-sum"'),
         html.index('id="queue-filter"'),
-        html.index('<div class="count-row">'),
-        html.index("<table", html.index('<div class="count-row">')),
+        html.index('<div class="listhead">'),
+        html.index("<table", html.index('<div class="listhead">')),
     ]
     assert order == sorted(order)
     # 送信先の表のポートは、ホストと別の列
@@ -85,7 +85,7 @@ def test_status_filter_selects_and_toggles(client) -> None:
 
     failed = client.get("/pacs/queue?status=failed").text
 
-    assert '<b class="count-n">2</b>' in failed
+    assert '<span class="cnt"><b>2</b>' in failed
     assert 'aria-pressed="true" data-focus-key="sum-failed"' in failed
     # 押している状態をもう一度押すと、絞りを外す
     assert re.search(r'data-focus-key="sum-failed"[^>]*hx-vals=\'\{"status": "all"\}\'', failed)
@@ -96,10 +96,10 @@ def test_destination_and_patient_id_conditions(client) -> None:
     _job(client, "E0001", failed=True)
     _job(client, "E0002", failed=True)
 
-    assert '<b class="count-n">1</b>' in client.get("/pacs/queue?patient_id=e0002").text
-    assert '<b class="count-n">2</b>' in client.get("/pacs/queue?destination=PACS_TEST").text
+    assert '<span class="cnt"><b>1</b>' in client.get("/pacs/queue?patient_id=e0002").text
+    assert '<span class="cnt"><b>2</b>' in client.get("/pacs/queue?destination=PACS_TEST").text
     other = client.get("/pacs/queue?destination=OTHER").text
-    assert '<b class="count-n">0</b>' in other
+    assert '<span class="cnt"><b>0</b>' in other
     assert "条件に合う送信ジョブはありません" in other
     assert "送信ジョブはまだありません" not in other
 
@@ -111,9 +111,9 @@ def test_period_condition_uses_the_created_date(client) -> None:
         conn.execute("UPDATE jobs SET created_at = ? WHERE id = ?", (old, job_id))
     _job(client, "E0002", failed=True)
 
-    assert '<b class="count-n">2</b>' in client.get("/pacs/queue?period=all").text
-    assert '<b class="count-n">1</b>' in client.get("/pacs/queue?period=today").text
-    assert '<b class="count-n">1</b>' in client.get("/pacs/queue?period=week").text
+    assert '<span class="cnt"><b>2</b>' in client.get("/pacs/queue?period=all").text
+    assert '<span class="cnt"><b>1</b>' in client.get("/pacs/queue?period=today").text
+    assert '<span class="cnt"><b>1</b>' in client.get("/pacs/queue?period=week").text
 
 
 def test_unknown_condition_values_fall_back(client) -> None:
@@ -121,7 +121,7 @@ def test_unknown_condition_values_fall_back(client) -> None:
 
     html = client.get("/pacs/queue?period=bogus&status=bogus&selected=abc").text
 
-    assert '<b class="count-n">1</b>' in html
+    assert '<span class="cnt"><b>1</b>' in html
     assert 'name="status" value="all"' in html and 'name="selected" value=""' in html
 
 

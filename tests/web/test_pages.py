@@ -42,7 +42,10 @@ def test_pages_open_with_header_and_band(client, path, text) -> None:
 
 
 _NAV = re.compile(r'<nav class="sidenav" aria-label="ページ">(.*?)</nav>', re.DOTALL)
-_NAV_ITEM = re.compile(r'<a href="([^"]+)" class="nav-item"( aria-current="page")?>([^<]+)</a>')
+_NAV_ITEM = re.compile(
+    r'<a href="([^"]+)" class="nav-i"( aria-current="page")?>'
+    r'(?:<span class="icon [^"]+" aria-hidden="true"></span>)?<span class="t">([^<]+)</span></a>'
+)
 
 
 @pytest.mark.parametrize(
@@ -56,7 +59,7 @@ def test_left_nav_groups_items_and_current_page(client, path, current) -> None:
     nav = match.group(1)
 
     # 群は 業務・接続・管理 の順。項目は各ページの題と同じ名前で、群の中の順に並ぶ
-    assert re.findall(r'<p class="nav-group">([^<]+)</p>', nav) == ["業務", "接続", "管理"]
+    assert re.findall(r'<p class="nav-g">([^<]+)</p>', nav) == ["業務", "接続", "管理"]
     items = _NAV_ITEM.findall(nav)
     assert [(href, label) for href, _, label in items] == [
         ("/worklist", "ワークリスト"),
@@ -437,7 +440,7 @@ def test_pacs_queue_partial_polls(client) -> None:
     assert "<b>送信ジョブはまだありません。</b>" in partial.text
     assert "<span>撮影して送信すると、ここに出ます。</span>" in partial.text
     assert "<thead>" in partial.text
-    assert '<b class="count-n">0</b>' in partial.text
+    assert '<span class="cnt"><b>0</b>' in partial.text
 
 
 def test_pacs_job_states_are_shown_as_state_marks(client) -> None:

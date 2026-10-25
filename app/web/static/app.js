@@ -344,7 +344,8 @@
     }
     var notice = document.createElement("div");
     notice.setAttribute("role", "alert");
-    notice.className = "notice notice-error";
+    notice.className = "notice";
+    notice.setAttribute("data-k", "err");
     notice.textContent = message;
     place.replaceChildren(notice);
   }
@@ -434,7 +435,7 @@
   // 要素になり、左端に戻って、押そうとしていた右側の [もう一度送る]・[詳細] が動く）
   var queueScroll = 0;
   function queueWrap(queue) {
-    return queue.querySelector(".overflow-x-auto");
+    return queue.querySelector(".tbl-wrap");
   }
   function roleOf(element) {
     if (!element || element === document.body) {

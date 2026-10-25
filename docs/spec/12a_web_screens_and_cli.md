@@ -51,8 +51,16 @@ standalone の実行ファイル）にする。** 選んだ理由は ADR-0011 �
   （フォーム）、テスト用に `httpx`（FastAPI の TestClient が使う）
 - 画面の更新（送信キューの状態など）は HTMX の定期的な取得
   （`hx-trigger="every 2s"`）で行う。SSE・WebSocket は使わない
-- 色と文字の値は、入力の CSS（`app/web/styles/input.css`）に書く。値が 10.2 の表と
-  ずれたら検出できるよう、テストで比較する（`tests/web/test_theme_tokens.py`）
+- 色・文字の値と部品の CSS は、3 製品で共通の ui-kit の写しを読む
+  （`app/web/static/ui-kit/` の `tokens.css`・`components.css`、版は同じ場所の
+  `VERSION`）。`base.html` で tokens.css → components.css → app.css の順に読む。
+  写しは DTG の側で直さず、版が上がったら同じ版の写しに替える
+- 入力の CSS（`app/web/styles/input.css`）は、テンプレートに書く Tailwind の色の名前
+  （`bg-surface`・`text-label` など）を `@theme inline` で tokens.css の変数へつなぐ
+  ことと、ui-kit に無い DTG だけの部品（ルーチンの表・UID のコピー・アイコンなど）
+  だけを持つ。ui-kit と同じ名前の部品は書かない
+- tokens.css の値が 10.2 の表とずれたら検出できるよう、テストで比較する
+  （`tests/web/test_theme_tokens.py`）
 
 ### 10.2 見た目の基準
 
@@ -75,21 +83,37 @@ standalone の実行ファイル）にする。** 選んだ理由は ADR-0011 �
 |------|----------------------|--------------|------|
 | `--color-background` | `#ffffff` | `#1b1b1b` | 背景 |
 | `--color-surface` | `#f6f6f6` | `#242424` | ヘッダー・パネルの背景 |
-| `--color-foreground` | `#262626` | `#e8e8e8` | 文字 |
-| `--color-label` | `#5f5f5f` | `#a3a3a3` | ラベル |
-| `--color-value` | `#1a1a1a`（太字） | `#ffffff`（太字） | 値 |
-| `--color-border` | `#d2d2d2` | `#3a3a3a` | 枠線 |
-| `--color-border-input` | `#8c8c8c` | `#777777` | 入力欄・ボタンの輪郭（値の定義だけ。使うのは段 2） |
 | `--color-muted` | `#eeeeee` | `#2d2d2d` | 行の hover・弱い背景 |
-| `--color-muted-strong` | `#e2e2e2` | `#383838` | 検索の条件の帯など、muted より濃い背景（値の定義だけ。使うのは段 2） |
-| `--color-selected` | `#ededf9` | `#272844` | 選んだ行・現在のナビの項目の地 |
-| `--color-chrome` | `#333333` | `#121212` | 画面の外枠（ヘッダー・サイドバー）の暗い地（値の定義だけ。使うのは段 2） |
+| `--color-muted-strong` | `#e2e2e2` | `#383838` | 検索の帯など、muted より濃い背景 |
+| `--color-border` | `#d2d2d2` | `#3a3a3a` | 枠線 |
+| `--color-border-input` | `#8c8c8c` | `#777777` | 入力欄・選択欄・枠のボタンの輪郭 |
+| `--color-foreground` | `#262626` | `#e8e8e8` | 文字 |
+| `--color-value` | `#1a1a1a`（太字） | `#ffffff`（太字） | 値 |
+| `--color-label` | `#5f5f5f` | `#a3a3a3` | ラベル |
 | `--color-primary` | `#4b4fbf` | `#4b4fbf` | プライマリボタンの地 |
 | `--color-primary-foreground` | `#ffffff` | `#ffffff` | プライマリボタンの文字 |
-| `--color-link` | `#4b4fbf` | `#a5a8ff` | フォーカスリング・強調の文字 |
+| `--color-primary-hover` | `#3b3ea3` | `#3b3ea3` | プライマリボタンの hover |
+| `--color-link` | `#4b4fbf` | `#a5a8ff` | リンク・強調の文字 |
+| `--color-ring` | `#4b4fbf` | `#a5a8ff` | フォーカスリング・現在のナビの項目の線 |
+| `--color-selected` | `#ededf9` | `#272844` | 現在のナビの項目の地 |
+| `--color-selected-strong` | `#d9daf3` | `#383b73` | 選んだ行の地 |
 | `--color-danger` | `#d1242f` | `#ff7b72` | 失敗・停止の通知の文字 |
+| `--color-danger-foreground` | `#ffffff` | `#1b1b1b` | 危険の操作の塗りのボタンの文字 |
 | `--color-success` | `#1a7f37` | `#3fb950` | 撮影完了・送信完了の枠と印 |
 | `--color-warning` | `#9a6700` | `#d29922` | 注意（予約なし・生年月日が空など）の枠と印 |
+| `--color-mod-ct` | `#0969da` | `#4493f8` | モダリティの印（CT） |
+| `--color-mod-mr` | `#9333ea` | `#c084fc` | モダリティの印（MR） |
+| `--color-mod-crdx` | `#1a7f37` | `#3fb950` | モダリティの印（CR・DX） |
+| `--color-mod-us` | `#bc4c00` | `#f0883e` | モダリティの印（US） |
+| `--color-mod-es` | `#bf3989` | `#f778ba` | モダリティの印（ES） |
+| `--color-mod-mg` | `#9a6700` | `#d29922` | モダリティの印（MG） |
+| `--color-mod-doc` | `#6e7781` | `#9198a1` | モダリティの印（そのほか） |
+| `--color-mod-sr` | `#1b7c83` | `#39c5cf` | モダリティの印（SR） |
+| `--color-primary-active` | `#2f3288` | `#2f3288` | プライマリボタンを押している間 |
+| `--color-hover` | `#e2e2e2` | `#333333` | 押せる物の hover |
+| `--color-pressed` | `#d2d2d2` | `#3a3a3a` | 押せる物を押している間 |
+| `--color-dev-band` | `#6b4a00` | `#6b4a00` | 検証モードの帯の地（DTG では使わない） |
+| `--color-dev-band-foreground` | `#ffe8a3` | `#ffe8a3` | 検証モードの帯の文字（DTG では使わない） |
 | `--font-sans` | `system-ui, "Noto Sans JP", sans-serif` | 同じ | 本文 |
 | `--font-mono` | `ui-monospace, "Noto Sans Mono", monospace` | 同じ | UID |
 
@@ -123,19 +147,20 @@ standalone の実行ファイル）にする。** 選んだ理由は ADR-0011 �
   「ホスト」と書く
 - **ライトテーマのプライマリカラーは `#4b4fbf`（インディゴ）。** 白の背景とのコントラスト比は
   6.62:1、`#f6f6f6` の背景とは 6.13:1、プライマリボタンの白の文字とは 6.62:1 で、どれも AA
-  （4.5:1）を満たす。リンク・フォーカスリングの `--color-link` も同じ値
+  （4.5:1）を満たす。リンクの `--color-link` とフォーカスリングの `--color-ring` も同じ値
 - **ダークテーマのプライマリカラーも `#4b4fbf`。** プライマリボタンの背景として、白の文字との
   コントラスト比は 6.62:1（AA を満たす）。`--color-primary-foreground` は両方の
   テーマで `#ffffff`。注意：`#4b4fbf` はダークテーマの背景（`#1b1b1b` に
   2.60:1、`#242424` に 2.34:1）の上では、文字にも枠にも使えない。そのため、
-  ダークテーマの文字・フォーカスリングには、別に持つ `--color-link`（`#a5a8ff`。
-  `#1b1b1b` に 7.91:1、`#242424` に 7.13:1）を使う
-- 部品の形：
-  - ボタン：高さ 32px（`h-8 px-3`）、角 `rounded-md`、文字 `text-sm`
-    `font-medium`、アイコン 16px。種類はプライマリ（`bg-primary`）・枠線
-    （`border border-border`）・背景なし（`hover:bg-muted`）の3つ
-  - 表：見出しの行は `h-9`・ラベルの色・`font-normal`、セルは `px-2 py-1.5`、
-    行の区切り線 `border-b border-border`、hover で `bg-muted/50`
+  ダークテーマの文字・フォーカスリングには、別に持つ `--color-link`・`--color-ring`
+  （`#a5a8ff`。`#1b1b1b` に 7.91:1、`#242424` に 7.13:1）を使う
+- 部品の形は ui-kit の components.css のとおり：
+  - ボタン：高さ 32px（`.btn-sm` 28px、表の行の中 24px）、角 4px、アイコン 16px。
+    種類はプライマリ（`.btn-primary`）・枠（`.btn`。枠は `--color-border-input`）・
+    枠なし（`.btn-ghost`）・危険（`.btn-danger`）
+  - 表（`.tbl`、`.tbl-wrap` で包む）：行 28px、見出しの行は 28px・地 `surface`・
+    ラベルの色・`font-normal`・表の中をスクロールしても残る。行の区切り線は
+    `--color-border`、hover で `muted`
 - フォントの名前に商用フォントを書かない
 
 ### 10.3 共通の部品
@@ -143,7 +168,8 @@ standalone の実行ファイル）にする。** 選んだ理由は ADR-0011 �
 - **外枠**（どのページも同じ。3 製品共通の決まりは tsunagi-dicom の
   `docs/design-system` の menu.md・screen-types.md）：上に帯（高さ 48px）、その下は、
   左にナビ（幅 208px）、右に本文。帯の下に別の帯（情報バー）は置かない。ページへの
-  入り口は左のナビだけに置き、上の帯にはタブを置かない
+  入り口は左のナビだけに置き、上の帯にはタブを置かない。本文は左寄せで、幅は画面の
+  型ごとに 1 つ（一覧の画面は幅いっぱい、撮影は最大 900px、設定は最大 560px）
 
   ```text
   ┌ dicom-test-generator                      [接続の状態 ✓接続中] [表示] ┐
@@ -163,7 +189,7 @@ standalone の実行ファイル）にする。** 選んだ理由は ADR-0011 �
   表示は出さない。機能ごとの注意書きは追加しない
 - **左のナビ**：群は「業務」（ワークリスト・撮影）・「接続」（PACS）・「管理」（設定）。
   項目の名前は各ページの題と同じにする。現在のページは、`--color-selected` の地・左の
-  3px の線（`--color-link`）・太字で示し、`aria-current="page"` を付ける（色だけに
+  3px の線（`--color-ring`）・太字で示し、`aria-current="page"` を付ける（色だけに
   しない）。幅が 768px 未満のときは、ナビを本文の上に 1 行で並べ、群の名前は省く。
   新しいページの項目は、上の帯に足さず、このナビに足す
 - **接続の状態**（ヘッダーの右）：閉じているときは、全体の状態を 1 つの札で出す。
@@ -255,7 +281,7 @@ standalone の実行ファイル）にする。** 選んだ理由は ADR-0011 �
 画面の型 C（入力）の形にする（3 製品共通の決まりは tsunagi-dicom の
 `docs/design-system` の screen-types.md・components.md）。上から、パンくず（予約から
 撮るときだけ。ワークリスト / 氏名 / 撮影）、見出しの行（題「撮影」）、画面の上の知らせ、
-患者バナー、区画、操作の行の順で、幅は最大 900px。区画の見出しは 16px の太字で、
+患者バナー、区画、操作の行の順で、幅は最大 900px。区画の見出しは 14px の太字で、
 区画の間は 12px にする。必須の項目は項目名の横に「必須」と書く。
 
 ```text

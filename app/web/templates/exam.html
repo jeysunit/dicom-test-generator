@@ -15,7 +15,7 @@
 {% if load_error %}
 {% with error = load_error %}{% include "_notice.html" %}{% endwith %}
 {% endif %}
-<div class="form-col">
+<div class="w-form">
 <form id="exam-form" hx-post="/exam" hx-target="#result" hx-disabled-elt="#actions button" hx-sync="this:drop" class="space-y-3">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="hidden" id="exam-token" name="exam_token" value="{{ exam_token }}">
@@ -23,20 +23,20 @@
   <input type="hidden" name="mode" value="scheduled">
   <input type="hidden" name="key" value="{{ key }}">
   <section class="banner" aria-label="患者">
-    <div class="banner-name">
-      <div class="banner-n">{{ ideographic or alphabetic }}</div>
-      {% if phonetic or (ideographic and alphabetic) %}<div class="banner-k">{{ phonetic or alphabetic }}</div>{% endif %}
+    <div class="nm">
+      <div class="n">{{ ideographic or alphabetic }}</div>
+      {% if phonetic or (ideographic and alphabetic) %}<div class="k">{{ phonetic or alphabetic }}</div>{% endif %}
     </div>
-    <div class="banner-f"><div class="l">患者ID</div><div class="v font-mono">{{ item.patient_id }}</div></div>
-    <div class="banner-f"><div class="l">生年月日・性別</div><div class="v">{{ item|birth_label }}</div></div>
-    <div class="banner-f"><div class="l">受付番号</div><div class="v font-mono">{{ item.accession_number or "—" }}</div></div>
-    <div class="banner-f"><div class="l">検査名</div><div class="v">{{ item.requested_procedure_description or "—" }}</div></div>
-    <div class="banner-end"><span class="badge">予約の値（読むだけ）</span></div>
+    <div class="f"><div class="l">患者ID</div><div class="v font-mono">{{ item.patient_id }}</div></div>
+    <div class="f"><div class="l">生年月日・性別</div><div class="v">{{ item|birth_label }}</div></div>
+    <div class="f"><div class="l">受付番号</div><div class="v font-mono">{{ item.accession_number or "—" }}</div></div>
+    <div class="f"><div class="l">検査名</div><div class="v">{{ item.requested_procedure_description or "—" }}</div></div>
+    <div class="end"><span class="badge">予約の値（読むだけ）</span></div>
   </section>
   <section class="sec">
-    <h2 class="sec-title">予約の情報</h2>
-    <div class="sec-body">
-      <dl class="values">
+    <h2>予約の情報</h2>
+    <div class="in">
+      <dl class="kv">
         <dt>予約のモダリティ</dt><dd>{{ item.modality or "—" }}</dd>
         <dt>Study Instance UID</dt><dd>{% with uid = item.study_instance_uid %}{% include "_uid.html" %}{% endwith %}</dd>
         <dt>ワークリストの文字コード</dt><dd>{{ item.specific_character_set|charset_label }}</dd>
@@ -54,38 +54,38 @@
   {% else %}
   <input type="hidden" name="mode" value="emergency">
   <section class="sec">
-    <h2 class="sec-title">緊急の患者（予約なし）</h2>
-    <div class="sec-body">
+    <h2>緊急の患者（予約なし）</h2>
+    <div class="in">
       <p class="mb-4 text-xs text-label">予約なし（受付番号は空）。予約から撮るときは、<a class="link" href="/worklist">ワークリスト</a>で予約を選んでください。姓と名は空白で区切って入れてください（DICOM の区切りの ^ に置き換えます）。</p>
       <div class="grid gap-4 sm:grid-cols-3">
         <label class="field">
-          <span class="field-label">患者ID<span class="req">必須</span></span>
+          <span class="l">患者ID<span class="req">必須</span></span>
           <input type="text" name="patient_id" class="input" maxlength="16" required aria-required="true">
         </label>
         <label class="field">
-          <span class="field-label">氏名（英字。例 KINKYU TARO）<span class="req">必須</span></span>
+          <span class="l">氏名（英字。例 KINKYU TARO）<span class="req">必須</span></span>
           <input type="text" name="name_alphabetic" class="input" maxlength="64" data-person-name required aria-required="true">
         </label>
         <label class="field">
-          <span class="field-label">氏名（漢字。例 緊急 太郎）</span>
+          <span class="l">氏名（漢字。例 緊急 太郎）</span>
           <input type="text" name="name_ideographic" class="input" maxlength="64" data-person-name>
         </label>
         <label class="field">
-          <span class="field-label">氏名（かな）</span>
+          <span class="l">氏名（かな）</span>
           <input type="text" name="name_phonetic" class="input" maxlength="64" data-person-name>
         </label>
         <label class="field">
-          <span class="field-label">生年月日</span>
+          <span class="l">生年月日</span>
           <input type="date" name="birth_date" class="input">
         </label>
         <label class="field">
-          <span class="field-label">性別</span>
-          <select name="sex" class="input">
+          <span class="l">性別</span>
+          <select name="sex" class="select">
             {% for value, label in sex_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
           </select>
         </label>
         <label class="field sm:col-span-3">
-          <span class="field-label">検査名</span>
+          <span class="l">検査名</span>
           <input type="text" name="study_description" class="input" maxlength="64">
         </label>
       </div>
@@ -93,31 +93,31 @@
   </section>
   {% endif %}
   <section class="sec">
-    <h2 class="sec-title">撮影の設定</h2>
-    <div class="sec-body">
+    <h2>撮影の設定</h2>
+    <div class="in">
       <div class="grid gap-4 sm:grid-cols-3">
         <label class="field">
-          <span class="field-label">テンプレート</span>
-          <select id="exam-template" name="template" class="input" hx-get="/exam/check" hx-include="#exam-form [name='key'], #exam-form [name='profile']" hx-target="#actions" hx-trigger="change">
+          <span class="l">テンプレート</span>
+          <select id="exam-template" name="template" class="select" hx-get="/exam/check" hx-include="#exam-form [name='key'], #exam-form [name='profile']" hx-target="#actions" hx-trigger="change">
             {% for name in templates %}<option value="{{ name }}"{% if name == selected_template %} selected{% endif %}>{{ name }}</option>{% endfor %}
           </select>
         </label>
         <label class="field">
-          <span class="field-label">装置（装置のプロファイル）</span>
-          <select name="profile" class="input" hx-get="/exam/check" hx-include="#exam-form [name='key'], #exam-form [name='template']" hx-target="#actions" hx-trigger="change">
+          <span class="l">装置（装置のプロファイル）</span>
+          <select name="profile" class="select" hx-get="/exam/check" hx-include="#exam-form [name='key'], #exam-form [name='template']" hx-target="#actions" hx-trigger="change">
             <option value=""{% if not selected_profile %} selected{% endif %}>なし</option>
             {% for profile in profiles %}<option value="{{ profile.name }}"{% if profile.name == selected_profile %} selected{% endif %}>{{ profile.name }}（{{ profile.modality }}・{{ profile.model_name }}）</option>{% endfor %}
           </select>
         </label>
         <label class="field">
-          <span class="field-label">文字コード（画像）</span>
-          <select name="charset" class="input">
+          <span class="l">文字コード（画像）</span>
+          <select name="charset" class="select">
             {% for value in charset_choices %}<option value="{{ value }}"{% if value == config.character_set %} selected{% endif %}>{{ value }}</option>{% endfor %}
           </select>
         </label>
         <label class="field">
-          <span class="field-label">異常のデータ</span>
-          <select name="abnormal_level" class="input">
+          <span class="l">異常のデータ</span>
+          <select name="abnormal_level" class="select">
             {% for value, label in abnormal_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
           </select>
         </label>

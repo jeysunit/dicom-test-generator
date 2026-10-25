@@ -1,4 +1,4 @@
-"""見た目の値：入力の CSS の値が docs/spec/12a の 10.2 の表と同じ（docs/development.md の 4 章）."""
+"""見た目の値：ui-kit の tokens.css の値が docs/spec/12a の 10.2 の表と同じ（docs/development.md の 4 章）."""
 
 from __future__ import annotations
 
@@ -8,10 +8,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = ROOT / "docs" / "spec" / "12a_web_screens_and_cli.md"
 INPUT_CSS = ROOT / "app" / "web" / "styles" / "input.css"
+UI_KIT = ROOT / "app" / "web" / "static" / "ui-kit"
+TOKENS_CSS = UI_KIT / "tokens.css"
+COMPONENTS_CSS = UI_KIT / "components.css"
 _TABLE_ROW = re.compile(
     r"^\| `(--color-[a-z-]+)` \| `(#[0-9a-f]{6})`[^|]*\| `(#[0-9a-f]{6})`", re.MULTILINE
 )
-_DECLARATION = re.compile(r"(--color-[a-z-]+):\s*(#[0-9a-f]{6});")
+_DECLARATION = re.compile(r"(--color-[a-z-]+):\s*(#[0-9a-fA-F]{6});")
+_LINKED = re.compile(r"(--color-[a-z-]+):\s*var\((--color-[a-z-]+)\);")
 
 
 def _block(css: str, selector: str) -> str:
@@ -19,49 +23,53 @@ def _block(css: str, selector: str) -> str:
     return css[css.index("{", start) + 1 : css.index("}", start)]
 
 
+def _declarations(block: str) -> dict[str, str]:
+    return {name: value.lower() for name, value in _DECLARATION.findall(block)}
+
+
 def _spec_tokens() -> dict[str, tuple[str, str]]:
     rows = _TABLE_ROW.findall(SPEC.read_text(encoding="utf-8"))
     return {name: (light, dark) for name, light, dark in rows}
 
 
-def test_spec_table_has_all_color_tokens() -> None:
-    tokens = _spec_tokens()
-    assert set(tokens) == {
-        "--color-background",
-        "--color-surface",
-        "--color-foreground",
-        "--color-label",
-        "--color-value",
-        "--color-border",
-        "--color-border-input",
-        "--color-muted",
-        "--color-muted-strong",
-        "--color-selected",
-        "--color-chrome",
-        "--color-primary",
-        "--color-primary-foreground",
-        "--color-link",
-        "--color-danger",
-        "--color-success",
-        "--color-warning",
-    }
+def _kit_light() -> dict[str, str]:
+    return _declarations(_block(TOKENS_CSS.read_text(encoding="utf-8"), ":root {"))
 
 
-def test_input_css_matches_spec_light_and_dark() -> None:
-    css = INPUT_CSS.read_text(encoding="utf-8")
-    light = dict(_DECLARATION.findall(_block(css, "@theme")))
-    dark = dict(_DECLARATION.findall(_block(css, ':root[data-theme="dark"]')))
+def _kit_dark() -> dict[str, str]:
+    return _declarations(_block(TOKENS_CSS.read_text(encoding="utf-8"), ":root[data-theme=dark]"))
 
+
+def test_spec_table_has_all_color_tokens_of_the_kit() -> None:
+    assert set(_spec_tokens()) == set(_kit_light())
+
+
+def test_kit_tokens_match_spec_light_and_dark() -> None:
+    light = _kit_light()
+    dark = _kit_dark()
     for name, (light_value, dark_value) in _spec_tokens().items():
         assert light[name] == light_value, name
-        assert dark[name] == dark_value, name
+        assert dark.get(name, light[name]) == dark_value, name
+
+
+def test_kit_dark_follows_the_device_when_no_theme_is_chosen() -> None:
+    # 端末の設定で暗い地のときの値は、data-theme="dark" のときの値と同じ
+    css = TOKENS_CSS.read_text(encoding="utf-8")
+    assert _declarations(_block(css, ":root:not([data-theme=light])")) == _kit_dark()
+
+
+def test_input_css_links_every_kit_color_to_tailwind() -> None:
+    # テンプレートの Tailwind の色の名前（bg-surface など）は、tokens.css の変数へつなぐだけ。値は書かない
+    css = INPUT_CSS.read_text(encoding="utf-8")
+    linked = dict(_LINKED.findall(_block(css, "@theme inline")))
+    assert linked == {name: name for name in _kit_light()}
+    assert not _DECLARATION.findall(css)
 
 
 def test_base_font_size_and_line_height() -> None:
-    css = INPUT_CSS.read_text(encoding="utf-8")
-    body = _block(css, "body")
-    assert "font-size: 0.875rem" in body
-    assert "line-height: 1.5" in body
+    body = _block(COMPONENTS_CSS.read_text(encoding="utf-8"), "body{")
+    assert "font-size:14px" in body
+    assert "line-height:1.5" in body
 
 
 def _luminance(hex_color: str) -> float:
@@ -91,6 +99,8 @@ _TEXT_PAIRS = [
     # 現在のナビの項目（値の色・太字）と、選んだ行
     ("--color-value", "--color-selected"),
     ("--color-foreground", "--color-selected"),
+    ("--color-value", "--color-selected-strong"),
+    ("--color-foreground", "--color-selected-strong"),
     ("--color-link", "--color-background"),
     ("--color-link", "--color-surface"),
     ("--color-link", "--color-muted"),
@@ -101,9 +111,8 @@ _TEXT_PAIRS = [
 
 
 def _themes() -> dict[str, dict[str, str]]:
-    css = INPUT_CSS.read_text(encoding="utf-8")
-    light = dict(_DECLARATION.findall(_block(css, "@theme")))
-    dark = {**light, **dict(_DECLARATION.findall(_block(css, ':root[data-theme="dark"]')))}
+    light = _kit_light()
+    dark = {**light, **_kit_dark()}
     return {"light": light, "dark": dark}
 
 
@@ -132,7 +141,8 @@ def test_greys_are_neutral() -> None:
         "--color-border-input",
         "--color-muted",
         "--color-muted-strong",
-        "--color-chrome",
+        "--color-hover",
+        "--color-pressed",
     )
     for theme, tokens in _themes().items():
         for name in names:

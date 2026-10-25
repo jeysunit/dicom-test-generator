@@ -7,36 +7,39 @@
   <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false, "selfRequestsOnly": true, "responseHandling": [{"code": "204", "swap": false}, {"code": "[23]..", "swap": true}, {"code": "[45]..", "swap": true, "error": true}]}'>
   <title>{% block title %}{% endblock %} - dicom-test-generator</title>
   <script src="/static/theme.js"></script>
+  {# ui-kit の写し（値 → 部品）の後に、DTG だけの差分（app.css）を読む #}
+  <link rel="stylesheet" href="/static/ui-kit/tokens.css">
+  <link rel="stylesheet" href="/static/ui-kit/components.css">
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js" defer></script>
   <script src="/static/app.js" defer></script>
 </head>
-<body class="flex min-h-screen flex-col bg-background text-foreground" hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+<body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
   {# 外枠は、上の帯（製品名・接続の状態・表示）と、その下の左のナビと本文。帯の下に別の帯は置かない（docs/design-system の menu.md・spec 10.3） #}
-  <header class="border-b border-border bg-surface">
-    <div class="flex h-12 items-center gap-4 px-4">
-      <a href="/worklist" class="font-semibold text-value">dicom-test-generator</a>
+  <div class="shell">
+    <header class="topbar">
+      <a href="/worklist" class="brand">dicom-test-generator</a>
+      <span class="sp"></span>
       {# 接続の状態：閉じているときは全体の状態の札。押すと中身（#band）が popover で出る #}
-      <button type="button" class="connbtn ml-auto" popovertarget="band" aria-label="接続の状態を開く">
+      <button type="button" class="connbtn" popovertarget="band" aria-label="接続の状態を開く">
         <span>接続の状態</span>{% include "_conn_state.html" %}
       </button>
-      <button id="theme-toggle" type="button" class="btn btn-ghost" aria-label="明るい地と暗い地を切り替える" title="明るい地と暗い地を切り替える">
+      <button id="theme-toggle" type="button" class="iconbtn" aria-label="明るい地と暗い地を切り替える" title="明るい地と暗い地を切り替える">
         <span class="icon icon-sun show-light" aria-hidden="true"></span>
         <span class="icon icon-moon show-dark" aria-hidden="true"></span>
       </button>
-    </div>
-    {% include "_band.html" %}
-  </header>
-  <div class="shell">
+      {% include "_band.html" %}
+    </header>
     <nav class="sidenav" aria-label="ページ">
       {% for group, items in nav_groups %}
-      <p class="nav-group">{{ group }}</p>
+      <p class="nav-g">{{ group }}</p>
       {% for key, href, label in items %}
-      <a href="{{ href }}" class="nav-item"{% if key == page %} aria-current="page"{% endif %}>{{ label }}</a>
+      <a href="{{ href }}" class="nav-i"{% if key == page %} aria-current="page"{% endif %}><span class="t">{{ label }}</span></a>
       {% endfor %}
       {% endfor %}
     </nav>
-    <main class="min-w-0 max-w-6xl space-y-3 px-4 py-3 md:px-6">
+    {# 本文は左寄せ。一覧の画面は幅いっぱい、撮影は .w-form、設定は .w-settings で包む #}
+    <main class="main">
       {% block content %}{% endblock %}
     </main>
   </div>

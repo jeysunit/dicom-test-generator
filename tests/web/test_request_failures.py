@@ -76,7 +76,7 @@ def test_retry_remaining_failure_is_an_alert(client, monkeypatch, path, job_id) 
     token = csrf_token(client, "/pacs")
     html = client.post(path, headers=post_headers(token)).text
     notice = html.split('<div id="queue-notice" hx-swap-oob="true">', 1)[1].split("</div>")[0]
-    assert 'role="alert"' in notice and "notice-error" in notice
+    assert 'role="alert"' in notice and 'class="notice" data-k="err"' in notice
     if job_id == 1:
         assert "1 件を再送信しましたが、まだ送信できていません（送信完了 0 件・送信失敗 1 件）" in notice
     else:
