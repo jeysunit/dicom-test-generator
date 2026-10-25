@@ -47,7 +47,7 @@
   <div class="sec-body flex flex-col gap-3">
     <div id="queue-notice" aria-live="polite"></div>
     {% include "_queue_sum.html" %}
-    <form id="queue-filter" class="searchband" role="search" aria-label="条件" hx-get="/pacs/queue" hx-target="#queue">
+    <form id="queue-filter" class="searchband" role="search" aria-label="条件" data-queue-action hx-sync="#queue:replace" hx-get="/pacs/queue" hx-target="#queue">
       <label class="field">
         <span class="field-label">期間</span>
         <select name="period" class="input w-36">

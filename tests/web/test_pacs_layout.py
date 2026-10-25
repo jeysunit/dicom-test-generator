@@ -147,6 +147,21 @@ def test_retry_all_is_confirmed_by_a_dialog(client) -> None:
     assert 'hx-post="/pacs/retry-failed"' in dialog and "キャンセル" in dialog
 
 
+def test_interactions_replace_the_polling_request(client) -> None:
+    """条件・状態・行の選択の要求は、先に出ていた再取得を取り消し、古い応答で上書きされない."""
+    _job(client, "E0001", failed=True)
+    page = client.get("/pacs").text
+    queue = client.get("/pacs/queue?selected=1").text
+
+    form = re.search(r'<form id="queue-filter"[^>]*>', page).group(0)
+    buttons = re.findall(r"<button[^>]*data-queue-action[^>]*>", queue)
+    assert 'hx-sync="#queue:replace"' in form and "data-queue-action" in form
+    # 状態の要約 4 つ、行の [詳細]、詳細の [閉じる]
+    assert len(buttons) == 6
+    assert all('hx-sync="#queue:replace"' in button for button in buttons)
+    assert "hx-sync" not in re.search(r'<div id="queue"[^>]*>', page).group(0)
+
+
 def test_retry_button_is_disabled_without_failed_jobs(client) -> None:
     page = client.get("/pacs").text
     slot = page.split('id="retry-slot"', 1)[1].split("</span>\n", 1)[0]

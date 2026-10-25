@@ -34,6 +34,6 @@
       <span class="icon icon-refresh-cw" aria-hidden="true"></span>もう一度送る
     </button>
     {% endif %}
-    <button type="button" class="btn btn-outline" data-focus-key="detail-close" hx-get="/pacs/queue" hx-target="#queue" hx-include="#queue-filter" hx-vals='{"selected": ""}'>閉じる</button>
+    <button type="button" class="btn btn-outline" data-focus-key="detail-close" data-queue-action hx-sync="#queue:replace" hx-get="/pacs/queue" hx-target="#queue" hx-include="#queue-filter" hx-vals='{"selected": ""}'>閉じる</button>
   </div>
 </section>

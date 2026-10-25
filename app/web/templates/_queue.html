@@ -66,7 +66,7 @@
             <button type="button" class="btn btn-outline btn-row" data-resend hx-post="/pacs/retry/{{ job.id }}" hx-target="#queue" hx-include="#queue-filter" hx-disabled-elt="#queue [data-resend], #retry-failed">もう一度送る</button>
             {% endif %}
             {# 詳細は表の下に出す（選んだ行の詳細。10.6） #}
-            <button type="button" class="link job-detail-button" data-focus-key="detail-{{ job.id }}" hx-get="/pacs/queue" hx-target="#queue" hx-include="#queue-filter" hx-vals='{"selected": "{{ job.id }}"}'>詳細</button>
+            <button type="button" class="link job-detail-button" data-focus-key="detail-{{ job.id }}" data-queue-action hx-sync="#queue:replace" hx-get="/pacs/queue" hx-target="#queue" hx-include="#queue-filter" hx-vals='{"selected": "{{ job.id }}"}'>詳細</button>
           </div>
         </td>
       </tr>

@@ -463,8 +463,14 @@
     // 絞り込みや行の選択の GET は、自分の応答を止めない
     return document.querySelector("[data-resend].htmx-request, #retry-failed.htmx-request") !== null;
   }
+  // 絞り込み・状態の要約・行の選択の要求（data-queue-action）が返る前に再取得が重なると、
+  // 古い条件の応答が新しい応答を上書きする。再取得は、その間は出さない。要求を出す側にも
+  // hx-sync="#queue:replace" を付け、先に出ていた再取得は取り消す
+  function interactionInFlight() {
+    return document.querySelector("[data-queue-action].htmx-request") !== null;
+  }
   document.addEventListener("htmx:beforeRequest", function (event) {
-    if (event.detail.elt.id === "queue" && resendInFlight()) {
+    if (event.detail.elt.id === "queue" && (resendInFlight() || interactionInFlight())) {
       event.preventDefault();
     }
   });

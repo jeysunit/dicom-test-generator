@@ -1,10 +1,10 @@
 {# 状態の要約：状態ごとの件数。押すとその状態に絞る（もう一度押すと戻す）。応答に同梱して差し替えるときは oob_parts #}
 <div id="queue-sum" class="sumrow" role="group" aria-label="状態の件数"{% if oob_parts %} hx-swap-oob="true"{% endif %}>
-  <button type="button" class="sum" aria-pressed="{{ 'true' if filters.status == 'all' else 'false' }}" data-focus-key="sum-all" hx-get="/pacs/queue" hx-target="#queue" hx-include="#queue-filter" hx-vals='{"status": "all"}'>
+  <button type="button" class="sum" aria-pressed="{{ 'true' if filters.status == 'all' else 'false' }}" data-focus-key="sum-all" data-queue-action hx-sync="#queue:replace" hx-get="/pacs/queue" hx-target="#queue" hx-include="#queue-filter" hx-vals='{"status": "all"}'>
     <span>すべて</span><span class="nbr">{{ total }}</span>
   </button>
   {% for status in ("sending", "sent", "failed") %}
-  <button type="button" class="sum" aria-pressed="{{ 'true' if filters.status == status else 'false' }}" data-focus-key="sum-{{ status }}" hx-get="/pacs/queue" hx-target="#queue" hx-include="#queue-filter" hx-vals='{"status": "{{ "all" if filters.status == status else status }}"}'>
+  <button type="button" class="sum" aria-pressed="{{ 'true' if filters.status == status else 'false' }}" data-focus-key="sum-{{ status }}" data-queue-action hx-sync="#queue:replace" hx-get="/pacs/queue" hx-target="#queue" hx-include="#queue-filter" hx-vals='{"status": "{{ "all" if filters.status == status else status }}"}'>
     <span class="st" data-k="{{ STATUS_KINDS[status] }}">{{ STATUS_LABELS[status] }}</span><span class="nbr">{{ counts.get(status, 0) }}</span>
   </button>
   {% endfor %}
