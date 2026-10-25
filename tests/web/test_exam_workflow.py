@@ -83,7 +83,7 @@ def test_append_from_the_screen(tmp_path, worklist_scp, storage_scp) -> None:
     assert "撮影済み" in client.get(f"/worklist/item/{key}").text  # 詳細にも出す
 
     appended = client.post("/exam", data=_form(key, append="1"), headers=post_headers(token)).text
-    assert "撮影完了：1 画像" in appended
+    assert "撮影完了：山田 太郎（P000001）の 1 画像" in appended
 
 
 def test_new_order_mode_shows_the_retake_notice(tmp_path, worklist_scp, storage_scp) -> None:

@@ -1,6 +1,12 @@
 <div class="formbar">
   {% if blocker %}<p role="alert" class="mr-auto text-danger">{{ blocker }}</p>{% endif %}
-  {% if taken %}
+  {% if exam_done|default(false) %}
+  {# 緊急の患者を撮った後（docs/spec/12a の 10.5）。前の患者の値のまま次の患者を撮らないように、
+     患者の欄を読むだけにし（app.js）、次の患者は空の欄の画面で入れる #}
+  <p id="done-note" role="status" class="mr-auto text-label">撮影完了。次の患者は「次の緊急の患者」を押して、空の欄から入れてください</p>
+  <button type="button" class="btn btn-outline" data-same-patient hx-get="/exam/check" hx-include="#exam-form [name='template'], #exam-form [name='profile']" hx-target="#actions">同じ患者でもう一度</button>
+  <a class="btn btn-primary" href="/exam" data-next-patient>次の緊急の患者</a>
+  {% elif taken %}
   {# 撮影済みの予約（docs/spec/12a の 10.5・ADR-0024）。撮影・撮影して送信は押せない #}
   {% if retake_mode == "new_order" %}
   <p id="taken-note" role="status" class="mr-auto text-label">撮影済み。撮り直しの予約が要ります（RIS で新しい予約を作ってください）</p>

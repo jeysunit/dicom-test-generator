@@ -369,6 +369,44 @@
     @apply bg-selected;
     box-shadow: inset 3px 0 0 var(--color-link);
   }
+  /* ワークリストの一覧：行のどこを押しても選べる。選んだ行は地と左の線と太字で示す（丸の印
+     だけにしない。10.4）。丸は 18px にする */
+  #pick tbody tr {
+    @apply cursor-pointer;
+  }
+  #pick tbody tr:has(input[name="key"]:checked) {
+    @apply bg-selected font-semibold;
+    box-shadow: inset 3px 0 0 var(--color-link);
+  }
+  #pick input[name="key"] {
+    @apply size-[18px] cursor-pointer align-middle;
+  }
+  /* ワークリストの操作の行：選んだ予約の患者バナーと「選んで撮影へ」。画面の下に留め、長い
+     一覧でも選んだ後に確かめて進める（10.4） */
+  .pickbar {
+    @apply sticky bottom-0 z-10 flex flex-col gap-2 rounded-md border border-border bg-background p-3 shadow-md;
+  }
+  /* 入力欄の下の 1 行（誤り・注意）。誤りは印と文字、枠は danger（components.md の入力欄） */
+  .field-error {
+    @apply mt-1 flex items-center gap-1 text-xs text-danger;
+  }
+  .field-error::before {
+    content: "✕";
+    font-size: 10px;
+  }
+  .input[aria-invalid="true"] {
+    @apply border-danger;
+  }
+  .field-warn {
+    @apply flex items-start gap-1 text-foreground;
+  }
+  .field-warn .icon {
+    @apply text-warning;
+  }
+  /* 撮影の画面の、操作の行の真上の「撮る患者と送信先」 */
+  #emergency-patient[data-locked] .input {
+    @apply bg-muted text-label;
+  }
   /* 状態の要約：状態ごとの件数。押せる。押している状態は地と太字で示す */
   .sumrow {
     @apply flex flex-wrap gap-2;

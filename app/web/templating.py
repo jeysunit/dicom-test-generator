@@ -41,6 +41,7 @@ def create_environment() -> Environment:
     env.filters["date_label"] = display.date_label
     env.filters["charset_label"] = display.charset_label
     env.filters["send_error_label"] = display.send_error_label
+    env.globals["patient_label"] = display.patient_label
     env.globals["utc_offset"] = display.utc_offset_label
     env.globals["STATUS_LABELS"] = display.STATUS_LABELS
     env.globals["COMMITMENT_LABELS"] = display.COMMITMENT_LABELS

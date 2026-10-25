@@ -12,6 +12,7 @@
     <dl class="values">
       <dt>ジョブ</dt><dd>{{ job.id }}</dd>
       <dt>患者</dt><dd>{{ ideographic or alphabetic or "—" }}{% if job.patient_id %}（{{ job.patient_id }}）{% endif %}</dd>
+      <dt>検査日時<span class="text-xs">（{{ utc_offset() }}）</span></dt><dd>{{ job.study_datetime or "—" }}</dd>
       <dt>受付番号</dt><dd class="font-mono">{{ job.accession_number or "—" }}</dd>
       <dt>送信先</dt><dd>{{ job.destination }}</dd>
       <dt>受付<span class="text-xs">（{{ utc_offset() }}）</span></dt><dd>{{ job.created_at|replace("T", " ") }}</dd>
@@ -22,6 +23,7 @@
       <dt>失敗の理由</dt><dd>{{ job.last_error|send_error_label }}<div class="font-mono">{{ job.last_error }}</div></dd>
       {% endif %}
       <dt>送信できた画像</dt><dd>{{ job.num_sent }} / {{ job.num_files }}</dd>
+      <dt>保管の確認</dt><dd>{% if job.commitment %}<span class="st" data-k="{{ COMMITMENT_KINDS.get(job.commitment, 'ng') }}">{{ COMMITMENT_LABELS.get(job.commitment, job.commitment) }}</span>{% if job.commitment_error %}<div class="text-xs text-danger">{{ job.commitment_error }}</div>{% endif %}{% else %}—{% endif %}</dd>
       <dt>元のファイル</dt><dd>{% with uid = job.folder %}{% include "_uid.html" %}{% endwith %}</dd>
       <dt>試行回数</dt><dd>{{ job.attempts }}</dd>
       {# 再送信もこの AEタイトルで名乗る（docs/spec/12 の 8.2・ADR-0023） #}

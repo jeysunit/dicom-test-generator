@@ -31,6 +31,27 @@ COMMITMENT_KINDS = {
     "timed_out": "ng",
 }
 DEFAULT_CHARSET_LABEL = "初期設定"
+# 撮影の画面の「文字コード（画像）」の選択肢の表示名（値は docs/spec/12 の 7.1 の表。10.5）
+CHARSET_CHOICE_LABELS = {
+    "auto": "自動（予約に合わせる）",
+    "utf8": "UTF-8（ISO_IR 192）",
+    "jis": "JIS（漢字。ISO 2022 IR 87）",
+    "jis_kana": "JIS（半角カナと漢字。ISO 2022 IR 13\\IR 87）",
+}
+# 画像が ISO 2022 IR 13\ISO 2022 IR 87 になるときに選択の下に出す注意（docs/spec/12 の 14.4）
+JIS_KANA_WARNING = (
+    "Orthanc 1.13.0 は、この組み合わせの漢字・かなを読み崩します。"
+    "Orthanc へ送るときは、UTF-8 か JIS（漢字）を選んでください。"
+)
+JIS_KANA_CHARACTER_SET = ("ISO 2022 IR 13", "ISO 2022 IR 87")
+
+
+def auto_is_jis_kana(item: WorklistItem | None, fallback: str) -> bool:
+    """「自動」で画像が ISO 2022 IR 13\\ISO 2022 IR 87 になるか（14.4 の崩れる組）."""
+    response = tuple(term.strip() for term in item.specific_character_set) if item else ()
+    if any(response):
+        return response == JIS_KANA_CHARACTER_SET
+    return fallback == "jis_kana"
 
 
 def utc_offset_label() -> str:
@@ -105,6 +126,24 @@ def birth_label(item: WorklistItem, today: date | None = None) -> str:
         parts.append(sex)
     suffix = f"（{'・'.join(parts)}）" if parts else ""
     return f"{date_label(item.birth_date)}{suffix}"
+
+
+def auto_charset_note(item: WorklistItem | None, fallback: str) -> str:
+    """「自動」が何になるか（10.5）。予約なしと、文字コードの無い予約は設定の fallback."""
+    response = [term.strip() for term in item.specific_character_set] if item else []
+    if item is not None and any(response):
+        return f"自動は予約の文字コード（{charset_label(response)}）に合わせます。"
+    target = CHARSET_CHOICE_LABELS.get(fallback, fallback)
+    if item is None:
+        return f"予約なしの撮影では、自動は {target}になります。"
+    return f"予約に文字コードが無いため、自動は {target}になります。"
+
+
+def patient_label(patient_name: str, patient_id: str) -> str:
+    """知らせに入れる患者：`緊急 太郎（E0002）`。氏名は漢字、無ければ英字・かな."""
+    alphabetic, ideographic, phonetic = name_parts(patient_name)
+    name = ideographic or alphabetic or phonetic or "氏名なし"
+    return f"{name}（{patient_id}）" if patient_id else name
 
 
 def time_label(value: str) -> str:

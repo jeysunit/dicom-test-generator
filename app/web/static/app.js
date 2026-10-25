@@ -322,7 +322,10 @@
     // 一覧・予約の詳細（行を選んだとき）・接続確認の結果は、差し替える先にそのまま出す
     if (
       target &&
-      (target.id === "results" || target.id === "detail" || target.id.indexOf("echo-") === 0)
+      (target.id === "results" ||
+        target.id === "detail" ||
+        target.id === "pick-banner" ||
+        target.id.indexOf("echo-") === 0)
     ) {
       return target;
     }
@@ -497,5 +500,244 @@
       }
     }
     focusedRole = null;
+  });
+
+  // 撮影の画面の入力の誤り（docs/spec/12a の 10.5）：フォームは novalidate にして、ブラウザーの
+  // 吹き出しを出さない。押したときに欄を確かめ、誤りは欄の下に 1 行（読み上げない。欄に
+  // aria-invalid と aria-describedby を付け、欄に移ったときに読まれる）、画面の上に件数と一覧
+  // （role="alert"）を出して、最初の誤りの欄へ移る。誤りがあるうちは要求を送らない。
+  // 欄の下の文は label の中に置くので、aria-hidden で欄の名前に混ぜない（説明には入る）
+  var REQUIRED_SUFFIX = "を入力してください。";
+  var FORM_ERRORS_TITLE = "撮影できません。";
+  function fieldName(input) {
+    var named = input.getAttribute("data-count-label");
+    if (named) {
+      return named;
+    }
+    var field = input.closest(".field");
+    var label = field && field.querySelector(".field-label");
+    if (!label) {
+      return input.getAttribute("aria-label") || input.name;
+    }
+    var first = label.firstChild;
+    var text = first && first.nodeType === Node.TEXT_NODE ? first.textContent : label.textContent;
+    // 「氏名（英字。例 KINKYU TARO）」の例は、誤りの文に入れない
+    return text.trim().replace(/。例[^）]*）$/, "）");
+  }
+  function describedBy(input, id, add) {
+    var ids = (input.getAttribute("aria-describedby") || "").split(/\s+/).filter(function (value) {
+      return value && value !== id;
+    });
+    if (add) {
+      ids.push(id);
+    }
+    if (ids.length) {
+      input.setAttribute("aria-describedby", ids.join(" "));
+    } else {
+      input.removeAttribute("aria-describedby");
+    }
+  }
+  function clearInvalid(input) {
+    var id = input.getAttribute("data-invalid-note");
+    if (id) {
+      var note = document.getElementById(id);
+      if (note) {
+        note.remove();
+      }
+      describedBy(input, id, false);
+      input.removeAttribute("data-invalid-note");
+    }
+    // 入力の規則の誤り（data-check）の印は、欄の側の確かめが付け外しする
+    if (input.validity.valid && !input.hasAttribute("data-check")) {
+      input.removeAttribute("aria-invalid");
+    }
+  }
+  var invalidCount = 0;
+  function showInvalid(input, message) {
+    clearInvalid(input);
+    input.setAttribute("aria-invalid", "true");
+    // 入力の規則の誤り（data-check）は、欄の側の文がもう出ている。重ねて出さない
+    if (input.hasAttribute("data-check") && !input.validity.valueMissing) {
+      return;
+    }
+    invalidCount += 1;
+    var id = "invalid-note-" + invalidCount;
+    var note = document.createElement("span");
+    note.id = id;
+    note.className = "field-error";
+    note.setAttribute("aria-hidden", "true");
+    note.textContent = message;
+    input.after(note);
+    input.setAttribute("data-invalid-note", id);
+    describedBy(input, id, true);
+  }
+  function invalidMessage(input) {
+    // checkValidity は invalid を出し、数の欄はそこで日本語の文を設定する（上の invalid）
+    input.checkValidity();
+    if (input.validity.valueMissing && !input.hasAttribute("data-count-label")) {
+      return fieldName(input) + REQUIRED_SUFFIX;
+    }
+    return input.validationMessage;
+  }
+  function showFormErrors(messages) {
+    var box = document.getElementById("form-errors");
+    if (!box) {
+      return;
+    }
+    if (!messages.length) {
+      box.hidden = true;
+      box.replaceChildren();
+      return;
+    }
+    var title = document.createElement("p");
+    title.className = "font-semibold";
+    title.textContent =
+      FORM_ERRORS_TITLE +
+      (messages.length === 1 ? messages[0] : messages.length + " 件の入力を直してください。");
+    box.replaceChildren(title);
+    if (messages.length > 1) {
+      var list = document.createElement("ul");
+      messages.forEach(function (message) {
+        var item = document.createElement("li");
+        item.textContent = message;
+        list.appendChild(item);
+      });
+      box.appendChild(list);
+    }
+    box.hidden = false;
+  }
+  function checkExamForm(form) {
+    var messages = [];
+    var first = null;
+    Array.prototype.forEach.call(form.elements, function (input) {
+      if (!(input instanceof HTMLInputElement) || !input.willValidate) {
+        return;
+      }
+      if (input.checkValidity()) {
+        clearInvalid(input);
+        return;
+      }
+      var message = invalidMessage(input);
+      showInvalid(input, message);
+      messages.push(message);
+      first = first || input;
+    });
+    showFormErrors(messages);
+    if (first) {
+      first.focus();
+    }
+    return messages.length === 0;
+  }
+  document.addEventListener("htmx:beforeRequest", function (event) {
+    var form = event.detail.elt;
+    if (form instanceof HTMLFormElement && form.id === "exam-form" && !checkExamForm(form)) {
+      event.preventDefault();
+    }
+  });
+  // 欄を直したら、その欄の文を消す（画面の上の知らせは、次に押すまで残す）
+  ["input", "change"].forEach(function (type) {
+    document.addEventListener(type, function (event) {
+      var input = event.target;
+      if (
+        input instanceof HTMLInputElement &&
+        input.hasAttribute("data-invalid-note") &&
+        input.validity.valid
+      ) {
+        clearInvalid(input);
+      }
+    });
+  });
+
+  // 撮影の画面の「文字コード（画像）」：JIS（半角カナと漢字）を選んだときだけ注意を出す（10.5）
+  document.addEventListener("change", function (event) {
+    var select = event.target;
+    if (!(select instanceof HTMLSelectElement) || select.id !== "exam-charset") {
+      return;
+    }
+    document.querySelectorAll("[data-charset-warning]").forEach(function (note) {
+      note.hidden = note.getAttribute("data-charset-warning").split(" ").indexOf(select.value) < 0;
+    });
+  });
+
+  // 緊急の患者：入れた値を、操作の行の真上の「撮る患者と送信先」に写す（10.5）
+  var SEX_TEXT = { M: "男", F: "女", O: "その他" };
+  function mirrorPatient(form) {
+    var target = document.getElementById("exam-target");
+    if (!target || !form) {
+      return;
+    }
+    target.querySelectorAll("[data-mirror]").forEach(function (cell) {
+      var input = form.elements.namedItem(cell.getAttribute("data-mirror"));
+      var value = input ? input.value.replace(/\^/g, " ").replace(/\s+/g, " ").trim() : "";
+      cell.textContent = value || cell.getAttribute("data-empty");
+    });
+    var birth = target.querySelector("[data-mirror-birth]");
+    if (birth) {
+      var date = form.elements.namedItem("birth_date");
+      var sex = form.elements.namedItem("sex");
+      var day = date && date.value ? date.value.replace(/-/g, "/") : "生年月日なし";
+      var sexText = sex ? SEX_TEXT[sex.value] : "";
+      birth.textContent = sexText ? day + "（" + sexText + "）" : day;
+    }
+  }
+  ["input", "change", "focusout"].forEach(function (type) {
+    document.addEventListener(type, function (event) {
+      var input = event.target;
+      if (input.closest && input.closest("#emergency-patient")) {
+        mirrorPatient(input.form);
+      }
+    });
+  });
+
+  // 緊急の患者を撮った後：患者の欄を読むだけにする（前の患者の値のまま次の患者を撮らない）。
+  // 「同じ患者でもう一度」で戻し、「次の緊急の患者」は空の欄の画面を開く（10.5）。
+  // 撮った後にテンプレート・装置を選び直しても、撮った後の操作の行のままにする（done を送る）
+  function examDone() {
+    return document.querySelector("#actions [data-same-patient]") !== null;
+  }
+  function lockEmergency(locked) {
+    var section = document.getElementById("emergency-patient");
+    if (!section) {
+      return;
+    }
+    section.querySelectorAll("input, select").forEach(function (field) {
+      if (field instanceof HTMLSelectElement) {
+        field.disabled = locked;
+      } else {
+        field.readOnly = locked;
+      }
+    });
+    section.toggleAttribute("data-locked", locked);
+  }
+  document.addEventListener("htmx:afterSettle", function () {
+    var section = document.getElementById("emergency-patient");
+    if (section && section.hasAttribute("data-locked") !== examDone()) {
+      lockEmergency(examDone());
+    }
+  });
+  document.addEventListener("htmx:configRequest", function (event) {
+    var config = event.detail;
+    var source = config.elt;
+    if (
+      config.path === "/exam/check" &&
+      examDone() &&
+      !(source instanceof Element && source.hasAttribute("data-same-patient"))
+    ) {
+      config.parameters.done = "1";
+    }
+  });
+
+  // ワークリストの一覧：行のどこを押しても、その行を選ぶ（10.4）。選んだ行は CSS で地と左の
+  // 線で示す。選ぶと、操作の行の真上に患者バナーを出し、「選んで撮影へ」を押せるようにする
+  document.addEventListener("click", function (event) {
+    var row = event.target.closest("#pick tbody tr");
+    if (!row || event.target.closest("a, button, input, label")) {
+      return;
+    }
+    var radio = row.querySelector("input[type='radio'][name='key']");
+    if (radio && !radio.checked) {
+      radio.checked = true;
+      radio.dispatchEvent(new Event("change", { bubbles: true }));
+    }
   });
 })();

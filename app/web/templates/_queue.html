@@ -22,45 +22,39 @@
   <table class="table">
     <thead>
       <tr>
-        <th scope="col">ジョブ</th>
+        {# 列は 7 つ（受付日時・患者ID・氏名・送信先・画像数・状態・操作）。ジョブの番号・検査日時・
+           受付番号・完了日時は、行の [詳細] の区画に出す（10.6）。保管の確認は状態の札の下に出す #}
+        <th scope="col">受付日時<span class="block text-xs">{{ utc_offset() }}</span></th>
         <th scope="col">患者ID</th>
         <th scope="col">氏名</th>
-        <th scope="col">検査日時<span class="block text-xs">{{ utc_offset() }}</span></th>
-        <th scope="col">受付番号</th>
         <th scope="col">送信先</th>
         <th scope="col">画像数</th>
         <th scope="col">状態</th>
-        <th scope="col">保管の確認</th>
-        <th scope="col">受付日時<span class="block text-xs">{{ utc_offset() }}</span></th>
-        <th scope="col">完了日時<span class="block text-xs">{{ utc_offset() }}</span></th>
-        <th scope="col"><span class="sr-only">詳細・操作</span></th>
+        <th scope="col">操作</th>
       </tr>
     </thead>
     <tbody>
       {% for job in jobs %}
       {% set alphabetic, ideographic, phonetic = job.patient_name|name_parts %}
+      {% set received_day, _, received_time = job.created_at.partition("T") %}
       <tr aria-selected="{{ 'true' if selected_job and selected_job.id == job.id else 'false' }}">
-        <td>{{ job.id }}</td>
+        <td class="whitespace-nowrap text-xs"><span class="block">{{ received_day }}</span><span class="block">{{ received_time }}</span></td>
         <td class="font-mono">{{ job.patient_id or "—" }}</td>
-        <td>{{ ideographic or alphabetic or "—" }}</td>
-        <td class="text-xs">{{ job.study_datetime or "—" }}</td>
-        <td class="font-mono">{{ job.accession_number or "—" }}</td>
+        <td class="whitespace-nowrap">{{ ideographic or alphabetic or "—" }}</td>
         <td>{{ job.destination }}</td>
-        <td>{{ job.num_sent }}/{{ job.num_files }}</td>
-        <td><span class="st" data-k="{{ STATUS_KINDS.get(job.status, 'ng') }}">{{ STATUS_LABELS.get(job.status, job.status) }}</span>{% if job.stale %} <span class="st" data-k="note">止まった</span>{% endif %}</td>
+        <td class="whitespace-nowrap">{{ job.num_sent }}/{{ job.num_files }}</td>
         <td>
+          <span class="st" data-k="{{ STATUS_KINDS.get(job.status, 'ng') }}">{{ STATUS_LABELS.get(job.status, job.status) }}</span>{% if job.stale %} <span class="st" data-k="note">止まった</span>{% endif %}
           {% if job.commitment %}
-          <span class="st" data-k="{{ COMMITMENT_KINDS.get(job.commitment, 'ng') }}">{{ COMMITMENT_LABELS.get(job.commitment, job.commitment) }}</span>
+          <span class="block"><span class="sr-only">保管の確認：</span><span class="st" data-k="{{ COMMITMENT_KINDS.get(job.commitment, 'ng') }}">{{ COMMITMENT_LABELS.get(job.commitment, job.commitment) }}</span></span>
           {% if job.commitment_error %}<span class="block text-xs text-danger">{{ job.commitment_error }}</span>{% endif %}
-          {% else %}—{% endif %}
+          {% endif %}
+          {% if job.status == "failed" %}
+          <span class="block"><span class="job-error-summary text-xs text-danger">{{ job.last_error|send_error_label }}</span></span>
+          {% endif %}
         </td>
-        <td class="text-xs">{{ job.created_at|replace("T", " ") }}</td>
-        <td class="text-xs">{% if job.status == "sent" %}{{ job.updated_at|replace("T", " ") }}{% else %}—{% endif %}</td>
         <td>
-          <div class="flex flex-wrap items-center gap-2">
-            {% if job.status == "failed" %}
-            <span class="job-error-summary text-xs text-danger">{{ job.last_error|send_error_label }}</span>
-            {% endif %}
+          <div class="flex items-center gap-2 whitespace-nowrap">
             {# 送信失敗は送れていない画像だけを、送信完了は新しい件として全部を送り直す（10.6） #}
             {% if job.status in ("failed", "sent") %}
             <button type="button" class="btn btn-outline btn-row" data-resend hx-post="/pacs/retry/{{ job.id }}" hx-target="#queue" hx-include="#queue-filter" hx-disabled-elt="#queue [data-resend], #retry-failed">もう一度送る</button>

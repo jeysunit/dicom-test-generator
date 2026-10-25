@@ -1,0 +1,14 @@
+{# 選んだ予約の患者バナー（docs/spec/12a の 10.4）。「選んで撮影へ」の真上に出し、誰を撮るかを確かめてから進む #}
+{% set alphabetic, ideographic, phonetic = item.patient_name|name_parts %}
+<section class="banner" aria-label="選んだ予約の患者">
+  <div class="banner-name">
+    <div class="banner-n">{{ ideographic or alphabetic or "氏名なし" }}</div>
+    {% if phonetic or (ideographic and alphabetic) %}<div class="banner-k">{{ phonetic or alphabetic }}</div>{% endif %}
+  </div>
+  <div class="banner-f"><div class="l">患者ID</div><div class="v font-mono">{{ item.patient_id }}</div></div>
+  <div class="banner-f"><div class="l">生年月日・性別</div><div class="v">{{ item|birth_label }}</div></div>
+  <div class="banner-f"><div class="l">受付番号</div><div class="v font-mono">{{ item.accession_number or "—" }}</div></div>
+  <div class="banner-f"><div class="l">予定</div><div class="v">{{ item.scheduled_start_time|time_label }}・{{ item.modality or "—" }}</div></div>
+  <div class="banner-f"><div class="l">検査名</div><div class="v">{{ item.requested_procedure_description or "—" }}</div></div>
+  {% if item_taken %}<div class="banner-end"><span class="st" data-k="note">撮影済み</span></div>{% endif %}
+</section>
