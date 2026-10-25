@@ -70,6 +70,18 @@ def test_ideographic_group_jis_refuses_unrepresentable_characters(value, charact
     assert not any(char in message for char in "髙橋太郎😀𠮷﨑山")
 
 
+@pytest.mark.parametrize("value", ["ﾀﾛｳ", "山田^ｱ", "ｰ"])
+@pytest.mark.parametrize("character_set", [JIS, JIS_KANA])
+def test_ideographic_group_jis_refuses_halfwidth_kana_like_the_screen(value, character_set) -> None:
+    """jis_kana は半角カナを符号化できるが、画面は jis・jis_kana のどちらでも断る。サーバーも同じにする."""
+    assert check_name_group("漢字", value, character_set) == IDEOGRAPHIC_MESSAGE
+
+
+@pytest.mark.parametrize("value", ["ﾀﾛｳ", "山田^ｱ"])
+def test_ideographic_group_utf8_accepts_halfwidth_kana(value) -> None:
+    assert check_name_group("漢字", value, UTF8) == ""
+
+
 @pytest.mark.parametrize("value", ["キンキュウ^タロウ", "キンキュウ", "ア ー", "ガッコウ・ヴ", "ゝ".replace("ゝ", "ヽ")])
 def test_phonetic_group_accepts_full_width_katakana(value) -> None:
     assert check_phonetic_group(value) == ""

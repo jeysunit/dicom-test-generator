@@ -2,12 +2,12 @@
 {% block title %}設定{% endblock %}
 {% block content %}
 <div class="pagehead"><h1>設定 <small>読むだけ</small></h1></div>
-<div class="settings-col">
+<div class="w-settings">
 <p class="text-xs text-label">直すときは設定のファイル <span class="uid">{{ config_path }}</span> の <code>modality:</code>・<code>web:</code> の節を直し、画面を起動し直してください。</p>
 <section class="sec">
-  <h2 class="sec-title">自分</h2>
-  <div class="sec-body">
-    <dl class="values">
+  <h2>自分</h2>
+  <div class="in">
+    <dl class="kv">
       {% for station in config.stations %}
       {% set marks = [] %}
       {% if station.name == config.default_station %}{% set marks = marks + ["標準"] %}{% endif %}
@@ -21,9 +21,9 @@
   </div>
 </section>
 <section class="sec">
-  <h2 class="sec-title">ワークリストの相手</h2>
-  <div class="sec-body">
-    <dl class="values">
+  <h2>ワークリストの相手</h2>
+  <div class="in">
+    <dl class="kv">
       <dt>AEタイトル</dt><dd class="font-mono">{{ config.worklist.ae_title }}</dd>
       <dt>ホスト</dt><dd class="font-mono">{{ config.worklist.host }}:{{ config.worklist.port }}</dd>
       <dt>時間切れ</dt><dd>{{ config.worklist.timeout_seconds }} 秒</dd>
@@ -32,9 +32,9 @@
   </div>
 </section>
 <section class="sec">
-  <h2 class="sec-title">送信先</h2>
-  <div class="sec-body">
-    <dl class="values">
+  <h2>送信先</h2>
+  <div class="in">
+    <dl class="kv">
       {% for destination in config.destinations %}
       <dt>{{ destination.name }}{% if destination.name == config.default_destination %}（標準）{% endif %}</dt>
       <dd class="font-mono">{{ destination.ae_title }} {{ destination.host }}:{{ destination.port }}・保管の確認 {% if destination.storage_commitment %}使う（結果を待つ {{ "%g"|format(destination.commitment_timeout_seconds) }} 秒・同じ Association で待つ {{ "%g"|format(destination.commitment_wait_seconds) }} 秒）{% else %}使わない{% endif %}</dd>
@@ -44,9 +44,9 @@
   </div>
 </section>
 <section class="sec">
-  <h2 class="sec-title">文字コードと撮影</h2>
-  <div class="sec-body">
-    <dl class="values">
+  <h2>文字コードと撮影</h2>
+  <div class="in">
+    <dl class="kv">
       <dt>文字コード</dt><dd>{{ config.character_set }}（予約が無いとき {{ config.character_set_fallback }}）</dd>
       <dt>テンプレート</dt><dd>{{ config.default_template }}</dd>
       <dt>装置</dt><dd>{{ config.default_profile or "なし" }}</dd>

@@ -104,7 +104,7 @@
     return true;
   }
   function showFieldError(input, message) {
-    var line = document.getElementById("error-" + input.name);
+    var line = document.getElementById(input.getAttribute("data-error-line") || "error-" + input.name);
     if (line) {
       line.textContent = message;
       line.hidden = !message;
@@ -118,6 +118,8 @@
   function checkField(input) {
     var kind = input.getAttribute("data-check");
     if (!kind) {
+      // 確かめの無い欄は、直したらサーバーで断られた誤りを消す
+      showFieldError(input, "");
       return true;
     }
     var message = "";
@@ -166,6 +168,10 @@
         checkField(name);
       }
     }
+    // 確かめの無い欄（性別・検査名など）は、直したらサーバーで断られた誤りを消す
+    if (input instanceof HTMLSelectElement) {
+      showFieldError(input, "");
+    }
   });
   // 送る前に全部を確かめる。誤りがあれば送らず、最初の誤りの欄へ移る
   document.addEventListener("htmx:beforeRequest", function (event) {
@@ -174,6 +180,12 @@
       return;
     }
     var first = null;
+    // 前の応答でサーバーが断った誤りは、送り直す前に消す（確かめの無い欄は、ここでしか消えない）
+    Array.prototype.forEach.call(form.elements, function (control) {
+      if (control.name && !control.hasAttribute("data-check")) {
+        showFieldError(control, "");
+      }
+    });
     form.querySelectorAll("[data-check]").forEach(function (input) {
       if (input instanceof HTMLInputElement) {
         convertPhonetic(input);
@@ -185,6 +197,18 @@
     if (first) {
       event.preventDefault();
       first.focus();
+      return;
+    }
+    // form は novalidate なので、ブラウザの検証は自分で呼ぶ。確かめの無い欄（数の欄）の範囲・
+    // 必須・整数を、ほかの欄と同じく欄の外の 1 行に出す（吹き出しは使わない）。日本語の文は
+    // 下の invalid が setCustomValidity で付けるので、validationMessage にその文が入る
+    var invalid = Array.prototype.find.call(form.elements, function (control) {
+      return control.willValidate && !control.hasAttribute("data-check") && !control.checkValidity();
+    });
+    if (invalid) {
+      event.preventDefault();
+      showFieldError(invalid, invalid.validationMessage);
+      invalid.focus();
     }
   });
   // サーバーで断った誤りも、その欄の下に結ぶ
@@ -506,7 +530,8 @@
     }
     var notice = document.createElement("div");
     notice.setAttribute("role", "alert");
-    notice.className = "notice notice-error";
+    notice.className = "notice";
+    notice.setAttribute("data-k", "err");
     notice.textContent = message;
     place.replaceChildren(notice);
   }
@@ -596,7 +621,7 @@
   // 要素になり、左端に戻って、押そうとしていた右側の [もう一度送る]・[詳細] が動く）
   var queueScroll = 0;
   function queueWrap(queue) {
-    return queue.querySelector(".overflow-x-auto");
+    return queue.querySelector(".tbl-wrap");
   }
   function roleOf(element) {
     if (!element || element === document.body) {

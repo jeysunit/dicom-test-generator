@@ -111,7 +111,7 @@ def test_single_series_routine_cannot_lose_its_row(client) -> None:
     assert 'aria-disabled="true"' in button and 'aria-describedby="last-series-note"' in button
     assert " disabled" not in button
     assert '<span id="last-series-note" class="sr-only">最後の1行は外せません</span>' in one
-    assert 'class="table routine-table"' in one
+    assert 'class="tbl routine-table"' in one
 
 
 def test_result_place_takes_focus_after_exam(client) -> None:

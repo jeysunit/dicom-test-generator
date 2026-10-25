@@ -23,7 +23,7 @@ modality:
     port: 11113
   state_dir: "modality_state"     # 予約の最後の結果・待ち行列（sqlite3）
   output_dir: "output/modality"
-  character_set: "auto"           # auto, utf8, jis, jis_kana
+  character_set: "auto"           # auto, utf8, jis, jis_kana（jis_kana の画像は Orthanc 1.13.0 が読み崩す。spec/12 の 14.4）
   character_set_fallback: "utf8"  # utf8, jis, jis_kana（auto は不可）
   patient_input_test_mode: false  # true：緊急の患者の氏名（かな）を確かめず直さず出す（試験用）
   default_template: "ct_generic"

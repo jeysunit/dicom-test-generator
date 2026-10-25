@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest
 from modality_peers import free_port
 from web_helpers import csrf_token, make_client, post_headers
@@ -32,10 +34,10 @@ def test_exam_result_is_a_green_completion_with_separate_warnings(client) -> Non
     html = client.post("/exam", data=_emergency_form(), headers=post_headers(token)).text
 
     assert "撮影完了：2 画像" in html
-    assert 'class="notice notice-ok' in html
+    assert re.search(r'class="notice[^"]*" data-k="ok"', html)
     assert "出力先フォルダ" in html
     # 予約なしと空の値は注意として、結果の見出しとは別の枠で出す
-    assert 'class="notice notice-warn' in html
+    assert re.search(r'class="notice[^"]*" data-k="warn"', html)
     assert "注意：予約なし（受付番号は空）" in html
     assert "撮影しました" not in html
 
@@ -48,7 +50,7 @@ def test_send_completion_names_state_destination_count_and_job(client) -> None:
     ).text
 
     assert "送信完了：PACS_TEST へ 2/2 画像（ジョブ 1）" in html
-    assert "notice-error" not in html
+    assert 'data-k="err"' not in html
 
 
 def test_send_failure_is_a_red_notice(tmp_path, worklist_scp) -> None:
@@ -61,7 +63,7 @@ def test_send_failure_is_a_red_notice(tmp_path, worklist_scp) -> None:
 
     assert "撮影完了：2 画像" in html
     assert "送信失敗：PACS_TEST へ 0/0 画像（ジョブ 1）" in html
-    assert 'class="notice notice-error"' in html
+    assert 'class="notice" role="alert" data-k="err"' in html
 
 
 def test_pacs_job_table_shows_patient_not_folder(client) -> None:

@@ -41,6 +41,10 @@ _KATAKANA = re.compile(r"[ァ-ヺ・-ヾ ]*")
 _HIRAGANA_TO_KATAKANA_OFFSET = 0x60
 _HIRAGANA_RANGES = ((0x3041, 0x3096), (0x309D, 0x309E))
 _HL7_V2_DELIMITERS = frozenset("^~&|")
+# 半角カナ。jis_kana の ISO 2022 IR 13 は表せるが、この画面の漢字の氏名には半角カナを入れない
+# （画面は jis・jis_kana のどちらでも断る。docs/spec/12a の 10.5）
+_HALFWIDTH_KANA = re.compile("[｡-ﾟ]")
+_UTF8_TERM = "ISO_IR 192"
 
 # 画面のスクリプトも同じ文を出す（入力した時に分かるように。app/web/static/app.js）
 ALPHABETIC_MESSAGE = "氏名（英字）は半角の英字・空白・ハイフン・アポストロフィで入力してください。"
@@ -181,9 +185,11 @@ def check_alphabetic_group(group: str) -> str:
 
 def check_ideographic_group(group: str, character_set: Sequence[str] | None = None) -> str:
     """漢字の氏名：画像の文字コードで表せる字だけ。`character_set` が無ければ UTF-8 として制限しない."""
-    if character_set is None or not find_unrepresentable_chars(group, character_set):
+    if character_set is None or list(character_set) == [_UTF8_TERM]:
         return ""
-    return IDEOGRAPHIC_MESSAGE
+    if _HALFWIDTH_KANA.search(group) or find_unrepresentable_chars(group, character_set):
+        return IDEOGRAPHIC_MESSAGE
+    return ""
 
 
 def check_phonetic_group(group: str, *, test_mode: bool = False) -> str:
