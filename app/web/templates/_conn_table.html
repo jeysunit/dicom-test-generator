@@ -1,0 +1,55 @@
+{# 接続先の区画（10.6）：送信先とワークリストの取得先の表。列は 名称・種類・AEタイトル・ホスト名:ポート番号・最後の接続確認・操作。
+   「すべて接続確認」は、この区画を結果で差し替える（上の帯は同梱して差し替える） #}
+<section id="conn-sec" class="sec">
+  <h2 class="hd">接続先
+    <span class="acts">
+      <button type="button" class="btn btn-sm" hx-post="/pacs/check-all" hx-target="#conn-sec" hx-swap="outerHTML" hx-disabled-elt="#conn-sec button">
+        <span class="icon icon-activity" aria-hidden="true"></span>すべて接続確認
+      </button>
+    </span>
+  </h2>
+  <div class="in flush overflow-x-auto">
+    <table class="tbl conn">
+      <thead>
+        <tr>
+          <th scope="col">名称</th>
+          <th scope="col">種類</th>
+          <th scope="col">AEタイトル</th>
+          <th scope="col">ホスト名:ポート番号</th>
+          <th scope="col">最後の接続確認</th>
+          <th scope="col"><span class="sr-only">操作</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for destination in destinations %}
+        <tr>
+          <td>{{ destination.name }}{% if destination.name == config.default_destination %} <span class="badge">標準</span>{% endif %}</td>
+          <td>送信先<span class="sub">保管の確認 {{ "使う" if destination.storage_commitment else "使わない" }}</span></td>
+          <td class="font-mono">{{ destination.ae_title }}</td>
+          <td class="font-mono">{{ destination.host }}:{{ destination.port }}</td>
+          {# 最後の接続確認：開いたときは、この画面を動かしている間に覚えた最後の結果と時刻。押すと結果で差し替える #}
+          <td id="echo-{{ loop.index }}" class="res">{% with probe = link_probes.get(destination.name) %}{% include "_echo_cell.html" %}{% endwith %}</td>
+          <td>
+            <button type="button" class="btn btn-sm row-open" hx-post="/pacs/echo/{{ destination.name|urlencode }}" hx-target="#echo-{{ loop.index }}" hx-disabled-elt="this" aria-label="{{ destination.name }} の接続確認">
+              <span class="icon icon-activity" aria-hidden="true"></span>接続確認
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td>ワークリスト</td>
+          <td>ワークリスト</td>
+          <td class="font-mono">{{ config.worklist.ae_title }}</td>
+          <td class="font-mono">{{ config.worklist.host }}:{{ config.worklist.port }}</td>
+          <td id="echo-worklist" class="res">{% with probe = worklist_probe %}{% include "_echo_cell.html" %}{% endwith %}</td>
+          <td>
+            <button type="button" class="btn btn-sm row-open" hx-post="/pacs/echo-worklist" hx-target="#echo-worklist" hx-disabled-elt="this" aria-label="ワークリストの取得先の接続確認">
+              <span class="icon icon-activity" aria-hidden="true"></span>接続確認
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+{% if oob_band %}{% include "_band.html" %}{% endif %}

@@ -35,7 +35,7 @@ def _counts(html: str) -> dict[str, str]:
 def test_page_puts_the_destination_section_above_the_job_list(client) -> None:
     html = client.get("/pacs").text
 
-    destinations = html.index("<h2>送信先</h2>")
+    destinations = html.index('<h2 class="hd">接続先')
     jobs = html.index('<h2 class="hd">送信ジョブ')
     assert destinations < jobs
     # 下段は、状態の要約 → 検索の帯 → 件数の行 → 一覧の順
@@ -46,9 +46,9 @@ def test_page_puts_the_destination_section_above_the_job_list(client) -> None:
         html.index("<table", html.index('<div class="listhead">')),
     ]
     assert order == sorted(order)
-    # 送信先の表のポートは、ホストと別の列
+    # 接続先の表は、ホスト名とポート番号を 1 列にまとめる（列の順は test_pacs_last_echo.py）
     head = html.split("</thead>", 1)[0]
-    assert ">ホスト<" in head and ">ポート<" in head
+    assert ">ホスト名:ポート番号<" in head
 
 
 def test_search_band_has_the_three_conditions(client) -> None:
