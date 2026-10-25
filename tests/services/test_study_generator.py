@@ -234,6 +234,36 @@ def test_generate_with_scheduled_context_stops_on_unrepresentable_char(tmp_path)
     assert list((tmp_path / "output").glob("*.dcm")) == []
 
 
+@pytest.mark.parametrize(
+    ("name", "character_set", "leaked"),
+    [
+        ("TAKAHASHI=髙橋", ["", "ISO 2022 IR 87"], "髙"),
+        ("A¥B", ["ISO 2022 IR 13"], "¥"),
+    ],
+)
+def test_scheduled_unrepresentable_char_is_not_in_error_or_log(
+    tmp_path, caplog, name, character_set, leaked
+) -> None:
+    # 氏名などの字（PHI）を、予約の撮影でも誤りの文・details・ログに出さない
+    ctx = _scheduled_context(
+        patient=ScheduledPatient(patient_id="P000002", patient_name=name),
+        study_description="CT",
+        specific_character_set=character_set,
+    )
+
+    with caplog.at_level("DEBUG"), pytest.raises(WorklistMappingError) as exc_info:
+        StudyGeneratorService().generate(
+            config=_make_config(tmp_path=tmp_path), scheduled=ctx
+        )
+
+    error = exc_info.value
+    assert error.details["attribute"] == "PatientName"
+    assert leaked not in str(error)
+    assert leaked not in repr(error.details)
+    assert error.__cause__ is None
+    assert leaked not in caplog.text
+
+
 @pytest.mark.parametrize("patient_id", ["../../evil", "/etc/evil", "a\x00b", "..", "CON"])
 def test_generate_keeps_files_inside_output_dir_for_untrusted_patient_id(
     tmp_path, patient_id

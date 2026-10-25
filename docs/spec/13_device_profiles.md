@@ -164,7 +164,9 @@ services:
   （Pixel Data・Rows・Columns・Bits Allocated・Bits Stored・High Bit・Pixel
   Representation・Samples per Pixel・Photometric Interpretation）、Specific
   Character Set、`device` のフィールドが決める属性（Manufacturer・Manufacturer's
-  Model Name・Software Versions・Device Serial Number・Station Name）
+  Model Name・Software Versions・Device Serial Number・Station Name）、
+  Modality（`device.modality` が決める。`set` で別の値にも、`empty` で空にも
+  できない）
 - 1つの属性を `set`・`empty`・`omit` の2つ以上に書けばエラー
 - `omit` では、DTG が CT Image で出力する Type 1・Type 2 の属性
   （Modality・Study Date/Time・Accession Number・Referring Physician's
@@ -176,9 +178,15 @@ services:
   PS3.3 C.7.3.1。spec/06 の「CT Image の必須の属性」）。必須の属性を欠いた
   画像は、異常のデータ（`abnormal`）で作成する
 - `empty` と空の `set`（空文字列・空文字列だけの並び）では、DTG が CT Image で
-  出力する Type 1 の属性（Modality・Image Type・Image Position/Orientation
+  出力する Type 1 の属性（Image Type・Image Position/Orientation
   (Patient)・Pixel Spacing・Rescale Intercept/Slope）を空にできない
   （PS3.3 C.7.3.1・C.7.6.2・C.8.2.1）
+- `set` では、上の Type 1 の属性に規格に合わない値を書けない（読み込みの誤りに
+  なる。PS3.3 C.7.6.2・C.8.2.1・C.8.2.1.1.1）。Image Type は 2 値以上で、
+  値 1 が `ORIGINAL` か `DERIVED`。Image Position (Patient) は 3 値、Image
+  Orientation (Patient) は 6 値、Pixel Spacing は 2 値、Rescale Intercept と
+  Rescale Slope は 1 値で、数であること。Rescale Slope は 0 にできない。意図して
+  壊した画像は、異常のデータ（`abnormal`）で作成する
 - `attributes.set` と `private_tags` の値は、読み込み時に VR に合うかを検証する
   （型・数値の範囲・文字列の長さと文字。pydicom の `validate_value`）。文字列の
   VR（DS・IS など）に書いた数値は文字列にして入れる
