@@ -15,7 +15,7 @@
           <th scope="col">ポート</th>
           <th scope="col">保管の確認</th>
           <th scope="col"><span class="sr-only">接続確認の実行</span></th>
-          <th scope="col">接続確認</th>
+          <th scope="col">最後の接続確認</th>
         </tr>
       </thead>
       <tbody>
@@ -31,7 +31,9 @@
               <span class="icon icon-activity" aria-hidden="true"></span>接続確認
             </button>
           </td>
-          <td id="echo-{{ loop.index }}" class="text-xs text-label">—</td>
+          {# 最後の接続確認：開いたときは、この画面を動かしている間に覚えた最後の結果と時刻。押すと結果で差し替える #}
+          {% set probe = link_probes.get(destination.name) %}
+          <td id="echo-{{ loop.index }}" class="text-xs text-label">{% if probe %}<span class="st" data-k="{{ probe.kind }}">{{ "成功" if probe.ok else "失敗" }}</span> {{ probe.at }}{% else %}—{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>

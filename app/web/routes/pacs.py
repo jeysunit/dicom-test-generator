@@ -84,6 +84,7 @@ def pacs_page(request: Request) -> HTMLResponse:
         "pacs.html",
         page="pacs",
         destinations=service.config.destinations,
+        link_probes=dict(request.app.state.link_status.destinations),
         period_choices=PERIOD_CHOICES,
         poll_trigger=QUEUE_POLL_TRIGGER,
         **context,
