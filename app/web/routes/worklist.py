@@ -90,7 +90,9 @@ def worklist_query(
         result = service.query_worklist(query)
         state = service.last_worklist_state()
     except DICOMGeneratorError as exc:
+        request.app.state.link_status.record_worklist(False)
         return render_error(request, exc)
+    request.app.state.link_status.record_worklist(True)
     return render(
         request,
         "_worklist_results.html",

@@ -12,11 +12,15 @@
   <script src="/static/app.js" defer></script>
 </head>
 <body class="flex min-h-screen flex-col bg-background text-foreground" hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
-  {# 外枠は、上の帯（製品名・表示）と情報バー、その下の左のナビと本文（docs/design-system の menu.md・spec 10.3） #}
+  {# 外枠は、上の帯（製品名・接続の状態・表示）と、その下の左のナビと本文。帯の下に別の帯は置かない（docs/design-system の menu.md・spec 10.3） #}
   <header class="border-b border-border bg-surface">
     <div class="flex h-12 items-center gap-4 px-4">
       <a href="/worklist" class="font-semibold text-value">dicom-test-generator</a>
-      <button id="theme-toggle" type="button" class="btn btn-ghost ml-auto" aria-label="明るい地と暗い地を切り替える" title="明るい地と暗い地を切り替える">
+      {# 接続の状態：閉じているときは全体の状態の札。押すと中身（#band）が popover で出る #}
+      <button type="button" class="connbtn ml-auto" popovertarget="band" aria-label="接続の状態を開く">
+        <span>接続の状態</span>{% include "_conn_state.html" %}
+      </button>
+      <button id="theme-toggle" type="button" class="btn btn-ghost" aria-label="明るい地と暗い地を切り替える" title="明るい地と暗い地を切り替える">
         <span class="icon icon-sun show-light" aria-hidden="true"></span>
         <span class="icon icon-moon show-dark" aria-hidden="true"></span>
       </button>

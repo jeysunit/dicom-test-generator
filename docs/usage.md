@@ -168,8 +168,8 @@ docker run --rm ghcr.io/jeysunit/dicom-test-generator:latest cat config/app_conf
 
 ### 5.2 装置を切り替える
 
-装置を2台以上設定すると（例 CT1 は `DTG_CT01`、MR1 は `DTG_MR01`）、情報バーの
-「装置」で切り替えられる。切り替えた装置の AEタイトルで、ワークリストの取得・送信・
+装置を2台以上設定すると（例 CT1 は `DTG_CT01`、MR1 は `DTG_MR01`）、上の帯の
+「接続の状態」を開いた中の「装置」で切り替えられる。切り替えた装置の AEタイトルで、ワークリストの取得・送信・
 MPPS・保管確認を行い、画像の Station Name もその装置の値になる。選んだ装置は画面を
 再起動しても残り、CLI も同じ装置を使う（`--station <表示名>` でそのコマンドだけ
 変えられる）。

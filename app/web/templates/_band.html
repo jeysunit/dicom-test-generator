@@ -1,22 +1,42 @@
-<div id="band"{% if oob_band %} hx-swap-oob="true"{% endif %} class="border-t border-border">
-  <div class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-1.5 text-xs text-label">
+{# 上の帯の「接続の状態」を押したときの中身（標準の popover）。装置・ワークリストの相手・送信先（標準に札）・文字コード #}
+<div id="band" popover{% if oob_band %} hx-swap-oob="true"{% endif %}{% if band.error or band.station_notice %} data-notice{% endif %} class="conn-pop" aria-label="接続の状態">
+  <h2 class="conn-pop-title">接続の状態</h2>
+  <dl class="conn-list">
     {% if band.stations|length > 1 %}
     {# 装置の切り替え（docs/spec/12a の 10.3・ADR-0023）。切り替えたらページを読み込み直す #}
-    <label class="flex items-center gap-1">
-      <span>装置:</span>
-      <select name="station" class="input" hx-post="/station" hx-trigger="change" hx-target="#band" hx-swap="outerHTML" hx-disabled-elt="this">
-        {% for station in band.stations %}
-        <option value="{{ station.name }}"{% if station.name == band.station_name %} selected{% endif %}>{{ station.name }}（{{ station.ae_title }}）</option>
-        {% endfor %}
-      </select>
-    </label>
+    <dt>装置</dt>
+    <dd>
+      <label class="flex items-center gap-1">
+        <select name="station" class="input" aria-label="装置" hx-post="/station" hx-trigger="change" hx-target="#band" hx-swap="outerHTML" hx-disabled-elt="this">
+          {% for station in band.stations %}
+          <option value="{{ station.name }}"{% if station.name == band.station_name %} selected{% endif %}>{{ station.name }}（{{ station.ae_title }}）</option>
+          {% endfor %}
+        </select>
+      </label>
+    </dd>
     {% else %}
-    <span>自分: {{ band.own_ae }}</span>
+    <dt>自分</dt><dd class="font-mono">{{ band.own_ae }}</dd>
     {% endif %}
-    <span>ワークリスト: {{ band.worklist_ae }}</span>
-    <span>送信先: {{ band.destination }}</span>
-    <span>文字: {% if band.worklist_charset is none %}未取得{% else %}{{ band.worklist_charset|charset_label }}{% endif %} → {{ band.image_charset|charset_label }}</span>
-    {% if band.station_notice %}<span role="status" class="text-danger">{{ band.station_notice }}</span>{% endif %}
-    {% if band.error %}<span role="alert" class="text-danger">{{ band.error }}</span>{% endif %}
-  </div>
+    <dt>ワークリスト</dt>
+    <dd>
+      <span class="font-mono">{{ band.worklist_ae }}</span>
+      {% if band.link.worklist %}<span class="st" data-k="{{ band.link.worklist.kind }}">{{ "成功" if band.link.worklist.ok else "失敗" }}</span> <span class="text-xs text-label">{{ band.link.worklist.at }}</span>
+      {% else %}<span class="st" data-k="plan">未確認</span>{% endif %}
+    </dd>
+    {% for name, probe in band.link.destinations %}
+    <dt>{% if loop.first %}送信先{% endif %}</dt>
+    <dd>
+      <span class="font-mono">{{ name }}</span>{% if name == band.destination %} <span class="badge">標準</span>{% endif %}
+      {% if probe %}<span class="st" data-k="{{ probe.kind }}">{{ "成功" if probe.ok else "失敗" }}</span> <span class="text-xs text-label">{{ probe.at }}</span>
+      {% else %}<span class="st" data-k="plan">未確認</span>{% endif %}
+    </dd>
+    {% endfor %}
+    <dt>文字コード</dt>
+    <dd>{% if band.worklist_charset is none %}未取得{% else %}{{ band.worklist_charset|charset_label }}{% endif %} → {{ band.image_charset|charset_label }}</dd>
+  </dl>
+  <p class="mt-2 text-xs text-label">送信先の接続確認は、左のナビの PACS の画面で行う。</p>
+  {% if band.station_notice %}<p role="status" class="mt-2 text-xs text-danger">{{ band.station_notice }}</p>{% endif %}
+  {% if band.error %}<p role="alert" class="mt-2 text-xs text-danger">{{ band.error }}</p>{% endif %}
 </div>
+{# 応答に同梱して差し替えるときは、上の帯の全体の状態の札も同じ応答で差し替える #}
+{% if oob_band %}{% include "_conn_state.html" %}{% endif %}

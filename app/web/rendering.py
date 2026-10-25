@@ -18,6 +18,8 @@ from app.core.exceptions import (
 from app.core.validation_text import describe_validation_error
 from app.modality.service import ModalityService
 
+from .link_status import LinkStatus
+
 logger = logging.getLogger(__name__)
 
 # 予約を探す・再検索するときの失敗の知らせ（10.4・10.8）
@@ -113,6 +115,17 @@ def band_context(request: Request) -> dict[str, Any]:
         "worklist_charset": None,
         "image_charset": [],
         "error": "",
+    }
+    link: LinkStatus = request.app.state.link_status
+    kind, label = link.overall([destination.name for destination in config.destinations])
+    band["link"] = {
+        "kind": kind,
+        "label": label,
+        "worklist": link.worklist,
+        "destinations": [
+            (destination.name, link.destinations.get(destination.name))
+            for destination in config.destinations
+        ],
     }
     try:
         state = service.last_worklist_state()

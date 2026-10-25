@@ -33,7 +33,8 @@ def test_pages_open_with_header_and_band(client, path, text) -> None:
     assert "dicom-test-generator" in html
     for name in ("ワークリスト", "撮影", "PACS", "設定"):
         assert name in html
-    assert f"自分: {OWN_AE}" in html
+    assert f'<dt>自分</dt><dd class="font-mono">{OWN_AE}</dd>' in html
+    assert "接続の状態" in html
     assert 'id="theme-toggle"' in html
     assert "Not for Diagnostic Use" not in html
     assert "非医療機器" not in html
@@ -70,7 +71,7 @@ def test_left_nav_groups_items_and_current_page(client, path, current) -> None:
     header = html[html.index("<header") : html.index("</header>")]
     assert 'href="/exam"' not in header and 'href="/pacs"' not in header
     assert 'href="/settings"' not in header
-    # ナビは、ヘッダー（帯と情報バー）の後、本文の前
+    # ナビは、ヘッダー（上の帯）の後、本文の前
     assert html.index("</header>") < html.index('class="sidenav"') < html.index("<main")
 
 

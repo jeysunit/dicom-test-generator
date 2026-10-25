@@ -24,4 +24,6 @@ def test_worklist_has_heading_search_band_and_count_row(client) -> None:
 def test_worklist_marks_are_state_marks(client) -> None:
     html = query_worklist(client, station="any", modality="")
     assert '<span class="st" data-k="note">別の装置</span>' in html
-    assert 'class="badge"' not in html
+    # 応答に同梱する上の帯の接続の状態（送信先の「標準」の札）を除いた、一覧と詳細の部分
+    results = re.sub(r'<div id="band".*?</dl>', "", html, flags=re.DOTALL)
+    assert 'class="badge"' not in results

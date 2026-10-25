@@ -1,0 +1,2 @@
+{# 上の帯の「接続の状態」の札。全体の状態を出す。応答に同梱して差し替えるときは oob_band #}
+<span id="conn-state"{% if oob_band %} hx-swap-oob="true"{% endif %} class="st" data-k="{{ band.link.kind }}">{{ band.link.label }}</span>
