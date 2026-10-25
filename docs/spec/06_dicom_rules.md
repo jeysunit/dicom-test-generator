@@ -289,7 +289,8 @@ X-Ray Radiation Dose SR（1.2.840.10008.5.1.4.1.1.88.67。[ADR-0029](../decision
 - 根：CONTAINER「X-Ray Radiation Dose Report」(113701, DCM)。Content Template
   Sequence は `DCMR`・`10011`。以下の行は、この順で並べる
 - HAS CONCEPT MOD：Procedure reported (121058, DCM) = Computed Tomography X-Ray
-  (77477000, SCT)
+  (77477000, SCT)。その下に HAS CONCEPT MOD の Has Intent (363703001, SCT) =
+  Diagnostic Intent (261004008, SCT。CID 3629)
 - HAS OBS CONTEXT：Observer Type (121005, DCM) = Device、Device Observer UID
   (121012, DCM)、Start of X-Ray Irradiation (113809, DCM)・End of X-Ray
   Irradiation (113810, DCM)（検査の日時から、撮影1回につき 30 秒後まで）、

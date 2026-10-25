@@ -90,6 +90,14 @@ MODALITY_SOP_CLASSES = {
     "SR": XRAY_RADIATION_DOSE_SR_STORAGE,
 }
 
+# 線量の報告（SR）の Enhanced General Equipment が空のときの値
+SR_EQUIPMENT_DEFAULTS = {
+    "Manufacturer": "DTG Synthetic",
+    "ManufacturerModelName": "DTG Synthetic",
+    "DeviceSerialNumber": "DTG0001",
+    "SoftwareVersions": "DTG",
+}
+
 # simple_text の画像の Bits Stored（CT Image は 12〜16。PS3.3 C.8.2.1.1.5）
 SIMPLE_TEXT_BITS_STORED = 12
 
@@ -400,6 +408,11 @@ class StudyGeneratorService:
         for keyword in (*CT_ONLY_KEYWORDS, "PatientOrientation", "ConversionType"):
             if keyword in dataset:
                 delattr(dataset, keyword)
+        # Enhanced General Equipment（PS3.3 C.7.5.2）は 4 つとも Type 1。テンプレートや
+        # 病院テンプレートが空にしても、空では出さない
+        for keyword, default in SR_EQUIPMENT_DEFAULTS.items():
+            if not dataset.get(keyword):
+                setattr(dataset, keyword, default)
 
     @staticmethod
     def _reject_retired_transfer_syntax(transfer_syntax_uid: str) -> None:
