@@ -348,8 +348,8 @@
     notice.textContent = message;
     place.replaceChildren(notice);
   }
-  // 情報バーの装置の切り替え（ADR-0023）が届かない・断られたときは、選択を元の装置に
-  // 戻し、帯に知らせる（表示とサーバーの装置がずれないように）。
+  // 接続の状態（上の帯）の装置の切り替え（ADR-0023）が届かない・断られたときは、選択を
+  // 元の装置に戻し、枠に知らせる（表示とサーバーの装置がずれないように）。
   function isStationSelect(element) {
     return element instanceof HTMLSelectElement && element.closest("#band") !== null;
   }
@@ -376,6 +376,17 @@
         xhr.status === 401 ? LOGIN_EXPIRED_MESSAGE :
           "装置を切り替えられませんでした。ページを読み込み直してから、もう一度選んでください"
       );
+    }
+  });
+  // 装置の切り替えが断られたときは、差し替えた枠が閉じたままで理由が見えないので、開き直す。
+  document.addEventListener("htmx:afterSettle", function (event) {
+    var config = event.detail.requestConfig;
+    if (!config || config.path !== "/station") {
+      return;
+    }
+    var band = document.getElementById("band");
+    if (band && band.hasAttribute("data-notice") && typeof band.showPopover === "function") {
+      band.showPopover();
     }
   });
   document.addEventListener("htmx:beforeSwap", function (event) {

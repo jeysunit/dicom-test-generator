@@ -15,6 +15,7 @@ from app.modality.config import ModalityConfig
 from app.modality.service import ModalityService
 
 from .auth import basic_auth_ok, csrf_guard, host_header_is_loopback, is_loopback, new_csrf_token
+from .link_status import LinkStatus
 from .rendering import render
 from .routes import exam, pacs, settings, worklist
 from .settings import WebConfig
@@ -82,6 +83,7 @@ def create_app(
     app.state.web = web
     app.state.csrf_token = new_csrf_token()
     app.state.exam_tokens = exam.ExamTokens()
+    app.state.link_status = LinkStatus()
     app.state.templates = create_environment()
     check_host = is_loopback(web.bind_address)
 

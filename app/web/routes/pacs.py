@@ -36,11 +36,15 @@ def pacs_queue(request: Request) -> HTMLResponse:
 
 @router.post("/pacs/echo/{name}", response_class=HTMLResponse)
 def pacs_echo(request: Request, name: str) -> HTMLResponse:
+    link = request.app.state.link_status
     try:
         result = service_of(request).echo(destination=name)
     except DICOMGeneratorError as exc:
-        return render(request, "_echo_result.html", result=None, error=error_text(exc))
-    return render(request, "_echo_result.html", result=result, error="")
+        link.record_destination(name, False)
+        # 上の帯の接続の状態も、同じ応答で差し替える（oob_band）
+        return render(request, "_echo_result.html", oob_band=True, result=None, error=error_text(exc))
+    link.record_destination(name, True)
+    return render(request, "_echo_result.html", oob_band=True, result=result, error="")
 
 
 @router.post("/pacs/retry/{job_id}", response_class=HTMLResponse)

@@ -18,6 +18,8 @@ from app.core.exceptions import (
 from app.core.validation_text import describe_validation_error
 from app.modality.service import ModalityService
 
+from .link_status import LinkStatus
+
 logger = logging.getLogger(__name__)
 
 # 予約を探す・再検索するときの失敗の知らせ（10.4・10.8）
@@ -67,9 +69,14 @@ def render(
     return HTMLResponse(env.get_template(template).render(**values))
 
 
-def render_error(request: Request, exc: DICOMGeneratorError | ValidationError) -> HTMLResponse:
-    """操作の失敗を、その操作の結果の場所に出す（10.3 の知らせ）."""
-    return render(request, "_notice.html", error=error_text(exc))
+def render_error(
+    request: Request, exc: DICOMGeneratorError | ValidationError, *, oob_band: bool = False
+) -> HTMLResponse:
+    """操作の失敗を、その操作の結果の場所に出す（10.3 の知らせ）.
+
+    oob_band のときは、上の帯の接続の状態も同じ応答で差し替える。
+    """
+    return render(request, "_notice.html", oob_band=oob_band, error=error_text(exc))
 
 
 def error_text(exc: DICOMGeneratorError | ValidationError) -> str:
@@ -113,6 +120,17 @@ def band_context(request: Request) -> dict[str, Any]:
         "worklist_charset": None,
         "image_charset": [],
         "error": "",
+    }
+    link: LinkStatus = request.app.state.link_status
+    kind, label = link.overall([destination.name for destination in config.destinations])
+    band["link"] = {
+        "kind": kind,
+        "label": label,
+        "worklist": link.worklist,
+        "destinations": [
+            (destination.name, link.destinations.get(destination.name))
+            for destination in config.destinations
+        ],
     }
     try:
         state = service.last_worklist_state()
