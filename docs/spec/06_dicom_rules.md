@@ -77,6 +77,12 @@ File Meta Information（Group 0002）は `FileMetaBuilder`
 生成の方式は Job の `uid_method` で選ぶ（`uuid_2_25` が既定）。生成は
 `UIDGenerator`（`app/core/uid_generator.py`）が行う。
 
+Implementation Class UID と Instance Creator UID は、固定の値（`app/services/study_generator.py`
+の `IMPLEMENTATION_CLASS_UID`・`INSTANCE_CREATOR_UID`）で、どちらも 2.25（UUID 派生）の
+形である。PS3.5 B.2 は、設計時に決める固定の UID には、UUID 派生を通常は勧めていない。
+製品として配るときは、登録した根（例：IANA の Private Enterprise Number）の下の UID に
+替える予定である（このバージョンのコードは変えない）。
+
 ### 3.2 UUID 2.25 方式
 
 形式は `2.25.{UUID の 128 ビットの整数の 10 進表記}`（PS3.5 B.2）。UUID は
