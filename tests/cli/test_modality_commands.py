@@ -139,10 +139,31 @@ def test_exam_modality_mismatch_is_exit_4(
     state = json.loads((tmp_path / "state" / "worklist_last.json").read_text(encoding="utf-8"))
     key = state["items"][0]["key"]
 
-    code, _, err = run_cli(monkeypatch, capsys, tmp_path, config, "exam", "--from-worklist", key)
+    # テンプレートを明示した場合だけ断る。省けば予約のモダリティのテンプレートで撮る
+    code, _, err = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--from-worklist", key, "-m", "ct_generic"
+    )
 
     assert code == 4
     assert "予約は MR、テンプレートは CT です" in err
+
+
+def test_exam_mr_order_uses_the_mr_template_by_default(
+    monkeypatch, capsys, tmp_path, config
+) -> None:
+    run_cli(monkeypatch, capsys, tmp_path, config, "worklist", "query", "--modality", "MR",
+            "--station-aet", "any")
+    state = json.loads((tmp_path / "state" / "worklist_last.json").read_text(encoding="utf-8"))
+    key = state["items"][0]["key"]
+
+    code, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--from-worklist", key, "-s", "1",
+        "-i", "1", "--json",
+    )
+
+    assert code == 0
+    (path,) = json.loads(out)["files"]
+    assert pydicom.dcmread(path, stop_before_pixels=True).Modality == "MR"
 
 
 def test_exam_emergency_json(monkeypatch, capsys, tmp_path, config) -> None:

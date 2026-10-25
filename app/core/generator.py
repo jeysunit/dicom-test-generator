@@ -9,7 +9,12 @@ from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.valuerep import format_number_as_ds
 
 from .exceptions import DICOMBuildError
-from .series_layout import CONTRAST_AGENT, image_type
+from .series_layout import (
+    CONTRAST_AGENT,
+    MR_FIELD_OF_VIEW_MM,
+    MR_SEQUENCE_PARAMETERS,
+    image_type,
+)
 from .models import (
     InstanceConfig,
     Patient,
@@ -21,6 +26,11 @@ from .models import (
 
 # CT Image Storage SOP Class UID
 CT_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.2"
+# MR Image Storage SOP Class UID（PS3.4 B.5）
+MR_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.4"
+# MR Image の Bits Stored の範囲。Bits Allocated は 16 で、Bits Stored は 12 以上にする
+MR_BITS_STORED_MIN = 12
+MR_BITS_STORED_MAX = 16
 # Secondary Capture Image Storage（線量の画面。PS3.4 B.5・PS3.3 A.8.1）
 SECONDARY_CAPTURE_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.7"
 # SC Equipment Module の Conversion Type（PS3.3 C.8.6.1）。装置の画面を写した画像
@@ -140,6 +150,137 @@ class DICOMBuilder:
             if isinstance(exc, DICOMBuildError):
                 raise
             raise DICOMBuildError(f"Failed to build CT image dataset: {exc}") from exc
+
+    def build_mr_image(
+        self,
+        patient: Patient,
+        study_config: StudyConfig,
+        series_config: SeriesConfig,
+        instance_config: InstanceConfig,
+        uid_context: UIDContext,
+        spatial: SpatialCoordinates,
+        pixel_data: np.ndarray,
+        file_meta: FileMetaDataset,
+        sop_instance_uid: str,
+        series_instance_uid: str,
+        specific_character_set: str | None = None,
+        use_ideographic: bool = True,
+        use_phonetic: bool = True,
+        bits_stored: int = 12,
+    ) -> Dataset:
+        """MR Image Storage を構築（PS3.3 A.4、MR Image Module は C.8.3.1）."""
+        try:
+            if str(getattr(file_meta, "MediaStorageSOPInstanceUID", "")) != sop_instance_uid:
+                raise DICOMBuildError(
+                    "SOP Instance UID mismatch between dataset and file meta",
+                    tag="MediaStorageSOPInstanceUID",
+                )
+            if series_config.modality != "MR":
+                raise DICOMBuildError(
+                    f"MR image needs an MR series, got {series_config.modality}",
+                    tag="Modality",
+                )
+            ds = self._patient_study_series(
+                file_meta,
+                patient,
+                study_config,
+                series_config,
+                uid_context,
+                series_instance_uid,
+                specific_character_set,
+                use_ideographic,
+                use_phonetic,
+            )
+            ds.PatientPosition = DEFAULT_PATIENT_POSITION
+            # Frame of Reference Module
+            ds.FrameOfReferenceUID = uid_context.frame_of_reference_uid
+            ds.PositionReferenceIndicator = DEFAULT_POSITION_REFERENCE_INDICATOR
+            # General Image Module・MR Image Module
+            ds.ImageType = image_type(series_config)
+            ds.InstanceNumber = str(instance_config.instance_number)
+            ds.AcquisitionNumber = str(instance_config.acquisition_number)
+            ds.ContentDate = study_config.study_date
+            ds.ContentTime = study_config.study_time
+            self._set_mr_acquisition(ds, series_config)
+            # SOP Common Module
+            ds.SOPClassUID = MR_IMAGE_STORAGE
+            ds.SOPInstanceUID = sop_instance_uid
+            ds.InstanceCreatorUID = uid_context.instance_creator_uid
+            # Image Plane Module。画素間隔は視野 ÷ 画素数
+            ds.ImagePositionPatient = [format_ds(v) for v in spatial.image_position_patient]
+            ds.ImageOrientationPatient = [format_ds(v) for v in spatial.image_orientation_patient]
+            ds.SliceLocation = format_ds(spatial.slice_location)
+            ds.SliceThickness = format_ds(series_config.slice_thickness)
+            ds.SpacingBetweenSlices = format_ds(series_config.slice_spacing)
+            rows, cols = pixel_data.shape
+            ds.PixelSpacing = [
+                format_ds(MR_FIELD_OF_VIEW_MM / rows),
+                format_ds(MR_FIELD_OF_VIEW_MM / cols),
+            ]
+            self._set_mr_pixel_data(ds, pixel_data, bits_stored)
+            self._apply_transfer_syntax(ds, file_meta)
+            return ds
+        except Exception as exc:
+            if isinstance(exc, DICOMBuildError):
+                raise
+            raise DICOMBuildError(f"Failed to build MR image dataset: {exc}") from exc
+
+    @staticmethod
+    def _set_mr_acquisition(ds: Dataset, series_config: SeriesConfig) -> None:
+        """MR Image Module の撮像の値（Scanning Sequence ごとの架空の条件。PS3.3 C.8.3.1）."""
+        params = MR_SEQUENCE_PARAMETERS[series_config.sequence]
+        ds.ScanningSequence = series_config.sequence
+        ds.SequenceVariant = (
+            params.sequence_variant[0]
+            if len(params.sequence_variant) == 1
+            else list(params.sequence_variant)
+        )
+        ds.ScanOptions = ""
+        ds.MRAcquisitionType = series_config.acquisition_type
+        ds.RepetitionTime = format_ds(params.repetition_time_ms)
+        ds.EchoTime = format_ds(params.echo_time_ms)
+        ds.EchoTrainLength = params.echo_train_length
+        if params.inversion_time_ms is not None:
+            ds.InversionTime = format_ds(params.inversion_time_ms)
+
+    def _set_mr_pixel_data(
+        self, ds: Dataset, pixel_data: np.ndarray, bits_stored: int
+    ) -> None:
+        """MR の画素（Bits Allocated 16・符号なし。PS3.3 C.8.3.1.1.4）を設定する."""
+        if not MR_BITS_STORED_MIN <= bits_stored <= MR_BITS_STORED_MAX:
+            raise DICOMBuildError(
+                f"Bits Stored {bits_stored} is not allowed for MR "
+                f"({MR_BITS_STORED_MIN}..{MR_BITS_STORED_MAX})",
+                tag="BitsStored",
+            )
+        upper = (1 << bits_stored) - 1
+        if pixel_data.dtype == np.uint8:
+            pixels = np.rint(pixel_data.astype(np.float64) * upper / np.iinfo(np.uint8).max)
+            pixels = pixels.astype(np.uint16)
+        elif pixel_data.dtype == np.int16:
+            if pixel_data.size and (int(pixel_data.min()) < 0 or int(pixel_data.max()) > upper):
+                raise DICOMBuildError(
+                    f"Pixel values {int(pixel_data.min())}..{int(pixel_data.max())} "
+                    f"do not fit unsigned Bits Stored {bits_stored} (0..{upper})",
+                    tag="PixelData",
+                )
+            pixels = pixel_data.astype(np.uint16)
+        else:
+            raise DICOMBuildError(
+                f"Unsupported pixel data dtype: {pixel_data.dtype}", tag="PixelData"
+            )
+        rows, cols = pixels.shape
+        ds.Rows = rows
+        ds.Columns = cols
+        ds.SamplesPerPixel = 1
+        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.BitsAllocated = 16
+        ds.BitsStored = bits_stored
+        ds.HighBit = bits_stored - 1
+        ds.PixelRepresentation = 0
+        ds.WindowCenter = format_ds((upper + 1) / 4)
+        ds.WindowWidth = format_ds((upper + 1) / 2)
+        ds.PixelData = pixels.tobytes()
 
     def build_dose_report(
         self,
@@ -261,7 +402,8 @@ class DICOMBuilder:
         ds.StudyID = ""
 
         # General Series Module
-        ds.Modality = "CT"
+        # SC の線量の画面は CT の装置の画面なので、Modality はシリーズの値（CT）のまま
+        ds.Modality = series_config.modality or "CT"
         ds.SeriesInstanceUID = series_instance_uid
         ds.SeriesNumber = str(series_config.series_number)
         if series_config.series_description is not None:

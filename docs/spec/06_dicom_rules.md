@@ -241,6 +241,36 @@ CT の Image Type の値 3 の Defined Terms は `AXIAL` と `LOCALIZER`
   Image Plane・CT Image の属性は持たない（装置のプロファイルが足しても外す）
 - Image Type の値 4 と Source Image Sequence は付けない。RDSR は作らない
 
+### 5.2 MR Image の属性
+
+MR のシリーズ（[ADR-0028](../decisions/0028-mr-images.md)）は MR Image Storage
+（1.2.840.10008.5.1.4.1.1.4）で作る。MR Image IOD（PS3.3 A.4）の必須のモジュールを
+持ち、Modality (0008,0060) は `MR`。MR Image Module（PS3.3 C.8.3.1）は次の値にする。
+
+| 属性 | Type | 値 |
+|------|------|----|
+| Image Type (0008,0008) | 1 | 位置決め・撮像は `ORIGINAL\PRIMARY\M\ND`、計算で作った画像は `DERIVED\SECONDARY` |
+| Samples per Pixel / Photometric Interpretation | 1 | `1` / `MONOCHROME2` |
+| Bits Allocated / Bits Stored / High Bit | 1 | `16` / ジョブの Bits Stored（12〜16、既定 12）/ Bits Stored − 1。Pixel Representation は `0`（符号なし） |
+| Scanning Sequence (0018,0020) | 1 | ルーチンの `sequence`（SE・IR・GR・EP） |
+| Sequence Variant (0018,0021) | 1 | SE と IR は `SK`、GR は `SP`、EP は `NONE` |
+| Scan Options (0018,0022) / MR Acquisition Type (0018,0023) | 2 | 空 / ルーチンの `acquisition_type`（2D・3D） |
+| Repetition Time (0018,0080) | 2C | 常に入れる（SE 3000、IR 9000、GR 600、EP 5000 ms。架空） |
+| Echo Time (0018,0081) / Echo Train Length (0018,0091) | 2 | SE 90 ms・15、IR 100 ms・15、GR 15 ms・1、EP 80 ms・1 |
+| Inversion Time (0018,0082) | 2C | Scanning Sequence が IR のときだけ 2500 ms |
+
+- Frame of Reference UID は検査で共通（ほかのシリーズと同じ空間）。Image Position
+  (Patient)・Image Orientation (Patient)・Slice Location・Slice Thickness・Spacing
+  Between Slices を持つ。画像の間隔は スライス厚 + ルーチンの `spacing`
+- 断面の向きと進める軸は CT の冠状断・矢状断・軸位と同じ（5.1）。`three_plane` は
+  画像を3等分して axial・coronal・sagittal の順に割り当て（余りは最後の断面）、
+  それぞれ断面の中で位置を進める
+- Pixel Spacing (0028,0030) は視野 240 mm（架空）を画素数で割った値
+- Window Center / Width (0028,1050・1051) は画素の上限の 1/4 と 1/2。Rescale
+  Intercept・Slope、KVP などの CT の属性は持たない
+- テンプレートの `mr_image`（Magnetic Field Strength・Imaged Nucleus・Receive Coil
+  Name）と `general_equipment` を重ねる
+
 ## 6. マルチスライスの空間座標
 
 ### 6.1 計算の規則

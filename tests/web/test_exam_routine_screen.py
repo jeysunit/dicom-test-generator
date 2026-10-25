@@ -76,7 +76,18 @@ def test_mr_order_lists_mr_routines(client) -> None:
     html = client.get(f"/exam?key={key}").text
 
     assert _selected_routine(html) == "mr_head"
-    assert "予約は MR、テンプレートは CT です" in html  # 撮影は押せない（今の決まり）
+    # テンプレートは予約のモダリティに合わせて選んである（ADR-0028）。撮影は押せる
+    template = html.split('name="template"', 1)[1].split("</select>", 1)[0]
+    assert '<option value="mr_generic" selected>' in template
+    assert "予約は MR、テンプレートは CT です" not in html
+
+
+def test_mr_order_with_the_ct_template_cannot_be_taken(client) -> None:
+    key = key_for(query_worklist(client, station="any", modality=""), "A0003")  # 頭部 MR
+
+    html = client.get(f"/exam/check?key={key}&template=ct_generic").text
+
+    assert "予約は MR、テンプレートは CT です" in html  # 撮影は押せない
 
 
 def test_unreadable_routines_are_reported(client, tmp_path) -> None:

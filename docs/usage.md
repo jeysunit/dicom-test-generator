@@ -215,8 +215,12 @@ Web 画面は HTTP Basic 認証が必須で（ユーザー名は `dtg`）、パ�
   終了コード 2 で停止する
 - `exam --mpps`・`--no-mpps` で、その撮影だけ MPPS の設定を上書きできる
 - 撮影のルーチンは `templates/routine/` の YAML（CT・MR・CR・DX・US の部位ごと）。
-  施設のルーチンは同じ形の YAML を足して作る。MR・CR・DX・US のルーチンは、それらの
+  施設のルーチンは同じ形の YAML を足して作る。CR・DX・US のルーチンは、それらの
   画像を作れるようになるまで使えない
+- MR の予約は、テンプレートを指定しなければ MR のテンプレート（`mr_generic`）で
+  撮る。緊急の患者を MR で撮るときは、画面のテンプレートで `mr_generic` を選ぶか、
+  CLI で `exam --emergency -m mr_generic` を使う。装置のプロファイルは、例の
+  `dtg_synthetic_mr` を選べる
 
 ## 7. CLI だけでできること
 

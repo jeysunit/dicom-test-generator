@@ -17,7 +17,7 @@ from app.core import (
     TransferSyntaxConfig,
 )
 from app.core.generator import CT_IMAGE_STORAGE, SECONDARY_CAPTURE_IMAGE_STORAGE
-from app.core.routine import ct_series_configs
+from app.core.routine import routine_series_configs
 from app.services.routine_loader import RoutineLoaderService
 from app.services.study_generator import StudyGeneratorService
 
@@ -28,7 +28,7 @@ CHEST_IMAGES = [1, 2, 2, 2, 3, 1]
 def _generate(tmp_path: Path, routine_name: str, images: list[int]) -> dict[int, list]:
     routine = RoutineLoaderService().get(routine_name)
     keep = list(range(len(routine.series)))
-    series_list = ct_series_configs(routine, [index + 1 for index in keep], keep, images)
+    series_list = routine_series_configs(routine, [index + 1 for index in keep], keep, images)
     config = GenerationConfig(
         job_name="routine",
         output_dir=str(tmp_path / "out"),

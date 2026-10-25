@@ -11,6 +11,7 @@ series:
     images: 15
     plane: "three_plane"
     slice_thickness: 8.0
+    sequence: "GR"
   - kind: "acquisition"
     description: "PD FS SAG"
     images: 30

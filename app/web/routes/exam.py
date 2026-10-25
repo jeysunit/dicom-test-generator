@@ -101,13 +101,17 @@ def exam_page(request: Request, key: str = "") -> HTMLResponse:
             item = service.find_item(key)
         except DICOMGeneratorError as exc:
             load_error = worklist_error_text(exc)
+    template = service.config.default_template
+    profile = service.config.default_profile or ""
     try:
         templates = service.available_templates()
         profiles, profile_errors = service.available_profiles()
+        if item is not None and item.modality:
+            # 予約のモダリティに合うテンプレートと、それに合う装置を先に選んでおく（ADR-0028）
+            template = service.template_for_modality(item.modality)
+            profile = service.profile_for_template(profile, template) or ""
     except DICOMGeneratorError as exc:
         templates, profiles, profile_errors = [service.config.default_template], [], [exc]
-    template = service.config.default_template
-    profile = service.config.default_profile or ""
     return render(
         request,
         "exam.html",
