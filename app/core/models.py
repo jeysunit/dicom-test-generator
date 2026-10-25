@@ -114,6 +114,9 @@ class SeriesConfig(BaseModel):
             raise ValueError(f"kind {self.kind!r} needs modality MR")
         if self.modality is None and self.kind in mr_kinds:
             raise ValueError(f"kind {self.kind!r} needs modality MR")
+        if self.modality == "MR" and self.contrast:
+            # MR の造影（Contrast/Bolus Module）はまだ作らない（ADR-0028）
+            raise ValueError("contrast is not supported for MR series")
         return self
 
 

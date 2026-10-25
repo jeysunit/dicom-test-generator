@@ -42,6 +42,7 @@ from app.core.generator import (
     SECONDARY_CAPTURE_IMAGE_STORAGE,
 )
 from app.core.models import SeriesConfig
+from pydantic import ValidationError as PydanticValidationError
 from app.core.series_layout import dose_report_lines, series_spatial
 from app.core.path_safety import ensure_within, safe_path_component
 from app.core.worklist_charset import ensure_dataset_encodable
@@ -81,6 +82,8 @@ MR_IMAGE_TAG_MAP = {
 
 # この道具が画像を作れるモダリティ（シリーズの Modality。ADR-0028）
 GENERATABLE_MODALITIES = ("CT", "MR")
+# テンプレートと違うモダリティのシリーズに使う SOP Class
+MODALITY_SOP_CLASSES = {"CT": CT_IMAGE_STORAGE, "MR": MR_IMAGE_STORAGE}
 
 # simple_text の画像の Bits Stored（CT Image は 12〜16。PS3.3 C.8.2.1.1.5）
 SIMPLE_TEXT_BITS_STORED = 12
@@ -240,9 +243,9 @@ class StudyGeneratorService:
                         sop_class_uid=(
                             SECONDARY_CAPTURE_IMAGE_STORAGE
                             if dose_report
-                            else MR_IMAGE_STORAGE
-                            if mr_series
                             else sop_class_uid
+                            if series_config.modality == modality
+                            else MODALITY_SOP_CLASSES[series_config.modality]
                         ),
                         sop_instance_uid=sop_uid,
                         transfer_syntax_uid=config.transfer_syntax.uid,
@@ -544,7 +547,15 @@ class StudyGeneratorService:
         update: dict[str, object] = {"modality": template_modality}
         if template_modality == "MR" and series.kind == "axial":
             update["kind"] = "acquisition"
-        return series.model_copy(update=update)
+        try:
+            # 組み合わせの検証（MR に冠状断など）をやり直す
+            return SeriesConfig.model_validate({**series.model_dump(), **update})
+        except PydanticValidationError as exc:
+            raise DICOMValidationError(
+                f"Series {series.series_number} (kind {series.kind}) cannot be made with "
+                f"the {template_modality} template: {exc.errors()[0]['msg']}",
+                {"series_number": series.series_number, "modality": template_modality},
+            ) from exc
 
     def _apply_template_attributes(
         self,

@@ -108,6 +108,8 @@ def test_default_ct_profile_is_not_applied_to_an_mr_order(tmp_path, worklist_scp
     (ds,) = _headers(result.files)
     assert ds.Modality == "MR"
     assert ds.ManufacturerModelName == "DTG Synthetic MR"
+    # 黙って外さず、重ねなかったことを知らせる
+    assert any("dtg_synthetic_ct" in notice and "MR" in notice for notice in result.notices)
 
 
 def test_named_profile_must_match_the_modality(tmp_path, worklist_scp) -> None:

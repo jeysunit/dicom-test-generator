@@ -93,6 +93,8 @@ OMIT_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
         "MRAcquisitionType",
         "EchoTime",
         "EchoTrainLength",
+        "RepetitionTime",  # Type 2C だが、この道具は常に出す
+        "InversionTime",  # Type 2C（Scanning Sequence が IR のとき）
     }
 )
 

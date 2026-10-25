@@ -20,6 +20,8 @@ from app.core import (
     StudyConfig,
     TransferSyntaxConfig,
 )
+from app.core.device_profile import ProfileAttributes
+from app.core.exceptions import DICOMValidationError
 from app.core.generator import MR_IMAGE_STORAGE
 from app.core.routine import routine_series_configs
 from app.services.routine_loader import RoutineLoaderService
@@ -240,6 +242,37 @@ def test_ct_profile_does_not_fit_an_mr_template(tmp_path: Path) -> None:
 
     with pytest.raises(ProfileMismatchError, match="does not match template modality"):
         StudyGeneratorService().generate(_config(tmp_path, series, profile="dtg_synthetic_ct"))
+
+
+def test_explicit_ct_series_keeps_the_ct_sop_class_under_an_mr_template(tmp_path: Path) -> None:
+    series = [SeriesConfig(series_number=1, num_images=1, modality="CT")]
+
+    output = StudyGeneratorService().generate(_config(tmp_path, series))
+
+    (ds,) = [pydicom.dcmread(path) for path in output.glob("*.dcm")]
+    assert ds.Modality == "CT"
+    assert ds.SOPClassUID == "1.2.840.10008.5.1.4.1.1.2"
+    assert ds.file_meta.MediaStorageSOPClassUID == "1.2.840.10008.5.1.4.1.1.2"
+    assert "ScanningSequence" not in ds
+
+
+@pytest.mark.parametrize("kind", ["coronal", "sagittal", "dose_report"])
+def test_ct_only_kind_cannot_be_made_with_an_mr_template(tmp_path: Path, kind: str) -> None:
+    series = [SeriesConfig(series_number=1, num_images=1, kind=kind)]
+
+    with pytest.raises(DICOMValidationError, match="cannot be made with the MR template"):
+        StudyGeneratorService().generate(_config(tmp_path, series))
+
+
+def test_mr_series_has_no_contrast() -> None:
+    with pytest.raises(ValueError, match="contrast is not supported"):
+        SeriesConfig(series_number=1, num_images=1, kind="acquisition", modality="MR", contrast=True)
+
+
+@pytest.mark.parametrize("keyword", ["RepetitionTime", "InversionTime", "ScanningSequence"])
+def test_profile_cannot_omit_the_mr_required_attributes(keyword: str) -> None:
+    with pytest.raises(ValueError, match="cannot be omitted"):
+        ProfileAttributes.model_validate({"omit": [keyword]})
 
 
 def test_explicit_mr_series_stays_mr_under_a_ct_template(tmp_path: Path) -> None:

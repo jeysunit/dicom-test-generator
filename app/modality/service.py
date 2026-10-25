@@ -936,6 +936,11 @@ class ModalityService:
         if station.station_name:
             ctx = ctx.model_copy(update={"station_name": station.station_name})
         profile_name = self._profile_name(request, template)
+        if profile_name is None and not request.profile and self.config.default_profile:
+            notices.append(
+                f"設定の既定の装置（{self.config.default_profile}）は {modality} ではないので、"
+                "装置のプロファイルを重ねません"
+            )
         use_mpps = self._uses_mpps(request, profile_name)
         if (use_mpps or not ctx.scheduled) and ctx.study_instance_uid is None:
             # MPPS と画像の Study をそろえるため、N-CREATE より前に UID を作る（8.4.1）。

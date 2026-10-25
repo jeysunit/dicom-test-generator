@@ -175,7 +175,7 @@ services:
   Spacing・Slice Thickness・KVP・Rescale Intercept/Slope・Image Type・
   Patient Position・Position Reference Indicator・Instance Creator UID、
   MR の Scanning Sequence・Sequence Variant・Scan Options・MR Acquisition
-  Type・Echo Time・Echo Train Length）
+  Type・Repetition Time・Inversion Time・Echo Time・Echo Train Length）
   を削除できない（Patient Position は 2C で CT Image Storage では必須。
   PS3.3 C.7.3.1。spec/06 の「CT Image の必須の属性」）。必須の属性を欠いた
   画像は、異常のデータ（`abnormal`）で作成する
