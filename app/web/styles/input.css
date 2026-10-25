@@ -364,18 +364,34 @@
   .job-detail-button {
     @apply inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center px-1 text-xs;
   }
-  /* 送信ジョブの詳細の枠（popover）。位置は app.js が操作の欄の左に決める（10.6）。
-     popover に対応しないブラウザでは、枠はセルの中にそのまま出す */
-  .job-detail {
-    @apply rounded-md border border-border bg-background p-3 text-xs text-foreground shadow-md;
+  /* 一覧の行を選んだ印（色だけにしない：左の線を足す） */
+  .table tbody tr[aria-selected="true"] {
+    @apply bg-selected;
+    box-shadow: inset 3px 0 0 var(--color-link);
   }
-  @supports selector(:popover-open) {
-    .job-detail {
-      position: fixed;
-      inset: auto;
-      margin: 0;
-      max-width: min(32rem, calc(100vw - 2rem));
-    }
+  /* 状態の要約：状態ごとの件数。押せる。押している状態は地と太字で示す */
+  .sumrow {
+    @apply flex flex-wrap gap-2;
+  }
+  .sum {
+    @apply inline-flex h-8 cursor-pointer items-center gap-2 rounded-sm border border-border-input bg-background px-3 text-sm text-foreground;
+  }
+  .sum[aria-pressed="true"] {
+    @apply bg-selected font-bold text-value;
+  }
+  .sum .nbr {
+    @apply font-bold text-value;
+  }
+  /* 一覧の下の、選んだ行の詳細（一覧との境目の線つき） */
+  .job-pane {
+    @apply flex flex-col gap-3 border-t border-border pt-3;
+  }
+  /* 確認の窓（標準の dialog）。画面の中央に出し、後ろは暗くする */
+  .dlg {
+    @apply m-auto w-[min(28rem,calc(100vw-2rem))] rounded-lg border border-border bg-background p-4 text-sm text-foreground shadow-lg;
+  }
+  .dlg::backdrop {
+    background: rgb(0 0 0 / 0.4);
   }
   /* 撮影・送信の途中の表示。htmx が要求の間、form に htmx-request を付ける。
      form の data-action（app.js が押したボタンから入れる）で文言を選ぶ */

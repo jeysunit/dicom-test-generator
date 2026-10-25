@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from dataclasses import dataclass
+from datetime import date, timedelta
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Form, Query, Request
 from fastapi.responses import HTMLResponse
 
 from app.core.exceptions import DICOMGeneratorError
+from app.modality.queue import QueueJob
 from app.modality.service import SendResult
 
 from ..display import STATUS_LABELS
@@ -15,23 +20,79 @@ router = APIRouter()
 
 QUEUE_POLL_TRIGGER = "every 2s"
 
+# 検索の帯の「期間」。値は画面と要求の取り決め
+PERIOD_CHOICES = (("all", "すべて"), ("today", "今日"), ("week", "1 週間"))
+# 状態の要約に並べる状態（送信待ちは画面から作った件には残らないので並べない。10.6）
+SUMMARY_STATUSES = ("sending", "sent", "failed")
+
+
+@dataclass(frozen=True)
+class QueueFilter:
+    """送信ジョブの一覧の条件。画面の検索の帯・状態の要約・選んだ行から来る."""
+
+    period: str = "all"
+    destination: str = ""
+    patient_id: str = ""
+    status: str = "all"
+    selected: int | None = None
+
+
+def _make_filter(
+    period: str, destination: str, patient_id: str, status: str, selected: str
+) -> QueueFilter:
+    """知らない値は初期値に戻す（要求を書き換えられても、一覧が壊れないように）."""
+    return QueueFilter(
+        period=period if period in dict(PERIOD_CHOICES) else "all",
+        destination=destination.strip(),
+        patient_id=patient_id.strip(),
+        status=status if status in SUMMARY_STATUSES else "all",
+        selected=int(selected) if selected.isascii() and selected.isdigit() else None,
+    )
+
+
+def filter_from_query(
+    period: Annotated[str, Query()] = "all",
+    destination: Annotated[str, Query()] = "",
+    patient_id: Annotated[str, Query()] = "",
+    status: Annotated[str, Query()] = "all",
+    selected: Annotated[str, Query()] = "",
+) -> QueueFilter:
+    return _make_filter(period, destination, patient_id, status, selected)
+
+
+def filter_from_form(
+    period: Annotated[str, Form()] = "all",
+    destination: Annotated[str, Form()] = "",
+    patient_id: Annotated[str, Form()] = "",
+    status: Annotated[str, Form()] = "all",
+    selected: Annotated[str, Form()] = "",
+) -> QueueFilter:
+    return _make_filter(period, destination, patient_id, status, selected)
+
+
+FromQuery = Annotated[QueueFilter, Depends(filter_from_query)]
+FromForm = Annotated[QueueFilter, Depends(filter_from_form)]
+
 
 @router.get("/pacs", response_class=HTMLResponse)
 def pacs_page(request: Request) -> HTMLResponse:
     service = service_of(request)
+    # 状態の要約と再送信の件数は、画面を開くときは画面の側に置く（読み直しでは同梱して差し替える）
+    context = {**_queue_context(request, QueueFilter()), "first_render": True}
     return render(
         request,
         "pacs.html",
         page="pacs",
         destinations=service.config.destinations,
+        period_choices=PERIOD_CHOICES,
         poll_trigger=QUEUE_POLL_TRIGGER,
-        **_queue_context(request),
+        **context,
     )
 
 
 @router.get("/pacs/queue", response_class=HTMLResponse)
-def pacs_queue(request: Request) -> HTMLResponse:
-    return render(request, "_queue.html", **_queue_context(request))
+def pacs_queue(request: Request, filters: FromQuery) -> HTMLResponse:
+    return render(request, "_queue.html", **_queue_context(request, filters))
 
 
 @router.post("/pacs/echo/{name}", response_class=HTMLResponse)
@@ -48,37 +109,84 @@ def pacs_echo(request: Request, name: str) -> HTMLResponse:
 
 
 @router.post("/pacs/retry/{job_id}", response_class=HTMLResponse)
-def pacs_retry(request: Request, job_id: int) -> HTMLResponse:
+def pacs_retry(request: Request, job_id: int, filters: FromForm) -> HTMLResponse:
     try:
         results = service_of(request).retry(job_id=job_id)
     except DICOMGeneratorError as exc:
         # 失敗しても表は消さず、表の上の知らせの場所に理由を出す
-        return render(request, "_queue.html", **_queue_context(request, error=error_text(exc)))
+        return render(
+            request, "_queue.html", **_queue_context(request, filters, error=error_text(exc))
+        )
     notice, failed = _retry_notice(results, job_id)
     return render(request, "_queue.html", **_queue_context(
-        request, notice="" if failed else notice, error=notice if failed else ""
+        request, filters, notice="" if failed else notice, error=notice if failed else ""
     ))
 
 
 @router.post("/pacs/retry-failed", response_class=HTMLResponse)
-def pacs_retry_failed(request: Request) -> HTMLResponse:
+def pacs_retry_failed(request: Request, filters: FromForm) -> HTMLResponse:
     try:
         results = service_of(request).retry(all_failed=True)
     except DICOMGeneratorError as exc:
-        return render(request, "_queue.html", **_queue_context(request, error=error_text(exc)))
+        return render(
+            request, "_queue.html", **_queue_context(request, filters, error=error_text(exc))
+        )
     notice, failed = _retry_notice(results)
     return render(request, "_queue.html", **_queue_context(
-        request, notice="" if failed else notice, error=notice if failed else ""
+        request, filters, notice="" if failed else notice, error=notice if failed else ""
     ))
 
 
-def _queue_context(request: Request, notice: str = "", error: str = "") -> dict[str, object]:
-    context: dict[str, object] = {"notice": notice, "retry_error": error}
+def _queue_context(
+    request: Request, filters: QueueFilter, notice: str = "", error: str = ""
+) -> dict[str, object]:
+    context: dict[str, object] = {
+        "notice": notice,
+        "retry_error": error,
+        "filters": filters,
+        "oob_parts": False,
+        "first_render": False,
+    }
     try:
-        jobs = service_of(request).list_queue()
+        all_jobs = list(reversed(service_of(request).list_queue()))
     except DICOMGeneratorError as exc:
-        return {**context, "jobs": [], "queue_error": str(exc)}
-    return {**context, "jobs": list(reversed(jobs)), "queue_error": ""}
+        return {
+            **context,
+            "jobs": [],
+            "queue_error": str(exc),
+            "total": 0,
+            "counts": {},
+            "failed_total": 0,
+            "selected_job": None,
+        }
+    # 状態の件数は、期間・送信先・患者IDで絞った件の中で数える（状態は件数の中から選ぶ）
+    narrowed = [job for job in all_jobs if _matches(job, filters)]
+    jobs = [job for job in narrowed if filters.status == "all" or job.status == filters.status]
+    counts = {status: sum(1 for job in narrowed if job.status == status) for status in SUMMARY_STATUSES}
+    selected_job = next((job for job in jobs if job.id == filters.selected), None)
+    return {
+        **context,
+        "jobs": jobs,
+        "queue_error": "",
+        "total": len(narrowed),
+        "counts": counts,
+        # [失敗をすべて再送信] は条件で絞らず、失敗のすべてに効く（12 の 8.2）
+        "failed_total": sum(1 for job in all_jobs if job.status == "failed"),
+        "selected_job": selected_job,
+    }
+
+
+def _matches(job: QueueJob, filters: QueueFilter) -> bool:
+    if filters.destination and job.destination != filters.destination:
+        return False
+    if filters.patient_id and filters.patient_id.casefold() not in job.patient_id.casefold():
+        return False
+    if filters.period != "all":
+        days = 0 if filters.period == "today" else 6
+        # created_at は「2026-10-25T10:00:00」の形（この機械の時刻）。日付の部分だけを比べる
+        if job.created_at[:10] < (date.today() - timedelta(days=days)).isoformat():
+            return False
+    return True
 
 
 def _retry_notice(results: list[SendResult], job_id: int | None = None) -> tuple[str, bool]:
