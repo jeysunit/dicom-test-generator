@@ -4,7 +4,36 @@
   var COPIED_MS = 1200;
   var LOGIN_EXPIRED_MESSAGE = "ログインが切れました。ページを読み込み直して、ログインし直してください";
 
+  // 左のナビの開閉（上の帯の左端のボタン）。閉じたことを覚え、次に開いたページでも閉じておく
+  function setNav(open) {
+    var shell = document.querySelector(".shell");
+    var button = document.getElementById("nav-toggle");
+    if (!shell || !button) {
+      return;
+    }
+    shell.classList.toggle("collapsed", !open);
+    button.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  try {
+    if (window.localStorage.getItem("dtg-nav") === "closed") {
+      setNav(false);
+    }
+  } catch (error) {
+    // 覚えが読めなければ開いたまま
+  }
+
   document.addEventListener("click", function (event) {
+    var navToggle = event.target.closest("#nav-toggle");
+    if (navToggle) {
+      var open = navToggle.getAttribute("aria-expanded") !== "true";
+      setNav(open);
+      try {
+        window.localStorage.setItem("dtg-nav", open ? "open" : "closed");
+      } catch (error) {
+        // 覚えられなくても、いまのページのナビは変わる
+      }
+      return;
+    }
     var toggle = event.target.closest("#theme-toggle");
     if (toggle) {
       var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
@@ -380,13 +409,15 @@
     }
   });
   // 装置の切り替えが断られたときは、差し替えた枠が閉じたままで理由が見えないので、開き直す。
+  // 枠の中の「接続確認」の結果も、差し替えた枠を開き直して見せる。
   document.addEventListener("htmx:afterSettle", function (event) {
     var config = event.detail.requestConfig;
-    if (!config || config.path !== "/station") {
+    if (!config || (config.path !== "/station" && config.path !== "/link/check")) {
       return;
     }
     var band = document.getElementById("band");
-    if (band && band.hasAttribute("data-notice") && typeof band.showPopover === "function") {
+    var reopen = config.path === "/link/check" || (band && band.hasAttribute("data-notice"));
+    if (band && reopen && typeof band.showPopover === "function" && !band.matches(":popover-open")) {
       band.showPopover();
     }
   });

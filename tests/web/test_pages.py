@@ -41,10 +41,11 @@ def test_pages_open_with_header_and_band(client, path, text) -> None:
     assert '<html lang="ja"' in html
 
 
-_NAV = re.compile(r'<nav class="sidenav" aria-label="ページ">(.*?)</nav>', re.DOTALL)
+_NAV = re.compile(r'<nav id="sidenav" class="sidenav" aria-label="ページ">(.*?)</nav>', re.DOTALL)
+# 項目は絵と名前。閉じたナビでも名前が分かるよう、title に同じ名前を持つ
 _NAV_ITEM = re.compile(
-    r'<a href="([^"]+)" class="nav-i"( aria-current="page")?>'
-    r'(?:<span class="icon [^"]+" aria-hidden="true"></span>)?<span class="t">([^<]+)</span></a>'
+    r'<a href="([^"]+)" class="nav-i"( aria-current="page")? title="([^"]+)">'
+    r'<span class="icon icon-[a-z-]+" aria-hidden="true"></span><span class="t">\3</span></a>'
 )
 
 
@@ -71,8 +72,10 @@ def test_left_nav_groups_items_and_current_page(client, path, current) -> None:
     assert [label for _, flag, label in items if flag] == [current]
 
     # ページへの入り口は左のナビだけ。上の帯（ヘッダー）にタブを置かない
+    # （接続の状態の中身の「PACS を開く」は、帯の上ではなく popover の中の道）
     header = html[html.index("<header") : html.index("</header>")]
-    assert 'href="/exam"' not in header and 'href="/pacs"' not in header
+    bar = header[: header.index('<div id="band"')]
+    assert 'href="/exam"' not in header and 'href="/pacs"' not in bar
     assert 'href="/settings"' not in header
     # ナビは、ヘッダー（上の帯）の後、本文の前
     assert html.index("</header>") < html.index('class="sidenav"') < html.index("<main")
