@@ -252,6 +252,10 @@ Little Endian）。作成できる UID は spec/06 の 9 章にある。
 | `use_ideographic` | bool | - | 患者名に漢字を書くか | true |
 | `use_phonetic` | bool | - | 患者名にかなを書くか | true |
 
+既定値（`ISO 2022 IR 6\ISO 2022 IR 87`）の画像は、Orthanc 1.13.0 が漢字・かなを読み崩す。
+Orthanc へ送る Job は `\ISO 2022 IR 87` か `ISO_IR 192` にする
+（[spec/12](12_modality_emulator.md) の 14.4）。
+
 ### 3.9 abnormal
 
 省略すると正常のデータを作成する。
