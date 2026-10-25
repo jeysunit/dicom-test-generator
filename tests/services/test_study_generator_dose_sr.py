@@ -97,6 +97,14 @@ def test_study_has_ct_images_the_dose_screen_and_one_sr(study) -> None:
     assert study[-2].SOPClassUID == "1.2.840.10008.5.1.4.1.1.7"  # 線量の画面（SC）
 
 
+def test_file_names_follow_the_written_order(tmp_path: Path) -> None:
+    """モダリティが混ざっても、名前の順が書いた順（送る順）になる."""
+    output = StudyGeneratorService().generate(_config(tmp_path, _series()))
+
+    names = [path.name for path in sorted(output.glob("*.dcm"))]
+    assert names == [f"P1_20261025_CT_{index:04d}.dcm" for index in range(1, 7)]
+
+
 def test_sr_is_in_the_same_study_as_the_images(study) -> None:
     sr = _sr(study)
 

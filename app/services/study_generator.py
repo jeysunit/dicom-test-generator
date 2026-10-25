@@ -328,11 +328,13 @@ class StudyGeneratorService:
                     self._ensure_encodable(dataset, scheduled is not None)
 
                     # Patient ID・検査日・モダリティは信用できない値（予約・Job）なので、
-                    # 決まった字だけにしてから名前に使う（docs/spec/12 の 6.5）
+                    # 決まった字だけにしてから名前に使う（docs/spec/12 の 6.5）。モダリティは
+                    # テンプレートの値で、検査の中で同じにする（シリーズのモダリティで
+                    # 変えると、名前の順が書いた順と変わる）
                     filename = (
                         f"{safe_path_component(config.patient.patient_id, 'UNKNOWN')}_"
                         f"{safe_path_component(config.study.study_date, 'NODATE')}_"
-                        f"{safe_path_component(series_config.modality or modality, 'OT')}_"
+                        f"{safe_path_component(modality, 'OT')}_"
                         f"{file_sequence:0{sequence_width}d}.dcm"
                     )
                     filepath = ensure_within(output_dir, output_dir / filename)
