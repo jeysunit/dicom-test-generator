@@ -77,9 +77,24 @@ def test_badge_changes_when_a_destination_is_unreachable(tmp_path, worklist_scp)
 def test_failed_worklist_query_changes_the_badge(tmp_path, storage_scp) -> None:
     client = make_client(tmp_path, free_port(), storage_scp.port)
 
-    query_worklist(client)
+    failed = query_worklist(client)
 
+    # 失敗の応答も、上の帯の札を同じ応答で差し替える
+    assert re.search(r'<span id="conn-state" hx-swap-oob="true" class="st" data-k="ng">', failed)
     assert _badge(client.get("/worklist").text) == ("ng", "一部が接続不可")
+
+
+def test_input_error_does_not_change_the_badge(tmp_path, worklist_scp, storage_scp) -> None:
+    client = make_client(tmp_path, worklist_scp.port, storage_scp.port)
+    query_worklist(client)
+    assert _badge(client.get("/worklist").text) == ("ok", "接続中")
+
+    # 日付を指定して日付を空にすると、相手に問い合わせる前に入力の誤りで断る
+    refused = query_worklist(client, day="date", date="")
+
+    assert "日付を入れてください" in refused
+    assert 'id="conn-state"' not in refused
+    assert _badge(client.get("/worklist").text) == ("ok", "接続中")
 
 
 def test_overall_counts_only_configured_destinations() -> None:

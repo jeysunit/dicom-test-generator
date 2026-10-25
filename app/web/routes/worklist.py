@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
 
-from app.core.exceptions import DICOMGeneratorError, ValidationError
+from app.core.exceptions import DICOMGeneratorError, ModalityError, ValidationError
 from app.core.models import WorklistItem
 from app.modality.service import WorklistState
 from app.modality.worklist_scu import WorklistQuery, parse_date_option
@@ -87,12 +87,23 @@ def worklist_query(
             patient_name=patient_name.strip(),
             accession_number=accession.strip(),
         )
+    except DICOMGeneratorError as exc:
+        # 入力の誤りは、相手に問い合わせていないので、接続の状態を変えない
+        return render_error(request, exc)
+    link = request.app.state.link_status
+    try:
         result = service.query_worklist(query)
+    except ModalityError as exc:
+        link.record_worklist(False)
+        # 上の帯の接続の状態も、同じ応答で差し替える
+        return render_error(request, exc, oob_band=True)
+    except DICOMGeneratorError as exc:
+        return render_error(request, exc)
+    link.record_worklist(True)
+    try:
         state = service.last_worklist_state()
     except DICOMGeneratorError as exc:
-        request.app.state.link_status.record_worklist(False)
-        return render_error(request, exc)
-    request.app.state.link_status.record_worklist(True)
+        return render_error(request, exc, oob_band=True)
     return render(
         request,
         "_worklist_results.html",
