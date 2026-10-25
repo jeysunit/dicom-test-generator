@@ -30,11 +30,17 @@ ITEM_GONE_MESSAGE = (
 )
 REFRESH_TIMEOUT_MESSAGE = "再検索の途中で時間切れになりました（{seconds} 秒）。もう一度押してください"
 
-PAGES = (
-    ("worklist", "/worklist", "ワークリスト"),
-    ("exam", "/exam", "撮影"),
-    ("pacs", "/pacs", "PACS"),
-    ("settings", "/settings", "設定"),
+# 左のナビの項目（10.3）。群の名前と順は docs/design-system の menu.md、項目の名前は各ページの題（10.4〜10.7）
+NAV_GROUPS = (
+    (
+        "業務",
+        (
+            ("worklist", "/worklist", "ワークリスト"),
+            ("exam", "/exam", "撮影"),
+        ),
+    ),
+    ("接続", (("pacs", "/pacs", "PACS"),)),
+    ("管理", (("settings", "/settings", "設定"),)),
 )
 
 
@@ -56,7 +62,7 @@ def render(
     }
     if page is not None or values["oob_band"]:
         values.update(band_context(request))
-        values["pages"] = PAGES
+        values["nav_groups"] = NAV_GROUPS
         values["page"] = page
     return HTMLResponse(env.get_template(template).render(**values))
 
