@@ -26,7 +26,9 @@ DAY_CHOICES = (
 )
 STATION_OWN = "own"
 STATION_ANY = "any"
-ZERO_ITEMS_MESSAGE = "予約はありません。条件を広げるか、緊急の患者で撮ってください"
+ZERO_ITEMS_FACT = "予約はありません。"
+ZERO_ITEMS_NEXT = "条件を広げるか、緊急の患者で撮ってください"
+ZERO_ITEMS_MESSAGE = ZERO_ITEMS_FACT + ZERO_ITEMS_NEXT
 NON_ASCII_HINT = (
     "日本語の条件は相手の文字コードの扱いに左右されます。患者ID か受付番号でも取得してください"
 )
@@ -154,7 +156,8 @@ def _results(
         "queried_at": state.queried_at.replace("T", " "),
         "rows": rows,
         "partial_message": PARTIAL_MESSAGE if partial else "",
-        "zero_message": ZERO_ITEMS_MESSAGE,
+        "zero_fact": ZERO_ITEMS_FACT,
+        "zero_next": ZERO_ITEMS_NEXT,
         "non_ascii_hint": NON_ASCII_HINT if non_ascii and not rows else "",
         "selected": selected,
         # 「再検索」は、選んだ行が一覧にあるときだけ押せる（10.4）

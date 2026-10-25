@@ -63,7 +63,7 @@ def test_exam_then_buttons_change_to_append(tmp_path, worklist_scp, storage_scp)
     listing = query_worklist(client)
     # 印は氏名のセルの下に出す（狭い幅でも見える。10.4）
     name_cell = listing.split('<td class="name-cell">', 1)[1].split("</td>", 1)[0]
-    assert '<span class="badge">撮影済み</span>' in name_cell
+    assert '<span class="st" data-k="note">撮影済み</span>' in name_cell
 
 
 def test_append_from_the_screen(tmp_path, worklist_scp, storage_scp) -> None:
