@@ -430,7 +430,27 @@ def test_pacs_queue_partial_polls(client) -> None:
     partial = client.get("/pacs/queue")
     assert partial.status_code == 200
     assert "<html" not in partial.text
-    assert "送信した検査はまだありません" in partial.text
+    # 空の状態：1 行目に事実、2 行目に次の手。表の見出しの行は出したままにする
+    assert "<b>送信ジョブはまだありません。</b>" in partial.text
+    assert "<span>撮影して送信すると、ここに出ます。</span>" in partial.text
+    assert "<thead>" in partial.text
+    assert '<b class="count-n">0</b>' in partial.text
+
+
+def test_pacs_job_states_are_shown_as_state_marks(client) -> None:
+    """送信ジョブと保管の確認の状態は、枠・印・文字の札で出す（色だけにしない）."""
+    results = _query(client)
+    key = _key_for(results, "A0001")
+    token = csrf_token(client)
+    shot = client.post(
+        "/exam",
+        data={"mode": "scheduled", "key": key, "template": "ct_generic", "action": "exam_send"},
+        headers=post_headers(token),
+    )
+    assert shot.status_code == 200
+    queue = client.get("/pacs/queue").text
+    assert re.search(r'<span class="st" data-k="(ok|ng|wait|plan)">送信(完了|失敗|中|待ち)</span>', queue)
+    assert "status-" not in queue and 'class="status' not in queue
 
 
 def test_pacs_echo(client) -> None:

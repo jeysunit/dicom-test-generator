@@ -62,7 +62,7 @@ def test_queue_read_error_does_not_claim_empty(client, monkeypatch) -> None:
     monkeypatch.setattr(client.app.state.service, "list_queue", fail)
     html = client.get("/pacs/queue").text
     assert 'role="alert"' in html
-    assert "送信した検査はまだありません" not in html
+    assert "送信ジョブはまだありません" not in html
     assert "<table" not in html
 
 

@@ -5,9 +5,12 @@
 </div>
 {% endif %}
 {% if queue_error %}{% with error = queue_error %}{% include "_notice.html" %}{% endwith %}
-{% elif not jobs and not queue_error %}
-<p class="text-label">送信した検査はまだありません</p>
 {% else %}
+{# 件数の行：件数と、自動更新の補足。空でも位置を変えない #}
+<div class="count-row">
+  <span><b class="count-n">{{ jobs|length }}</b> 件</span>
+  <span class="text-xs text-label">2 秒ごとに自動更新</span>
+</div>
 <div class="overflow-x-auto">
   <table class="table">
     <thead>
@@ -37,10 +40,10 @@
         <td class="font-mono">{{ job.accession_number or "—" }}</td>
         <td>{{ job.destination }}</td>
         <td>{{ job.num_sent }}/{{ job.num_files }}</td>
-        <td><span class="status status-{{ job.status }}">{{ STATUS_LABELS.get(job.status, job.status) }}</span>{% if job.stale %} <span class="badge">止まった</span>{% endif %}</td>
+        <td><span class="st" data-k="{{ STATUS_KINDS.get(job.status, 'ng') }}">{{ STATUS_LABELS.get(job.status, job.status) }}</span>{% if job.stale %} <span class="st" data-k="note">止まった</span>{% endif %}</td>
         <td>
           {% if job.commitment %}
-          <span class="status status-{{ COMMITMENT_STATUS_CLASSES.get(job.commitment, 'failed') }}">{{ COMMITMENT_LABELS.get(job.commitment, job.commitment) }}</span>
+          <span class="st" data-k="{{ COMMITMENT_KINDS.get(job.commitment, 'ng') }}">{{ COMMITMENT_LABELS.get(job.commitment, job.commitment) }}</span>
           {% if job.commitment_error %}<span class="block text-xs text-danger">{{ job.commitment_error }}</span>{% endif %}
           {% else %}—{% endif %}
         </td>
@@ -53,7 +56,7 @@
             {% endif %}
             {# 送信失敗は送れていない画像だけを、送信完了は新しい件として全部を送り直す（10.6） #}
             {% if job.status in ("failed", "sent") %}
-            <button type="button" class="btn btn-outline" data-resend hx-post="/pacs/retry/{{ job.id }}" hx-target="#queue" hx-disabled-elt="#queue [data-resend], #retry-failed">もう一度送る</button>
+            <button type="button" class="btn btn-outline btn-row" data-resend hx-post="/pacs/retry/{{ job.id }}" hx-target="#queue" hx-disabled-elt="#queue [data-resend], #retry-failed">もう一度送る</button>
             {% endif %}
             {# 詳細は表の外（最上位の層）に浮かぶ枠に出し、表の列の幅を変えない（10.6） #}
             <button type="button" class="link job-detail-button" popovertarget="job-detail-{{ job.id }}">詳細</button>
@@ -75,4 +78,11 @@
     </tbody>
   </table>
 </div>
+{# 空の状態：1 行目に事実、2 行目に次の手。表の枠と見出しの行は出したままにする #}
+{% if not jobs %}
+<div class="empty">
+  <b>送信ジョブはまだありません。</b>
+  <span>撮影して送信すると、ここに出ます。</span>
+</div>
+{% endif %}
 {% endif %}

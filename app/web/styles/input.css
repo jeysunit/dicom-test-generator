@@ -191,10 +191,10 @@
     @apply w-full border-collapse text-left;
   }
   .table th {
-    @apply h-9 border-b border-border px-2 font-normal text-label;
+    @apply h-7 border-b border-border px-2 text-xs font-normal text-label;
   }
   .table td {
-    @apply border-b border-border px-2 py-1.5 align-top;
+    @apply border-b border-border px-2 py-1 align-top;
   }
   .table tbody tr {
     @apply hover:bg-muted/50;
@@ -224,15 +224,60 @@
   .badge {
     @apply mr-1 inline-block rounded-md border border-border px-1.5 text-xs whitespace-nowrap text-label;
   }
-  .status-sent {
-    @apply text-value;
+  /* 状態の札：枠と印と文字。色は枠と印だけに付ける（components.md の「状態の札」）。
+     data-k：plan 予定・待ち／wait 途中／ok 完了／ng 失敗／note 知らせ */
+  .st {
+    @apply inline-flex h-5 items-center gap-1 rounded-[3px] border bg-background px-1.5 text-xs whitespace-nowrap text-foreground;
+    border-color: var(--k, var(--color-border-input));
   }
-  .status-failed {
-    @apply font-semibold text-danger;
+  .st::before {
+    content: var(--g, "○");
+    color: var(--k, var(--color-label));
+    font-size: 10px;
+    line-height: 1;
   }
-  .status-pending,
-  .status-sending {
-    @apply text-label;
+  .st[data-k="plan"] {
+    --g: "○";
+  }
+  .st[data-k="wait"] {
+    --g: "◔";
+    --k: var(--color-warning);
+  }
+  .st[data-k="ok"] {
+    --g: "✓";
+    --k: var(--color-success);
+  }
+  .st[data-k="ng"] {
+    --g: "✕";
+    --k: var(--color-danger);
+  }
+  .st[data-k="note"] {
+    --g: "◇";
+  }
+  /* 区画の見出しの行：右に操作を置ける形 */
+  .sec-head {
+    @apply flex flex-wrap items-center justify-between gap-3 rounded-t-md border-b border-border bg-surface px-3 py-2;
+  }
+  .sec-head h2 {
+    @apply text-base font-bold text-value;
+  }
+  /* 件数の行：一覧の上に 1 行。件数と補足 */
+  .count-row {
+    @apply mb-2 flex min-h-7 flex-wrap items-center justify-between gap-2;
+  }
+  .count-n {
+    @apply text-base font-bold text-value;
+  }
+  /* 空の状態：1 行目に事実、2 行目に次の手 */
+  .empty {
+    @apply flex flex-col items-center gap-2 rounded-md border border-dashed border-border-input p-8 text-center text-label;
+  }
+  .empty b {
+    @apply font-bold text-value;
+  }
+  /* 一覧の行の中のボタン（高さ 24px。主は置かない） */
+  .btn-row {
+    @apply h-6 px-2 text-xs;
   }
   /* 知らせ：左に 4px の状態の色、印と文字。文字は本文の色のまま */
   .notice {

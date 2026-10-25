@@ -44,5 +44,6 @@ def create_environment() -> Environment:
     env.globals["utc_offset"] = display.utc_offset_label
     env.globals["STATUS_LABELS"] = display.STATUS_LABELS
     env.globals["COMMITMENT_LABELS"] = display.COMMITMENT_LABELS
-    env.globals["COMMITMENT_STATUS_CLASSES"] = display.COMMITMENT_STATUS_CLASSES
+    env.globals["STATUS_KINDS"] = display.STATUS_KINDS
+    env.globals["COMMITMENT_KINDS"] = display.COMMITMENT_KINDS
     return env
