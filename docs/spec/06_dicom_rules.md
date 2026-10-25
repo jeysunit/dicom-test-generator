@@ -271,6 +271,47 @@ MR のシリーズ（[ADR-0028](../decisions/0028-mr-images.md)）は MR Image S
 - テンプレートの `mr_image`（Magnetic Field Strength・Imaged Nucleus・Receive Coil
   Name）と `general_equipment` を重ねる
 
+### 5.3 線量の報告の SR
+
+CT の検査の線量の報告は、5.1 の線量の画面（Secondary Capture）のほかに、
+X-Ray Radiation Dose SR（1.2.840.10008.5.1.4.1.1.88.67。[ADR-0029](../decisions/0029-dose-report-sr.md)）
+でも作れる。種類は `dose_sr`、Modality (0008,0060) は `SR`。
+
+| モジュール | 値 |
+|------------|----|
+| SR Document Series（PS3.3 C.17.1） | Modality `SR`、Series Number、Referenced Performed Procedure Step Sequence（Type 2。MPPS を使えば予約の値で入る） |
+| Enhanced General Equipment（C.7.5.2） | Manufacturer・Model Name・Software Versions はテンプレート、Device Serial Number は `DTG0001`（装置のプロファイルが決めれば上書き）。Device UID (0018,1002) は Instance Creator UID と同じ |
+| SR Document General（C.17.2） | Completion Flag `COMPLETE`、Verification Flag `UNVERIFIED`、Content Date/Time は検査の日時、Performed Procedure Code Sequence は空 |
+| SR Document Content（C.17.3） | TID 10011 の木（下） |
+
+内容の木（PS3.16 TID 10011・10012・10013・10014。必須の行と、条件を満たして必須になる行）：
+
+- 根：CONTAINER「X-Ray Radiation Dose Report」(113701, DCM)。Content Template
+  Sequence は `DCMR`・`10011`。以下の行は、この順で並べる
+- HAS CONCEPT MOD：Procedure reported (121058, DCM) = Computed Tomography X-Ray
+  (77477000, SCT)
+- HAS OBS CONTEXT：Observer Type (121005, DCM) = Device、Device Observer UID
+  (121012, DCM)、Start of X-Ray Irradiation (113809, DCM)・End of X-Ray
+  Irradiation (113810, DCM)（検査の日時から、撮影1回につき 30 秒後まで）、
+  Scope of Accumulation (113705, DCM) = Study (113014, DCM) と、その下の
+  HAS PROPERTIES の Study Instance UID (110180, DCM)
+- CONTAINS：CT Accumulated Dose Data (113811, DCM)（撮影の数 {events} と、DLP の合計
+  mGy.cm）、撮影ごとに CT Acquisition (113819, DCM)、最後に Source of Dose Information
+  (113854, DCM) = Automated Data Collection (113856, DCM)
+- 撮影（CT Acquisition）：Target Region = Entire body (38266002, SCT)、CT Acquisition
+  Type（位置決めは Stationary Acquisition (113806, DCM)、軸位は Spiral Acquisition
+  (116152004, SCT)）、Irradiation Event UID、CT Acquisition Parameters（Exposure Time・
+  Scanning Length（画像数 × 画像の間隔）・Nominal Single/Total Collimation Width・Number
+  of X-Ray Sources・CT X-Ray Source Parameters（KVP・Maximum X-Ray Tube Current・X-Ray
+  Tube Current・Exposure Time per Rotation）。軸位だけ Exposed Range と Pitch Factor）、
+  CT Dose（Mean CTDIvol・CTDIw Phantom Type = IEC 320mm Body CT Dosimetry Phantom
+  (113691, DCM)・DLP）
+- 撮影になるのは、同じ検査の位置決めと軸位のシリーズ（線量の画面と同じ）。CTDIvol と DLP
+  は線量の画面と同じ架空の値で、合計も一致する。撮影が1つも無ければ作らない
+- 数値は NUM、単位は UCUM（`mGy`・`mGy.cm`・`kV`・`mA`・`s`・`mm`・`{events}`・
+  `{ratio}`・`{X-Ray sources}`）。文字はすべて ASCII
+- 画素・Frame of Reference は持たない。装置のプロファイルが足した画像の属性は外す
+
 ## 6. マルチスライスの空間座標
 
 ### 6.1 計算の規則

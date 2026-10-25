@@ -121,6 +121,12 @@
             {% for value, label in abnormal_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
           </select>
         </label>
+        <label class="field">
+          <span class="field-label">線量の報告（CT）</span>
+          <select name="dose_report" class="input">
+            {% for value, label in dose_report_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+          </select>
+        </label>
         {% include "_routine_fields.html" %}
       </div>
       <p class="mt-2 text-xs text-label">1回の撮影は合計 {{ config.max_images_per_exam }} 画像まで。異常のデータは、予約から写した値も壊すことがあります。</p>

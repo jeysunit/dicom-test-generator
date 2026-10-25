@@ -6,8 +6,10 @@ from datetime import date, datetime, timedelta
 
 import numpy as np
 from pydicom.dataset import Dataset, FileMetaDataset
+from pydicom.sequence import Sequence
 from pydicom.valuerep import format_number_as_ds
 
+from .dose_sr import XRAY_RADIATION_DOSE_SR_STORAGE, DoseEvent, dose_sr_content
 from .exceptions import DICOMBuildError
 from .series_layout import (
     CONTRAST_AGENT,
@@ -28,6 +30,9 @@ from .models import (
 CT_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.2"
 # MR Image Storage SOP Class UID（PS3.4 B.5）
 MR_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.4"
+# 線量の報告の SR の Device Serial Number (0018,1000) の既定。Enhanced General
+# Equipment Module（PS3.3 C.7.5.2）で Type 1。テンプレートか装置のプロファイルが決めれば上書きする
+DEFAULT_SR_DEVICE_SERIAL_NUMBER = "DTG0001"
 # MR Image の Bits Stored の範囲。Bits Allocated は 16 で、Bits Stored は 12 以上にする
 MR_BITS_STORED_MIN = 12
 MR_BITS_STORED_MAX = 16
@@ -354,6 +359,81 @@ class DICOMBuilder:
             if isinstance(exc, DICOMBuildError):
                 raise
             raise DICOMBuildError(f"Failed to build dose report dataset: {exc}") from exc
+
+    def build_dose_sr(
+        self,
+        patient: Patient,
+        study_config: StudyConfig,
+        series_config: SeriesConfig,
+        instance_config: InstanceConfig,
+        uid_context: UIDContext,
+        events: list[DoseEvent],
+        file_meta: FileMetaDataset,
+        sop_instance_uid: str,
+        series_instance_uid: str,
+        specific_character_set: str | None = None,
+        use_ideographic: bool = True,
+        use_phonetic: bool = True,
+    ) -> Dataset:
+        """CT の線量の報告を X-Ray Radiation Dose SR Storage で構築（PS3.3 A.35.8）.
+
+        内容は TID 10011 の最小の形（`dose_sr_content`）。画素・Frame of Reference は
+        持たない。Enhanced General Equipment の Device Serial Number は、テンプレートと
+        装置のプロファイルが決めなければ既定の値を入れる。
+        """
+        try:
+            if str(getattr(file_meta, "MediaStorageSOPInstanceUID", "")) != sop_instance_uid:
+                raise DICOMBuildError(
+                    "SOP Instance UID mismatch between dataset and file meta",
+                    tag="MediaStorageSOPInstanceUID",
+                )
+            if series_config.modality != "SR":
+                raise DICOMBuildError(
+                    f"A dose report SR needs an SR series, got {series_config.modality}",
+                    tag="Modality",
+                )
+            ds = self._patient_study_series(
+                file_meta,
+                patient,
+                study_config,
+                series_config,
+                uid_context,
+                series_instance_uid,
+                specific_character_set,
+                use_ideographic,
+                use_phonetic,
+            )
+            # SR Document Series Module：Referenced Performed Procedure Step Sequence は Type 2
+            ds.ReferencedPerformedProcedureStepSequence = Sequence([])
+            ds.DeviceSerialNumber = DEFAULT_SR_DEVICE_SERIAL_NUMBER
+            ds.DeviceUID = uid_context.instance_creator_uid
+            # SR Document General Module（PS3.3 C.17.2）
+            ds.InstanceNumber = str(instance_config.instance_number)
+            ds.CompletionFlag = "COMPLETE"
+            ds.VerificationFlag = "UNVERIFIED"
+            ds.ContentDate = study_config.study_date
+            ds.ContentTime = study_config.study_time
+            ds.PerformedProcedureCodeSequence = Sequence([])
+            # SR Document Content Module（C.17.3）：TID 10011 の木
+            content = dose_sr_content(
+                events,
+                uid_context.study_instance_uid,
+                study_config.study_date,
+                study_config.study_time,
+                uid_context.instance_creator_uid,
+            )
+            for element in content:
+                ds.add(element)
+            # SOP Common Module
+            ds.SOPClassUID = XRAY_RADIATION_DOSE_SR_STORAGE
+            ds.SOPInstanceUID = sop_instance_uid
+            ds.InstanceCreatorUID = uid_context.instance_creator_uid
+            self._apply_transfer_syntax(ds, file_meta)
+            return ds
+        except Exception as exc:
+            if isinstance(exc, DICOMBuildError):
+                raise
+            raise DICOMBuildError(f"Failed to build dose report SR dataset: {exc}") from exc
 
     def _patient_study_series(
         self,

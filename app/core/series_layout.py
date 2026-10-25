@@ -75,11 +75,7 @@ def dose_report_lines(series_list: list[SeriesConfig], page: int = 0) -> list[st
 
     `page` は線量の画面の何枚目か（0 始まり）。1 枚に収まらない行は次の画面に回す。
     """
-    rows = [
-        series
-        for series in series_list
-        if series.kind in ("localizer", "axial")
-    ]
+    rows = dose_events(series_list)
     start = page * DOSE_REPORT_ROWS_PER_PAGE
     lines = [
         "Dose Report",
@@ -88,14 +84,19 @@ def dose_report_lines(series_list: list[SeriesConfig], page: int = 0) -> list[st
         "Series  Type       CTDIvol(mGy)  DLP(mGy*cm)",
     ]
     for series in rows[start : start + DOSE_REPORT_ROWS_PER_PAGE]:
-        ctdi, dlp = _dose(series)
+        ctdi, dlp = series_dose(series)
         lines.append(f"{series.series_number:<7} {series.kind:<10} {ctdi:>12.2f}  {dlp:>11.2f}")
-    total = sum(_dose(series)[1] for series in rows)
+    total = sum(series_dose(series)[1] for series in rows)
     lines.extend(["", f"Total DLP {total:.2f} mGy*cm"])
     return lines
 
 
-def _dose(series: SeriesConfig) -> tuple[float, float]:
+def dose_events(series_list: list[SeriesConfig]) -> list[SeriesConfig]:
+    """線量の報告に載せる撮影（位置決め・軸位のシリーズ）。線量の画面と同じ並び."""
+    return [series for series in series_list if series.kind in ("localizer", "axial")]
+
+
+def series_dose(series: SeriesConfig) -> tuple[float, float]:
     """架空の CTDIvol と、撮影の長さ（枚数×間隔）を掛けた DLP."""
     ctdi = DOSE_REPORT_LOCALIZER_CTDI_VOL_MGY if series.kind == "localizer" else (
         DOSE_REPORT_CTDI_VOL_MGY

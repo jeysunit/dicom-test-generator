@@ -43,7 +43,8 @@ from app.core.generator import (
 )
 from app.core.models import SeriesConfig
 from pydantic import ValidationError as PydanticValidationError
-from app.core.series_layout import dose_report_lines, series_spatial
+from app.core.dose_sr import XRAY_RADIATION_DOSE_SR_STORAGE, dose_events_of
+from app.core.series_layout import dose_events, dose_report_lines, series_spatial
 from app.core.path_safety import ensure_within, safe_path_component
 from app.core.worklist_charset import ensure_dataset_encodable
 from app.core.worklist_mapping import apply_scheduled_context
@@ -83,7 +84,11 @@ MR_IMAGE_TAG_MAP = {
 # この道具が画像を作れるモダリティ（シリーズの Modality。ADR-0028）
 GENERATABLE_MODALITIES = ("CT", "MR")
 # テンプレートと違うモダリティのシリーズに使う SOP Class
-MODALITY_SOP_CLASSES = {"CT": CT_IMAGE_STORAGE, "MR": MR_IMAGE_STORAGE}
+MODALITY_SOP_CLASSES = {
+    "CT": CT_IMAGE_STORAGE,
+    "MR": MR_IMAGE_STORAGE,
+    "SR": XRAY_RADIATION_DOSE_SR_STORAGE,
+}
 
 # simple_text の画像の Bits Stored（CT Image は 12〜16。PS3.3 C.8.2.1.1.5）
 SIMPLE_TEXT_BITS_STORED = 12
@@ -231,9 +236,17 @@ class StudyGeneratorService:
 
             generated_count = 0
             file_sequence = 1
+            # 線量の報告（SR）の撮影ごとの UID は、SR のシリーズが何枚あっても同じにする
+            dose_sr_events = []
+            if any(series.kind == "dose_sr" for series in series_list):
+                dose_sr_events = dose_events_of(
+                    series_list,
+                    [uid_generator.generate_event_uid() for _ in dose_events(series_list)],
+                )
             for series_config in series_list:
                 series_uid = uid_generator.generate_series_uid()
                 dose_report = series_config.kind == "dose_report"
+                dose_sr = series_config.kind == "dose_sr"
                 mr_series = series_config.modality == "MR"
                 for image_index in range(series_config.num_images):
                     sop_uid = uid_generator.generate_sop_uid(
@@ -273,6 +286,10 @@ class StudyGeneratorService:
                             ),
                             **common,
                         )
+                    elif dose_sr:
+                        dataset = self._dicom_builder.build_dose_sr(
+                            events=dose_sr_events, **common
+                        )
                     else:
                         pixel_data, bits_stored = self._generate_pixel_data(config, sop_uid)
                         build = (
@@ -287,7 +304,9 @@ class StudyGeneratorService:
                             **common,
                         )
                     self._apply_template_attributes(
-                        dataset, template, ct_image=not dose_report and not mr_series,
+                        dataset,
+                        template,
+                        ct_image=not (dose_report or dose_sr or mr_series),
                         mr_image=mr_series,
                     )
                     if scheduled is not None:
@@ -300,6 +319,8 @@ class StudyGeneratorService:
                         )
                     if dose_report:
                         self._keep_secondary_capture_shape(dataset)
+                    elif dose_sr:
+                        self._keep_sr_shape(dataset)
                     # 異常のデータは最後に当てる（予約・プロファイルの値にも効く。
                     # docs/spec/02 の AbnormalGenerator）。none では何も変えない
                     apply_abnormal_to_dataset(dataset, abnormal_generator)
@@ -311,7 +332,7 @@ class StudyGeneratorService:
                     filename = (
                         f"{safe_path_component(config.patient.patient_id, 'UNKNOWN')}_"
                         f"{safe_path_component(config.study.study_date, 'NODATE')}_"
-                        f"{safe_path_component(modality, 'OT')}_"
+                        f"{safe_path_component(series_config.modality or modality, 'OT')}_"
                         f"{file_sequence:0{sequence_width}d}.dcm"
                     )
                     filepath = ensure_within(output_dir, output_dir / filename)
@@ -366,6 +387,17 @@ class StudyGeneratorService:
             dataset.ConversionType = DOSE_REPORT_CONVERSION_TYPE
         if "PatientOrientation" not in dataset:
             dataset.PatientOrientation = ""
+
+    @staticmethod
+    def _keep_sr_shape(dataset: Dataset) -> None:
+        """線量の報告（SR）に装置のプロファイルを重ねた後、画像の属性を外す.
+
+        SR Document は画素も Frame of Reference も持たない（PS3.3 A.35.8）。装置の
+        プロファイルが足した画像の属性も外す。異常のデータはこの後に当てる。
+        """
+        for keyword in (*CT_ONLY_KEYWORDS, "PatientOrientation", "ConversionType"):
+            if keyword in dataset:
+                delattr(dataset, keyword)
 
     @staticmethod
     def _reject_retired_transfer_syntax(transfer_syntax_uid: str) -> None:
@@ -544,6 +576,8 @@ class StudyGeneratorService:
         """
         if series.modality is not None:
             return series
+        if series.kind == "dose_sr":
+            return series.model_copy(update={"modality": "SR"})
         update: dict[str, object] = {"modality": template_modality}
         if template_modality == "MR" and series.kind == "axial":
             update["kind"] = "acquisition"

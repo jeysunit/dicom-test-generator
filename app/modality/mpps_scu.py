@@ -19,6 +19,7 @@ from pydicom.errors import InvalidDicomError
 from pydicom.sequence import Sequence as DicomSequence
 from pynetdicom.sop_class import ModalityPerformedProcedureStep
 
+from app.core.dose_sr import XRAY_RADIATION_DOSE_SR_STORAGE
 from app.core.exceptions import AssociationError, MPPSError
 from app.core.models import ScheduledContext
 from app.core.uid_generator import UIDGenerator
@@ -40,6 +41,8 @@ STATUS_PROCESSING_FAILURE = 0x0110
 # N-CREATE・N-SET の Warning（PS3.4 F.7.2・PS3.7 C）。送れた扱いにする
 WARNING_STATUSES = frozenset({0x0001, 0x0107, 0x0116})
 DEFAULT_PROTOCOL_NAME = "DTG"
+# 画像でない SOP Class。MPPS では Referenced Non-Image Composite SOP Instance Sequence に入れる
+NON_IMAGE_SOP_CLASSES = frozenset({XRAY_RADIATION_DOSE_SR_STORAGE})
 # 作った画像のヘッダーを読めないときの例外。pydicom は壊れたファイルや
 # VR の合わない値で、読み込み・値の変換のときにこれらを上げる
 IMAGE_READ_ERRORS: tuple[type[Exception], ...] = (
@@ -425,6 +428,7 @@ def _performed_series(files: Sequence[str], skip_unreadable: bool = False) -> li
             reference = Dataset()
             reference.ReferencedSOPClassUID = str(image.SOPClassUID)
             reference.ReferencedSOPInstanceUID = str(image.SOPInstanceUID)
+            non_image = str(image.SOPClassUID) in NON_IMAGE_SOP_CLASSES
             series_description = str(image.get("SeriesDescription", "") or "")
             protocol_name = str(
                 image.get("ProtocolName", "") or series_description or DEFAULT_PROTOCOL_NAME
@@ -438,7 +442,11 @@ def _performed_series(files: Sequence[str], skip_unreadable: bool = False) -> li
         if item is None:
             item = _series_item(uid, protocol_name, series_description)
             series[uid] = item
-        item.ReferencedImageSequence.append(reference)
+        # 画像でない SOP Instance（線量の報告の SR）は別の列に入れる（PS3.4 の表 F.7.2-1）
+        if non_image:
+            item.ReferencedNonImageCompositeSOPInstanceSequence.append(reference)
+        else:
+            item.ReferencedImageSequence.append(reference)
     if skipped:
         logger.warning("MPPS DISCONTINUED: skipped %s unreadable images", skipped)
     return list(series.values())

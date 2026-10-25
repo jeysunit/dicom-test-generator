@@ -13,6 +13,7 @@ from pydantic import ValidationError
 
 from app.core.exceptions import ConfigurationError, DICOMGeneratorError
 from app.core.models import ScheduledPatient, WorklistItem
+from app.core.routine import DEFAULT_DOSE_REPORT_MODE
 from app.modality.service import ExamRequest, ExamResult, ModalityService, SendResult
 
 from ..display import exam_notices
@@ -26,6 +27,11 @@ ABNORMAL_CHOICES = (
     ("mild", "軽い"),
     ("moderate", "中くらい"),
     ("severe", "強い"),
+)
+DOSE_REPORT_CHOICES = (
+    ("screen", "画面（画像）"),
+    ("sr", "SR"),
+    ("both", "画面（画像）と SR"),
 )
 SEX_CHOICES = (("", "空"), ("M", "男"), ("F", "女"), ("O", "その他"))
 ACTION_EXAM = "exam"
@@ -44,6 +50,7 @@ SERIES_KIND_LABELS = {
     "coronal": "冠状断",
     "sagittal": "矢状断",
     "dose_report": "線量の画面",
+    "dose_sr": "線量の報告（SR）",
     # MR のルーチン（位置決めは CT と同じ "localizer"）
     "acquisition": "撮像",
     "derived": "計算画像",
@@ -127,6 +134,7 @@ def exam_page(request: Request, key: str = "") -> HTMLResponse:
         selected_profile=profile,
         charset_choices=CHARSET_CHOICES,
         abnormal_choices=ABNORMAL_CHOICES,
+        dose_report_choices=DOSE_REPORT_CHOICES,
         sex_choices=SEX_CHOICES,
         blocker=_blocker(service, item, template, profile),
         exam_token=ExamTokens.issue(),
@@ -235,6 +243,7 @@ def exam_run(
     series: FormStr = "1",
     images: FormStr = "1",
     abnormal_level: FormStr = "none",
+    dose_report: FormStr = DEFAULT_DOSE_REPORT_MODE,
     charset: FormStr = "",
     action: FormStr = ACTION_EXAM,
     patient_id: FormStr = "",
@@ -277,6 +286,7 @@ def exam_run(
             profile=profile or None,
             **_series_request(routine, routine_series, routine_images, series, images),
             abnormal_level=abnormal_level,
+            dose_report=dose_report if routine != MANUAL_ROUTINE else DEFAULT_DOSE_REPORT_MODE,
             charset=charset or None,
             # 撮影済みの予約の「追加撮影」（10.5・ADR-0024）。緊急の患者に付いていれば、
             # 黙って普通に撮らずに断る（CLI と同じ文言）

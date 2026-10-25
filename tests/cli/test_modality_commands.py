@@ -166,6 +166,33 @@ def test_exam_mr_order_uses_the_mr_template_by_default(
     assert pydicom.dcmread(path, stop_before_pixels=True).Modality == "MR"
 
 
+def test_exam_dose_report_sr(monkeypatch, capsys, tmp_path, config) -> None:
+    code, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0001",
+        "--patient-name", "KINKYU^TARO", "--routine", "ct_chest_plain", "--routine-images",
+        "1,1,1,1,1,1", "--dose-report", "both", "--pixel-mode", "simple_text", "--json",
+    )
+
+    assert code == 0
+    modalities = [
+        pydicom.dcmread(path, stop_before_pixels=True).Modality
+        for path in json.loads(out)["files"]
+    ]
+    assert modalities == ["CT"] * 6 + ["SR"]
+
+
+def test_exam_dose_report_with_manual_series_is_exit_4(
+    monkeypatch, capsys, tmp_path, config
+) -> None:
+    code, _, err = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0001",
+        "--patient-name", "KINKYU^TARO", "-s", "1", "--dose-report", "sr",
+    )
+
+    assert code == 4
+    assert "--dose-report と -s・-i は一緒に使えません" in err
+
+
 def test_exam_emergency_json(monkeypatch, capsys, tmp_path, config) -> None:
     code, out, _ = run_cli(
         monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0001",

@@ -125,5 +125,9 @@ class UIDGenerator:
     def generate_frame_of_reference_uid(self) -> str:
         return self._generate_uid()
 
+    def generate_event_uid(self) -> str:
+        """線量の報告の Irradiation Event UID（TID 10013 の行 6）."""
+        return self._generate_uid()
+
     def generate_instance_creator_uid(self) -> str:
         return self._generate_uid()

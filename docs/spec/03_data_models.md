@@ -94,10 +94,10 @@ class SeriesConfig(BaseModel):
 
 | 欄 | 型 | 既定 | 中身 |
 |----|----|------|------|
-| `kind` | `axial`・`localizer`・`coronal`・`sagittal`・`dose_report`、MR は `localizer`・`acquisition`・`derived` | `axial` | シリーズの種類（spec/06 の 5.1・5.2） |
+| `kind` | `axial`・`localizer`・`coronal`・`sagittal`・`dose_report`・`dose_sr`、MR は `localizer`・`acquisition`・`derived` | `axial` | シリーズの種類（spec/06 の 5.1〜5.3） |
 | `views` | `frontal`・`lateral` の並び | `["frontal"]` | 位置決めの画像ごとの方向。足りなければ繰り返す |
 | `contrast` | bool | false | 造影のシリーズ |
-| `modality` | `CT`・`MR`・None | None | このシリーズのモダリティ。None はテンプレートのモダリティ（[ADR-0028](../decisions/0028-mr-images.md)） |
+| `modality` | `CT`・`MR`・`SR`・None | None | このシリーズのモダリティ。None はテンプレートのモダリティ（`dose_sr` は `SR`。[ADR-0028](../decisions/0028-mr-images.md)・[ADR-0029](../decisions/0029-dose-report-sr.md)） |
 | `plane` | `axial`・`sagittal`・`coronal`・`three_plane` | `axial` | MR の断面。`three_plane` は画像を3等分して axial・coronal・sagittal の順にする |
 | `sequence` | `SE`・`IR`・`GR`・`EP` | `SE` | MR の Scanning Sequence |
 | `acquisition_type` | `2D`・`3D` | `2D` | MR Acquisition Type |

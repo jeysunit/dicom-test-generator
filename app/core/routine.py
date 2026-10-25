@@ -240,6 +240,59 @@ def assign_series_numbers(
     return numbers
 
 
+# 線量の報告の作り方（ADR-0029）。screen は線量の画面（Secondary Capture）、sr は線量の
+# 報告の SR（X-Ray Radiation Dose SR）、both は両方
+DoseReportMode = Literal["screen", "sr", "both"]
+DEFAULT_DOSE_REPORT_MODE: DoseReportMode = "screen"
+DOSE_SR_DESCRIPTION = "Radiation Dose SR"
+
+
+def apply_dose_report_mode(
+    routine: Routine, keep: list[int], images: list[int], mode: DoseReportMode
+) -> tuple[Routine, list[int], list[int]]:
+    """撮る線量の画面の行を、`mode` に合わせて SR に替える・SR を足す.
+
+    `keep` は撮る行の位置、`images` はその画像数（`routine.series` の位置と並び）。
+    返すルーチンの行の並びに合わせた `keep` と `images` も返す。`sr` は線量の画面の行を
+    SR（1 枚）に替え、`both` は線量の画面の次に SR（1 枚）の行を足す。線量の画面の行を
+    撮らない（`keep` に無い）ときと、`screen` は何も変えない。
+    """
+    if mode == "screen" or routine.modality != "CT":
+        return routine, keep, images
+    wanted = dict(zip(keep, images, strict=True))
+    series: list = []
+    # 元の行の位置 → 新しい並びでの (位置, 画像数) の組。撮る順は元の `keep` のまま
+    positions: dict[int, list[tuple[int, int]]] = {}
+    for index, item in enumerate(routine.series):
+        is_dose_screen = (
+            isinstance(item, CTRoutineSeries) and item.kind == "dose_report" and index in wanted
+        )
+        if is_dose_screen and mode == "sr":
+            series.append(
+                CTRoutineSeries(
+                    kind="dose_sr",
+                    description=DOSE_SR_DESCRIPTION,
+                    images=1,
+                    series_number=item.series_number,
+                )
+            )
+            positions[index] = [(len(series) - 1, 1)]
+            continue
+        series.append(item)
+        positions[index] = [(len(series) - 1, wanted.get(index, 0))]
+        if is_dose_screen and mode == "both":
+            series.append(
+                CTRoutineSeries(kind="dose_sr", description=DOSE_SR_DESCRIPTION, images=1)
+            )
+            positions[index].append((len(series) - 1, 1))
+    pairs = [pair for index in keep if index in positions for pair in positions[index]]
+    return (
+        routine.model_copy(update={"series": series}),
+        [position for position, _ in pairs],
+        [count for _, count in pairs],
+    )
+
+
 def routine_series_configs(
     routine: Routine, numbers: list[int], keep: list[int], images: list[int]
 ) -> list[SeriesConfig]:
@@ -259,6 +312,7 @@ def routine_series_configs(
                     kind=series.kind,
                     views=series.views or ["frontal"],
                     contrast=series.contrast,
+                    modality="SR" if series.kind == "dose_sr" else None,
                 )
             )
         elif isinstance(series, MRRoutineSeries):
