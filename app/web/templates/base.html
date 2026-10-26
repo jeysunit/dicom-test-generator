@@ -18,6 +18,10 @@
   {# 外枠は、上の帯（製品名・接続の状態・表示）と、その下の左のナビと本文。帯の下に別の帯は置かない（docs/design-system の menu.md・spec 10.3） #}
   <div class="shell">
     <header class="topbar">
+      {# ナビの開閉。閉じると絵だけになる。開閉は localStorage に覚える（app.js） #}
+      <button id="nav-toggle" type="button" class="iconbtn" aria-expanded="true" aria-controls="sidenav" aria-label="ナビを開閉する" title="ナビを開閉する">
+        <span class="icon icon-panel-left" aria-hidden="true"></span>
+      </button>
       <a href="/worklist" class="brand">dicom-test-generator</a>
       <span class="sp"></span>
       {# 接続の状態：閉じているときは全体の状態の札。押すと中身（#band）が popover で出る #}
@@ -30,11 +34,13 @@
       </button>
       {% include "_band.html" %}
     </header>
-    <nav class="sidenav" aria-label="ページ">
+    <nav id="sidenav" class="sidenav" aria-label="ページ">
+      {% set nav_icons = {"worklist": "list", "exam": "camera", "pacs": "server", "settings": "settings"} %}
       {% for group, items in nav_groups %}
       <p class="nav-g">{{ group }}</p>
       {% for key, href, label in items %}
-      <a href="{{ href }}" class="nav-i"{% if key == page %} aria-current="page"{% endif %}><span class="t">{{ label }}</span></a>
+      {# 閉じたナビでは名前（.t）を隠すので、title で名前を出す #}
+      <a href="{{ href }}" class="nav-i"{% if key == page %} aria-current="page"{% endif %} title="{{ label }}"><span class="icon icon-{{ nav_icons[key] }}" aria-hidden="true"></span><span class="t">{{ label }}</span></a>
       {% endfor %}
       {% endfor %}
     </nav>
