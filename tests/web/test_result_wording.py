@@ -17,6 +17,8 @@ def _emergency_form(**extra: str) -> dict[str, str]:
         "mode": "emergency",
         "patient_id": "E0001",
         "name_alphabetic": "KINKYU TARO",
+        "name_ideographic": "緊急 太郎",
+        "sex": "M",
         "template": "ct_generic",
         "profile": "",
         "series": "1",

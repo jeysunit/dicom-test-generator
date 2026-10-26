@@ -34,6 +34,9 @@ def _post(client, **fields: str) -> str:
         "mode": "emergency",
         "patient_id": "E0001",
         "name_alphabetic": "KINKYU TARO",
+        # 画面の必須の欄（患者ID・漢字の氏名・性別。10.5）
+        "name_ideographic": "緊急 太郎",
+        "sex": "M",
         "template": "ct_generic",
         "series": "1",
         "images": "1",

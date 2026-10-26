@@ -62,8 +62,19 @@ PATIENT_ID_MESSAGE = "患者ID は半角の英数字と記号で入力してく�
 BIRTH_DATE_FUTURE_MESSAGE = "生年月日は今日以前の日付を入力してください。"
 REQUIRED_MESSAGES = {
     "patient_id": "患者ID を入力してください。",
-    "name_alphabetic": "氏名（英字）を入力してください。",
+    "name": "氏名を入力してください。",
+    "name_ideographic": "氏名（漢字）を入力してください。氏名が分からないときは「氏名が分からない」を選んでください。",
+    "sex": "性別を選んでください。",
 }
+# 身元不明の患者（docs/spec/12a の 10.5）。仮の患者ID の頭と、氏名が分からないときの値の既定
+# （設定 `modality` の `temporary_patient_id_prefix`・`unknown_name_ideographic`・
+# `unknown_name_phonetic`）。英字の群は空にする
+DEFAULT_TEMPORARY_ID_PREFIX = "TMP"
+DEFAULT_UNKNOWN_NAME_IDEOGRAPHIC = "不明^不明"
+DEFAULT_UNKNOWN_NAME_PHONETIC = "フメイ^フメイ"
+TEMPORARY_ID_PREFIX_MAX_LENGTH = 20
+# 仮の患者ID = 頭 + 日時（YYYYMMDDHHMMSS）。同じ秒の2つ目からは「-2」「-3」を付ける
+TEMPORARY_ID_TIME_FORMAT = "%Y%m%d%H%M%S"
 GROUP_LABELS = ("英字", "漢字", "かな")
 NAME_FIELDS = ("name_alphabetic", "name_ideographic", "name_phonetic")
 
@@ -125,6 +136,58 @@ def build_emergency_patient(
     )
 
 
+def require_screen_fields(patient_id: str, name_ideographic: str, sex: str) -> None:
+    """撮影の画面（POST /exam）の必須の欄：患者ID・氏名（漢字）・性別（上の欄から順に 1 件）.
+
+    英字の氏名は任意。サービス・CLI は氏名のどれか 1 つの群があればよく、漢字と性別は
+    画面だけで必須にする（docs/spec/12a の 10.5）。
+    """
+    if not patient_id.strip():
+        raise FieldValidationError(REQUIRED_MESSAGES["patient_id"], "patient_id")
+    if not name_ideographic.strip():
+        raise FieldValidationError(REQUIRED_MESSAGES["name_ideographic"], NAME_FIELDS[1])
+    if not sex:
+        raise FieldValidationError(REQUIRED_MESSAGES["sex"], "sex")
+
+
+def validate_temporary_id_prefix(prefix: str) -> str:
+    """仮の患者ID の頭：1〜20 字、空白なしの表示できる ASCII で、患者ID に使えない字（`\\ ^ ~ & |`）なし."""
+    if not 1 <= len(prefix) <= TEMPORARY_ID_PREFIX_MAX_LENGTH:
+        raise ValueError(
+            f"仮の患者ID の頭は 1〜{TEMPORARY_ID_PREFIX_MAX_LENGTH} 字にしてください"
+        )
+    if (
+        any(not _ASCII_PRINTABLE_MIN < ord(char) <= _ASCII_PRINTABLE_MAX for char in prefix)
+        or "\\" in prefix
+        or any(char in _HL7_V2_DELIMITERS for char in prefix)
+    ):
+        raise ValueError(
+            "仮の患者ID の頭は、空白を除く半角の英数字と記号にしてください（\\ ^ ~ & | は使えません）"
+        )
+    return prefix
+
+
+def temporary_patient_id(prefix: str, moment: datetime, sequence: int = 1) -> str:
+    """仮の患者ID（頭 + YYYYMMDDHHMMSS）。同じ秒の 2 つ目以降（`sequence` が 2 以上）は `-2` を付ける.
+
+    結果は `validate_patient_id` を通る（頭 20 字 + 14 字 + 接尾辞で 64 字に収まる）。
+    """
+    suffix = f"-{sequence}" if sequence > 1 else ""
+    return f"{prefix}{moment.strftime(TEMPORARY_ID_TIME_FORMAT)}{suffix}"
+
+
+def validate_unknown_name_group(label: str, value: str) -> str:
+    """設定の「氏名が分からないときの値」の1つの群：空でなく、その群の規則（`check_name_group`）を通る."""
+    if not value.strip():
+        raise ValueError(f"氏名が分からないときの値（{label}）は空にできません")
+    if GROUP_SEPARATOR in value:
+        raise ValueError(f"氏名が分からないときの値（{label}）に「=」は使えません")
+    message = check_name_group(label, value)
+    if message:
+        raise ValueError(message)
+    return value
+
+
 def validate_patient_id(value: str) -> None:
     """患者 ID：1〜64 字、表示できる ASCII、`\\` と HL7 v2 の区切り無し、前後の空白無し."""
     field = "patient_id"
@@ -147,12 +210,12 @@ def validate_patient_id(value: str) -> None:
 def validate_person_name(
     value: str, character_set: Sequence[str] | None = None, *, test_mode: bool = False
 ) -> None:
-    """氏名（PN）：群ごとの確かめ。英字の群は必須."""
+    """氏名（PN）：群ごとの確かめ。3つの群のどれか1つは空でない（英字の群は空にできる）."""
     groups = value.split(GROUP_SEPARATOR)
     if len(groups) > len(GROUP_LABELS):
         raise FieldValidationError("氏名の群は、英字・漢字・かなの3つまでです。", NAME_FIELDS[0])
-    if not groups[0].strip():
-        raise FieldValidationError(REQUIRED_MESSAGES["name_alphabetic"], NAME_FIELDS[0])
+    if not any(group.replace(COMPONENT_SEPARATOR, "").strip() for group in groups):
+        raise FieldValidationError(REQUIRED_MESSAGES["name"], NAME_FIELDS[1])
     for label, field, group in zip(GROUP_LABELS, NAME_FIELDS, groups, strict=False):
         group_error = check_name_group(label, group, character_set, test_mode=test_mode)
         if group_error:

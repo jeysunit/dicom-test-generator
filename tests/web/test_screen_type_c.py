@@ -38,7 +38,7 @@ def test_emergency_exam_has_no_crumbs_or_banner(client) -> None:
     assert "<h2>緊急の患者（予約なし）</h2>" in html
     # 必須は項目名の横の文字で示す（バッジの色に頼らない）
     required = re.findall(r'<span class="l">([^<]+)<span class="req">必須</span>', html)
-    assert required == ["患者ID", "氏名（英字。例 KINKYU TARO）"]
+    assert required == ["患者ID", "氏名（漢字。例 緊急 太郎）", "性別"]
 
 
 def test_action_row_puts_secondary_before_primary(client) -> None:

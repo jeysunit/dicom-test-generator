@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 
@@ -19,6 +19,8 @@ from app.core.patient_input import (
     check_name_group,
     check_phonetic_group,
     normalize_phonetic_in_name,
+    require_screen_fields,
+    temporary_patient_id,
     to_katakana,
     validate_birth_date,
     validate_emergency_patient,
@@ -26,6 +28,8 @@ from app.core.patient_input import (
     validate_person_name,
     validate_sex,
     validate_study_description,
+    validate_temporary_id_prefix,
+    validate_unknown_name_group,
 )
 
 
@@ -135,13 +139,18 @@ def test_group_limits() -> None:
     assert check_name_group("英字", "A\x00B")
 
 
-def test_person_name_needs_alphabetic_group_and_at_most_three_groups() -> None:
+def test_person_name_needs_one_group_and_at_most_three_groups() -> None:
     validate_person_name("KINKYU^TARO=緊急^太郎=キンキュウ^タロウ")
     validate_person_name("KINKYU^TARO==キンキュウ^タロウ")
+    # 英字の群は空にできる（身元不明の患者。漢字・かなだけで撮る）
+    validate_person_name("=緊急^太郎")
+    validate_person_name("=不明^不明=フメイ^フメイ")
+    validate_person_name("==フメイ^フメイ")
     with pytest.raises(ValidationError, match="氏名（かな）は全角のカタカナ"):
         validate_person_name("KINKYU^TARO==きんきゅう^たろう")
-    with pytest.raises(ValidationError, match="氏名（英字）を入力"):
-        validate_person_name("=緊急^太郎")
+    for empty in ("", "=", "==", "^=^", " = = "):
+        with pytest.raises(ValidationError, match="氏名を入力"):
+            validate_person_name(empty)
     with pytest.raises(ValidationError, match="3つまで"):
         validate_person_name("A=B=C=D")
     with pytest.raises(ValidationError, match="氏名（英字）は半角"):
@@ -156,6 +165,10 @@ def test_errors_carry_the_field_name() -> None:
     cases = [
         (lambda: validate_patient_id(""), "patient_id"),
         (lambda: validate_person_name("山田"), "name_alphabetic"),
+        (lambda: validate_person_name(""), "name_ideographic"),
+        (lambda: require_screen_fields("", "山田", "M"), "patient_id"),
+        (lambda: require_screen_fields("E1", " ", "M"), "name_ideographic"),
+        (lambda: require_screen_fields("E1", "山田", ""), "sex"),
         (lambda: validate_person_name("A=髙", JIS), "name_ideographic"),
         (lambda: validate_person_name("A==ｱ"), "name_phonetic"),
         (lambda: validate_birth_date("20991231"), "birth_date"),
@@ -251,3 +264,35 @@ def test_validate_emergency_patient_checks_a_patient_made_directly() -> None:
     bad = ScheduledPatient(patient_id="E0001", patient_name="山田^太郎")
     with pytest.raises(ValidationError, match="氏名（英字）は半角"):
         validate_emergency_patient(bad)
+    unknown = ScheduledPatient(patient_id="TMP20261026083000", patient_name="=不明^不明=フメイ^フメイ")
+    validate_emergency_patient(unknown)
+
+
+def test_temporary_patient_id_is_prefix_and_time_and_passes_the_id_rules() -> None:
+    moment = datetime(2026, 10, 26, 8, 30, 5)
+    assert temporary_patient_id("TMP", moment) == "TMP20261026083005"
+    assert temporary_patient_id("TMP", moment, 2) == "TMP20261026083005-2"
+    longest = temporary_patient_id("A" * 20, moment, 99)
+    assert len(longest) <= 64
+    for sequence in (1, 2, 99):
+        validate_patient_id(temporary_patient_id("TMP", moment, sequence))
+        validate_patient_id(temporary_patient_id("A" * 20, moment, sequence))
+
+
+@pytest.mark.parametrize("prefix", ["TMP", "UNK-", "ER_", "A" * 20])
+def test_temporary_id_prefix_accepts(prefix) -> None:
+    assert validate_temporary_id_prefix(prefix) == prefix
+
+
+@pytest.mark.parametrize("prefix", ["", "A" * 21, "T P", "TMP^", "T|P", "TMP\\", "仮ID", "T\tP"])
+def test_temporary_id_prefix_refuses(prefix) -> None:
+    with pytest.raises(ValueError):
+        validate_temporary_id_prefix(prefix)
+
+
+def test_unknown_name_group_is_checked_like_a_typed_group() -> None:
+    assert validate_unknown_name_group("漢字", "不明^不明") == "不明^不明"
+    assert validate_unknown_name_group("かな", "フメイ^フメイ") == "フメイ^フメイ"
+    for label, value in (("漢字", ""), ("漢字", "A=B"), ("かな", "ふめい"), ("かな", "ﾌﾒｲ")):
+        with pytest.raises(ValueError):
+            validate_unknown_name_group(label, value)

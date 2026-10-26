@@ -828,6 +828,9 @@ modality:
   character_set_fallback: "utf8"  # utf8, jis, jis_kana（auto は不可）
   patient_input_test_mode: false  # true：緊急の患者の氏名（かな）を確かめず直さず出す（12a の 10.5）
   timezone: "Asia/Tokyo"        # 緊急の患者の生年月日の「今日」を決める（IANA の名前。12a の 10.5）
+  temporary_patient_id_prefix: "TMP"      # 「仮の ID を作る」の患者ID の頭（頭 + 日時。12a の 10.5）
+  unknown_name_ideographic: "不明^不明"   # 「氏名が分からない」の氏名（漢字）
+  unknown_name_phonetic: "フメイ^フメイ"  # 同（かな）。英字は空にする（ADR-0029）
   default_template: "ct_generic"
   default_profile: null         # 装置プロファイル（spec/13）。null は重ねない
   default_hospital: null        # 病院テンプレート（null で使わない）

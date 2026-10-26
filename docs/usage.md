@@ -84,9 +84,16 @@ docker build -t dicom-test-generator .
 
 ### 2.2 予約の無い患者で撮影する
 
-ワークリストの画面の [緊急の患者で撮る] を押し、撮影の画面で患者ID と氏名（英字）を
+ワークリストの画面の [緊急の患者で撮る] を押し、撮影の画面で患者ID・氏名（漢字）・性別を
 入力する。氏名の姓と名は空白で区切って入力する（DICOM の区切りの `^` に置き換える）。
 あとは 2.1 の 3・4 と同じ。
+
+身元が分からない患者は、[仮の ID を作る] で患者ID（既定は `TMP` と日時の番号）を作り、
+「氏名が分からない」を選ぶ（氏名は漢字「不明 不明」・かな「フメイ フメイ」、英字は空）。
+性別が分からなければ「その他」を選ぶ。頭と氏名は設定の `temporary_patient_id_prefix`・
+`unknown_name_ideographic`・`unknown_name_phonetic` で変えられる
+（[spec/12](spec/12_modality_emulator.md) の 12 章）。撮った後に RIS が MPPS の仮の患者を
+正式な患者に統合する流れ（IHE PIR の Case 6）の試験に使える。
 
 画面の項目と表示は [spec/12a](spec/12a_web_screens_and_cli.md) の 10 章にある。
 
