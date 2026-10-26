@@ -14,6 +14,12 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+設定のタイムゾーン（`modality.timezone`、IANA の名前）は、標準ライブラリの `zoneinfo`
+で解く。Docker のイメージは OS のタイムゾーンのデータを持つが、Windows など Docker
+以外の環境は OS にタイムゾーンのデータがないことがあり、その場合は `tzdata`
+（`pip install tzdata`）が要る。`requirements.txt` には入れていない。入れていない環境で
+`Asia/Tokyo` などを解けないと、設定の読み込みが断る。
+
 Python の環境で Web 画面と CLI を動かすときは、リポジトリのディレクトリで実行する。
 設定ファイルは `config/app_config.yaml` で、Web 画面は既定ではループバック
 （127.0.0.1）だけで待ち受け、認証は無い。ループバック以外で待ち受けるときは、

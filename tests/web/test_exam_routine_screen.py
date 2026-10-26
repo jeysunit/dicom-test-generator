@@ -53,7 +53,12 @@ def test_every_count_field_is_tied_to_its_error_line(client) -> None:
         "手で入れる": client.get("/exam/routine?template=ct_generic&routine=manual").text,
     }
     for label, html in pages.items():
-        fields = re.findall(r"<input[^>]*data-count-label=[^>]*>", html)
+        # data-count-label を付け忘れた type="number" の欄も、拾って確かめる
+        fields = [
+            field
+            for field in re.findall(r"<input[^>]*>", html)
+            if "data-count-label=" in field or 'type="number"' in field
+        ]
         assert fields, label
         for field in fields:
             line = re.search(r'data-error-line="([^"]+)"', field)

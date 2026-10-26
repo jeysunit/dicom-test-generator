@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import platform
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +24,7 @@ from app.core import (
     StudyConfig,
     TransferSyntaxConfig,
 )
+from app.core.patient_input import current_datetime
 from app.services import (
     PatientLoaderService,
     ProfileLoaderService,
@@ -106,7 +106,7 @@ def quick_command(args: argparse.Namespace) -> int:
     study = StudyConfig(
         accession_number=args.accession_number,
         study_date=args.study_date,
-        study_time=datetime.now().strftime("%H%M%S"),
+        study_time=current_datetime().strftime("%H%M%S"),
         study_description=None,
         referring_physician_name=None,
         num_series=args.series,

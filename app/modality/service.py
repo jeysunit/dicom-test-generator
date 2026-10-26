@@ -946,7 +946,12 @@ class ModalityService:
             if mpps_id is not None:
                 # N-CREATE の後に撮影が止まった＝取り消し（DISCONTINUED。8.4.1）
                 mpps.finish_exam(
-                    mpps_id, STATE_DISCONTINUED, partial, ctx, str(output_dir)
+                    mpps_id,
+                    STATE_DISCONTINUED,
+                    partial,
+                    ctx,
+                    str(output_dir),
+                    current_datetime(self.config.timezone),
                 )
             raise
         files = sorted(str(path) for path in output_dir.glob("*.dcm"))
@@ -954,13 +959,23 @@ class ModalityService:
         if mpps_id is not None:
             try:
                 mpps_outcome = mpps.finish_exam(
-                    mpps_id, STATE_COMPLETED, files, ctx, str(output_dir)
+                    mpps_id,
+                    STATE_COMPLETED,
+                    files,
+                    ctx,
+                    str(output_dir),
+                    current_datetime(self.config.timezone),
                 )
             except IMAGE_READ_ERRORS:
                 # 作った画像のヘッダーを読めなければ、開いたままにせず DISCONTINUED を残す。
                 # DISCONTINUED は読めた画像だけを知らせる
                 mpps.finish_exam(
-                    mpps_id, STATE_DISCONTINUED, files, ctx, str(output_dir)
+                    mpps_id,
+                    STATE_DISCONTINUED,
+                    files,
+                    ctx,
+                    str(output_dir),
+                    current_datetime(self.config.timezone),
                 )
                 raise
         if profile_name:
