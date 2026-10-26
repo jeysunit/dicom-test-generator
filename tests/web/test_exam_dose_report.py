@@ -1,4 +1,4 @@
-"""撮影の画面の線量の報告の選択（ADR-0029）."""
+"""撮影の画面の線量の報告の選択（ADR-0031）."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def test_exam_with_sr_makes_the_sr_series(client) -> None:
 
     html = client.post("/exam", data=_form(key, "sr"), headers=post_headers(token)).text
 
-    assert "撮影完了：3 画像" in html
+    assert "撮影完了：山田 太郎（P000001）の 3 画像" in html
 
 
 def test_exam_with_both_has_one_more_image(client) -> None:
@@ -45,7 +45,7 @@ def test_exam_with_both_has_one_more_image(client) -> None:
 
     html = client.post("/exam", data=_form(key, "both"), headers=post_headers(token)).text
 
-    assert "撮影完了：4 画像" in html
+    assert "撮影完了：山田 太郎（P000001）の 4 画像" in html
 
 
 def test_exam_without_the_field_keeps_the_dose_screen(client) -> None:
@@ -54,7 +54,7 @@ def test_exam_without_the_field_keeps_the_dose_screen(client) -> None:
 
     html = client.post("/exam", data=_form(key, None), headers=post_headers(token)).text
 
-    assert "撮影完了：3 画像" in html
+    assert "撮影完了：山田 太郎（P000001）の 3 画像" in html
 
 
 def test_unknown_choice_is_refused_on_the_screen(client) -> None:

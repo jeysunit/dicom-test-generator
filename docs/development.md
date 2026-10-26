@@ -14,6 +14,12 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+設定のタイムゾーン（`modality.timezone`、IANA の名前）は、標準ライブラリの `zoneinfo`
+で解く。Docker のイメージは OS のタイムゾーンのデータを持つが、Windows など Docker
+以外の環境は OS にタイムゾーンのデータがないことがあり、その場合は `tzdata`
+（`pip install tzdata`）が要る。`requirements.txt` には入れていない。入れていない環境で
+`Asia/Tokyo` などを解けないと、設定の読み込みが断る。
+
 Python の環境で Web 画面と CLI を動かすときは、リポジトリのディレクトリで実行する。
 設定ファイルは `config/app_config.yaml` で、Web 画面は既定ではループバック
 （127.0.0.1）だけで待ち受け、認証は無い。ループバック以外で待ち受けるときは、
@@ -116,7 +122,7 @@ DTG の機能ではない。スタブは `tests/modality_peers.py` にある。
 | 保管確認 | `tests/modality/test_commitment_scu.py` | 結果が別の Association で返る形と、同じ Association で返る形。要求から結果までのキューの状態、一部失敗、タイムアウト、遅れて届いた結果、相手が停止している、不正な値（未知の Transaction UID・UID の形式でない・未知の Event Type・要求に無い組・別の AE からの結果） |
 | MPPS | `tests/modality/test_mpps_scu.py` | N-CREATE・N-SET の値（予約あり・予約なし）。IN PROGRESS から COMPLETED、撮影が止まったときの DISCONTINUED、相手が停止していたときにキューに残して `mpps retry` で送信する、相手が拒否する、応答なしの後の `0x0111`・`0x0110`、送信先の固定、2つの処理が同時に再送信しても重複しない、プロファイルの `services.mpps: false` |
 | 統合 | `tests/integration/test_modality_flow.py` | MWL の SCP → `exam --from-worklist --send` → Storage の SCP のスタブが受信する。受信した画像の値が予約と一致する |
-| Web | `tests/web/` | ページが表示される、HTMX の部分応答、ループバック以外で待ち受けて認証が無ければ起動しない、`Origin` と CSRF トークンの検証、相手から来る値（`<script>`・制御文字）のエスケープ、画面から「取得→選択→撮影→送信」の一連の流れ、CSS の `@theme` の値が [spec/12a](spec/12a_web_screens_and_cli.md) の 10.2 の表と一致すること（`tests/web/test_theme_tokens.py`） |
+| Web | `tests/web/` | ページが表示される、HTMX の部分応答、ループバック以外で待ち受けて認証が無ければ起動しない、`Origin` と CSRF トークンの検証、相手から来る値（`<script>`・制御文字）のエスケープ、画面から「取得→選択→撮影→送信」の一連の流れ、ui-kit の `tokens.css` の値が [spec/12a](spec/12a_web_screens_and_cli.md) の 10.2 の表と一致し、`input.css` がその色をすべて Tailwind へつなぐこと（`tests/web/test_theme_tokens.py`） |
 | 装置プロファイル | `tests/core/test_device_profile.py` ほか | [spec/13](spec/13_device_profiles.md) の 10 章 |
 
 ## 5. Web 画面の静的ファイル
@@ -129,6 +135,7 @@ commit している。利用者がこれらを用意する必要は無い。
 | htmx（`app/web/static/htmx.min.js`） | v2.0.9 | GitHub の bigskysoftware/htmx の releases | `57d9191515339922bd1356d7b2d80b1ee3b29f1b3a2c65a078bb8b2e8fd9ae5f` |
 | Lucide のアイコン（`app/web/static/icons/`。ISC License、同じ場所に `LICENSE`） | 1.48.0 | GitHub の lucide-icons/lucide の releases（`lucide-icons-1.48.0.zip`） | `e27a6b58bebc563581f89668a5a652782075a85a07568e4fd8051a17ce81dba6`（zip） |
 | Tailwind CSS の standalone の実行ファイル（CSS を作成するときだけ） | v4.3.3 | GitHub の tailwindlabs/tailwindcss の releases | `scripts/build_css.sh` に OS ごとに固定 |
+| ui-kit の CSS（`app/web/static/ui-kit/`。3 製品で共通の写し） | `VERSION` に書く | 3 製品で共通の画面の決まり（[ADR-0028](decisions/0028-shared-ui-kit-css.md)） | — |
 
 バージョンを上げるときは、スクリプトのバージョンと sha256 を変更して実行する。
 どちらのスクリプトも、sha256 が一致しなければ停止する。

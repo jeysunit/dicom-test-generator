@@ -8,15 +8,33 @@ from collections import deque
 from typing import Annotated
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
 
 from app.core.exceptions import ConfigurationError, DICOMGeneratorError
-from app.core.models import ScheduledPatient, WorklistItem
+from app.core.models import WorklistItem
+from app.core.patient_input import (
+    ALPHABETIC_MESSAGE,
+    BIRTH_DATE_FUTURE_MESSAGE,
+    IDEOGRAPHIC_MESSAGE,
+    PATIENT_ID_MESSAGE,
+    PHONETIC_CONVERTED_NOTE,
+    PHONETIC_MESSAGE,
+    REQUIRED_MESSAGES,
+    build_emergency_patient,
+    require_screen_fields,
+)
 from app.core.routine import DEFAULT_DOSE_REPORT_MODE
 from app.modality.service import ExamRequest, ExamResult, ModalityService, SendResult
 
-from ..display import exam_notices
+from ..display import (
+    CHARSET_CHOICE_LABELS,
+    JIS_KANA_WARNING,
+    auto_charset_note,
+    auto_is_jis_kana,
+    exam_notices,
+    patient_label,
+)
 from ..rendering import error_text, render, service_of, worklist_error_text
 
 router = APIRouter()
@@ -33,7 +51,15 @@ DOSE_REPORT_CHOICES = (
     ("sr", "SR"),
     ("both", "画面（画像）と SR"),
 )
-SEX_CHOICES = (("", "空"), ("M", "男"), ("F", "女"), ("O", "その他"))
+SEX_CHOICES = (("", "選んでください"), ("M", "男"), ("F", "女"), ("O", "その他"))
+# 緊急の患者の欄の下に出す誤りの文（スクリプトが入力のたびに確かめる。サーバーも同じ文で断る）
+INPUT_MESSAGES = {
+    "patient-id": PATIENT_ID_MESSAGE,
+    "alphabetic": ALPHABETIC_MESSAGE,
+    "ideographic": IDEOGRAPHIC_MESSAGE,
+    "birth-date": BIRTH_DATE_FUTURE_MESSAGE,
+    "phonetic": PHONETIC_MESSAGE,
+}
 ACTION_EXAM = "exam"
 ACTION_EXAM_SEND = "exam_send"
 MODE_EMERGENCY = "emergency"
@@ -114,7 +140,7 @@ def exam_page(request: Request, key: str = "") -> HTMLResponse:
         templates = service.available_templates()
         profiles, profile_errors = service.available_profiles()
         if item is not None and item.modality:
-            # 予約のモダリティに合うテンプレートと、それに合う装置を先に選んでおく（ADR-0028）
+            # 予約のモダリティに合うテンプレートと、それに合う装置を先に選んでおく（ADR-0030）
             template = service.template_for_modality(item.modality)
             profile = service.profile_for_template(profile, template) or ""
     except DICOMGeneratorError as exc:
@@ -132,15 +158,38 @@ def exam_page(request: Request, key: str = "") -> HTMLResponse:
         profile_errors=[str(error) for error in profile_errors],
         selected_template=template,
         selected_profile=profile,
+        # 撮る前に「誰を・どこへ」を操作の行の真上に出す（10.5）
+        destination=service.config.destination(),
+        charset_labels=CHARSET_CHOICE_LABELS,
+        jis_kana_warning=JIS_KANA_WARNING,
+        auto_charset_note=auto_charset_note(item, service.config.character_set_fallback),
+        # 注意を出す選択肢（JIS（半角カナと漢字）と、「自動」でそれになるときの自動）
+        jis_kana_choices=(
+            "jis_kana auto"
+            if auto_is_jis_kana(item, service.config.character_set_fallback)
+            else "jis_kana"
+        ),
         charset_choices=CHARSET_CHOICES,
         abnormal_choices=ABNORMAL_CHOICES,
         dose_report_choices=DOSE_REPORT_CHOICES,
         sex_choices=SEX_CHOICES,
+        input_messages=INPUT_MESSAGES,
+        required_messages=REQUIRED_MESSAGES,
+        phonetic_converted_note=PHONETIC_CONVERTED_NOTE,
+        server_today=service.today().isoformat(),
+        unknown_name_ideographic=service.unknown_name()[0],
+        unknown_name_phonetic=service.unknown_name()[1],
         blocker=_blocker(service, item, template, profile),
         exam_token=ExamTokens.issue(),
         **_retake_context(service, item),
         **_routine_context(service, item, template),
     )
+
+
+@router.post("/exam/temporary-id")
+def exam_temporary_id(request: Request) -> JSONResponse:
+    """「仮の ID を作る」：身元不明の患者の仮の患者ID（頭 + 日時。同じ秒に2回押しても重ならない）."""
+    return JSONResponse({"patient_id": service_of(request).new_temporary_patient_id()})
 
 
 @router.get("/exam/routine", response_class=HTMLResponse)
@@ -212,10 +261,15 @@ def _retake_context(service: ModalityService, item: WorklistItem | None) -> dict
 
 @router.get("/exam/check", response_class=HTMLResponse)
 def exam_check(
-    request: Request, key: str = "", template: str = "", profile: str = ""
+    request: Request, key: str = "", template: str = "", profile: str = "", done: str = ""
 ) -> HTMLResponse:
-    """テンプレート・装置を選び直したときに、撮れるかを確かめ直す（10.5）."""
+    """テンプレート・装置を選び直したときに、撮れるかを確かめ直す（10.5）.
+
+    緊急の患者を撮った後（`done`）は、撮った後の操作の行のままにする（前の患者で撮らない）。
+    """
     service = service_of(request)
+    if done and not key:
+        return render(request, "_exam_actions.html", exam_done=True, blocker="", taken=False)
     item: WorklistItem | None = None
     if key:
         try:
@@ -250,6 +304,7 @@ def exam_run(
     name_alphabetic: FormStr = "",
     name_ideographic: FormStr = "",
     name_phonetic: FormStr = "",
+    name_unknown: FormStr = "",
     birth_date: FormStr = "",
     sex: FormStr = "",
     study_description: FormStr = "",
@@ -269,7 +324,13 @@ def exam_run(
     try:
         emergency_patient = None
         if mode == MODE_EMERGENCY:
-            emergency_patient = ScheduledPatient(
+            if name_unknown:
+                # 氏名が分からない：設定の漢字・かなの氏名にし、英字は空にする（10.5）
+                name_alphabetic = ""
+                name_ideographic, name_phonetic = service.unknown_name()
+            if not append:
+                require_screen_fields(patient_id.strip(), name_ideographic, sex)
+            emergency_patient = build_emergency_patient(
                 patient_id=patient_id.strip(),
                 # 空白を ^ にする置き換えはサーバーの側で必ず行う（スクリプトは補助。10.5）
                 patient_name=service.emergency_person_name(
@@ -277,6 +338,10 @@ def exam_run(
                 ),
                 birth_date=birth_date.replace("-", "").strip(),
                 sex=sex,
+                strict=not append,
+                character_set=service.image_character_set(None, charset or None),
+                test_mode=service.config.patient_input_test_mode,
+                today=service.today(),
             )
         exam_request = ExamRequest(
             worklist_key=None if emergency_patient else key,
@@ -295,7 +360,13 @@ def exam_run(
         result = service.exam(exam_request)
         accepted = True
     except (DICOMGeneratorError, ValidationError) as exc:
-        return render(request, "_notice.html", error=worklist_error_text(exc))
+        # 欄の誤りは、その欄の下にも結ぶ（スクリプトが error_field を読む）
+        return render(
+            request,
+            "_notice.html",
+            error=worklist_error_text(exc),
+            error_field=getattr(exc, "field", ""),
+        )
     finally:
         if exam_token:
             tokens.finish(exam_token, accepted=accepted)
@@ -303,17 +374,36 @@ def exam_run(
     if action == ACTION_EXAM_SEND:
         send_result, send_error = _send(service, result.output_dir)
     next_token = ExamTokens.issue() if exam_token else ""
-    return _exam_result(request, result, send_result, send_error, next_token)
+    return _exam_result(
+        request,
+        result,
+        send_result,
+        send_error,
+        next_token,
+        patient=(
+            patient_label(emergency_patient.patient_name, emergency_patient.patient_id)
+            if emergency_patient is not None
+            else _scheduled_patient(service, result)
+        ),
+        emergency=mode == MODE_EMERGENCY,
+    )
 
 
 @router.post("/exam/send", response_class=HTMLResponse)
 def exam_send(request: Request, output_dir: FormStr = "") -> HTMLResponse:
     """撮った後の [送信]・[もう一度送る]。フォルダは出力の根の中だけを受ける（6.5）."""
-    send_result, send_error = _send(service_of(request), output_dir)
+    service = service_of(request)
+    send_result, send_error = _send(service, output_dir)
     if send_result is None:
         return render(request, "_notice.html", error=send_error)
     # 結果の下に [もう一度送る] を出す。送るたびに新しい件になる（docs/spec/12 の 8.2）
-    return render(request, "_send_outcome.html", send=send_result, output_dir=output_dir)
+    return render(
+        request,
+        "_send_outcome.html",
+        send=send_result,
+        output_dir=output_dir,
+        **_send_context(service, send_result),
+    )
 
 
 def _exam_result(
@@ -322,21 +412,62 @@ def _exam_result(
     send: SendResult | None,
     send_error: str,
     next_token: str,
+    *,
+    patient: str,
+    emergency: bool,
 ) -> HTMLResponse:
     service = service_of(request)
     return render(
         request,
         "_exam_result.html",
         result=result,
+        exam_patient=patient,
         send=send,
         send_error=send_error,
         next_token=next_token,
-        # 予約で撮ったら撮影済みになるので、撮影のボタンを描き直す（10.5・ADR-0024）
-        refresh_actions=result.worklist_key is not None,
+        # 予約で撮ったら撮影済みになるので、撮影のボタンを描き直す（10.5・ADR-0024）。
+        # 緊急の患者は、撮った患者のまま次を撮らないように、撮影のボタンを「次の緊急の患者」
+        # と「同じ患者でもう一度」に替える（10.5）
+        refresh_actions=result.worklist_key is not None or emergency,
+        exam_done=emergency,
         blocker="",
         taken=result.worklist_key is not None and service.is_taken(result.worklist_key),
         retake_mode=service.config.retake_mode,
+        **(_send_context(service, send) if send else {}),
     )
+
+
+def _scheduled_patient(service: ModalityService, result: ExamResult) -> str:
+    """予約で撮った結果の知らせに入れる患者（氏名と患者ID）."""
+    try:
+        item = service.find_item(result.worklist_key or "")
+    except DICOMGeneratorError:
+        return ""
+    return patient_label(item.patient_name, item.patient_id)
+
+
+def _send_context(service: ModalityService, send: SendResult) -> dict[str, object]:
+    """送信の結果の知らせに入れる患者と送信先（AEタイトル・ホスト）."""
+    # 枚数は送信ジョブの数（つながらなかった送信は、画像ごとの結果を持たない）
+    sent = sum(1 for result in send.results if result.sent)
+    total = len(send.results)
+    try:
+        job = service.queue_job(send.job_id)
+        patient = patient_label(job.patient_name, job.patient_id)
+        sent, total = job.num_sent, job.num_files
+    except DICOMGeneratorError:
+        patient = ""
+    try:
+        node = service.config.destination(send.destination)
+        address = f"{node.ae_title}・{node.host}:{node.port}"
+    except DICOMGeneratorError:
+        address = ""
+    return {
+        "send_patient": patient,
+        "send_address": address,
+        "send_sent": sent,
+        "send_total": total,
+    }
 
 
 def _send(service: ModalityService, output_dir: str) -> tuple[SendResult | None, str]:

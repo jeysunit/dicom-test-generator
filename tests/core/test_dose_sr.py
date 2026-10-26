@@ -1,4 +1,4 @@
-"""CT の線量の報告（X-Ray Radiation Dose SR）の内容の木（ADR-0029。PS3.16 TID 10011）."""
+"""CT の線量の報告（X-Ray Radiation Dose SR）の内容の木（ADR-0031。PS3.16 TID 10011）."""
 
 from __future__ import annotations
 

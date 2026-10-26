@@ -243,7 +243,7 @@ CT の Image Type の値 3 の Defined Terms は `AXIAL` と `LOCALIZER`
 
 ### 5.2 MR Image の属性
 
-MR のシリーズ（[ADR-0028](../decisions/0028-mr-images.md)）は MR Image Storage
+MR のシリーズ（[ADR-0030](../decisions/0030-mr-images.md)）は MR Image Storage
 （1.2.840.10008.5.1.4.1.1.4）で作る。MR Image IOD（PS3.3 A.4）の必須のモジュールを
 持ち、Modality (0008,0060) は `MR`。MR Image Module（PS3.3 C.8.3.1）は次の値にする。
 
@@ -274,7 +274,7 @@ MR のシリーズ（[ADR-0028](../decisions/0028-mr-images.md)）は MR Image S
 ### 5.3 線量の報告の SR
 
 CT の検査の線量の報告は、5.1 の線量の画面（Secondary Capture）のほかに、
-X-Ray Radiation Dose SR（1.2.840.10008.5.1.4.1.1.88.67。[ADR-0029](../decisions/0029-dose-report-sr.md)）
+X-Ray Radiation Dose SR（1.2.840.10008.5.1.4.1.1.88.67。[ADR-0031](../decisions/0031-dose-report-sr.md)）
 でも作れる。種類は `dose_sr`、Modality (0008,0060) は `SR`。
 
 | モジュール | 値 |
@@ -383,7 +383,8 @@ PN（Person Name）は英字・漢字・かなの 3 つのコンポーネント�
 YAMADA^TARO=山田^太郎=ヤマダ^タロウ
 ```
 
-- 英字のコンポーネントグループは常に書く
+- 英字のコンポーネントグループは常に書く（モダリティエミュレーターの身元不明の患者は
+  英字を空にし、先頭を `=` にする。[12a](12a_web_screens_and_cli.md) の 10.5）
 - 漢字は `use_ideographic`、かなは `use_phonetic` が `true` で、値があるときだけ
   書く。どちらも Job の `character_set` の値を、病院テンプレートの
   `overrides.patient_module.patient_name` が上書きする。
@@ -399,6 +400,11 @@ YAMADA^TARO=山田^太郎=ヤマダ^タロウ
 |--------------|------------------------|----------------|
 | `hospital_a` | `ISO 2022 IR 6\ISO 2022 IR 87` | `YAMADA^TARO=山田^太郎=ヤマダ^タロウ` |
 | `hospital_b` | （書かない） | `YAMADA^TARO` |
+
+`ISO 2022 IR 6\ISO 2022 IR 87`（`hospital_a` と、Job の `specific_character_set` の既定）の
+画像は、Orthanc 1.13.0 が漢字・かなを読み崩す。Orthanc は最初の値が空でない複数の値を、
+最初の値だけで全体を読むため。Orthanc へ送る Job では、`\ISO 2022 IR 87`（値 1 が空）か
+`ISO_IR 192` にする（確かめた結果は [spec/12](12_modality_emulator.md) の 14.4）。
 
 ### 7.4 表現できない文字
 

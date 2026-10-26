@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Form, Request
@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse
 
 from app.core.exceptions import DICOMGeneratorError, ModalityError, ValidationError
 from app.core.models import WorklistItem
+from app.core.patient_input import current_date
 from app.modality.service import WorklistState
 from app.modality.worklist_scu import WorklistQuery, parse_date_option
 
@@ -78,7 +79,7 @@ def worklist_query(
     service = service_of(request)
     try:
         query = WorklistQuery(
-            date_range=_date_range(day, date_value),
+            date_range=_date_range(day, date_value, service.config.timezone),
             modality=modality.strip(),
             station_ae_title=(
                 service.current_station().ae_title if station == STATION_OWN else ""
@@ -147,7 +148,8 @@ def worklist_item(request: Request, key: str) -> HTMLResponse:
         item = service.find_item(key)
     except DICOMGeneratorError as exc:
         return render(request, "_notice.html", error=worklist_error_text(exc))
-    return render(request, "_worklist_detail.html", item=item, item_taken=service.is_taken(key))
+    # 患者バナーは操作の行の真上へ、予約の詳細は一覧の下へ（同じ応答で差し替える。10.4）
+    return render(request, "_worklist_pick.html", item=item, item_taken=service.is_taken(key))
 
 
 def _results(
@@ -182,8 +184,9 @@ def _results(
     }
 
 
-def _date_range(day: str, date_value: str) -> str:
-    today = date.today()
+def _date_range(day: str, date_value: str, timezone: str) -> str:
+    """「今日」「明日」は検査日と同じ時計（設定のタイムゾーン）で決める."""
+    today = current_date(timezone)
     if day == "any":
         return ""
     if day == "tomorrow":

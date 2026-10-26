@@ -252,7 +252,7 @@ services:
   （`supported` が空なら検証しない）
 - `storage.sop_classes` の最初の SOP Class を、DTG がまだ作成できない
   （現在作成できるのは CT Image Storage と MR Image Storage。
-  [ADR-0028](../decisions/0028-mr-images.md)）
+  [ADR-0030](../decisions/0030-mr-images.md)）
 
 文字コードの比較方法：値を `\` で分け、前後の空白を除く。値 1 が空なら
 `ISO 2022 IR 6` とみなす（PS3.3 C.12.1.1.2）。値が無い（空・属性なし）ときは

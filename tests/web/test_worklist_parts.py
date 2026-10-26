@@ -15,10 +15,10 @@ def test_worklist_has_heading_search_band_and_count_row(client) -> None:
     assert "placeholder" not in page.split('id="query-form"', 1)[1].split("</form>", 1)[0]
 
     html = query_worklist(client)
-    count_row = html.split('<div class="count-row">', 1)[1].split("</div>", 1)[0]
-    assert re.search(r'<b class="count-n">\d+</b> 件（\d{4}-\d{2}-\d{2} ', count_row)
+    count_row = html.split('<div class="listhead">', 1)[1].split("</div>", 1)[0]
+    assert re.search(r'<span class="cnt"><b>\d+</b> 件（\d{4}-\d{2}-\d{2} ', count_row)
     # 件数の行は一覧の上にある
-    assert html.index('<div class="count-row">') < html.index("<table")
+    assert html.index('<div class="listhead">') < html.index("<table")
 
 
 def test_worklist_marks_are_state_marks(client) -> None:

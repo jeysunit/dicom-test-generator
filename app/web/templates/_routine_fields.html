@@ -3,8 +3,8 @@
    フォームの hx-sync（撮影の二度押しの防止）と別にする（テンプレートの確かめ直しと同時に出るため） #}
 <div id="routine-fields" class="grid gap-4 sm:col-span-3 sm:grid-cols-3" hx-sync="this:replace">
   <label class="field">
-    <span class="field-label">ルーチン</span>
-    <select name="routine" class="input" hx-get="/exam/routine" hx-target="#routine-fields" hx-swap="outerHTML" hx-include="#exam-form [name='key'], #exam-form [name='template']" hx-trigger="change" hx-sync="#routine-fields:replace">
+    <span class="l">ルーチン</span>
+    <select name="routine" class="select" hx-get="/exam/routine" hx-target="#routine-fields" hx-swap="outerHTML" hx-include="#exam-form [name='key'], #exam-form [name='template']" hx-trigger="change" hx-sync="#routine-fields:replace">
       {% for choice in routine_choices %}<option value="{{ choice.name }}"{% if choice.name == selected_routine %} selected{% endif %}>{{ choice.label }}</option>{% endfor %}
       <option value="{{ manual_routine }}"{% if selected_routine == manual_routine %} selected{% endif %}>手で入れる</option>
     </select>
@@ -12,10 +12,10 @@
   {% if routine_error %}<p role="alert" class="text-danger sm:col-span-3">{{ routine_error }}</p>{% endif %}
   {% if routine %}
   {% set one_row = routine.series|length == 1 %}
-  <div class="sm:col-span-3 overflow-x-auto">
+  <div class="tbl-wrap sm:col-span-3">
     {# 押せない [外す] の理由。見えない文で、aria-describedby でボタンに結ぶ（キーボードと読み上げ用） #}
     <span id="last-series-note" class="sr-only">最後の1行は外せません</span>
-    <table class="table routine-table" data-routine-series>
+    <table class="tbl routine-table" data-routine-series>
       <thead>
         <tr>
           <th scope="col" class="whitespace-nowrap">シリーズ</th>
@@ -35,9 +35,9 @@
           <td class="hidden whitespace-nowrap sm:table-cell">{{ kind_label }}</td>
           <td>
             <input type="hidden" name="routine_series" value="{{ loop.index0 }}">
-            <input type="number" name="routine_images" value="{{ series.images }}" min="1" max="{{ max_images_per_series }}" class="input w-20 sm:w-24" required aria-label="{{ series.description }} の画像数" data-count-label="{{ series.description }} の画像数">
+            <input type="number" name="routine_images" value="{{ series.images }}" min="1" max="{{ max_images_per_series }}" class="input w-20 sm:w-24" required aria-label="{{ series.description }} の画像数" data-count-label="{{ series.description }} の画像数" data-error-line="error-routine-count" aria-describedby="error-routine-count">
           </td>
-          <td><button type="button" class="btn btn-outline" data-remove-series data-description="{{ series.description }}" aria-label="{{ series.description }} を外す"{% if one_row %} aria-disabled="true" aria-describedby="last-series-note" title="最後の1行は外せません"{% endif %}>外す</button></td>
+          <td><button type="button" class="btn btn-sm row-open" data-remove-series data-description="{{ series.description }}" aria-label="{{ series.description }} を外す"{% if one_row %} aria-disabled="true" aria-describedby="last-series-note" title="最後の1行は外せません"{% endif %}>外す</button></td>
         </tr>
         {% endfor %}
       </tbody>
@@ -45,13 +45,15 @@
   </div>
   {% else %}
   <label class="field">
-    <span class="field-label">シリーズ数 <span class="badge text-danger">必須</span></span>
-    <input type="number" name="series" value="1" min="1" max="99" class="input" required aria-required="true" data-series-count data-count-label="シリーズ数">
+    <span class="l">シリーズ数<span class="req">必須</span></span>
+    <input type="number" name="series" value="1" min="1" max="99" class="input" required aria-required="true" data-series-count data-count-label="シリーズ数" data-error-line="error-routine-count" aria-describedby="error-routine-count">
   </label>
   <label class="field">
-    <span class="field-label">画像数（シリーズごと。例 1,20） <span class="badge text-danger">必須</span></span>
-    <input type="text" name="images" value="1" class="input" required aria-required="true" data-images-list data-count-label="画像数">
+    <span class="l">画像数（シリーズごと。例 1,20）<span class="req">必須</span></span>
+    <input type="text" name="images" value="1" class="input" required aria-required="true" data-images-list data-count-label="画像数" data-error-line="error-routine-count" aria-describedby="error-routine-count">
   </label>
   <p class="text-xs text-label sm:col-span-3">シリーズ数を変えると、画像数をシリーズごとに同じ数で自動入力します（画像数を手で直した後は上書きしません）。</p>
   {% endif %}
+  {# 数の欄の誤りは、欄の外のこの 1 行に出す（ブラウザの吹き出しは使わない。ルーチンの描き直しで消える） #}
+  <p class="flex items-center gap-1 text-xs sm:col-span-3" id="error-routine-count" hidden><span class="icon icon-triangle-alert text-danger" aria-hidden="true"></span><span class="t"></span></p>
 </div>

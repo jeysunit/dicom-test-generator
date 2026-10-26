@@ -8,7 +8,6 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from datetime import date
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -19,7 +18,8 @@ from app.core.exceptions import (
     StoreError,
     ValidationError,
 )
-from app.core.models import ScheduledPatient, WorklistItem
+from app.core.models import WorklistItem
+from app.core.patient_input import build_emergency_patient, current_date
 from app.core.routine import DEFAULT_DOSE_REPORT_MODE
 from app.modality.config import load_modality_config
 from app.modality.service import AUTO_ROUTINE, ExamRequest, ModalityService, SendResult
@@ -289,11 +289,15 @@ def exam_command(args: argparse.Namespace) -> int:
     if args.emergency:
         if not args.patient_id or not args.patient_name:
             raise ConfigurationError("--emergency requires --patient-id and --patient-name")
-        emergency_patient = ScheduledPatient(
+        emergency_patient = build_emergency_patient(
             patient_id=args.patient_id,
             patient_name=args.patient_name,
             birth_date=args.birth_date or "",
             sex=args.sex or "",
+            strict=not args.append,
+            character_set=service.image_character_set(None, args.charset),
+            test_mode=service.config.patient_input_test_mode,
+            today=service.today(),
         )
     elif args.study_description:
         raise ConfigurationError("--study-description is only for --emergency")
@@ -453,7 +457,7 @@ def _build_query(service: ModalityService, args: argparse.Namespace) -> Worklist
     modality = args.modality or service.template_modality(config.default_template)
     station = args.station_aet or service.current_station().ae_title
     return WorklistQuery(
-        date_range=parse_date_option(args.date, date.today()),
+        date_range=parse_date_option(args.date, current_date(config.timezone)),
         modality="" if modality == ANY else modality,
         station_ae_title="" if station == ANY else station,
         patient_id=args.patient_id or "",

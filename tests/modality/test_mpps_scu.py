@@ -146,6 +146,29 @@ def test_emergency_exam_uses_unscheduled_form(tmp_path, worklist_scp, mpps_scp) 
     assert created.PatientID == "E0001"
 
 
+@pytest.mark.parametrize("character_set", ["utf8", "jis", "jis_kana"])
+def test_unknown_patient_with_empty_alphabetic_name_reaches_mpps_and_images(
+    tmp_path, worklist_scp, mpps_scp, character_set
+) -> None:
+    """身元不明の患者（英字が空の氏名）は、MPPS と画像に同じ仮の ID・氏名で入る（IHE PIR の Case 6）.
+
+    RIS は MPPS の PatientName の群を番号で読むので、空の英字の群（先頭の `=`）が崩れないこと。
+    """
+    service = _service(tmp_path, worklist_scp.port, mpps_scp.port)
+    name = "=不明^不明=フメイ^フメイ"
+    patient = ScheduledPatient(patient_id="TMP20261026083000", patient_name=name)
+
+    result = service.exam(ExamRequest(emergency_patient=patient, charset=character_set))
+
+    created = mpps_scp.created[result.mpps.sop_instance_uid]
+    assert created.PatientID == "TMP20261026083000"
+    assert str(created.PatientName) == name
+    assert created.PatientName.components[0] == ""
+    image = pydicom.dcmread(next(Path(result.output_dir).rglob("*.dcm")))
+    assert image.PatientID == "TMP20261026083000"
+    assert str(image.PatientName) == name
+
+
 def test_mpps_goes_to_worklist_peer_when_no_mpps_section(tmp_path, worklist_items, mpps_scp) -> None:
     """`modality.mpps:` が無ければワークリストの相手へ送る（8.4.1）."""
     # 同じポートで MWL と MPPS を受ける偽の相手

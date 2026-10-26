@@ -81,7 +81,7 @@ MR_IMAGE_TAG_MAP = {
     "receive_coil_name": "ReceiveCoilName",
 }
 
-# この道具が画像を作れるモダリティ（シリーズの Modality。ADR-0028）
+# この道具が画像を作れるモダリティ（シリーズの Modality。ADR-0030）
 GENERATABLE_MODALITIES = ("CT", "MR")
 # テンプレートと違うモダリティのシリーズに使う SOP Class
 MODALITY_SOP_CLASSES = {
@@ -585,7 +585,7 @@ class StudyGeneratorService:
 
     @staticmethod
     def _resolve_series(series: SeriesConfig, template_modality: str) -> SeriesConfig:
-        """モダリティを決めていないシリーズに、テンプレートのモダリティを入れる（ADR-0028）.
+        """モダリティを決めていないシリーズに、テンプレートのモダリティを入れる（ADR-0030）.
 
         MR のテンプレートで手で入れたシリーズ（種類の既定は axial）は、MR の撮像にする。
         """

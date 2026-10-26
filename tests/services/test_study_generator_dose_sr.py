@@ -1,4 +1,4 @@
-"""CT の検査に入る線量の報告の SR（X-Ray Radiation Dose SR。ADR-0029）."""
+"""CT の検査に入る線量の報告の SR（X-Ray Radiation Dose SR。ADR-0031）."""
 
 from __future__ import annotations
 
