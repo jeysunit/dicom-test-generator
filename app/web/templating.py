@@ -10,8 +10,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from jinja2 import Environment, FileSystemLoader, StrictUndefined
+from jinja2 import Environment, FileSystemLoader, StrictUndefined, pass_context
+from jinja2.runtime import Context
 
+from app.core.patient_input import DEFAULT_TIMEZONE, current_date
 from app.core.text_safety import make_visible
 
 from . import display
@@ -25,6 +27,14 @@ def _finalize(value: Any) -> Any:
     return value
 
 
+@pass_context
+def _birth_label(context: Context, item: Any) -> str:
+    """年齢は検査日と同じ時計（設定のタイムゾーン）の今日で数える."""
+    config = context.get("config")
+    timezone = getattr(config, "timezone", DEFAULT_TIMEZONE)
+    return display.birth_label(item, current_date(timezone))
+
+
 def create_environment() -> Environment:
     env = Environment(
         loader=FileSystemLoader(TEMPLATES_DIR),
@@ -36,7 +46,7 @@ def create_environment() -> Environment:
     )
     env.filters["name_parts"] = display.name_parts
     env.filters["name_display"] = display.name_display
-    env.filters["birth_label"] = display.birth_label
+    env.filters["birth_label"] = _birth_label
     env.filters["time_label"] = display.time_label
     env.filters["date_label"] = display.date_label
     env.filters["charset_label"] = display.charset_label

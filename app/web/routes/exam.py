@@ -8,11 +8,22 @@ from collections import deque
 from typing import Annotated
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import ValidationError
 
 from app.core.exceptions import ConfigurationError, DICOMGeneratorError
-from app.core.models import ScheduledPatient, WorklistItem
+from app.core.models import WorklistItem
+from app.core.patient_input import (
+    ALPHABETIC_MESSAGE,
+    BIRTH_DATE_FUTURE_MESSAGE,
+    IDEOGRAPHIC_MESSAGE,
+    PATIENT_ID_MESSAGE,
+    PHONETIC_CONVERTED_NOTE,
+    PHONETIC_MESSAGE,
+    REQUIRED_MESSAGES,
+    build_emergency_patient,
+    require_screen_fields,
+)
 from app.modality.service import ExamRequest, ExamResult, ModalityService, SendResult
 
 from ..display import (
@@ -34,7 +45,15 @@ ABNORMAL_CHOICES = (
     ("moderate", "中くらい"),
     ("severe", "強い"),
 )
-SEX_CHOICES = (("", "空"), ("M", "男"), ("F", "女"), ("O", "その他"))
+SEX_CHOICES = (("", "選んでください"), ("M", "男"), ("F", "女"), ("O", "その他"))
+# 緊急の患者の欄の下に出す誤りの文（スクリプトが入力のたびに確かめる。サーバーも同じ文で断る）
+INPUT_MESSAGES = {
+    "patient-id": PATIENT_ID_MESSAGE,
+    "alphabetic": ALPHABETIC_MESSAGE,
+    "ideographic": IDEOGRAPHIC_MESSAGE,
+    "birth-date": BIRTH_DATE_FUTURE_MESSAGE,
+    "phonetic": PHONETIC_MESSAGE,
+}
 ACTION_EXAM = "exam"
 ACTION_EXAM_SEND = "exam_send"
 MODE_EMERGENCY = "emergency"
@@ -142,11 +161,23 @@ def exam_page(request: Request, key: str = "") -> HTMLResponse:
         charset_choices=CHARSET_CHOICES,
         abnormal_choices=ABNORMAL_CHOICES,
         sex_choices=SEX_CHOICES,
+        input_messages=INPUT_MESSAGES,
+        required_messages=REQUIRED_MESSAGES,
+        phonetic_converted_note=PHONETIC_CONVERTED_NOTE,
+        server_today=service.today().isoformat(),
+        unknown_name_ideographic=service.unknown_name()[0],
+        unknown_name_phonetic=service.unknown_name()[1],
         blocker=_blocker(service, item, template, profile),
         exam_token=ExamTokens.issue(),
         **_retake_context(service, item),
         **_routine_context(service, item, template),
     )
+
+
+@router.post("/exam/temporary-id")
+def exam_temporary_id(request: Request) -> JSONResponse:
+    """「仮の ID を作る」：身元不明の患者の仮の患者ID（頭 + 日時。同じ秒に2回押しても重ならない）."""
+    return JSONResponse({"patient_id": service_of(request).new_temporary_patient_id()})
 
 
 @router.get("/exam/routine", response_class=HTMLResponse)
@@ -260,6 +291,7 @@ def exam_run(
     name_alphabetic: FormStr = "",
     name_ideographic: FormStr = "",
     name_phonetic: FormStr = "",
+    name_unknown: FormStr = "",
     birth_date: FormStr = "",
     sex: FormStr = "",
     study_description: FormStr = "",
@@ -279,7 +311,13 @@ def exam_run(
     try:
         emergency_patient = None
         if mode == MODE_EMERGENCY:
-            emergency_patient = ScheduledPatient(
+            if name_unknown:
+                # 氏名が分からない：設定の漢字・かなの氏名にし、英字は空にする（10.5）
+                name_alphabetic = ""
+                name_ideographic, name_phonetic = service.unknown_name()
+            if not append:
+                require_screen_fields(patient_id.strip(), name_ideographic, sex)
+            emergency_patient = build_emergency_patient(
                 patient_id=patient_id.strip(),
                 # 空白を ^ にする置き換えはサーバーの側で必ず行う（スクリプトは補助。10.5）
                 patient_name=service.emergency_person_name(
@@ -287,6 +325,10 @@ def exam_run(
                 ),
                 birth_date=birth_date.replace("-", "").strip(),
                 sex=sex,
+                strict=not append,
+                character_set=service.image_character_set(None, charset or None),
+                test_mode=service.config.patient_input_test_mode,
+                today=service.today(),
             )
         exam_request = ExamRequest(
             worklist_key=None if emergency_patient else key,
@@ -304,7 +346,13 @@ def exam_run(
         result = service.exam(exam_request)
         accepted = True
     except (DICOMGeneratorError, ValidationError) as exc:
-        return render(request, "_notice.html", error=worklist_error_text(exc))
+        # 欄の誤りは、その欄の下にも結ぶ（スクリプトが error_field を読む）
+        return render(
+            request,
+            "_notice.html",
+            error=worklist_error_text(exc),
+            error_field=getattr(exc, "field", ""),
+        )
     finally:
         if exam_token:
             tokens.finish(exam_token, accepted=accepted)

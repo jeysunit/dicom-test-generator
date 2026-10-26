@@ -34,6 +34,8 @@ ADR の一覧と、ADR に固有の書き方です。ドキュメントに共通
 | [0025](0025-exam-routines.md) | 撮影は既定で予約に当てたルーチンの並びと枚数で行う | 採用 |
 | [0026](0026-container-image-distribution.md) | Docker のイメージを主な配布の形にし、タグの push と手動のときに GHCR に公開する | 採用 |
 | [0027](0027-emergency-append.md) | 緊急の患者の追加撮影は、前の撮影の Study Instance UID と同じ患者を CLI で指定したときだけ受ける | 採用 |
+| [0028](0028-shared-ui-kit-css.md) | 画面の CSS は 3 製品で共通の ui-kit の写しを読み、DTG の CSS には差分だけを書く | 採用 |
+| [0029](0029-unknown-patient-emergency-input.md) | 身元不明の患者は、仮の ID と空の英字の氏名で撮れるようにする | 採用 |
 
 0001〜0013 は、この形式を決める前に書いたものです。冒頭の行をこの形式に
 そろえ、本文は語の置き換えだけにとどめています。

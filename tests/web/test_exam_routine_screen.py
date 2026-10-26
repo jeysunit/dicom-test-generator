@@ -45,6 +45,32 @@ def test_count_fields_carry_the_label_for_japanese_validation(client) -> None:
     assert "で入れてください" in script
 
 
+def test_every_count_field_is_tied_to_its_error_line(client) -> None:
+    """数の欄は、すべて id のある誤りの行を data-error-line と aria-describedby で指す（スクリプトが文を出す先）."""
+    key = key_for(query_worklist(client), "A0001")
+    pages = {
+        "予約のルーチン": client.get(f"/exam?key={key}").text,
+        "手で入れる": client.get("/exam/routine?template=ct_generic&routine=manual").text,
+    }
+    for label, html in pages.items():
+        # data-count-label を付け忘れた type="number" の欄も、拾って確かめる
+        fields = [
+            field
+            for field in re.findall(r"<input[^>]*>", html)
+            if "data-count-label=" in field or 'type="number"' in field
+        ]
+        assert fields, label
+        for field in fields:
+            line = re.search(r'data-error-line="([^"]+)"', field)
+            assert line, f"{label}: {field}"
+            assert f'id="{line.group(1)}"' in html, label
+            assert f'aria-describedby="{line.group(1)}"' in field, label
+    # 必須の印は .req（赤い札にしない）
+    manual = pages["手で入れる"]
+    assert manual.count('<span class="req">必須</span>') == 2
+    assert "badge text-danger" not in manual
+
+
 def test_head_order_selects_the_head_routine(client) -> None:
     key = key_for(query_worklist(client), "A0002")  # 頭部 CT
 
@@ -111,7 +137,7 @@ def test_single_series_routine_cannot_lose_its_row(client) -> None:
     assert 'aria-disabled="true"' in button and 'aria-describedby="last-series-note"' in button
     assert " disabled" not in button
     assert '<span id="last-series-note" class="sr-only">最後の1行は外せません</span>' in one
-    assert 'class="table routine-table"' in one
+    assert 'class="tbl routine-table"' in one
 
 
 def test_result_place_takes_focus_after_exam(client) -> None:

@@ -9,6 +9,7 @@ import re
 from datetime import date, datetime
 
 from app.core.models import WorklistItem
+from app.core.patient_input import current_date
 
 DATE_LENGTH = 8
 TIME_MIN_LENGTH = 4
@@ -119,7 +120,7 @@ def birth_label(item: WorklistItem, today: date | None = None) -> str:
     if not item.birth_date:
         return f"生年月日なし（{sex}）" if sex else "生年月日なし"
     parts = []
-    age = _age(item.birth_date, today or date.today())
+    age = _age(item.birth_date, today or current_date())
     if age is not None:
         parts.append(f"{age}歳")
     if sex:

@@ -1,4 +1,4 @@
-"""撮る前と撮った後に「誰を・どこへ」を示す。文字コードの選び方・入力の誤りの出し方・
+"""撮る前と撮った後に「誰を・どこへ」を示す。文字コードの選び方・
 ワークリストの選び方（docs/spec/12a の 10.4・10.5）."""
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ def _emergency_form(**extra: str) -> dict[str, str]:
         "patient_id": "E0002",
         "name_alphabetic": "KINKYU TARO",
         "name_ideographic": "緊急 太郎",
+        "sex": "O",
         "template": "ct_generic",
         "profile": "",
         "series": "1",
@@ -143,18 +144,12 @@ def test_auto_that_becomes_jis_kana_also_warns(tmp_path, worklist_items, storage
     assert "自動は予約の文字コード（ISO 2022 IR 13\\ISO 2022 IR 87）に合わせます。" in html
 
 
-def test_form_does_not_use_browser_bubbles(client) -> None:
+def test_form_does_not_restore_the_previous_patient(client) -> None:
     html = client.get("/exam").text
-    script = client.get("/static/app.js").text
 
+    # 読み込み直したときに、ブラウザーが前の患者の値を欄に戻さない
     form = re.search(r'<form id="exam-form"[^>]*>', html).group(0)
-    assert " novalidate" in form and 'autocomplete="off"' in form
-    # 画面の上の知らせ（件数と一覧）だけを読み上げる
-    assert re.search(r'<div id="form-errors" role="alert" class="notice notice-error[^"]*" tabindex="-1" hidden>', html)
-    # 欄の下の文（読み上げない）と、要求を止める確かめ
-    assert 'note.setAttribute("aria-hidden", "true")' in script
-    assert 'var REQUIRED_SUFFIX = "を入力してください。"' in script
-    assert "!checkExamForm(form)" in script
+    assert 'autocomplete="off"' in form
 
 
 def test_worklist_primary_waits_for_a_row(client) -> None:

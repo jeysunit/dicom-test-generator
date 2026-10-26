@@ -1,475 +1,337 @@
 /*
  * Tailwind CSS v4 の入力（scripts/build_css.sh で app/web/static/app.css を作る）。
- * 色・文字の値は docs/spec/12a_web_screens_and_cli.md の 10.2 の表と同じ（表が正本）。
- * 値がずれたら tests/web/test_theme_tokens.py が落ちる。
- * border-input・muted-strong・chrome は、この画面ではまだ使わない（値の定義だけ。使うのは段 2）。
- * 使わない値も app.css に残すため、`@theme static` にする。
+ * 色・文字の値と部品の CSS は ui-kit の写し（app/web/static/ui-kit/。base.html で
+ * tokens.css → components.css → app.css の順に読む）。ここには値を書かない。
+ * 下の @theme inline は、テンプレートの Tailwind の色の名前（bg-surface・text-label など）を
+ * tokens.css の変数へつなぐ。tokens.css の --color-* はすべてつなぐ
+ * （tests/web/test_theme_tokens.py が確かめる）。
+ * ここに書く部品は、ui-kit に無い DTG だけの差分。ui-kit と同じ名前の定義は置かない。
+ * ui-kit は層（@layer）の外にあり、Tailwind の層の中の utility より強い。テンプレートに書いた
+ * utility（mt-2 など）が ui-kit の初期化（p の margin:0 など）に負けないよう、important にする。
  */
-@import "tailwindcss" source(none);
+@import "tailwindcss" source(none) important;
 @source "../templates";
 @source "../static/app.js";
 
-@theme static {
-  --color-background: #ffffff;
-  --color-surface: #f6f6f6;
-  --color-foreground: #262626;
-  --color-label: #5f5f5f;
-  --color-value: #1a1a1a;
-  --color-border: #d2d2d2;
-  --color-border-input: #8c8c8c;
-  --color-muted: #eeeeee;
-  --color-muted-strong: #e2e2e2;
-  --color-selected: #ededf9;
-  --color-chrome: #333333;
-  --color-primary: #4b4fbf;
-  --color-primary-foreground: #ffffff;
-  /* リンク・フォーカスリング・強調の文字。ボタンの地（primary）とは別に持つ（暗い地では明るくする） */
-  --color-link: #4b4fbf;
-  --color-danger: #d1242f;
-  --color-success: #1a7f37;
-  --color-warning: #9a6700;
-  --font-sans: system-ui, "Noto Sans JP", sans-serif;
-  --font-mono: ui-monospace, "Noto Sans Mono", monospace;
+@theme inline {
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-muted: var(--color-muted);
+  --color-muted-strong: var(--color-muted-strong);
+  --color-border: var(--color-border);
+  --color-border-input: var(--color-border-input);
+  --color-foreground: var(--color-foreground);
+  --color-value: var(--color-value);
+  --color-label: var(--color-label);
+  --color-primary: var(--color-primary);
+  --color-primary-foreground: var(--color-primary-foreground);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-active: var(--color-primary-active);
+  --color-link: var(--color-link);
+  --color-ring: var(--color-ring);
+  --color-selected: var(--color-selected);
+  --color-selected-strong: var(--color-selected-strong);
+  --color-danger: var(--color-danger);
+  --color-danger-foreground: var(--color-danger-foreground);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-hover: var(--color-hover);
+  --color-pressed: var(--color-pressed);
+  --color-mod-ct: var(--color-mod-ct);
+  --color-mod-mr: var(--color-mod-mr);
+  --color-mod-crdx: var(--color-mod-crdx);
+  --color-mod-us: var(--color-mod-us);
+  --color-mod-es: var(--color-mod-es);
+  --color-mod-mg: var(--color-mod-mg);
+  --color-mod-doc: var(--color-mod-doc);
+  --color-mod-sr: var(--color-mod-sr);
+  --color-dev-band: var(--color-dev-band);
+  --color-dev-band-foreground: var(--color-dev-band-foreground);
 }
 
-:root[data-theme="dark"] {
-  --color-background: #1b1b1b;
-  --color-surface: #242424;
-  --color-foreground: #e8e8e8;
-  --color-label: #a3a3a3;
-  --color-value: #ffffff;
-  --color-border: #3a3a3a;
-  --color-border-input: #777777;
-  --color-muted: #2d2d2d;
-  --color-muted-strong: #383838;
-  --color-selected: #272844;
-  --color-chrome: #121212;
-  --color-primary: #4b4fbf;
-  --color-primary-foreground: #ffffff;
-  --color-link: #a5a8ff;
-  --color-danger: #ff7b72;
-  --color-success: #3fb950;
-  --color-warning: #d29922;
-  color-scheme: dark;
+/* ---- DTG だけの差分（ui-kit の後に読むので、同じ強さなら ui-kit より勝つ） ---- */
+
+/* 外枠は画面の高さいっぱい */
+.shell {
+  min-height: 100vh;
 }
-
-@layer base {
-  body {
-    font-family: var(--font-sans);
-    font-size: 0.875rem;
-    line-height: 1.5;
-  }
-
-  :focus-visible {
-    outline: 2px solid var(--color-link);
-    outline-offset: 2px;
-  }
+/* 上の帯の製品名は、最初のページへのリンク（下線を付けない） */
+.topbar a.brand {
+  color: var(--color-value);
+  text-decoration: none;
 }
-
-@layer components {
-  .btn {
-    @apply inline-flex h-8 items-center gap-1.5 rounded-sm px-3 text-sm font-medium whitespace-nowrap;
-  }
-  .btn:disabled,
-  .btn[aria-disabled="true"] {
-    @apply cursor-not-allowed opacity-50;
-  }
-  .btn-primary {
-    @apply bg-primary text-primary-foreground;
-  }
-  .btn-outline {
-    @apply border border-border-input bg-background hover:bg-muted;
-  }
-  .btn-ghost {
-    @apply hover:bg-muted;
-  }
-  .btn-icon {
-    @apply inline-flex h-6 w-6 items-center justify-center rounded-md text-label hover:bg-muted;
-  }
-  .btn-icon.copied {
-    @apply text-link;
-  }
-  /* 外枠：左のナビ（幅 208px）と本文。幅が 768px 未満のときは、ナビを本文の上の 1 行にする（10.3） */
+/* 外枠：幅が 768px 未満のときは、ナビを本文の上の 1 行にし、群の名前を省く（spec 12a の 10.3） */
+@media (max-width: 767px) {
   .shell {
-    @apply flex-1 md:grid md:grid-cols-[13rem_minmax(0,1fr)];
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 48px auto minmax(0, 1fr);
+    grid-template-areas: "top" "nav" "main";
   }
   .sidenav {
-    @apply flex flex-wrap items-center gap-1 border-b border-border bg-surface p-2 md:block md:border-r md:border-b-0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
   }
-  .nav-group {
-    @apply hidden px-2 pt-3 pb-1 text-xs text-label first:pt-1 md:block;
+  .sidenav .nav-g {
+    display: none;
   }
-  /* 現在のページは、地（selected）・左の線 3px・太字で示す（色だけにしない） */
-  .nav-item {
-    @apply flex h-8 items-center rounded-sm px-2 text-foreground hover:bg-muted hover:text-value;
-    box-shadow: inset 3px 0 0 transparent;
+  .main {
+    padding: 12px 16px 24px;
   }
-  .nav-item[aria-current="page"] {
-    @apply bg-selected font-bold text-value;
-    box-shadow: inset 3px 0 0 var(--color-link);
+}
+
+/* 接続の状態の中身：相手の名前・札・時刻を 1 行に並べ、間をあける */
+.pop .kv dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+/* 区画の中の項目名と値：狭い幅では 1 列（ui-kit の .kv を、区画の中でだけ広げる） */
+.sec .kv {
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 640px) {
+  .sec .kv {
+    grid-template-columns: 12rem minmax(0, 1fr);
   }
-  .panel {
-    @apply rounded-md border border-border bg-background p-4 sm:p-6;
-  }
-  .panel-title {
-    @apply mb-4 font-semibold text-value;
-  }
-  /* 見出しの行（題）とパンくず（患者や検査の下の画面だけ） */
-  .pagehead {
-    @apply flex flex-wrap items-center justify-between gap-3;
-  }
-  .pagehead h1 {
-    @apply flex items-baseline gap-2 text-xl font-bold text-value;
-  }
-  .pagehead h1 small {
-    @apply text-sm font-normal text-label;
-  }
-  .crumbs {
-    @apply flex flex-wrap gap-1 text-xs text-label;
-  }
-  .crumbs a {
-    @apply text-label underline;
-  }
-  .crumbs li + li::before {
-    content: "/";
-    margin-right: 0.25rem;
-  }
-  .crumbs [aria-current] {
-    @apply text-foreground;
-  }
-  /* 入力の画面（型 C）：区画（見出しと中身）と操作の行。幅は最大 900px */
-  .form-col {
-    @apply max-w-[900px] space-y-3;
-  }
-  /* 設定の画面（型 D）：区画は 1 列、幅は最大 560px */
-  .settings-col {
-    @apply max-w-[560px] space-y-3;
-  }
-  .sec {
-    @apply rounded-md border border-border bg-background;
-  }
-  .sec-title {
-    @apply rounded-t-md border-b border-border bg-surface px-3 py-2 text-base font-bold text-value;
-  }
-  .sec-body {
-    @apply px-4 py-3;
-  }
-  .formbar {
-    @apply flex flex-wrap items-center justify-end gap-2 rounded-md border border-border bg-surface px-4 py-3;
-  }
-  .req {
-    @apply ml-1 font-bold text-foreground;
-  }
-  /* 検索の帯：主な条件を 1 行に（収まらなければ折り返す）。地は muted-strong */
-  .searchband {
-    @apply flex flex-wrap items-end gap-3 rounded-md bg-muted-strong px-4 py-3;
-  }
-  /* 患者バナー：氏名・患者ID・生年月日・受付番号・検査名。右端に札 */
-  .banner {
-    @apply flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md border border-border bg-surface px-4 py-2;
-  }
-  .banner-name {
-    @apply min-w-36;
-  }
-  .banner-n {
-    @apply text-base font-bold text-value;
-  }
-  .banner-k {
-    @apply text-xs text-label;
-  }
-  .banner-f {
-    @apply min-w-0;
-  }
-  .banner-f .l {
-    @apply text-xs text-label;
-  }
-  .banner-f .v {
-    @apply font-bold text-value;
-  }
-  .banner-end {
-    @apply ml-auto flex items-center gap-2;
-  }
-  .field {
-    @apply flex flex-col gap-1;
-  }
-  .field-label {
-    @apply text-xs text-label;
-  }
-  .input {
-    @apply h-8 rounded-sm border border-border-input bg-background px-2 text-sm text-foreground;
-  }
-  .table {
-    @apply w-full border-collapse text-left;
-  }
-  .table th {
-    @apply h-7 border-b border-border px-2 text-xs font-normal text-label;
-  }
-  .table td {
-    @apply border-b border-border px-2 py-1 align-top;
-  }
-  .table tbody tr {
-    @apply hover:bg-muted/50;
-  }
-  /* 氏名の列は、狭い幅でも1文字幅まで潰さない（下に印を出すため） */
-  .table .name-cell {
-    @apply min-w-32;
-  }
-  /* 撮影のルーチンの表：幅 390px 前後の画面でも、表の枠の中で横にはみ出さない幅にする。
-     はみ出すと、右端の [外す]・[戻す] を押したときに表が横に動き、先頭の列が切れる（10.5） */
+}
+.kv dd {
+  overflow-wrap: anywhere;
+}
+
+/* UID・パス：等幅・ラベルの色。コピーのボタンを横に置く（_uid.html） */
+.uid {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-label);
+  overflow-wrap: anywhere;
+}
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--color-label);
+  cursor: pointer;
+}
+.btn-icon:hover {
+  background: var(--color-muted);
+}
+.btn-icon.copied {
+  color: var(--color-link);
+}
+
+/* 「標準」などの小さな札（状態ではない印） */
+.badge {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--color-label);
+}
+
+/* 文の中のリンク */
+.link {
+  text-decoration: underline;
+}
+
+/* 一覧の表：氏名の列は、狭い幅でも 1 文字幅まで潰さない（下に印を出すため） */
+.tbl .name-cell {
+  min-width: 8rem;
+  white-space: normal;
+}
+/* 印や 2 行の値を持つ表は、行の中で折り返してよい */
+.tbl td.wrap {
+  white-space: normal;
+}
+/* 撮影のルーチンの表：幅 390px 前後の画面でも、表の枠の中で横にはみ出さない幅にする。
+   はみ出すと、右端の [外す]・[戻す] を押したときに表が横に動き、先頭の列が切れる（10.5） */
+.routine-table th,
+.routine-table td {
+  padding: 0 4px;
+}
+@media (min-width: 640px) {
   .routine-table th,
   .routine-table td {
-    @apply px-1 sm:px-2;
+    padding: 0 8px;
   }
-  .values {
-    @apply grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-[12rem_1fr];
-  }
-  .values dt {
-    @apply text-label;
-  }
-  .values dd {
-    @apply font-semibold break-all text-value;
-  }
-  .uid {
-    @apply font-mono text-xs font-normal break-all text-label;
-  }
-  .badge {
-    @apply mr-1 inline-block rounded-md border border-border px-1.5 text-xs whitespace-nowrap text-label;
-  }
-  /* 状態の札：枠と印と文字。色は枠と印だけに付ける（components.md の「状態の札」）。
-     data-k：plan 予定・待ち／wait 途中／ok 完了／ng 失敗／note 知らせ */
-  .st {
-    @apply inline-flex h-5 items-center gap-1 rounded-[3px] border bg-background px-1.5 text-xs whitespace-nowrap text-foreground;
-    border-color: var(--k, var(--color-border-input));
-  }
-  .st::before {
-    content: var(--g, "○");
-    color: var(--k, var(--color-label));
-    font-size: 10px;
-    line-height: 1;
-  }
-  .st[data-k="plan"] {
-    --g: "○";
-  }
-  .st[data-k="wait"] {
-    --g: "◔";
-    --k: var(--color-warning);
-  }
-  .st[data-k="ok"] {
-    --g: "✓";
-    --k: var(--color-success);
-  }
-  .st[data-k="ng"] {
-    --g: "✕";
-    --k: var(--color-danger);
-  }
-  .st[data-k="note"] {
-    --g: "◇";
-  }
-  /* 上の帯の「接続の状態」。閉じているときは全体の状態の札、押すと中身（.conn-pop）が出る */
-  .connbtn {
-    @apply inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-sm border border-border-input bg-background px-2 text-sm text-foreground;
-  }
-  body:has(#band:popover-open) .connbtn {
-    @apply bg-muted;
-  }
-  .conn-pop {
-    @apply rounded-lg border border-border bg-background p-3 text-sm text-foreground shadow-lg;
-  }
-  @supports selector(:popover-open) {
-    .conn-pop {
-      position: fixed;
-      inset: auto;
-      top: 3.25rem;
-      right: 0.5rem;
-      margin: 0;
-      width: min(24rem, calc(100vw - 1rem));
-    }
-  }
-  .conn-pop-title {
-    @apply mb-2 text-sm font-bold text-value;
-  }
-  .conn-list {
-    @apply grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2;
-  }
-  .conn-list dt {
-    @apply text-label;
-  }
-  .conn-list dd {
-    @apply flex flex-wrap items-center gap-x-2 gap-y-1 text-value;
-  }
-  /* 区画の見出しの行：右に操作を置ける形 */
-  .sec-head {
-    @apply flex flex-wrap items-center justify-between gap-3 rounded-t-md border-b border-border bg-surface px-3 py-2;
-  }
-  .sec-head h2 {
-    @apply text-base font-bold text-value;
-  }
-  /* 件数の行：一覧の上に 1 行。件数と補足 */
-  .count-row {
-    @apply mb-2 flex min-h-7 flex-wrap items-center justify-between gap-2;
-  }
-  .count-n {
-    @apply text-base font-bold text-value;
-  }
-  /* 空の状態：1 行目に事実、2 行目に次の手 */
-  .empty {
-    @apply flex flex-col items-center gap-2 rounded-md border border-dashed border-border-input p-8 text-center text-label;
-  }
-  .empty b {
-    @apply font-bold text-value;
-  }
-  /* 一覧の行の中のボタン（高さ 24px。主は置かない） */
-  .btn-row {
-    @apply h-6 px-2 text-xs;
-  }
-  /* 知らせ：左に 4px の状態の色、印と文字。文字は本文の色のまま */
-  .notice {
-    @apply flex items-start gap-2 rounded-sm border border-l-4 border-border bg-surface px-3 py-2 text-foreground;
-  }
-  .notice-ok {
-    @apply border-l-success;
-  }
-  .notice-ok .icon {
-    @apply text-success;
-  }
-  .notice-warn {
-    @apply border-l-warning;
-  }
-  .notice-warn .icon {
-    @apply text-warning;
-  }
-  .notice-error {
-    @apply border-l-danger;
-  }
-  .notice-error .icon {
-    @apply text-danger;
-  }
-  .link {
-    @apply underline;
-  }
-  /* 撮影のルーチンで外した行。消さずに薄く出し、打ち消し線を付ける（薄さだけに頼らない。
-     [戻す] のボタンは薄くしない） */
-  .series-removed td:not(:last-child) {
-    @apply line-through opacity-60;
-  }
-  /* 送信失敗の理由の1文。長くても最後の列を広げないように、幅の上限で1行に切る（10.6） */
-  .job-error-summary {
-    display: inline-block;
-    max-width: 16rem;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-  /* 送信ジョブの「詳細」。文字のボタンのまま、押せる範囲を 24px 四方より広くする */
-  .job-detail-button {
-    @apply inline-flex min-h-6 min-w-6 cursor-pointer items-center justify-center px-1 text-xs;
-  }
-  /* 一覧の行を選んだ印（色だけにしない：左の線を足す） */
-  .table tbody tr[aria-selected="true"] {
-    @apply bg-selected;
-    box-shadow: inset 3px 0 0 var(--color-link);
-  }
-  /* ワークリストの一覧：行のどこを押しても選べる。選んだ行は地と左の線と太字で示す（丸の印
-     だけにしない。10.4）。丸は 18px にする */
-  #pick tbody tr {
-    @apply cursor-pointer;
-  }
-  #pick tbody tr:has(input[name="key"]:checked) {
-    @apply bg-selected font-semibold;
-    box-shadow: inset 3px 0 0 var(--color-link);
-  }
-  #pick input[name="key"] {
-    @apply size-[18px] cursor-pointer align-middle;
-  }
-  /* ワークリストの操作の行：選んだ予約の患者バナーと「選んで撮影へ」。画面の下に留め、長い
-     一覧でも選んだ後に確かめて進める（10.4） */
-  .pickbar {
-    @apply sticky bottom-0 z-10 flex flex-col gap-2 rounded-md border border-border bg-background p-3 shadow-md;
-  }
-  /* 入力欄の下の 1 行（誤り・注意）。誤りは印と文字、枠は danger（components.md の入力欄） */
-  .field-error {
-    @apply mt-1 flex items-center gap-1 text-xs text-danger;
-  }
-  .field-error::before {
-    content: "✕";
-    font-size: 10px;
-  }
-  .input[aria-invalid="true"] {
-    @apply border-danger;
-  }
-  .field-warn {
-    @apply flex items-start gap-1 text-foreground;
-  }
-  .field-warn .icon {
-    @apply text-warning;
-  }
-  /* 撮影の画面の、操作の行の真上の「撮る患者と送信先」 */
-  #emergency-patient[data-locked] .input {
-    @apply bg-muted text-label;
-  }
-  /* 状態の要約：状態ごとの件数。押せる。押している状態は地と太字で示す */
-  .sumrow {
-    @apply flex flex-wrap gap-2;
-  }
-  .sum {
-    @apply inline-flex h-8 cursor-pointer items-center gap-2 rounded-sm border border-border-input bg-background px-3 text-sm text-foreground;
-  }
-  .sum[aria-pressed="true"] {
-    @apply bg-selected font-bold text-value;
-  }
-  .sum .nbr {
-    @apply font-bold text-value;
-  }
-  /* 一覧の下の、選んだ行の詳細（一覧との境目の線つき） */
-  .job-pane {
-    @apply flex flex-col gap-3 border-t border-border pt-3;
-  }
-  /* 確認の窓（標準の dialog）。画面の中央に出し、後ろは暗くする */
-  .dlg {
-    @apply m-auto w-[min(28rem,calc(100vw-2rem))] rounded-lg border border-border bg-background p-4 text-sm text-foreground shadow-lg;
-  }
-  .dlg::backdrop {
-    background: rgb(0 0 0 / 0.4);
-  }
-  /* 撮影・送信の途中の表示。htmx が要求の間、form に htmx-request を付ける。
-     form の data-action（app.js が押したボタンから入れる）で文言を選ぶ */
-  .busy {
-    @apply hidden items-center gap-2 rounded-md border border-border bg-surface px-3 py-2;
-  }
-  form.htmx-request[data-action="exam"] .busy-exam,
-  form.htmx-request[data-action="exam_send"] .busy-exam-send,
-  form.htmx-request .busy-send {
-    @apply flex;
-  }
+}
+/* 撮影のルーチンで外した行。消さずに薄く出し、打ち消し線を付ける（薄さだけに頼らない。
+   [戻す] のボタンは薄くしない） */
+.series-removed td:not(:last-child) {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+/* 送信失敗の理由の1文。長くても最後の列を広げないように、幅の上限で1行に切る（10.6） */
+.job-error-summary {
+  display: inline-block;
+  max-width: 16rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* 送信ジョブの「詳細」。文字のボタンのまま、押せる範囲を 24px 四方より広くする */
+.job-detail-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  color: var(--color-link);
+  cursor: pointer;
+}
+/* 一覧の下の、選んだ行の詳細（一覧との境目の線つき） */
+.job-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
 
-  /* Lucide のアイコン（app/web/static/icons/）。文字の色で塗る */
-  .icon {
-    display: inline-block;
-    flex: none;
-    width: 1rem;
-    height: 1rem;
-    background-color: currentColor;
-    mask: var(--icon) center / contain no-repeat;
-  }
-  .icon-activity { --icon: url("/static/icons/activity.svg"); }
-  .icon-check { --icon: url("/static/icons/check.svg"); }
-  .icon-copy { --icon: url("/static/icons/copy.svg"); }
-  .icon-info { --icon: url("/static/icons/info.svg"); }
-  .icon-moon { --icon: url("/static/icons/moon.svg"); }
-  .icon-refresh-cw { --icon: url("/static/icons/refresh-cw.svg"); }
-  .icon-search { --icon: url("/static/icons/search.svg"); }
-  .icon-send { --icon: url("/static/icons/send.svg"); }
-  .icon-sun { --icon: url("/static/icons/sun.svg"); }
-  .icon-triangle-alert { --icon: url("/static/icons/triangle-alert.svg"); }
+/* ワークリストの一覧：行のどこを押しても選べる。選んだ行は地と左の線と太字で示す（丸の印
+   だけにしない。10.4）。丸は 18px にする */
+#pick tbody tr {
+  cursor: pointer;
+}
+#pick tbody tr:has(input[name="key"]:checked) {
+  background: var(--color-selected-strong);
+  box-shadow: inset 3px 0 0 var(--color-primary);
+  font-weight: 600;
+}
+#pick input[name="key"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+/* ワークリストの操作の行：選んだ予約の患者バナーと「選んで撮影へ」。画面の下に留め、長い
+   一覧でも選んだ後に確かめて進める（10.4） */
+.pickbar {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-background);
+  box-shadow: 0 -2px 6px rgb(0 0 0 / 0.08);
+}
+/* 撮影の画面の文字コードの注意：印と文。選んだときだけ出す（hidden を効かせる） */
+.field-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  color: var(--color-foreground);
+}
+.field-warn[hidden] {
+  display: none;
+}
+.field-warn .icon {
+  color: var(--color-warning);
+  margin-top: 2px;
+}
+/* 緊急の患者を撮った後は、患者の欄を読むだけにする（app.js） */
+#emergency-patient[data-locked] .input,
+#emergency-patient[data-locked] .select {
+  background: var(--color-muted);
+  color: var(--color-label);
+}
 
-  /* 地の切り替えのボタンは、いまの地のアイコンを出す */
-  .show-dark {
-    display: none;
-  }
-  :root[data-theme="dark"] .show-light {
-    display: none;
-  }
-  :root[data-theme="dark"] .show-dark {
-    display: inline-block;
-  }
+/* 接続先の表：確認中は、押した行（「すべて接続確認」なら全部の行）の結果を「確認中」の札にする */
+.conn td.res .wait-mark {
+  display: none;
+}
+.conn tr:has(.htmx-request) td.res > :not(.wait-mark),
+#conn-sec:has(.hd .htmx-request) .conn td.res > :not(.wait-mark) {
+  display: none;
+}
+.conn tr:has(.htmx-request) td.res .wait-mark,
+#conn-sec:has(.hd .htmx-request) .conn td.res .wait-mark {
+  display: inline-flex;
+}
+.conn td.res .none {
+  color: var(--color-label);
+}
+/* 中身の無い知らせの置き場は、区画の間をあけない */
+#echo-notice:empty {
+  display: none;
+}
+
+/* 知らせの印（Lucide のアイコン）は状態の色 */
+.notice .icon {
+  color: var(--n, var(--color-label));
+  margin-top: 3px;
+}
+
+/* 撮影・送信の途中の表示。htmx が要求の間、form に htmx-request を付ける。
+   form の data-action（app.js が押したボタンから入れる）で文言を選ぶ */
+.busy {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+}
+form.htmx-request[data-action="exam"] .busy-exam,
+form.htmx-request[data-action="exam_send"] .busy-exam-send,
+form.htmx-request .busy-send {
+  display: flex;
+}
+
+/* Lucide のアイコン（app/web/static/icons/）。文字の色で塗る */
+.icon {
+  display: inline-block;
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  background-color: currentColor;
+  mask: var(--icon) center / contain no-repeat;
+}
+.icon-activity { --icon: url("/static/icons/activity.svg"); }
+.icon-camera { --icon: url("/static/icons/camera.svg"); }
+.icon-check { --icon: url("/static/icons/check.svg"); }
+.icon-copy { --icon: url("/static/icons/copy.svg"); }
+.icon-info { --icon: url("/static/icons/info.svg"); }
+.icon-list { --icon: url("/static/icons/list.svg"); }
+.icon-moon { --icon: url("/static/icons/moon.svg"); }
+.icon-panel-left { --icon: url("/static/icons/panel-left.svg"); }
+.icon-refresh-cw { --icon: url("/static/icons/refresh-cw.svg"); }
+.icon-search { --icon: url("/static/icons/search.svg"); }
+.icon-send { --icon: url("/static/icons/send.svg"); }
+.icon-server { --icon: url("/static/icons/server.svg"); }
+.icon-settings { --icon: url("/static/icons/settings.svg"); }
+.icon-sun { --icon: url("/static/icons/sun.svg"); }
+.icon-triangle-alert { --icon: url("/static/icons/triangle-alert.svg"); }
+
+/* 地の切り替えのボタンは、いまの地のアイコンを出す */
+.show-dark {
+  display: none;
+}
+:root[data-theme="dark"] .show-light {
+  display: none;
+}
+:root[data-theme="dark"] .show-dark {
+  display: inline-block;
 }

@@ -41,7 +41,7 @@ def test_pick_exam_send_and_confirm(client, worklist_scp, storage_scp) -> None:
         "送信完了：山田 太郎（P000001）の 3/3 画像を PACS_TEST へ送信しました（ジョブ 1）"
         in response.text
     )
-    assert "notice-ok" in response.text
+    assert 'role="status" data-k="ok"' in response.text
     assert len(storage_scp.received) == 3
     first = storage_scp.received[0]
     assert first.PatientID == "P000001"

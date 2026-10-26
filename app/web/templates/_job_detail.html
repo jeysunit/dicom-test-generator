@@ -2,14 +2,14 @@
 {% set alphabetic, ideographic, phonetic = job.patient_name|name_parts %}
 <section id="job-detail" class="job-pane" aria-label="ジョブ {{ job.id }} の詳細">
   {% if job.status == "sent" %}
-  <div role="status" class="notice notice-ok"><span class="icon icon-check" aria-hidden="true"></span><span>{{ job.destination }} へ {{ job.num_sent }} 枚を送信しました。{% if job.commitment == "confirmed" %}保管の確認も済んでいます。{% endif %}</span></div>
+  <div role="status" class="notice" data-k="ok"><span class="icon icon-check" aria-hidden="true"></span><span>{{ job.destination }} へ {{ job.num_sent }} 枚を送信しました。{% if job.commitment == "confirmed" %}保管の確認も済んでいます。{% endif %}</span></div>
   {% elif job.status == "failed" %}
-  <div role="alert" class="notice notice-error"><span class="icon icon-triangle-alert" aria-hidden="true"></span><span>{{ job.last_error|send_error_label }}</span></div>
+  <div role="alert" class="notice" data-k="err"><span class="icon icon-triangle-alert" aria-hidden="true"></span><span>{{ job.last_error|send_error_label }}</span></div>
   {% else %}
-  <div role="status" class="notice notice-warn"><span class="icon icon-info" aria-hidden="true"></span><span>{{ STATUS_LABELS.get(job.status, job.status) }}です（{{ job.num_sent }}/{{ job.num_files }} 枚）。</span></div>
+  <div role="status" class="notice" data-k="warn"><span class="icon icon-info" aria-hidden="true"></span><span>{{ STATUS_LABELS.get(job.status, job.status) }}です（{{ job.num_sent }}/{{ job.num_files }} 枚）。</span></div>
   {% endif %}
   <div class="grid gap-x-8 gap-y-2 lg:grid-cols-2">
-    <dl class="values">
+    <dl class="kv">
       <dt>ジョブ</dt><dd>{{ job.id }}</dd>
       <dt>患者</dt><dd>{{ ideographic or alphabetic or "—" }}{% if job.patient_id %}（{{ job.patient_id }}）{% endif %}</dd>
       <dt>検査日時<span class="text-xs">（{{ utc_offset() }}）</span></dt><dd>{{ job.study_datetime or "—" }}</dd>
@@ -18,7 +18,7 @@
       <dt>受付<span class="text-xs">（{{ utc_offset() }}）</span></dt><dd>{{ job.created_at|replace("T", " ") }}</dd>
       <dt>完了<span class="text-xs">（{{ utc_offset() }}）</span></dt><dd>{% if job.status == "sent" %}{{ job.updated_at|replace("T", " ") }}{% else %}—{% endif %}</dd>
     </dl>
-    <dl class="values">
+    <dl class="kv">
       {% if job.status == "failed" %}
       <dt>失敗の理由</dt><dd>{{ job.last_error|send_error_label }}<div class="font-mono">{{ job.last_error }}</div></dd>
       {% endif %}
@@ -32,10 +32,10 @@
   </div>
   <div class="flex flex-wrap items-center gap-2">
     {% if job.status in ("failed", "sent") %}
-    <button type="button" class="btn btn-outline" data-resend hx-post="/pacs/retry/{{ job.id }}" hx-target="#queue" hx-include="#queue-filter" hx-disabled-elt="#queue [data-resend], #retry-failed">
+    <button type="button" class="btn" data-resend hx-post="/pacs/retry/{{ job.id }}" hx-target="#queue" hx-include="#queue-filter" hx-disabled-elt="#queue [data-resend], #retry-failed">
       <span class="icon icon-refresh-cw" aria-hidden="true"></span>もう一度送る
     </button>
     {% endif %}
-    <button type="button" class="btn btn-outline" data-focus-key="detail-close" data-queue-action hx-sync="#queue:replace" hx-get="/pacs/queue" hx-target="#queue" hx-include="#queue-filter" hx-vals='{"selected": ""}'>閉じる</button>
+    <button type="button" class="btn" data-focus-key="detail-close" data-queue-action hx-sync="#queue:replace" hx-get="/pacs/queue" hx-target="#queue" hx-include="#queue-filter" hx-vals='{"selected": ""}'>閉じる</button>
   </div>
 </section>
