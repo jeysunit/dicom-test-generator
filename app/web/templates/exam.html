@@ -16,7 +16,9 @@
 {% with error = load_error %}{% include "_notice.html" %}{% endwith %}
 {% endif %}
 <div class="w-form">
-<form id="exam-form" hx-post="/exam" hx-target="#result" hx-disabled-elt="#actions button" hx-sync="this:drop" class="space-y-3">
+{# 送るのを止めたときの、誤りの件数の知らせ（app.js）。読み上げるのはこの 1 文だけで、欄の下の文は読み上げない #}
+<div id="error-summary" role="alert"><div class="notice" data-k="err" hidden><span class="icon icon-triangle-alert" aria-hidden="true"></span><span class="t"></span></div></div>
+<form id="exam-form" hx-post="/exam" hx-target="#result" hx-disabled-elt="#actions button" hx-sync="this:drop" class="space-y-3" novalidate>
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="hidden" id="exam-token" name="exam_token" value="{{ exam_token }}">
   {% if item %}
@@ -57,37 +59,62 @@
     <h2>緊急の患者（予約なし）</h2>
     <div class="in">
       <p class="mb-4 text-xs text-label">予約なし（受付番号は空）。予約から撮るときは、<a class="link" href="/worklist">ワークリスト</a>で予約を選んでください。姓と名は空白で区切って入れてください（DICOM の区切りの ^ に置き換えます）。</p>
-      <div class="grid gap-4 sm:grid-cols-3">
-        <label class="field">
-          <span class="l">患者ID<span class="req">必須</span></span>
-          <input type="text" name="patient_id" class="input" maxlength="16" required aria-required="true">
-        </label>
-        <label class="field">
-          <span class="l">氏名（英字。例 KINKYU TARO）<span class="req">必須</span></span>
-          <input type="text" name="name_alphabetic" class="input" maxlength="64" data-person-name required aria-required="true">
-        </label>
-        <label class="field">
-          <span class="l">氏名（漢字。例 緊急 太郎）</span>
-          <input type="text" name="name_ideographic" class="input" maxlength="64" data-person-name>
-        </label>
-        <label class="field">
-          <span class="l">氏名（かな）</span>
-          <input type="text" name="name_phonetic" class="input" maxlength="64" data-person-name>
-        </label>
-        <label class="field">
-          <span class="l">生年月日</span>
-          <input type="date" name="birth_date" class="input">
-        </label>
-        <label class="field">
-          <span class="l">性別</span>
-          <select name="sex" class="select">
-            {% for value, label in sex_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
-          </select>
-        </label>
-        <label class="field sm:col-span-3">
-          <span class="l">検査名</span>
-          <input type="text" name="study_description" class="input" maxlength="64">
-        </label>
+      {# 欄の誤りは、欄（label）の中の下に 1 行（.msg：印と文。parts.md の入力欄）。入力のたびにスクリプトが出し、サーバーで断った誤りも同じ行に結ぶ #}
+      {% macro error_line(name) %}<span class="msg" id="error-{{ name }}" hidden><span class="icon icon-triangle-alert ic" aria-hidden="true"></span><span class="t"></span></span>{% endmacro %}
+      <div class="grid gap-4 sm:grid-cols-3" data-charset-fallback="{{ config.character_set_fallback }}">
+        <div>
+          <label class="field">
+            <span class="l">患者ID<span class="req">必須</span></span>
+            <input type="text" name="patient_id" class="input" maxlength="64" required aria-required="true" autofocus data-check="patient-id" data-message="{{ input_messages['patient-id'] }}" data-required-message="{{ required_messages['patient_id'] }}" aria-describedby="error-patient_id">
+            {{ error_line("patient_id") }}
+          </label>
+        </div>
+        <div>
+          <label class="field">
+            <span class="l">氏名（英字。例 KINKYU TARO）<span class="req">必須</span></span>
+            <input type="text" name="name_alphabetic" class="input" maxlength="64" data-person-name required aria-required="true" data-check="alphabetic" data-message="{{ input_messages['alphabetic'] }}" data-required-message="{{ required_messages['name_alphabetic'] }}" aria-describedby="error-name_alphabetic">
+            {{ error_line("name_alphabetic") }}
+          </label>
+        </div>
+        <div>
+          <label class="field">
+            <span class="l">氏名（漢字。例 緊急 太郎）</span>
+            <input type="text" name="name_ideographic" class="input" maxlength="64" data-person-name data-check="ideographic" data-message="{{ input_messages['ideographic'] }}" aria-describedby="error-name_ideographic">
+            {{ error_line("name_ideographic") }}
+          </label>
+        </div>
+        <div>
+          <label class="field">
+            <span class="l">氏名（かな。例 キンキュウ タロウ）</span>
+            <input type="text" name="name_phonetic" class="input" maxlength="64" data-person-name data-check="phonetic" data-message="{{ input_messages['phonetic'] }}" data-note="{{ phonetic_converted_note }}"{% if config.patient_input_test_mode %} data-test-mode{% endif %} aria-describedby="error-name_phonetic note-name_phonetic">
+            {{ error_line("name_phonetic") }}
+          </label>
+          <p class="mt-2 text-xs text-label" id="note-name_phonetic" aria-live="polite" hidden></p>
+          <p class="mt-2 text-xs text-label" id="mode-name_phonetic">{% if config.patient_input_test_mode %}かなの確かめ：試験の形（半角カナ・ひらがなもそのまま送る）{% else %}かなの確かめ：全角カタカナ{% endif %}</p>
+        </div>
+        <div>
+          <label class="field">
+            <span class="l">生年月日</span>
+            <input type="date" name="birth_date" class="input" data-check="birth-date" data-today="{{ server_today }}" data-message="{{ input_messages['birth-date'] }}" aria-describedby="error-birth_date">
+            {{ error_line("birth_date") }}
+          </label>
+        </div>
+        <div>
+          <label class="field">
+            <span class="l">性別</span>
+            <select name="sex" class="select" aria-describedby="error-sex">
+              {% for value, label in sex_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+            {{ error_line("sex") }}
+          </label>
+        </div>
+        <div class="sm:col-span-3">
+          <label class="field">
+            <span class="l">検査名</span>
+            <input type="text" name="study_description" class="input" maxlength="64" aria-describedby="error-study_description">
+            {{ error_line("study_description") }}
+          </label>
+        </div>
       </div>
     </div>
   </section>

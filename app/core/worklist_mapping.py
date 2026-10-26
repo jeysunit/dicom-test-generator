@@ -34,6 +34,9 @@ STUDY_ID_MAX_LENGTH = 16
 STUDY_DESCRIPTION_MAX_LENGTH = 64
 CARRIER_SEX = "O"
 CARRIER_PATIENT_NAME = "SCHEDULED^PATIENT"
+# Patient の患者ID は 16 字まで（job の形）。予約・緊急の患者の患者ID は 64 字（LO）まで受けるので、
+# 仮の Patient には先頭の 16 字を入れる。画像の PatientID は apply_scheduled_context が全体で上書きする
+CARRIER_PATIENT_ID_LENGTH = 16
 _REPLACEMENT_CHAR = "�"
 _UID_VR = "UI"
 _BIRTH_DATE_LENGTH = 8
@@ -323,7 +326,7 @@ def build_carrier_patient(patient: ScheduledPatient, study_date: str) -> Patient
     仮の生年月日を検査日にし、性別が空なら O にする。
     """
     return Patient(
-        patient_id=patient.patient_id,
+        patient_id=patient.patient_id[:CARRIER_PATIENT_ID_LENGTH],
         # 氏名は apply_scheduled_context で写す。ここは ASCII の仮の名前にして、
         # 生成の側の文字コードの確かめに掛からないようにする
         patient_name=PatientName(alphabetic=CARRIER_PATIENT_NAME),

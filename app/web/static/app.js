@@ -65,6 +65,220 @@
       return;
     }
     input.value = input.value.trim().replace(/\s*\^\s*/g, "^").replace(/\s+/g, "^");
+    convertPhonetic(input);
+    // 補正した後の値で、欄の誤りの表示を確かめ直す（値の代入では input が起きない）
+    checkField(input);
+  });
+
+  // 緊急の患者の欄：入力のたびに確かめ、誤りの文を欄（label）の外の直下に 1 行出す。欄は
+  // aria-invalid と aria-describedby で結ぶ（欄の下の文は読み上げない。画面の上の知らせだけが
+  // 読み上げる）。文は data-message（サーバーと同じ文。app/core/patient_input.py）。ブラウザの
+  // 検証の吹き出しは使わない（form は novalidate）。送る前に全部を確かめ、誤りがあれば送らずに
+  // 最初の誤りの欄へ移る。漢字の氏名は、文字コードが JIS のときだけ JIS X 0208 の字かどうかを
+  // 確かめる（UTF-8 なら制限しない）。範囲は含みすぎてよく、最後の判定はサーバーが行う
+  var PATIENT_ID_CHARS = /^[\x20-\x7E]*$/;
+  var PATIENT_ID_DELIMITERS = /[\\^~&|]/;
+  var ALPHABETIC_CHARS = /^[A-Za-z' ^-]*$/;
+  // JIS X 0208 の字を全部含む範囲（含みすぎてよい。サーバーが正確に判定する。正しい氏名を
+  // 画面で止めないため、範囲を狭めない）
+  var IDEOGRAPHIC_RANGES = [
+    [0x20, 0x7e], [0xa0, 0xf7], [0x391, 0x3c9], [0x401, 0x451], [0x2010, 0x23ff],
+    [0x2500, 0x266f], [0x3000, 0x303f], [0x3041, 0x3096], [0x309b, 0x309e],
+    [0x30a1, 0x30fe], [0x4e00, 0x9fff], [0xff01, 0xff5e], [0xffe0, 0xffe5],
+  ];
+  function isIdeographic(value) {
+    return Array.from(value).every(function (char) {
+      var code = char.codePointAt(0);
+      return IDEOGRAPHIC_RANGES.some(function (range) {
+        return code >= range[0] && code <= range[1];
+      });
+    });
+  }
+  function today() {
+    var now = new Date();
+    var month = ("0" + (now.getMonth() + 1)).slice(-2);
+    var day = ("0" + now.getDate()).slice(-2);
+    return now.getFullYear() + "-" + month + "-" + day;
+  }
+  // 生年月日の上限：ブラウザの現地の今日と、画面を開いたときのサーバーの今日（設定のタイム
+  // ゾーン。data-today）の遅いほうではなく、進んでいるほうにする。サーバーより先に行きすぎて
+  // 止めない（UTC のブラウザで日本の朝に今日生まれを入れても通す）。最後の判定はサーバーが行う
+  function latestBirthDate(input) {
+    var server = input.getAttribute("data-today") || "";
+    var local = today();
+    return server > local ? server : local;
+  }
+  var PHONETIC_CHARS = /^[ァ-ヺ・-ヾ^ ]*$/;
+  var HIRAGANA = /[ぁ-ゖゝゞ]/g;
+  var HIRAGANA_TO_KATAKANA = 0x60;
+  function charsetIsJis(input) {
+    var form = input.form;
+    var select = form && form.elements.namedItem("charset");
+    var value = select ? select.value : "auto";
+    if (value === "auto" || value === "") {
+      var holder = form && form.querySelector("[data-charset-fallback]");
+      value = holder ? holder.getAttribute("data-charset-fallback") : "utf8";
+    }
+    return value === "jis" || value === "jis_kana";
+  }
+  function isAcceptable(input, kind, value) {
+    var text = value.replace(/\s+/g, " ");
+    if (kind === "patient-id") {
+      return PATIENT_ID_CHARS.test(value) && !PATIENT_ID_DELIMITERS.test(value);
+    }
+    if (kind === "alphabetic") {
+      return ALPHABETIC_CHARS.test(text);
+    }
+    if (kind === "ideographic") {
+      return !charsetIsJis(input) || isIdeographic(text);
+    }
+    if (kind === "phonetic") {
+      return input.hasAttribute("data-test-mode") || PHONETIC_CHARS.test(text);
+    }
+    if (kind === "birth-date") {
+      return !value || value <= latestBirthDate(input);
+    }
+    return true;
+  }
+  function showFieldError(input, message) {
+    var line = document.getElementById(input.getAttribute("data-error-line") || "error-" + input.name);
+    if (line) {
+      // 誤りの行は、印（.icon）と文（.t）。文の置き場が無い行は、行の全体を文にする
+      var text = line.querySelector ? line.querySelector(".t") : null;
+      (text || line).textContent = message;
+      line.hidden = !message;
+    }
+    if (message) {
+      input.setAttribute("aria-invalid", "true");
+    } else {
+      input.removeAttribute("aria-invalid");
+    }
+  }
+  // 送るのを止めたとき、画面の上に誤りの件数を知らせる（role="alert"。欄の下の文は読み上げない）
+  function showErrorSummary(count) {
+    var box = document.getElementById("error-summary");
+    var notice = box && box.querySelector(".notice");
+    var text = notice && notice.querySelector(".t");
+    if (!text) {
+      return;
+    }
+    text.textContent = count ? "入力に誤りが " + count + " 件あります。最初の誤りの欄に移ります。" : "";
+    notice.hidden = !count;
+  }
+  function checkField(input) {
+    var kind = input.getAttribute("data-check");
+    if (!kind) {
+      // 確かめの無い欄は、直したらサーバーで断られた誤りを消す
+      showFieldError(input, "");
+      return true;
+    }
+    var message = "";
+    if (input.required && input.value.trim() === "") {
+      message = input.getAttribute("data-required-message") || "";
+    } else if (!isAcceptable(input, kind, input.value)) {
+      message = input.getAttribute("data-message") || "";
+    }
+    showFieldError(input, message);
+    return !message;
+  }
+  // かな：ひらがなをカタカナに直し、直したことを欄の下に知らせる（試験の形では直さない）
+  function convertPhonetic(input) {
+    if (input.getAttribute("data-check") !== "phonetic" || input.hasAttribute("data-test-mode")) {
+      return;
+    }
+    var note = document.getElementById("note-" + input.name);
+    var converted = input.value.replace(HIRAGANA, function (char) {
+      return String.fromCharCode(char.charCodeAt(0) + HIRAGANA_TO_KATAKANA);
+    });
+    var changed = converted !== input.value;
+    input.value = converted;
+    if (note) {
+      note.textContent = changed ? input.getAttribute("data-note") || "" : "";
+      note.hidden = !changed;
+    }
+  }
+  document.addEventListener("input", function (event) {
+    var input = event.target;
+    if (input instanceof HTMLInputElement) {
+      var note = document.getElementById("note-" + input.name);
+      if (note && input.getAttribute("data-check") === "phonetic") {
+        note.hidden = true;
+      }
+      checkField(input);
+    }
+  });
+  document.addEventListener("change", function (event) {
+    var input = event.target;
+    if (input instanceof HTMLInputElement) {
+      checkField(input);
+    } else if (input instanceof HTMLSelectElement && input.name === "charset" && input.form) {
+      // 文字コードを変えたら、漢字の氏名を確かめ直す
+      var name = input.form.elements.namedItem("name_ideographic");
+      if (name instanceof HTMLInputElement) {
+        checkField(name);
+      }
+    }
+    // 確かめの無い欄（性別・検査名など）は、直したらサーバーで断られた誤りを消す
+    if (input instanceof HTMLSelectElement) {
+      showFieldError(input, "");
+    }
+  });
+  // 送る前に全部を確かめる。誤りがあれば送らず、最初の誤りの欄へ移る
+  document.addEventListener("htmx:beforeRequest", function (event) {
+    var form = event.detail.elt;
+    if (!(form instanceof HTMLFormElement) || form.id !== "exam-form") {
+      return;
+    }
+    var first = null;
+    var failed = 0;
+    showErrorSummary(0);
+    // 前の応答でサーバーが断った誤りは、送り直す前に消す（確かめの無い欄は、ここでしか消えない）
+    Array.prototype.forEach.call(form.elements, function (control) {
+      if (control.name && !control.hasAttribute("data-check")) {
+        showFieldError(control, "");
+      }
+    });
+    form.querySelectorAll("[data-check]").forEach(function (input) {
+      if (input instanceof HTMLInputElement) {
+        convertPhonetic(input);
+        if (!checkField(input)) {
+          failed += 1;
+          first = first || input;
+        }
+      }
+    });
+    if (first) {
+      event.preventDefault();
+      showErrorSummary(failed);
+      first.focus();
+      return;
+    }
+    // form は novalidate なので、ブラウザの検証は自分で呼ぶ。確かめの無い欄（数の欄）の範囲・
+    // 必須・整数を、ほかの欄と同じく欄の外の 1 行に出す（吹き出しは使わない）。日本語の文は
+    // 下の invalid が setCustomValidity で付けるので、validationMessage にその文が入る
+    var invalids = Array.prototype.filter.call(form.elements, function (control) {
+      return control.willValidate && !control.hasAttribute("data-check") && !control.checkValidity();
+    });
+    if (invalids.length) {
+      event.preventDefault();
+      invalids.forEach(function (control) {
+        showFieldError(control, control.validationMessage);
+      });
+      showErrorSummary(invalids.length);
+      invalids[0].focus();
+    }
+  });
+  // サーバーで断った誤りも、その欄の下に結ぶ
+  document.addEventListener("htmx:afterSwap", function (event) {
+    var notice = event.target.querySelector
+      ? event.target.querySelector("[data-error-field]")
+      : null;
+    var form = document.getElementById("exam-form");
+    var field = notice && form && form.elements.namedItem(notice.getAttribute("data-error-field"));
+    if (field && field.name) {
+      showFieldError(field, notice.textContent.trim());
+      field.focus();
+    }
   });
 
   // ワークリストの一覧：行を選んだら「再検索」を押せるようにする（docs/spec/12a の

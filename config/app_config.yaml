@@ -25,6 +25,8 @@ modality:
   output_dir: "output/modality"
   character_set: "auto"           # auto, utf8, jis, jis_kana（jis_kana の画像は Orthanc 1.13.0 が読み崩す。spec/12 の 14.4）
   character_set_fallback: "utf8"  # utf8, jis, jis_kana（auto は不可）
+  patient_input_test_mode: false  # true：緊急の患者の氏名（かな）を確かめず直さず出す（試験用）
+  timezone: "Asia/Tokyo"          # 緊急の患者の生年月日の「今日」を決める（IANA の名前）
   default_template: "ct_generic"
   default_profile: null           # 装置のプロファイル（docs/spec/13）。null は重ねない
   default_hospital: null

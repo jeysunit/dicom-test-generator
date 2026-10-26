@@ -261,9 +261,10 @@ class MppsManager:
         files: Sequence[str],
         ctx: ScheduledContext,
         output_dir: str,
+        finished: datetime,
     ) -> MppsOutcome:
-        """撮影の終わり：作った画像から N-SET を組んで送る."""
-        modification = build_n_set(state, files, datetime.now(), ctx.specific_character_set)
+        """撮影の終わり：作った画像から N-SET を組んで送る（`finished` は開始と同じ時計の今）."""
+        modification = build_n_set(state, files, finished, ctx.specific_character_set)
         outcome = self.finish(record_id, state, modification, output_dir)
         logger.info("MPPS %s: mpps_id=%s sent=%s", state, record_id, outcome.sent)
         return outcome

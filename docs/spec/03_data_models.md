@@ -295,7 +295,7 @@ class WorklistItem(BaseModel):
 
 class ScheduledPatient(BaseModel):
     """予約から転記する患者の値。生年月日・性別の空を許す（Patient とは別）."""
-    patient_id: str                   # 1〜16 文字（上限は Patient と同じ）
+    patient_id: str                   # 1〜64 文字（LO）。Patient の 16 文字より長いので、仮の Patient には先頭の 16 文字を入れる
     patient_name: str                 # PN の文字列
     issuer_of_patient_id: str = ""
     birth_date: str = ""              # 空 か YYYYMMDD（pattern で検証）

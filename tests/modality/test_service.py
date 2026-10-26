@@ -11,7 +11,6 @@ from app.core.exceptions import (
     GenerationError,
     WorklistItemGoneError,
     WorklistItemNotFoundError,
-    WorklistMappingError,
     WorklistQueryError,
     WorklistRefreshTimeoutError,
 )
@@ -102,15 +101,19 @@ def test_refresh_errors_tell_the_kind(tmp_path, worklist_scp) -> None:
     assert exc_info.value.details["accession_number"] == item.accession_number
 
 
-def test_failed_exam_removes_empty_output_folder(tmp_path, worklist_scp) -> None:
+def test_failed_exam_removes_empty_output_folder(tmp_path, worklist_scp, monkeypatch) -> None:
     """撮影が止まったら、作った出力のフォルダが空なら消す（docs/spec/12 の 7.2）."""
     service = _service(tmp_path, worklist_scp.port)
-    patient = ScheduledPatient(patient_id="E0001", patient_name="TAKAHASHI=髙橋")
+    patient = ScheduledPatient(patient_id="E0001", patient_name="TAKAHASHI")
 
-    with pytest.raises(WorklistMappingError):
-        service.exam(
-            ExamRequest(emergency_patient=patient, charset="jis", pixel_mode="simple_text")
-        )
+    def fail_before_any_file(config, scheduled=None, progress_callback=None):
+        Path(config.output_dir).mkdir(parents=True)
+        raise GenerationError("stopped before the first file")
+
+    monkeypatch.setattr(service._generator, "generate", fail_before_any_file)
+
+    with pytest.raises(GenerationError):
+        service.exam(ExamRequest(emergency_patient=patient, pixel_mode="simple_text"))
 
     output_root = tmp_path / "output"
     assert not output_root.exists() or list(output_root.iterdir()) == []

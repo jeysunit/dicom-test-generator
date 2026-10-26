@@ -50,6 +50,12 @@ from app.core.models import (
     WorklistItem,
 )
 from app.core.path_safety import ensure_within, safe_path_component
+from app.core.patient_input import (
+    current_date,
+    current_datetime,
+    validate_emergency_patient,
+    validate_study_description,
+)
 from app.core.person_name import GROUP_SEPARATOR, compose_person_name
 from app.core.uid_generator import UIDGenerator
 from app.core.validation_text import describe_validation_error
@@ -597,6 +603,10 @@ class ModalityService:
         """
         return compose_person_name(alphabetic, ideographic, phonetic)
 
+    def today(self) -> date:
+        """生年月日の上限にする今日（設定のタイムゾーン。OS の時計の地域に頼らない）."""
+        return current_date(self.config.timezone)
+
     def image_character_set(
         self, worklist_character_set: list[str] | None, choice: str | None = None
     ) -> list[str]:
@@ -782,7 +792,9 @@ class ModalityService:
         modality = self.template_modality(template)
         # 撮影は始めたときの装置で最後まで行う（途中で切り替えは受けない。ADR-0023）
         station = self.current_station()
-        now = datetime.now()
+        # 検査の日付・時刻は、設定のタイムゾーンの壁時計（OS の時計の地域に頼らない）。生年月日の
+        # 「今日」と同じ時計なので、今日生まれの患者の検査日が生年月日より前にならない
+        now = current_datetime(self.config.timezone)
         notices: list[str] = []
         choice = request.charset or self.config.character_set
         record: ExamRecord | None = None
@@ -838,9 +850,21 @@ class ModalityService:
                     ("検査の説明", request.study_description),
                 )
             )
+            # 画面・CLI を通らない呼び出し（API）にも、同じ確かめを効かせる。追加撮影は、前の撮影と
+            # 患者ID・氏名が一致するかで確かめる（以前に受け付けた値の患者にも追加撮影できるように）
             character_set = resolve_image_character_set(
                 choice, None, self.config.character_set_fallback
             )
+            if request.append:
+                validate_study_description(request.study_description)
+            else:
+                validate_emergency_patient(
+                    emergency_patient,
+                    request.study_description,
+                    character_set,
+                    test_mode=self.config.patient_input_test_mode,
+                    today=now.date(),
+                )
             previous = None
             if request.append:
                 previous = self.queue.emergency_exam(request.emergency_study_instance_uid)
@@ -922,7 +946,12 @@ class ModalityService:
             if mpps_id is not None:
                 # N-CREATE の後に撮影が止まった＝取り消し（DISCONTINUED。8.4.1）
                 mpps.finish_exam(
-                    mpps_id, STATE_DISCONTINUED, partial, ctx, str(output_dir)
+                    mpps_id,
+                    STATE_DISCONTINUED,
+                    partial,
+                    ctx,
+                    str(output_dir),
+                    current_datetime(self.config.timezone),
                 )
             raise
         files = sorted(str(path) for path in output_dir.glob("*.dcm"))
@@ -930,13 +959,23 @@ class ModalityService:
         if mpps_id is not None:
             try:
                 mpps_outcome = mpps.finish_exam(
-                    mpps_id, STATE_COMPLETED, files, ctx, str(output_dir)
+                    mpps_id,
+                    STATE_COMPLETED,
+                    files,
+                    ctx,
+                    str(output_dir),
+                    current_datetime(self.config.timezone),
                 )
             except IMAGE_READ_ERRORS:
                 # 作った画像のヘッダーを読めなければ、開いたままにせず DISCONTINUED を残す。
                 # DISCONTINUED は読めた画像だけを知らせる
                 mpps.finish_exam(
-                    mpps_id, STATE_DISCONTINUED, files, ctx, str(output_dir)
+                    mpps_id,
+                    STATE_DISCONTINUED,
+                    files,
+                    ctx,
+                    str(output_dir),
+                    current_datetime(self.config.timezone),
                 )
                 raise
         if profile_name:
