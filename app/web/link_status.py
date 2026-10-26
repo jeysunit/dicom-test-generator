@@ -21,11 +21,12 @@ LABEL_UNKNOWN = "未確認"
 # pynetdicom は、接続の拒否・時間切れ・ホスト名を引けないことを区別せずに返す
 REASON_NO_ANSWER = "応答がありません"
 REASON_REFUSED = "接続を断られました"
+REASON_PEER_FAILED = "相手が失敗を返しました"
 REASON_AE_TITLE = "AEタイトルが合いません"
 _ECHO_REASONS = (
     ("AEタイトル", REASON_AE_TITLE, "相手の側に、この装置の AEタイトルを登録してください。"),
     ("rejected by the peer", REASON_REFUSED, "相手の側の AEタイトルの登録と設定を確かめてください。"),
-    ("failed with status", REASON_REFUSED, "相手の側の記録を確かめてください。"),
+    ("failed with status", REASON_PEER_FAILED, "相手の側の記録を確かめてください。"),
 )
 _NEXT_NO_ANSWER = "相手が動いているかと、ホスト名とポート番号を確かめてください。"
 

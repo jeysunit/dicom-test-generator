@@ -7,7 +7,14 @@ import re
 from modality_peers import free_port
 from web_helpers import csrf_token, make_client, post_headers
 
-from app.web.link_status import REASON_AE_TITLE, REASON_NO_ANSWER, REASON_REFUSED, echo_reason
+from app.web.link_status import (
+    REASON_AE_TITLE,
+    REASON_NO_ANSWER,
+    REASON_PEER_FAILED,
+    REASON_REFUSED,
+    echo_reason,
+)
+from app.web.routes.pacs import CHECK_ALL_LOCK
 
 _CELL = re.compile(r'<td id="echo-1" class="res">(.*?)</td>', re.DOTALL)
 _WAIT = '<span class="st wait-mark" data-k="check">確認中</span>'
@@ -86,6 +93,22 @@ def test_worklist_row_and_check_all(tmp_path, worklist_scp, storage_scp) -> None
     assert table.count('data-k="ok">成功</span>') == 2
     # 上の帯も同じ応答で差し替える
     assert '<div id="band" popover hx-swap-oob="true"' in section
+    # 前の接続確認の知らせは、同じ応答で消す
+    assert '<div id="echo-notice" hx-swap-oob="true"></div>' in section
+
+
+def test_check_all_is_skipped_while_another_check_runs(tmp_path, worklist_scp, storage_scp) -> None:
+    client = make_client(tmp_path, worklist_scp.port, storage_scp.port)
+    token = csrf_token(client, "/pacs")
+
+    assert CHECK_ALL_LOCK.acquire(blocking=False)
+    try:
+        response = client.post("/pacs/check-all", headers=post_headers(token))
+    finally:
+        CHECK_ALL_LOCK.release()
+
+    assert response.status_code == 204
+    assert response.text == ""
 
 
 def test_echo_reason_phrases() -> None:
@@ -94,4 +117,4 @@ def test_echo_reason_phrases() -> None:
     )
     assert echo_reason("Association failed: association rejected by the peer")[0] == REASON_REFUSED
     assert echo_reason("相手が AEタイトル DTG を受け付けませんでした。")[0] == REASON_AE_TITLE
-    assert echo_reason("C-ECHO failed with status 0x0110")[0] == REASON_REFUSED
+    assert echo_reason("C-ECHO failed with status 0x0110")[0] == REASON_PEER_FAILED

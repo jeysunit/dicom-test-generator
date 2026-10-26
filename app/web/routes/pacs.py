@@ -152,10 +152,19 @@ def pacs_echo_worklist(request: Request) -> HTMLResponse:
 
 
 @router.post("/pacs/check-all", response_class=HTMLResponse)
-def pacs_check_all(request: Request) -> HTMLResponse:
-    """接続先の区画の「すべて接続確認」：区画を結果で差し替える."""
-    _check_all(request)
-    return render(request, "_conn_table.html", oob_band=True, **_conn_context(request))
+def pacs_check_all(request: Request) -> Response:
+    """接続先の区画の「すべて接続確認」：区画を結果で差し替え、前の知らせは消す.
+
+    上の帯の「接続確認」（/link/check）と同じ錠を取る。確かめている最中にもう一度届いたら、
+    重ねて送らず 204 で何も差し替えない。
+    """
+    if not CHECK_ALL_LOCK.acquire(blocking=False):
+        return Response(status_code=HTTP_NO_CONTENT)
+    try:
+        _check_all(request)
+    finally:
+        CHECK_ALL_LOCK.release()
+    return render(request, "_check_all_result.html", oob_band=True, **_conn_context(request))
 
 
 def _check_all(request: Request) -> None:
