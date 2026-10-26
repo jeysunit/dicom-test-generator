@@ -284,14 +284,23 @@
   // 身元不明の患者（docs/spec/12a の 10.5）。「仮の ID を作る」はサーバーに頭と日時の番号を作らせて
   // 患者ID の欄に入れる（同じ秒に2回押しても重ならないよう、番号はサーバーが決める）。
   // 「氏名が分からない」は、設定の漢字・かなの氏名を入れて欄を読むだけにし、英字は空にする
-  // （サーバーも同じ値に置き換える）。外すと、入れた値を消して欄を戻す
+  // （サーバーも同じ値に置き換える）。外すと、入れた値を消して欄を戻す。
+  // 撮った後の固定（下の lockEmergency）の間は、どちらも患者の欄に書かない。固定するたびに
+  // lockCount を数え、押した後に撮った（固定した）仮の ID の応答は捨てる
+  var lockCount = 0;
+  var UNKNOWN_NAME_FIELDS = ["name_alphabetic", "name_ideographic", "name_phonetic"];
+  function emergencyLocked() {
+    var section = document.getElementById("emergency-patient");
+    return !!section && section.hasAttribute("data-locked");
+  }
   document.addEventListener("click", function (event) {
     var button = event.target instanceof Element ? event.target.closest("[data-temporary-id]") : null;
     var form = button && button.closest("form");
     var field = form && form.elements.namedItem("patient_id");
-    if (!button || !(field instanceof HTMLInputElement)) {
+    if (!button || !(field instanceof HTMLInputElement) || emergencyLocked()) {
       return;
     }
+    var pressedAt = lockCount;
     var meta = document.querySelector('meta[name="csrf-token"]');
     button.disabled = true;
     fetch("/exam/temporary-id", {
@@ -305,21 +314,30 @@
         return response.json();
       })
       .then(function (body) {
+        if (pressedAt !== lockCount) {
+          return;
+        }
         field.value = body.patient_id;
         checkField(field);
         mirrorPatient(form);
         field.focus();
       })
       .catch(function () {
-        showFieldError(field, "仮の ID を作れませんでした。もう一度押してください。");
+        if (pressedAt === lockCount) {
+          showFieldError(field, "仮の ID を作れませんでした。もう一度押してください。");
+        }
       })
       .then(function () {
-        button.disabled = false;
+        button.disabled = emergencyLocked();
       });
   });
   document.addEventListener("change", function (event) {
     var box = event.target;
     if (!(box instanceof HTMLInputElement) || !box.hasAttribute("data-unknown-name") || !box.form) {
+      return;
+    }
+    if (emergencyLocked()) {
+      box.checked = !box.checked;
       return;
     }
     var values = {
@@ -856,16 +874,29 @@
   function examDone() {
     return document.querySelector("#actions [data-same-patient]") !== null;
   }
+  // 「仮の ID を作る」「氏名が分からない」も押せなくする（押せると患者ID・氏名が変わり、
+  // 「同じ患者でもう一度」で別の患者を撮れる）。戻すとき、「氏名が分からない」が入っていれば
+  // 氏名の欄は読むだけのまま残す（撮る前に見せた氏名と、サーバーが置き換える氏名を同じにする）
   function lockEmergency(locked) {
     var section = document.getElementById("emergency-patient");
     if (!section) {
       return;
     }
-    section.querySelectorAll("input, select").forEach(function (field) {
-      if (field instanceof HTMLSelectElement) {
+    if (locked) {
+      lockCount += 1;
+    }
+    var fields = section.querySelectorAll("input, select, button");
+    var unknownName = false;
+    fields.forEach(function (field) {
+      if (field instanceof HTMLInputElement && field.hasAttribute("data-unknown-name")) {
+        unknownName = field.checked;
+      }
+    });
+    fields.forEach(function (field) {
+      if (field instanceof HTMLSelectElement || field instanceof HTMLButtonElement || field.type === "checkbox") {
         field.disabled = locked;
       } else {
-        field.readOnly = locked;
+        field.readOnly = locked || (unknownName && UNKNOWN_NAME_FIELDS.indexOf(field.name) !== -1);
       }
     });
     section.toggleAttribute("data-locked", locked);
