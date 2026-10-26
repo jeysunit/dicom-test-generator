@@ -2,23 +2,30 @@
 
 from __future__ import annotations
 
+import logging
+import threading
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Form, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from app.core.exceptions import DICOMGeneratorError
 from app.modality.queue import QueueJob
 from app.modality.service import SendResult
 
 from ..display import STATUS_LABELS
+from ..link_status import echo_reason
 from ..rendering import error_text, render, service_of
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 QUEUE_POLL_TRIGGER = "every 2s"
+HTTP_NO_CONTENT = 204
+# すべての相手への接続確認は、同時に 1 つだけ（重ねて押されても C-ECHO を重ねて送らない）
+CHECK_ALL_LOCK = threading.Lock()
 
 # 検索の帯の「期間」。値は画面と要求の取り決め
 PERIOD_CHOICES = (("all", "すべて"), ("today", "今日"), ("week", "1 週間"))
@@ -76,15 +83,13 @@ FromForm = Annotated[QueueFilter, Depends(filter_from_form)]
 
 @router.get("/pacs", response_class=HTMLResponse)
 def pacs_page(request: Request) -> HTMLResponse:
-    service = service_of(request)
     # 状態の要約と再送信の件数は、画面を開くときは画面の側に置く（読み直しでは同梱して差し替える）
     context = {**_queue_context(request, QueueFilter()), "first_render": True}
     return render(
         request,
         "pacs.html",
         page="pacs",
-        destinations=service.config.destinations,
-        link_probes=dict(request.app.state.link_status.destinations),
+        **_conn_context(request),
         period_choices=PERIOD_CHOICES,
         poll_trigger=QUEUE_POLL_TRIGGER,
         **context,
@@ -96,17 +101,102 @@ def pacs_queue(request: Request, filters: FromQuery) -> HTMLResponse:
     return render(request, "_queue.html", **_queue_context(request, filters))
 
 
+@dataclass(frozen=True)
+class EchoNotice:
+    """接続確認を押した直後に区画の上に出す知らせ（何が起きたか・なぜか・次にすること）."""
+
+    ok: bool
+    text: str
+
+
+def _probe(request: Request, name: str | None) -> EchoNotice:
+    """1 つの相手（name が None ならワークリストの取得先）に C-ECHO を送り、最後の結果を覚える."""
+    link = request.app.state.link_status
+    service = service_of(request)
+    node = service.config.worklist if name is None else None
+    try:
+        if node is None:
+            node = service.config.destination(name)
+        result = service.echo(worklist=True) if name is None else service.echo(destination=name)
+    except DICOMGeneratorError as exc:
+        reason, next_step = echo_reason(str(exc))
+        # 英語の原文は画面に出さず、記録に残す（10.6）
+        logger.warning("C-ECHO failed: peer=%s reason=%s", name or "worklist", exc)
+        if name is None:
+            link.record_worklist(False, reason)
+        else:
+            link.record_destination(name, False, reason)
+        where = f"{name or 'ワークリストの取得先'}（{node.host}:{node.port}）" if node else str(name)
+        return EchoNotice(False, f"{where}に接続できませんでした。{reason}。{next_step}")
+    if name is None:
+        link.record_worklist(True)
+    else:
+        link.record_destination(name, True)
+    label = name or "ワークリストの取得先"
+    return EchoNotice(True, f"{label}（{node.host}:{node.port}）に接続できました（{result.elapsed_ms} ms）。")
+
+
 @router.post("/pacs/echo/{name}", response_class=HTMLResponse)
 def pacs_echo(request: Request, name: str) -> HTMLResponse:
-    link = request.app.state.link_status
+    notice = _probe(request, name)
+    probe = request.app.state.link_status.destinations.get(name)
+    # 上の帯の接続の状態も、同じ応答で差し替える（oob_band）
+    return render(request, "_echo_result.html", oob_band=True, probe=probe, notice=notice)
+
+
+@router.post("/pacs/echo-worklist", response_class=HTMLResponse)
+def pacs_echo_worklist(request: Request) -> HTMLResponse:
+    notice = _probe(request, None)
+    probe = request.app.state.link_status.worklist
+    return render(request, "_echo_result.html", oob_band=True, probe=probe, notice=notice)
+
+
+@router.post("/pacs/check-all", response_class=HTMLResponse)
+def pacs_check_all(request: Request) -> Response:
+    """接続先の区画の「すべて接続確認」：区画を結果で差し替え、前の知らせは消す.
+
+    上の帯の「接続確認」（/link/check）と同じ錠を取る。確かめている最中にもう一度届いたら、
+    重ねて送らず 204 で何も差し替えない。
+    """
+    if not CHECK_ALL_LOCK.acquire(blocking=False):
+        return Response(status_code=HTTP_NO_CONTENT)
     try:
-        result = service_of(request).echo(destination=name)
-    except DICOMGeneratorError as exc:
-        link.record_destination(name, False)
-        # 上の帯の接続の状態も、同じ応答で差し替える（oob_band）
-        return render(request, "_echo_result.html", oob_band=True, result=None, error=error_text(exc))
-    link.record_destination(name, True)
-    return render(request, "_echo_result.html", oob_band=True, result=result, error="")
+        _check_all(request)
+    finally:
+        CHECK_ALL_LOCK.release()
+    return render(request, "_check_all_result.html", oob_band=True, **_conn_context(request))
+
+
+def _check_all(request: Request) -> None:
+    _probe(request, None)
+    for destination in service_of(request).config.destinations:
+        _probe(request, destination.name)
+
+
+def _conn_context(request: Request) -> dict[str, Any]:
+    link = request.app.state.link_status
+    return {
+        "destinations": service_of(request).config.destinations,
+        "link_probes": dict(link.destinations),
+        "worklist_probe": link.worklist,
+    }
+
+
+@router.post("/link/check", response_class=HTMLResponse)
+def link_check(request: Request) -> Response:
+    """上の帯の接続の状態の「接続確認」：ワークリストの取得先とすべての送信先に C-ECHO を送る（10.3）.
+
+    確かめている最中にもう一度届いたら（別の応答で中身が差し替わり、押せるボタンが戻ったとき）、
+    重ねて送らず 204 で何も差し替えない。
+    """
+    if not CHECK_ALL_LOCK.acquire(blocking=False):
+        return Response(status_code=HTTP_NO_CONTENT)
+    try:
+        _check_all(request)
+    finally:
+        CHECK_ALL_LOCK.release()
+    # 中身（#band）を結果で差し替え、全体の状態の札も同じ応答で差し替える
+    return render(request, "_link_check.html", oob_band=True)
 
 
 @router.post("/pacs/retry/{job_id}", response_class=HTMLResponse)

@@ -1,6 +1,6 @@
 # PET/CT 全身（PT を先に送る並び）。pt_whole_body と同じシリーズで、PT のシリーズを先に
 # 作る。PACS が検査の Modality を最初に届いたシリーズの順に並べるとき、PT\CT と CT\PT の
-# 両方の検査を試せる（ADR-0030）。見出しの言葉は持たず、ルーチンを選んで使う
+# 両方の検査を試せる（ADR-0032）。見出しの言葉は持たず、ルーチンを選んで使う
 name: "pt_whole_body_pet_first"
 label: "全身 PET/CT（PT を先）"
 modality: "PT"

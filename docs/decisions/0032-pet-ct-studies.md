@@ -1,13 +1,13 @@
-# ADR-0030: PET/CT の検査は、同じ Study に CT と PT のシリーズを入れて作る
+# ADR-0032: PET/CT の検査は、同じ Study に CT と PT のシリーズを入れて作る
 
 - 状態：採用
 - 作成日：2026-10-25
-- 最終更新日：2026-10-26
+- 最終更新日：2026-10-27
 
 ## 背景
 
 PET/CT の検査は、1つの Study に CT のシリーズと PT のシリーズが入る。PACS では、
-検査の Modality が `PT\CT` や `CT\PT` と表示される。[ADR-0028](0028-mr-images.md) で
+検査の Modality が `PT\CT` や `CT\PT` と表示される。[ADR-0030](0030-mr-images.md) で
 シリーズごとにモダリティを持てるようになったが、PT の画像（PET Image Storage）と、
 CT と PT が混ざった検査の作り方は無かった。
 
@@ -20,7 +20,7 @@ CT と PT が混ざった検査の作り方は無かった。
 2. シリーズの種類に `pet_ac`（減弱補正あり）・`pet_nac`（補正なし）を足す。PT のシリーズ
    だけが持つ。ルーチンは `modality: PT` の形で、行ごとに `modality`（CT か PT）と `kind`
    を書く。CT の行の種類は CT のルーチンと同じ（位置決め・軸位・線量の画面。
-   [ADR-0029](0029-dose-report-sr.md) の線量の報告の SR にも替えられる）。CT のシリーズは
+   [ADR-0031](0031-dose-report-sr.md) の線量の報告の SR にも替えられる）。CT のシリーズは
    CT Image Storage、PT のシリーズは PET Image Storage で作る
 3. PET Image は PS3.3 A.21 の必須のモジュールを持つ。PET Series（Units は `BQML`、Series
    Type は `WHOLE BODY\IMAGE`、Corrected Image、Decay Correction `START`）・PET
@@ -43,7 +43,7 @@ CT と PT が混ざった検査の作り方は無かった。
 ## 検討した選択肢
 
 - CT のテンプレートに PT のシリーズを足す：テンプレートの Modality は予約と合わせる決まり
-  （ADR-0028）で、PT の予約（PET/CT は `PT` で予約されることが多い）を CT のテンプレートで
+  （ADR-0030）で、PT の予約（PET/CT は `PT` で予約されることが多い）を CT のテンプレートで
   撮れない
 - 予約のモダリティを `CT\PT` のような複数値にする：Scheduled Procedure Step の Modality
   (0008,0060) は 1 値（VM 1）。ModalitiesInStudy (0008,0061) は PACS が検査のシリーズから
@@ -72,5 +72,5 @@ CT と PT が混ざった検査の作り方は無かった。
 
 ## 関連
 
-- [ADR-0028](0028-mr-images.md)：シリーズのモダリティ
-- [ADR-0029](0029-dose-report-sr.md)：線量の報告の SR
+- [ADR-0030](0030-mr-images.md)：シリーズのモダリティ
+- [ADR-0031](0031-dose-report-sr.md)：線量の報告の SR

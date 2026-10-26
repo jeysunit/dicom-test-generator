@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -34,6 +33,7 @@ from app.core import (
     WorklistQueryError,
 )
 from app.core.abnormal_generator import ABNORMAL_LEVELS
+from app.core.patient_input import current_date
 
 EXIT_COMMUNICATION_ERROR = 5
 _COMMUNICATION_ERRORS = (
@@ -195,7 +195,7 @@ def _create_parser() -> argparse.ArgumentParser:
     )
     quick_parser.add_argument(
         "--study-date",
-        default=datetime.now().strftime("%Y%m%d"),
+        default=current_date().strftime("%Y%m%d"),
         help="検査日（YYYYMMDD）",
     )
     quick_parser.add_argument("--hospital", help="病院テンプレート名")

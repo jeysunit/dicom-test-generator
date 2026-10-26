@@ -1,4 +1,4 @@
-"""PET/CT：同じ検査に CT のシリーズと PT のシリーズが入る（ADR-0030）."""
+"""PET/CT：同じ検査に CT のシリーズと PT のシリーズが入る（ADR-0032）."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""PET/CT の予約・緊急の患者の撮影（ADR-0030）."""
+"""PET/CT の予約・緊急の患者の撮影（ADR-0032）."""
 
 from __future__ import annotations
 

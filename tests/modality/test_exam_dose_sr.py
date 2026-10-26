@@ -1,4 +1,4 @@
-"""撮影の線量の報告：画面・SR・両方（ADR-0029）."""
+"""撮影の線量の報告：画面・SR・両方（ADR-0031）."""
 
 from __future__ import annotations
 

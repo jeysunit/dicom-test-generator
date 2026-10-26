@@ -40,7 +40,8 @@ def test_selected_row_shows_its_detail_below_the_table(client) -> None:
     assert html.index("</table>") < html.index('<section id="job-detail"')
     assert 'aria-label="ジョブ 2 の詳細"' in html
     assert html.count('aria-selected="true"') == 1
-    assert re.search(r'<tr aria-selected="true">\s*<td>2</td>', html)
+    # 一覧にジョブの番号の列は無い（詳細に出す）。選んだ行は、その行の [詳細] で見分ける
+    assert re.search(r'<tr aria-selected="true">(?:(?!</tr>).)*data-focus-key="detail-2"', html, re.S)
     detail = html.split('<section id="job-detail"', 1)[1]
     for label in ("元のファイル", "試行回数", "名乗る AEタイトル"):
         assert f"<dt>{label}</dt>" in detail

@@ -1,4 +1,4 @@
-"""PET/CT のルーチンの形と、線量の報告の作り方との組み合わせ（ADR-0030）."""
+"""PET/CT のルーチンの形と、線量の報告の作り方との組み合わせ（ADR-0032）."""
 
 from __future__ import annotations
 

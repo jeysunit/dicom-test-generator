@@ -1,7 +1,7 @@
 # Modality Template: petct_generic
 # 一般の PET/CT のテンプレート。装置の名前は架空（docs/decisions/0016-generic-template-names.md）。
 # モダリティは PT（予約の Scheduled Procedure Step の Modality と合わせる）。同じ検査に
-# CT のシリーズ（CT Image Storage）と PT のシリーズ（PET Image Storage）が入る（ADR-0030）
+# CT のシリーズ（CT Image Storage）と PT のシリーズ（PET Image Storage）が入る（ADR-0032）
 
 info:
   name: "petct_generic"

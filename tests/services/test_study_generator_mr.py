@@ -1,4 +1,4 @@
-"""MR の画像（MR Image Storage。ADR-0028）."""
+"""MR の画像（MR Image Storage。ADR-0030）."""
 
 from __future__ import annotations
 

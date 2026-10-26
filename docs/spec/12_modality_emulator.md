@@ -464,6 +464,9 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID (0008,1155)
 - 値 1 が空の複数値は、値 1 を ISO 2022 IR 6 とみなす（PS3.3 C.12.1.1.2）。
   既存の病院テンプレートの `ISO 2022 IR 6\ISO 2022 IR 87` も `jis` と同じ意味で
   受け付ける
+- Orthanc 1.13.0 は、`jis_kana` の画像（最初の値が `ISO 2022 IR 13`）の漢字・かなを
+  読み崩す。`auto` でワークリストの応答が `jis_kana` のときも同じ。Orthanc へ送る
+  ときは `utf8` か `jis` を選ぶ（[14.4](#144-orthanc-に画像を送るときの文字コード)）
 - 画面の上部のバーに、取得したワークリストの文字コードと、画像に使う文字コードを
   並べて表示する（例：「ワークリスト：ISO_IR 192 → 画像：ISO 2022 IR 13\ISO 2022
   IR 87」）
@@ -823,6 +826,11 @@ modality:
   output_dir: "output/modality"
   character_set: "auto"         # auto, utf8, jis, jis_kana
   character_set_fallback: "utf8"  # utf8, jis, jis_kana（auto は不可）
+  patient_input_test_mode: false  # true：緊急の患者の氏名（かな）を確かめず直さず出す（12a の 10.5）
+  timezone: "Asia/Tokyo"        # 緊急の患者の生年月日の「今日」を決める（IANA の名前。12a の 10.5）
+  temporary_patient_id_prefix: "TMP"      # 「仮の ID を作る」の患者ID の頭（頭 + 日時。12a の 10.5）
+  unknown_name_ideographic: "不明^不明"   # 「氏名が分からない」の氏名（漢字）
+  unknown_name_phonetic: "フメイ^フメイ"  # 同（かな）。英字は空にする（ADR-0029）
   default_template: "ct_generic"
   default_profile: null         # 装置プロファイル（spec/13）。null は重ねない
   default_hospital: null        # 病院テンプレート（null で使わない）
@@ -953,6 +961,41 @@ DTG への影響：
   いない間は「確認待ち」のまま残る
 - 異常のデータで UID を壊した画像は、壊れた UID のまま N-ACTION・Performed
   Series Sequence に入れる（相手の拒否の仕方をテストするのに使える）
+
+### 14.4 Orthanc に画像を送るときの文字コード
+
+2026-10-25 に、Orthanc 1.13.0（`orthancteam/orthanc` の Docker イメージ 26.9.1）の
+ソースと、本物の Orthanc に画像を送る試験で確かめた。
+
+Orthanc は、画像の Specific Character Set (0008,0005) が複数の値のとき、**空でない
+最初の値だけで値の全体を読み**、ISO 2022 のエスケープシーケンスは文字集合の切り替えに
+使わず取り除く。そのため、最初の値が空でない組は、漢字・かな・ハングルが崩れる。
+崩れた値は Orthanc の REST・DICOMweb の答えにも検索の索引にも入る。画像は PS3.5 の
+H.3.2 の例と同じ規格どおりの形で、pydicom と DCMTK は正しく読む。読み崩すのは Orthanc の側。
+
+| 画像の Specific Character Set | DTG での選び方 | Orthanc 1.13.0 |
+|-------------------------------|----------------|----------------|
+| `ISO_IR 192` | `utf8` | 崩れない |
+| `\ISO 2022 IR 87`（値 1 は空） | `jis` | 崩れない |
+| `ISO 2022 IR 13\ISO 2022 IR 87` | `jis_kana`、`auto` で応答が `jis_kana` のとき | **崩れる**（IR 13 を Shift_JIS として全体を読むので、JIS X 0208 の 2 バイトが ASCII の字のまま残る） |
+| `ISO 2022 IR 6\ISO 2022 IR 87` | Job の `character_set` の既定、`hospital_a`（[06_dicom_rules.md](06_dicom_rules.md) の 7.3） | **崩れる**（最初が明示の ASCII なので、エスケープを取り除くだけで `$B…(B` が残る） |
+
+DTG への影響：
+
+- Orthanc に画像を送る試験では、文字コードに `utf8` か `jis` を選ぶ。`auto` は、
+  ワークリストの応答が `jis_kana` のとき `jis_kana` になるので、RIS の予約も
+  `utf8` か `jis` にする。`jis_kana` は、規格どおりの装置の出力を試すために残す
+- Job から作る画像（`character_set` を書かない既定と `hospital_a`）は
+  `ISO 2022 IR 6\ISO 2022 IR 87` になり、Orthanc で崩れる。Orthanc へ送る Job では
+  `specific_character_set` を `\ISO 2022 IR 87` か `ISO_IR 192` にする
+- Orthanc の C-FIND の答えは、`DefaultEncoding`（指定しなければ `ISO_IR 100`）で返り、
+  漢字・かな・ハングルが消える（どの文字コードの画像でも）。ワークリストの作成の制約
+  （14.1）とは別の制約
+- 確かめて、崩れないもの：`ISO_IR 13` だけ（半角カナ）、`\ISO 2022 IR 149`
+  （ハングル）。崩れるのは、最初の値が空でない組（`ISO 2022 IR 6\ISO 2022 IR 149` を確かめた）
+- HL7 の MSH-18 は、DTG が送る経路が無いので関わらない（確かめた）
+- 本物の Orthanc での確かめは、tsunagi-dicom の結合の試験（本物の Orthanc と DCMTK）で
+  行った。Orthanc の `DefaultEncoding` を替えたときの C-FIND の答えは測っていない
 
 ---
 

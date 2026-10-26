@@ -1,4 +1,4 @@
-"""CT の線量の報告（X-Ray Radiation Dose SR）の内容の木（ADR-0029）.
+"""CT の線量の報告（X-Ray Radiation Dose SR）の内容の木（ADR-0031）.
 
 PS3.16 の TID 10011「CT Radiation Dose」の、必須（M）と、必須の条件を満たす（MC）
 行だけを作る最小の形。TID 10012「CT Accumulated Dose Data」と、撮影ごとの

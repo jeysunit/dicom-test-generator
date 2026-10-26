@@ -68,11 +68,11 @@ class StudyConfig(BaseModel):
     num_series: int = Field(..., ge=1, le=100, description="シリーズ数")
 
 
-# dose_report は線量の画面（Secondary Capture）、dose_sr は線量の報告の SR（ADR-0029）
+# dose_report は線量の画面（Secondary Capture）、dose_sr は線量の報告の SR（ADR-0031）
 CTSeriesKind = Literal["axial", "localizer", "coronal", "sagittal", "dose_report", "dose_sr"]
-# MR のシリーズの種類。位置決めは CT と同じ "localizer"（ADR-0028）
+# MR のシリーズの種類。位置決めは CT と同じ "localizer"（ADR-0030）
 MRSeriesKind = Literal["localizer", "acquisition", "derived"]
-# PET のシリーズの種類：減弱補正あり（AC）・補正なし（NAC）の再構成（ADR-0030）
+# PET のシリーズの種類：減弱補正あり（AC）・補正なし（NAC）の再構成（ADR-0032）
 PTSeriesKind = Literal["pet_ac", "pet_nac"]
 SeriesKind = Literal[
     "axial", "localizer", "coronal", "sagittal", "dose_report", "dose_sr", "acquisition",
@@ -116,7 +116,7 @@ class SeriesConfig(BaseModel):
     # 位置決めの画像ごとの方向。足りなければ先頭から繰り返す
     views: list[LocalizerView] = Field(default_factory=lambda: ["frontal"], min_length=1)
     contrast: bool = Field(False, description="造影のシリーズ（Contrast/Bolus Agent を入れる）")
-    # このシリーズのモダリティ (0008,0060)。None はテンプレートのモダリティ（ADR-0028）
+    # このシリーズのモダリティ (0008,0060)。None はテンプレートのモダリティ（ADR-0030）
     modality: SeriesModality | None = Field(None, description="シリーズのモダリティ")
     # MR のシリーズの断面と撮像（MR 以外では使わない）
     plane: MRPlane = Field("axial", description="MR の断面")
@@ -137,7 +137,7 @@ class SeriesConfig(BaseModel):
             hint = f"; it needs modality {expected}" if expected is not None else ""
             raise ValueError(f"kind {self.kind!r} is not an {self.modality} series kind{hint}")
         if self.modality in ("MR", "PT") and self.contrast:
-            # MR・PET の造影（Contrast/Bolus Module）はまだ作らない（ADR-0028）
+            # MR・PET の造影（Contrast/Bolus Module）はまだ作らない（ADR-0030）
             raise ValueError(f"contrast is not supported for {self.modality} series")
         return self
 
@@ -283,7 +283,7 @@ class GenerationConfig(BaseModel):
 
 # --- モダリティのダミー（docs/spec/12_modality_emulator.md・docs/spec/03_data_models.md）---
 
-PATIENT_ID_MAX_LENGTH = 16
+PATIENT_ID_MAX_LENGTH = 64
 DicomJsonSequences = dict[str, list[dict]]
 
 

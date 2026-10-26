@@ -97,7 +97,7 @@ class SeriesConfig(BaseModel):
 | `kind` | `axial`・`localizer`・`coronal`・`sagittal`・`dose_report`・`dose_sr`、MR は `localizer`・`acquisition`・`derived`、PT は `pet_ac`・`pet_nac` | `axial` | シリーズの種類（spec/06 の 5.1〜5.4） |
 | `views` | `frontal`・`lateral` の並び | `["frontal"]` | 位置決めの画像ごとの方向。足りなければ繰り返す |
 | `contrast` | bool | false | 造影のシリーズ |
-| `modality` | `CT`・`MR`・`SR`・`PT`・None | None | このシリーズのモダリティ。None はテンプレートのモダリティ（`dose_sr` は `SR`。[ADR-0028](../decisions/0028-mr-images.md)・[ADR-0029](../decisions/0029-dose-report-sr.md)・[ADR-0030](../decisions/0030-pet-ct-studies.md)） |
+| `modality` | `CT`・`MR`・`SR`・`PT`・None | None | このシリーズのモダリティ。None はテンプレートのモダリティ（`dose_sr` は `SR`。[ADR-0030](../decisions/0030-mr-images.md)・[ADR-0031](../decisions/0031-dose-report-sr.md)・[ADR-0032](../decisions/0032-pet-ct-studies.md)） |
 | `plane` | `axial`・`sagittal`・`coronal`・`three_plane` | `axial` | MR の断面。`three_plane` は画像を3等分して axial・coronal・sagittal の順にする |
 | `sequence` | `SE`・`IR`・`GR`・`EP` | `SE` | MR の Scanning Sequence |
 | `acquisition_type` | `2D`・`3D` | `2D` | MR Acquisition Type |
@@ -308,7 +308,7 @@ class WorklistItem(BaseModel):
 
 class ScheduledPatient(BaseModel):
     """予約から転記する患者の値。生年月日・性別の空を許す（Patient とは別）."""
-    patient_id: str                   # 1〜16 文字（上限は Patient と同じ）
+    patient_id: str                   # 1〜64 文字（LO）。Patient の 16 文字より長いので、仮の Patient には先頭の 16 文字を入れる
     patient_name: str                 # PN の文字列
     issuer_of_patient_id: str = ""
     birth_date: str = ""              # 空 か YYYYMMDD（pattern で検証）

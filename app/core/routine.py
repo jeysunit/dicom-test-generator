@@ -65,13 +65,13 @@ class MRRoutineSeries(_RoutineSeries):
     slice_thickness: float = Field(..., gt=0)
     # スライス間のすきま（mm）。画像の間隔は スライス厚 + すきま
     spacing: float = Field(0.0, ge=0)
-    # 撮像の種類（Scanning Sequence・MR Acquisition Type。ADR-0028）
+    # 撮像の種類（Scanning Sequence・MR Acquisition Type。ADR-0030）
     sequence: MRSequence = "SE"
     acquisition_type: MRAcquisitionType = "2D"
 
 
 class PETCTRoutineSeries(_RoutineSeries):
-    """PET/CT の1シリーズ。`modality` が CT なら CT の種類、PT なら PET の種類（ADR-0030）.
+    """PET/CT の1シリーズ。`modality` が CT なら CT の種類、PT なら PET の種類（ADR-0032）.
 
     PET/CT の検査は、同じ検査（Study）に CT のシリーズと PT のシリーズが入る。
     """
@@ -279,7 +279,7 @@ def assign_series_numbers(
     return numbers
 
 
-# 線量の報告の作り方（ADR-0029）。screen は線量の画面（Secondary Capture）、sr は線量の
+# 線量の報告の作り方（ADR-0031）。screen は線量の画面（Secondary Capture）、sr は線量の
 # 報告の SR（X-Ray Radiation Dose SR）、both は両方
 DoseReportMode = Literal["screen", "sr", "both"]
 DEFAULT_DOSE_REPORT_MODE: DoseReportMode = "screen"
