@@ -1123,6 +1123,10 @@ class ModalityService:
         """送信ジョブの一覧。患者ID・氏名・検査日時は、元のファイルの先頭から読んで足す."""
         return [self._with_summary(job) for job in self.queue.list_jobs(status)]
 
+    def queue_job(self, job_id: int) -> QueueJob:
+        """送信ジョブ 1 件。一覧と同じく、患者ID・氏名・検査日時を元のファイルから足す."""
+        return self._with_summary(self.queue.get_job(job_id))
+
     def _with_summary(self, job: QueueJob) -> QueueJob:
         summary = self._job_summaries.get(job.id)
         if summary is None:

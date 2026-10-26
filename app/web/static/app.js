@@ -284,14 +284,23 @@
   // 身元不明の患者（docs/spec/12a の 10.5）。「仮の ID を作る」はサーバーに頭と日時の番号を作らせて
   // 患者ID の欄に入れる（同じ秒に2回押しても重ならないよう、番号はサーバーが決める）。
   // 「氏名が分からない」は、設定の漢字・かなの氏名を入れて欄を読むだけにし、英字は空にする
-  // （サーバーも同じ値に置き換える）。外すと、入れた値を消して欄を戻す
+  // （サーバーも同じ値に置き換える）。外すと、入れた値を消して欄を戻す。
+  // 撮った後の固定（下の lockEmergency）の間は、どちらも患者の欄に書かない。固定するたびに
+  // lockCount を数え、押した後に撮った（固定した）仮の ID の応答は捨てる
+  var lockCount = 0;
+  var UNKNOWN_NAME_FIELDS = ["name_alphabetic", "name_ideographic", "name_phonetic"];
+  function emergencyLocked() {
+    var section = document.getElementById("emergency-patient");
+    return !!section && section.hasAttribute("data-locked");
+  }
   document.addEventListener("click", function (event) {
     var button = event.target instanceof Element ? event.target.closest("[data-temporary-id]") : null;
     var form = button && button.closest("form");
     var field = form && form.elements.namedItem("patient_id");
-    if (!button || !(field instanceof HTMLInputElement)) {
+    if (!button || !(field instanceof HTMLInputElement) || emergencyLocked()) {
       return;
     }
+    var pressedAt = lockCount;
     var meta = document.querySelector('meta[name="csrf-token"]');
     button.disabled = true;
     fetch("/exam/temporary-id", {
@@ -305,20 +314,30 @@
         return response.json();
       })
       .then(function (body) {
+        if (pressedAt !== lockCount) {
+          return;
+        }
         field.value = body.patient_id;
         checkField(field);
+        mirrorPatient(form);
         field.focus();
       })
       .catch(function () {
-        showFieldError(field, "仮の ID を作れませんでした。もう一度押してください。");
+        if (pressedAt === lockCount) {
+          showFieldError(field, "仮の ID を作れませんでした。もう一度押してください。");
+        }
       })
       .then(function () {
-        button.disabled = false;
+        button.disabled = emergencyLocked();
       });
   });
   document.addEventListener("change", function (event) {
     var box = event.target;
     if (!(box instanceof HTMLInputElement) || !box.hasAttribute("data-unknown-name") || !box.form) {
+      return;
+    }
+    if (emergencyLocked()) {
+      box.checked = !box.checked;
       return;
     }
     var values = {
@@ -625,7 +644,10 @@
     // 一覧・予約の詳細（行を選んだとき）・接続確認の結果は、差し替える先にそのまま出す
     if (
       target &&
-      (target.id === "results" || target.id === "detail" || target.id.indexOf("echo-") === 0)
+      (target.id === "results" ||
+        target.id === "detail" ||
+        target.id === "pick-banner" ||
+        target.id.indexOf("echo-") === 0)
     ) {
       return target;
     }
@@ -803,5 +825,111 @@
       }
     }
     focusedRole = null;
+  });
+
+  // 撮影の画面の「文字コード（画像）」：JIS（半角カナと漢字）を選んだときだけ注意を出す（10.5）
+  document.addEventListener("change", function (event) {
+    var select = event.target;
+    if (!(select instanceof HTMLSelectElement) || select.id !== "exam-charset") {
+      return;
+    }
+    document.querySelectorAll("[data-charset-warning]").forEach(function (note) {
+      note.hidden = note.getAttribute("data-charset-warning").split(" ").indexOf(select.value) < 0;
+    });
+  });
+
+  // 緊急の患者：入れた値を、操作の行の真上の「撮る患者と送信先」に写す（10.5）
+  var SEX_TEXT = { M: "男", F: "女", O: "その他" };
+  function mirrorPatient(form) {
+    var target = document.getElementById("exam-target");
+    if (!target || !form) {
+      return;
+    }
+    target.querySelectorAll("[data-mirror]").forEach(function (cell) {
+      var input = form.elements.namedItem(cell.getAttribute("data-mirror"));
+      var value = input ? input.value.replace(/\^/g, " ").replace(/\s+/g, " ").trim() : "";
+      cell.textContent = value || cell.getAttribute("data-empty");
+    });
+    var birth = target.querySelector("[data-mirror-birth]");
+    if (birth) {
+      var date = form.elements.namedItem("birth_date");
+      var sex = form.elements.namedItem("sex");
+      var day = date && date.value ? date.value.replace(/-/g, "/") : "生年月日なし";
+      var sexText = sex ? SEX_TEXT[sex.value] : "";
+      birth.textContent = sexText ? day + "（" + sexText + "）" : day;
+    }
+  }
+  ["input", "change", "focusout"].forEach(function (type) {
+    document.addEventListener(type, function (event) {
+      var input = event.target;
+      if (input.closest && input.closest("#emergency-patient")) {
+        mirrorPatient(input.form);
+      }
+    });
+  });
+
+  // 緊急の患者を撮った後：患者の欄を読むだけにする（前の患者の値のまま次の患者を撮らない）。
+  // 「同じ患者でもう一度」で戻し、「次の緊急の患者」は空の欄の画面を開く（10.5）。
+  // 撮った後にテンプレート・装置を選び直しても、撮った後の操作の行のままにする（done を送る）
+  function examDone() {
+    return document.querySelector("#actions [data-same-patient]") !== null;
+  }
+  // 「仮の ID を作る」「氏名が分からない」も押せなくする（押せると患者ID・氏名が変わり、
+  // 「同じ患者でもう一度」で別の患者を撮れる）。戻すとき、「氏名が分からない」が入っていれば
+  // 氏名の欄は読むだけのまま残す（撮る前に見せた氏名と、サーバーが置き換える氏名を同じにする）
+  function lockEmergency(locked) {
+    var section = document.getElementById("emergency-patient");
+    if (!section) {
+      return;
+    }
+    if (locked) {
+      lockCount += 1;
+    }
+    var fields = section.querySelectorAll("input, select, button");
+    var unknownName = false;
+    fields.forEach(function (field) {
+      if (field instanceof HTMLInputElement && field.hasAttribute("data-unknown-name")) {
+        unknownName = field.checked;
+      }
+    });
+    fields.forEach(function (field) {
+      if (field instanceof HTMLSelectElement || field instanceof HTMLButtonElement || field.type === "checkbox") {
+        field.disabled = locked;
+      } else {
+        field.readOnly = locked || (unknownName && UNKNOWN_NAME_FIELDS.indexOf(field.name) !== -1);
+      }
+    });
+    section.toggleAttribute("data-locked", locked);
+  }
+  document.addEventListener("htmx:afterSettle", function () {
+    var section = document.getElementById("emergency-patient");
+    if (section && section.hasAttribute("data-locked") !== examDone()) {
+      lockEmergency(examDone());
+    }
+  });
+  document.addEventListener("htmx:configRequest", function (event) {
+    var config = event.detail;
+    var source = config.elt;
+    if (
+      config.path === "/exam/check" &&
+      examDone() &&
+      !(source instanceof Element && source.hasAttribute("data-same-patient"))
+    ) {
+      config.parameters.done = "1";
+    }
+  });
+
+  // ワークリストの一覧：行のどこを押しても、その行を選ぶ（10.4）。選んだ行は CSS で地と左の
+  // 線で示す。選ぶと、操作の行の真上に患者バナーを出し、「選んで撮影へ」を押せるようにする
+  document.addEventListener("click", function (event) {
+    var row = event.target.closest("#pick tbody tr");
+    if (!row || event.target.closest("a, button, input, label")) {
+      return;
+    }
+    var radio = row.querySelector("input[type='radio'][name='key']");
+    if (radio && !radio.checked) {
+      radio.checked = true;
+      radio.dispatchEvent(new Event("change", { bubbles: true }));
+    }
   });
 })();

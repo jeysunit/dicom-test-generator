@@ -26,7 +26,14 @@ from app.core.patient_input import (
 )
 from app.modality.service import ExamRequest, ExamResult, ModalityService, SendResult
 
-from ..display import exam_notices
+from ..display import (
+    CHARSET_CHOICE_LABELS,
+    JIS_KANA_WARNING,
+    auto_charset_note,
+    auto_is_jis_kana,
+    exam_notices,
+    patient_label,
+)
 from ..rendering import error_text, render, service_of, worklist_error_text
 
 router = APIRouter()
@@ -140,6 +147,17 @@ def exam_page(request: Request, key: str = "") -> HTMLResponse:
         profile_errors=[str(error) for error in profile_errors],
         selected_template=template,
         selected_profile=profile,
+        # 撮る前に「誰を・どこへ」を操作の行の真上に出す（10.5）
+        destination=service.config.destination(),
+        charset_labels=CHARSET_CHOICE_LABELS,
+        jis_kana_warning=JIS_KANA_WARNING,
+        auto_charset_note=auto_charset_note(item, service.config.character_set_fallback),
+        # 注意を出す選択肢（JIS（半角カナと漢字）と、「自動」でそれになるときの自動）
+        jis_kana_choices=(
+            "jis_kana auto"
+            if auto_is_jis_kana(item, service.config.character_set_fallback)
+            else "jis_kana"
+        ),
         charset_choices=CHARSET_CHOICES,
         abnormal_choices=ABNORMAL_CHOICES,
         sex_choices=SEX_CHOICES,
@@ -231,10 +249,15 @@ def _retake_context(service: ModalityService, item: WorklistItem | None) -> dict
 
 @router.get("/exam/check", response_class=HTMLResponse)
 def exam_check(
-    request: Request, key: str = "", template: str = "", profile: str = ""
+    request: Request, key: str = "", template: str = "", profile: str = "", done: str = ""
 ) -> HTMLResponse:
-    """テンプレート・装置を選び直したときに、撮れるかを確かめ直す（10.5）."""
+    """テンプレート・装置を選び直したときに、撮れるかを確かめ直す（10.5）.
+
+    緊急の患者を撮った後（`done`）は、撮った後の操作の行のままにする（前の患者で撮らない）。
+    """
     service = service_of(request)
+    if done and not key:
+        return render(request, "_exam_actions.html", exam_done=True, blocker="", taken=False)
     item: WorklistItem | None = None
     if key:
         try:
@@ -337,17 +360,36 @@ def exam_run(
     if action == ACTION_EXAM_SEND:
         send_result, send_error = _send(service, result.output_dir)
     next_token = ExamTokens.issue() if exam_token else ""
-    return _exam_result(request, result, send_result, send_error, next_token)
+    return _exam_result(
+        request,
+        result,
+        send_result,
+        send_error,
+        next_token,
+        patient=(
+            patient_label(emergency_patient.patient_name, emergency_patient.patient_id)
+            if emergency_patient is not None
+            else _scheduled_patient(service, result)
+        ),
+        emergency=mode == MODE_EMERGENCY,
+    )
 
 
 @router.post("/exam/send", response_class=HTMLResponse)
 def exam_send(request: Request, output_dir: FormStr = "") -> HTMLResponse:
     """撮った後の [送信]・[もう一度送る]。フォルダは出力の根の中だけを受ける（6.5）."""
-    send_result, send_error = _send(service_of(request), output_dir)
+    service = service_of(request)
+    send_result, send_error = _send(service, output_dir)
     if send_result is None:
         return render(request, "_notice.html", error=send_error)
     # 結果の下に [もう一度送る] を出す。送るたびに新しい件になる（docs/spec/12 の 8.2）
-    return render(request, "_send_outcome.html", send=send_result, output_dir=output_dir)
+    return render(
+        request,
+        "_send_outcome.html",
+        send=send_result,
+        output_dir=output_dir,
+        **_send_context(service, send_result),
+    )
 
 
 def _exam_result(
@@ -356,21 +398,62 @@ def _exam_result(
     send: SendResult | None,
     send_error: str,
     next_token: str,
+    *,
+    patient: str,
+    emergency: bool,
 ) -> HTMLResponse:
     service = service_of(request)
     return render(
         request,
         "_exam_result.html",
         result=result,
+        exam_patient=patient,
         send=send,
         send_error=send_error,
         next_token=next_token,
-        # 予約で撮ったら撮影済みになるので、撮影のボタンを描き直す（10.5・ADR-0024）
-        refresh_actions=result.worklist_key is not None,
+        # 予約で撮ったら撮影済みになるので、撮影のボタンを描き直す（10.5・ADR-0024）。
+        # 緊急の患者は、撮った患者のまま次を撮らないように、撮影のボタンを「次の緊急の患者」
+        # と「同じ患者でもう一度」に替える（10.5）
+        refresh_actions=result.worklist_key is not None or emergency,
+        exam_done=emergency,
         blocker="",
         taken=result.worklist_key is not None and service.is_taken(result.worklist_key),
         retake_mode=service.config.retake_mode,
+        **(_send_context(service, send) if send else {}),
     )
+
+
+def _scheduled_patient(service: ModalityService, result: ExamResult) -> str:
+    """予約で撮った結果の知らせに入れる患者（氏名と患者ID）."""
+    try:
+        item = service.find_item(result.worklist_key or "")
+    except DICOMGeneratorError:
+        return ""
+    return patient_label(item.patient_name, item.patient_id)
+
+
+def _send_context(service: ModalityService, send: SendResult) -> dict[str, object]:
+    """送信の結果の知らせに入れる患者と送信先（AEタイトル・ホスト）."""
+    # 枚数は送信ジョブの数（つながらなかった送信は、画像ごとの結果を持たない）
+    sent = sum(1 for result in send.results if result.sent)
+    total = len(send.results)
+    try:
+        job = service.queue_job(send.job_id)
+        patient = patient_label(job.patient_name, job.patient_id)
+        sent, total = job.num_sent, job.num_files
+    except DICOMGeneratorError:
+        patient = ""
+    try:
+        node = service.config.destination(send.destination)
+        address = f"{node.ae_title}・{node.host}:{node.port}"
+    except DICOMGeneratorError:
+        address = ""
+    return {
+        "send_patient": patient,
+        "send_address": address,
+        "send_sent": sent,
+        "send_total": total,
+    }
 
 
 def _send(service: ModalityService, output_dir: str) -> tuple[SendResult | None, str]:

@@ -5,7 +5,8 @@
 <div class="in flex flex-col gap-3">
   <p role="status" class="notice font-semibold text-value" data-k="ok">
     <span class="icon icon-check" aria-hidden="true"></span>
-    <span>撮影完了：{{ result.files|length }} 画像</span>
+    {# 誰を撮ったかを知らせに入れる（docs/spec/12a の 10.5。取り違えに気づけるように） #}
+    <span>撮影完了：{% if exam_patient %}{{ exam_patient }}の {% endif %}{{ result.files|length }} 画像</span>
   </p>
   <dl class="kv">
     <dt>出力先フォルダ</dt><dd>{% with uid = result.output_dir %}{% include "_uid.html" %}{% endwith %}</dd>

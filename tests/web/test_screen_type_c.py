@@ -30,11 +30,13 @@ def test_scheduled_exam_has_crumbs_banner_sections_and_action_row(client) -> Non
     assert html.count('class="sec"') >= 2
 
 
-def test_emergency_exam_has_no_crumbs_or_banner(client) -> None:
+def test_emergency_exam_has_no_crumbs_and_only_the_target_banner(client) -> None:
     html = client.get("/exam").text
 
     assert '<ol class="crumbs">' not in html
-    assert 'class="banner"' not in html
+    # 患者バナーは、操作の行の真上の「撮る患者と送信先」の 1 つだけ（入れた値を写す。10.5）
+    assert html.count('class="banner"') == 1
+    assert 'id="exam-target" class="banner" aria-label="撮る患者と送信先"' in html
     assert "<h2>緊急の患者（予約なし）</h2>" in html
     # 必須は項目名の横の文字で示す（バッジの色に頼らない）
     required = re.findall(r'<span class="l">([^<]+)<span class="req">必須</span>', html)

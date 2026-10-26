@@ -178,4 +178,4 @@ def test_exam_with_routine_rows(client) -> None:
 
     html = client.post("/exam", data=form, headers=post_headers(token)).text
 
-    assert "撮影完了：8 画像" in html
+    assert "撮影完了：山田 太郎（P000001）の 8 画像" in html

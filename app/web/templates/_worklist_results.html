@@ -42,7 +42,7 @@
         {% for item, marks in results.rows %}
         {% set alphabetic, ideographic, phonetic = item.patient_name|name_parts %}
         <tr>
-          <td><input type="radio" name="key" value="{{ item.key }}" required aria-label="この予約を選ぶ" hx-get="/worklist/item/{{ item.key }}" hx-target="#detail" hx-trigger="change"{% if item.key == results.selected %} checked{% endif %}></td>
+          <td><input type="radio" name="key" value="{{ item.key }}" required aria-label="この予約を選ぶ" hx-get="/worklist/item/{{ item.key }}" hx-target="#pick-banner" hx-trigger="change"{% if item.key == results.selected %} checked{% endif %}></td>
           <td>{{ item.scheduled_start_time|time_label }}</td>
           <td class="font-mono">{{ item.patient_id }}</td>
           {# 印（撮影済み・別の装置）は氏名の下に出す。狭い幅でも横にスクロールせずに見える #}
@@ -59,13 +59,24 @@
       </tbody>
     </table>
   </div>
-  <div class="flex flex-wrap items-center gap-3">
-    <div class="ml-auto flex flex-wrap gap-2">
+  {# 選ぶ → 確かめる → 進む（10.4）：操作の行の真上に、選んだ予約の患者バナーを出す。
+     画面の下に留めて、長い一覧でも選んだ後に画面の中で確かめられるようにする #}
+  <div class="pickbar">
+    <div id="pick-banner" aria-live="polite">
+      {% if results.detail_item %}
+      {% with item = results.detail_item, item_taken = results.detail_taken %}{% include "_worklist_banner.html" %}{% endwith %}
+      {% else %}
+      <p class="text-label">行を選ぶと、撮る患者がここに出ます。</p>
+      {% endif %}
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
       <a class="btn btn-ghost" href="/exam">緊急の患者で撮る</a>
-      <button type="button" class="btn" data-needs-selection hx-post="/worklist/refresh" hx-include="#pick" hx-target="#results" hx-disabled-elt="this"{% if not results.has_selection %} disabled title="行を選ぶと押せます"{% endif %}>
-        <span class="icon icon-refresh-cw" aria-hidden="true"></span>再検索
-      </button>
-      <button type="submit" class="btn btn-primary">選んで撮影へ</button>
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button type="button" class="btn" data-needs-selection hx-post="/worklist/refresh" hx-include="#pick" hx-target="#results" hx-disabled-elt="this"{% if not results.has_selection %} disabled title="行を選ぶと押せます"{% endif %}>
+          <span class="icon icon-refresh-cw" aria-hidden="true"></span>再検索
+        </button>
+        <button type="submit" class="btn btn-primary" data-needs-selection{% if not results.has_selection %} disabled title="行を選ぶと押せます"{% endif %}>選んで撮影へ</button>
+      </div>
     </div>
   </div>
 </form>

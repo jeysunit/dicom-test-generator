@@ -148,7 +148,8 @@ def worklist_item(request: Request, key: str) -> HTMLResponse:
         item = service.find_item(key)
     except DICOMGeneratorError as exc:
         return render(request, "_notice.html", error=worklist_error_text(exc))
-    return render(request, "_worklist_detail.html", item=item, item_taken=service.is_taken(key))
+    # 患者バナーは操作の行の真上へ、予約の詳細は一覧の下へ（同じ応答で差し替える。10.4）
+    return render(request, "_worklist_pick.html", item=item, item_taken=service.is_taken(key))
 
 
 def _results(

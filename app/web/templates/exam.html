@@ -18,7 +18,8 @@
 <div class="w-form">
 {# 送るのを止めたときの、誤りの件数の知らせ（app.js）。読み上げるのはこの 1 文だけで、欄の下の文は読み上げない #}
 <div id="error-summary" role="alert"><div class="notice" data-k="err" hidden><span class="icon icon-triangle-alert" aria-hidden="true"></span><span class="t"></span></div></div>
-<form id="exam-form" hx-post="/exam" hx-target="#result" hx-disabled-elt="#actions button" hx-sync="this:drop" class="space-y-3" novalidate>
+{# autocomplete="off"：読み込み直したときに、前の患者の値をブラウザーが欄に戻さない（10.5） #}
+<form id="exam-form" hx-post="/exam" hx-target="#result" hx-disabled-elt="#actions button" hx-sync="this:drop" class="space-y-3" novalidate autocomplete="off">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="hidden" id="exam-token" name="exam_token" value="{{ exam_token }}">
   {% if item %}
@@ -55,7 +56,7 @@
   </section>
   {% else %}
   <input type="hidden" name="mode" value="emergency">
-  <section class="sec">
+  <section class="sec" id="emergency-patient">
     <h2>緊急の患者（予約なし）</h2>
     <div class="in">
       <p class="mb-4 text-xs text-label">予約なし（受付番号は空）。予約から撮るときは、<a class="link" href="/worklist">ワークリスト</a>で予約を選んでください。姓と名は空白で区切って入れてください（DICOM の区切りの ^ に置き換えます）。</p>
@@ -146,12 +147,16 @@
             {% for profile in profiles %}<option value="{{ profile.name }}"{% if profile.name == selected_profile %} selected{% endif %}>{{ profile.name }}（{{ profile.modality }}・{{ profile.model_name }}）</option>{% endfor %}
           </select>
         </label>
-        <label class="field">
-          <span class="l">文字コード（画像）</span>
-          <select name="charset" class="select">
-            {% for value in charset_choices %}<option value="{{ value }}"{% if value == config.character_set %} selected{% endif %}>{{ value }}</option>{% endfor %}
+        {# 選択肢は意味の分かる名前で出す（値は docs/spec/12 の 7.1）。「自動」の行き先と、
+           JIS（半角カナと漢字）の注意を選択の下に出す（注意は選んだときだけ。app.js） #}
+        <div class="field">
+          <label class="l" for="exam-charset">文字コード（画像）</label>
+          <select id="exam-charset" name="charset" class="select" aria-describedby="charset-auto-note charset-warning">
+            {% for value in charset_choices %}<option value="{{ value }}"{% if value == config.character_set %} selected{% endif %}>{{ charset_labels.get(value, value) }}</option>{% endfor %}
           </select>
-        </label>
+          <p id="charset-auto-note" class="hint">{{ auto_charset_note }}</p>
+          <p id="charset-warning" class="field-warn hint" data-charset-warning="{{ jis_kana_choices }}"{% if config.character_set not in jis_kana_choices.split() %} hidden{% endif %}><span class="icon icon-triangle-alert" aria-hidden="true"></span>{{ jis_kana_warning }}</p>
+        </div>
         <label class="field">
           <span class="l">異常のデータ</span>
           <select name="abnormal_level" class="select">
@@ -164,6 +169,20 @@
       <p class="mt-2 text-xs text-label">{% if config.worklist.use_mpps %}MPPS：使う（{{ config.mpps_peer().ae_title }}）{% else %}MPPS：使わない{% endif %}</p>
       {% for error in profile_errors %}<p role="alert" class="mt-2 text-xs text-danger">{{ error }}</p>{% endfor %}
     </div>
+  </section>
+  {# 撮る前に「誰を・どこへ」を操作の行の真上に出す（docs/spec/12a の 10.5）。緊急の患者は、
+     入れた値を入力のたびに写す（app.js の data-mirror） #}
+  {% if item %}{% set t_alpha, t_ideo, t_phon = item.patient_name|name_parts %}{% endif %}
+  <section id="exam-target" class="banner" aria-label="撮る患者と送信先">
+    <div class="nm">
+      <div class="n" {% if not item %}data-mirror="name_ideographic" {% endif %}data-empty="漢字の氏名なし">{% if item %}{{ t_ideo or "漢字の氏名なし" }}{% else %}漢字の氏名なし{% endif %}</div>
+      <div class="k" {% if not item %}data-mirror="name_phonetic" {% endif %}data-empty="カナなし">{% if item %}{{ t_phon or "カナなし" }}{% else %}カナなし{% endif %}</div>
+    </div>
+    <div class="f"><div class="l">氏名（英字）</div><div class="v" {% if not item %}data-mirror="name_alphabetic" {% endif %}data-empty="—">{% if item %}{{ t_alpha or "—" }}{% else %}—{% endif %}</div></div>
+    <div class="f"><div class="l">患者ID</div><div class="v font-mono" {% if not item %}data-mirror="patient_id" {% endif %}data-empty="—">{% if item %}{{ item.patient_id }}{% else %}—{% endif %}</div></div>
+    <div class="f"><div class="l">生年月日・性別</div><div class="v"{% if not item %} data-mirror-birth{% endif %}>{% if item %}{{ item|birth_label }}{% else %}生年月日なし{% endif %}</div></div>
+    <div class="f"><div class="l">受付番号</div><div class="v font-mono">{% if item %}{{ item.accession_number or "—" }}{% else %}—（予約なし）{% endif %}</div></div>
+    <div class="f"><div class="l">送信先</div><div class="v">{{ destination.name }} <span class="font-mono text-xs text-label">{{ destination.ae_title }}・{{ destination.host }}:{{ destination.port }}</span></div></div>
   </section>
   <div id="actions">{% include "_exam_actions.html" %}</div>
   <p class="busy busy-exam" role="status"><span class="icon icon-refresh-cw animate-spin" aria-hidden="true"></span>撮影しています。終わるまでボタンは押せません</p>

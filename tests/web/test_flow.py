@@ -35,8 +35,12 @@ def test_pick_exam_send_and_confirm(client, worklist_scp, storage_scp) -> None:
     response = client.post("/exam", data=_exam_form(key, "exam_send"), headers=post_headers(token))
 
     assert response.status_code == 200, response.text
-    assert "撮影完了：3 画像" in response.text
-    assert "送信完了：PACS_TEST へ 3/3 画像（ジョブ 1）" in response.text
+    # 知らせに、誰の画像を・どこへ・何枚かを入れる（10.5）
+    assert "撮影完了：山田 太郎（P000001）の 3 画像" in response.text
+    assert (
+        "送信完了：山田 太郎（P000001）の 3/3 画像を PACS_TEST へ送信しました（ジョブ 1）"
+        in response.text
+    )
     assert 'role="status" data-k="ok"' in response.text
     assert len(storage_scp.received) == 3
     first = storage_scp.received[0]
@@ -49,15 +53,18 @@ def test_pick_exam_send_and_confirm(client, worklist_scp, storage_scp) -> None:
     assert "3/3" in queue
 
 
-def test_queue_table_shows_the_accession_number(client, worklist_scp, storage_scp) -> None:
-    """送信キューの表の受付番号の欄に、画像の Accession Number を出す（docs/spec/12a の 10.6）."""
+def test_queue_detail_shows_the_accession_number(client, worklist_scp, storage_scp) -> None:
+    """送信ジョブの詳細の受付番号に、画像の Accession Number を出す（docs/spec/12a の 10.6）.
+
+    受付番号は一覧の列から外し、行の [詳細] の区画に出す（一覧の列は 7 つ）。
+    """
     key = key_for(query_worklist(client), "A0001")
     token = csrf_token(client, f"/exam?key={key}")
     client.post("/exam", data=_exam_form(key, "exam_send"), headers=post_headers(token))
 
-    queue = client.get("/pacs/queue").text
+    queue = client.get("/pacs/queue", params={"selected": "1"}).text
 
-    assert '<td class="font-mono">A0001</td>' in queue
+    assert '<dt>受付番号</dt><dd class="font-mono">A0001</dd>' in queue
 
 
 def test_exam_with_profile_then_send_from_result(client, storage_scp) -> None:
@@ -194,6 +201,9 @@ def test_exam_result_offers_send_again(client, worklist_scp, storage_scp) -> Non
         again = client.post(
             "/exam/send", data={"output_dir": output_dir}, headers=post_headers(token)
         ).text
-        assert f"送信完了：PACS_TEST へ 3/3 画像（ジョブ {job}）" in again
+        assert (
+            f"送信完了：山田 太郎（P000001）の 3/3 画像を PACS_TEST へ送信しました（ジョブ {job}）"
+            in again
+        )
         assert "もう一度送る" in again and 'hx-disabled-elt="find button"' in again
     assert len(storage_scp.received) == 9

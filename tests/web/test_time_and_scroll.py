@@ -35,8 +35,11 @@ def test_queue_time_headers_carry_the_utc_offset(client) -> None:
 
     html = client.get("/pacs/queue").text
 
-    for label in ("検査日時", "受付日時", "完了日時"):
-        assert re.search(rf'<th scope="col">{label}<span class="block text-xs">UTC[+-]\d{{2}}:\d{{2}}</span></th>', html)
+    # 一覧の時刻の列は受付日時だけ（10.6）。検査日時・完了は選んだ行の詳細に、UTC からの差を添えて出す
+    assert re.search(r'<th scope="col">受付日時<span class="block text-xs">UTC[+-]\d{2}:\d{2}</span></th>', html)
+    detail = client.get("/pacs/queue?selected=1").text
+    for label in ("検査日時", "受付", "完了"):
+        assert re.search(rf'<dt>{label}<span class="text-xs">（UTC[+-]\d{{2}}:\d{{2}}）</span></dt>', detail)
 
 
 def test_queue_scroll_position_is_kept_across_swaps(client) -> None:
