@@ -4,11 +4,20 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from app.core.exceptions import ModalityConfigError
+from app.core.patient_input import (
+    DEFAULT_TEMPORARY_ID_PREFIX,
+    DEFAULT_TIMEZONE,
+    DEFAULT_UNKNOWN_NAME_IDEOGRAPHIC,
+    DEFAULT_UNKNOWN_NAME_PHONETIC,
+    validate_temporary_id_prefix,
+    validate_unknown_name_group,
+)
 from app.core.validation_text import describe_validation_error
 
 AE_TITLE_MAX_LENGTH = 16
@@ -152,6 +161,17 @@ class ModalityConfig(BaseModel):
     default_profile: str | None = None  # 装置のプロファイル（docs/spec/13 の 8）。None は重ねない
     default_hospital: str | None = None
     default_pixel_mode: PixelMode = "ct_realistic"
+    # 試験の形：緊急の患者の氏名（かな）を確かめず、直さず、そのまま DICOM に出す（半角カナ・
+    # ひらがな・混ざった値の受け側の試験用。docs/spec/12a の 10.5）。false が通常
+    patient_input_test_mode: bool = False
+    # 緊急の患者の生年月日の「今日」を決めるタイムゾーン（IANA の名前）。サーバーの OS の
+    # 時計の地域に頼らない（UTC のコンテナでも日本の日付で確かめる。docs/spec/12a の 10.5）
+    timezone: str = DEFAULT_TIMEZONE
+    # 身元不明の患者（docs/spec/12a の 10.5）。「仮の ID を作る」ボタンが作る患者ID の頭と、
+    # 「氏名が分からない」を選んだときの漢字・かなの氏名。英字の氏名は空にする
+    temporary_patient_id_prefix: str = DEFAULT_TEMPORARY_ID_PREFIX
+    unknown_name_ideographic: str = DEFAULT_UNKNOWN_NAME_IDEOGRAPHIC
+    unknown_name_phonetic: str = DEFAULT_UNKNOWN_NAME_PHONETIC
     worklist: WorklistPeerConfig
     mpps: MppsPeerConfig | None = None  # Phase 3c。None はワークリストの相手
     destinations: list[DestinationConfig] = Field(..., min_length=1)
@@ -165,6 +185,30 @@ class ModalityConfig(BaseModel):
     @classmethod
     def _check_ae_title(cls, value: str) -> str:
         return validate_ae_title(value)
+
+    @field_validator("timezone")
+    @classmethod
+    def _check_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError(f"タイムゾーン {value!r} が見つかりません（例：Asia/Tokyo）") from exc
+        return value
+
+    @field_validator("temporary_patient_id_prefix")
+    @classmethod
+    def _check_temporary_id_prefix(cls, value: str) -> str:
+        return validate_temporary_id_prefix(value)
+
+    @field_validator("unknown_name_ideographic")
+    @classmethod
+    def _check_unknown_name_ideographic(cls, value: str) -> str:
+        return validate_unknown_name_group("漢字", value)
+
+    @field_validator("unknown_name_phonetic")
+    @classmethod
+    def _check_unknown_name_phonetic(cls, value: str) -> str:
+        return validate_unknown_name_group("かな", value)
 
     @model_validator(mode="before")
     @classmethod

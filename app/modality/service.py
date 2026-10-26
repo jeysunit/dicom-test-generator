@@ -50,7 +50,14 @@ from app.core.models import (
     WorklistItem,
 )
 from app.core.path_safety import ensure_within, safe_path_component
-from app.core.person_name import GROUP_SEPARATOR, compose_person_name
+from app.core.patient_input import (
+    current_date,
+    current_datetime,
+    temporary_patient_id,
+    validate_emergency_patient,
+    validate_study_description,
+)
+from app.core.person_name import compose_person_name
 from app.core.uid_generator import UIDGenerator
 from app.core.validation_text import describe_validation_error
 from app.core.worklist_charset import resolve_image_character_set
@@ -299,6 +306,10 @@ class ModalityService:
         self._auto_commitment = auto_commitment
         # 同時に走る撮影は1つ（画面のプロセスの中。docs/spec/12a の 10.5）
         self._exam_lock = threading.Lock()
+        # 仮の患者ID を渡した最後の秒と、その秒に渡した数（同じ秒に2回押しても重ねない）
+        self._temporary_id_lock = threading.Lock()
+        self._temporary_id_second: datetime | None = None
+        self._temporary_id_count = 0
         # 送信ジョブの一覧に出す患者・検査の値（元のファイルから読み、ジョブの番号で覚える）
         self._job_summaries: dict[int, tuple[str, str, str, str, str]] = {}
 
@@ -597,6 +608,30 @@ class ModalityService:
         """
         return compose_person_name(alphabetic, ideographic, phonetic)
 
+    def new_temporary_patient_id(self) -> str:
+        """身元不明の患者の仮の患者ID を作る（頭は設定、日時は設定のタイムゾーンの今。10.5）.
+
+        同じ秒に2回作っても重ならない（2つ目から `-2`）。この画面のプロセスの中だけで数える。
+        """
+        moment = current_datetime(self.config.timezone).replace(microsecond=0)
+        with self._temporary_id_lock:
+            if moment == self._temporary_id_second:
+                self._temporary_id_count += 1
+            else:
+                self._temporary_id_second = moment
+                self._temporary_id_count = 1
+            return temporary_patient_id(
+                self.config.temporary_patient_id_prefix, moment, self._temporary_id_count
+            )
+
+    def unknown_name(self) -> tuple[str, str]:
+        """氏名が分からない患者の（漢字・かな）の氏名（設定。英字は空にする。10.5）."""
+        return self.config.unknown_name_ideographic, self.config.unknown_name_phonetic
+
+    def today(self) -> date:
+        """生年月日の上限にする今日（設定のタイムゾーン。OS の時計の地域に頼らない）."""
+        return current_date(self.config.timezone)
+
     def image_character_set(
         self, worklist_character_set: list[str] | None, choice: str | None = None
     ) -> list[str]:
@@ -726,7 +761,7 @@ class ModalityService:
         return DEFAULT_TEMPLATE_MODALITY
 
     def template_for_modality(self, modality: str) -> str:
-        """モダリティに合うテンプレートの名前（ADR-0028）.
+        """モダリティに合うテンプレートの名前（ADR-0030）.
 
         設定の既定のテンプレートが合えばそれ、合わなければ名前の順で最初に合うもの。
         合うテンプレートが無ければ既定のテンプレート（撮影が「予約は MR、テンプレートは
@@ -742,7 +777,7 @@ class ModalityService:
 
     def _profile_name(self, request: ExamRequest, template: str) -> str | None:
         """撮影に重ねる装置のプロファイル。テンプレートを指定しない撮影は、設定の既定が
-        テンプレートのモダリティと違えば重ねない（ADR-0028）."""
+        テンプレートのモダリティと違えば重ねない（ADR-0030）."""
         if request.profile:
             return request.profile
         if request.template is None:
@@ -819,7 +854,9 @@ class ModalityService:
         modality = self.template_modality(template)
         # 撮影は始めたときの装置で最後まで行う（途中で切り替えは受けない。ADR-0023）
         station = self.current_station()
-        now = datetime.now()
+        # 検査の日付・時刻は、設定のタイムゾーンの壁時計（OS の時計の地域に頼らない）。生年月日の
+        # 「今日」と同じ時計なので、今日生まれの患者の検査日が生年月日より前にならない
+        now = current_datetime(self.config.timezone)
         notices: list[str] = []
         choice = request.charset or self.config.character_set
         record: ExamRecord | None = None
@@ -836,7 +873,7 @@ class ModalityService:
             self._check_retake(request, record)
             if request.template is None and item.modality and item.modality != modality:
                 # テンプレートを指定しない撮影は、予約のモダリティに合うテンプレートで撮る
-                # （ADR-0028）。合うものが無ければ、下の確かめが断る
+                # （ADR-0030）。合うものが無ければ、下の確かめが断る
                 template = self.template_for_modality(item.modality)
                 modality = self.template_modality(template)
             ensure_modality_matches(item, modality)
@@ -867,12 +904,6 @@ class ModalityService:
             emergency_patient = request.emergency_patient
             if emergency_patient is None:
                 raise ConfigurationError("emergency_patient is required for an emergency exam")
-            if not emergency_patient.patient_name.split(GROUP_SEPARATOR, 1)[0].strip():
-                # 緊急の患者の氏名（英字）は必須（docs/spec/12a の 10.5）。画面と CLI の両方に効く
-                raise ValidationError(
-                    "緊急の患者の氏名（英字）は必須です",
-                    {"patient_id": emergency_patient.patient_id},
-                )
             _reject_value_delimiter(
                 (
                     ("Patient ID", emergency_patient.patient_id),
@@ -880,9 +911,21 @@ class ModalityService:
                     ("検査の説明", request.study_description),
                 )
             )
+            # 画面・CLI を通らない呼び出し（API）にも、同じ確かめを効かせる。追加撮影は、前の撮影と
+            # 患者ID・氏名が一致するかで確かめる（以前に受け付けた値の患者にも追加撮影できるように）
             character_set = resolve_image_character_set(
                 choice, None, self.config.character_set_fallback
             )
+            if request.append:
+                validate_study_description(request.study_description)
+            else:
+                validate_emergency_patient(
+                    emergency_patient,
+                    request.study_description,
+                    character_set,
+                    test_mode=self.config.patient_input_test_mode,
+                    today=now.date(),
+                )
             previous = None
             if request.append:
                 previous = self.queue.emergency_exam(request.emergency_study_instance_uid)
@@ -969,7 +1012,12 @@ class ModalityService:
             if mpps_id is not None:
                 # N-CREATE の後に撮影が止まった＝取り消し（DISCONTINUED。8.4.1）
                 mpps.finish_exam(
-                    mpps_id, STATE_DISCONTINUED, partial, ctx, str(output_dir)
+                    mpps_id,
+                    STATE_DISCONTINUED,
+                    partial,
+                    ctx,
+                    str(output_dir),
+                    current_datetime(self.config.timezone),
                 )
             raise
         files = sorted(str(path) for path in output_dir.glob("*.dcm"))
@@ -977,13 +1025,23 @@ class ModalityService:
         if mpps_id is not None:
             try:
                 mpps_outcome = mpps.finish_exam(
-                    mpps_id, STATE_COMPLETED, files, ctx, str(output_dir)
+                    mpps_id,
+                    STATE_COMPLETED,
+                    files,
+                    ctx,
+                    str(output_dir),
+                    current_datetime(self.config.timezone),
                 )
             except IMAGE_READ_ERRORS:
                 # 作った画像のヘッダーを読めなければ、開いたままにせず DISCONTINUED を残す。
                 # DISCONTINUED は読めた画像だけを知らせる
                 mpps.finish_exam(
-                    mpps_id, STATE_DISCONTINUED, files, ctx, str(output_dir)
+                    mpps_id,
+                    STATE_DISCONTINUED,
+                    files,
+                    ctx,
+                    str(output_dir),
+                    current_datetime(self.config.timezone),
                 )
                 raise
         if profile_name:
@@ -1111,6 +1169,10 @@ class ModalityService:
     def list_queue(self, status: str | None = None) -> list[QueueJob]:
         """送信ジョブの一覧。患者ID・氏名・検査日時は、元のファイルの先頭から読んで足す."""
         return [self._with_summary(job) for job in self.queue.list_jobs(status)]
+
+    def queue_job(self, job_id: int) -> QueueJob:
+        """送信ジョブ 1 件。一覧と同じく、患者ID・氏名・検査日時を元のファイルから足す."""
+        return self._with_summary(self.queue.get_job(job_id))
 
     def _with_summary(self, job: QueueJob) -> QueueJob:
         summary = self._job_summaries.get(job.id)

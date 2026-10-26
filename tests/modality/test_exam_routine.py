@@ -130,7 +130,7 @@ def test_emergency_uses_the_template_modality_default(tmp_path, worklist_scp) ->
 def test_routine_and_template_modality_must_match(tmp_path, worklist_scp) -> None:
     service = _service(tmp_path, worklist_scp.port)
 
-    # テンプレートを指定しないと予約のモダリティのテンプレートで撮る（ADR-0028）。
+    # テンプレートを指定しないと予約のモダリティのテンプレートで撮る（ADR-0030）。
     # CT のテンプレートを指定した MR の予約は撮らない
     with pytest.raises(WorklistMappingError, match="予約は MR"):
         service.exam(

@@ -1,4 +1,4 @@
-<div role="alert" class="notice notice-error">
+<div role="alert" class="notice" data-k="err"{% if error_field is defined and error_field %} data-error-field="{{ error_field }}"{% endif %}>
   <span class="icon icon-triangle-alert" aria-hidden="true"></span>
   <span>{{ error }}</span>
 </div>

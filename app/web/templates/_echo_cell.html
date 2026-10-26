@@ -1,0 +1,4 @@
+{# 接続先の表の「最後の接続確認」の中身。probe は最後の結果（無ければ「—」）。確認中の札は、押している間だけ CSS で出す #}
+<span class="st wait-mark" data-k="check">確認中</span>
+{% if probe %}<span class="st" data-k="{{ probe.kind }}">{{ "成功" if probe.ok else "失敗" }}</span> <span class="when">{{ probe.at }}</span>{% if not probe.ok and probe.reason %} <span class="why">{{ probe.reason }}</span>{% endif %}
+{% else %}<span class="none">—</span>{% endif %}

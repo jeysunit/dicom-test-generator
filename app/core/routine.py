@@ -64,7 +64,7 @@ class MRRoutineSeries(_RoutineSeries):
     slice_thickness: float = Field(..., gt=0)
     # スライス間のすきま（mm）。画像の間隔は スライス厚 + すきま
     spacing: float = Field(0.0, ge=0)
-    # 撮像の種類（Scanning Sequence・MR Acquisition Type。ADR-0028）
+    # 撮像の種類（Scanning Sequence・MR Acquisition Type。ADR-0030）
     sequence: MRSequence = "SE"
     acquisition_type: MRAcquisitionType = "2D"
 

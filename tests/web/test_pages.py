@@ -41,8 +41,12 @@ def test_pages_open_with_header_and_band(client, path, text) -> None:
     assert '<html lang="ja"' in html
 
 
-_NAV = re.compile(r'<nav class="sidenav" aria-label="ページ">(.*?)</nav>', re.DOTALL)
-_NAV_ITEM = re.compile(r'<a href="([^"]+)" class="nav-item"( aria-current="page")?>([^<]+)</a>')
+_NAV = re.compile(r'<nav id="sidenav" class="sidenav" aria-label="ページ">(.*?)</nav>', re.DOTALL)
+# 項目は絵と名前。閉じたナビでも名前が分かるよう、title に同じ名前を持つ
+_NAV_ITEM = re.compile(
+    r'<a href="([^"]+)" class="nav-i"( aria-current="page")? title="([^"]+)">'
+    r'<span class="icon icon-[a-z-]+" aria-hidden="true"></span><span class="t">\3</span></a>'
+)
 
 
 @pytest.mark.parametrize(
@@ -56,7 +60,7 @@ def test_left_nav_groups_items_and_current_page(client, path, current) -> None:
     nav = match.group(1)
 
     # 群は 業務・接続・管理 の順。項目は各ページの題と同じ名前で、群の中の順に並ぶ
-    assert re.findall(r'<p class="nav-group">([^<]+)</p>', nav) == ["業務", "接続", "管理"]
+    assert re.findall(r'<p class="nav-g">([^<]+)</p>', nav) == ["業務", "接続", "管理"]
     items = _NAV_ITEM.findall(nav)
     assert [(href, label) for href, _, label in items] == [
         ("/worklist", "ワークリスト"),
@@ -68,8 +72,10 @@ def test_left_nav_groups_items_and_current_page(client, path, current) -> None:
     assert [label for _, flag, label in items if flag] == [current]
 
     # ページへの入り口は左のナビだけ。上の帯（ヘッダー）にタブを置かない
+    # （接続の状態の中身の「PACS を開く」は、帯の上ではなく popover の中の道）
     header = html[html.index("<header") : html.index("</header>")]
-    assert 'href="/exam"' not in header and 'href="/pacs"' not in header
+    bar = header[: header.index('<div id="band"')]
+    assert 'href="/exam"' not in header and 'href="/pacs"' not in bar
     assert 'href="/settings"' not in header
     # ナビは、ヘッダー（上の帯）の後、本文の前
     assert html.index("</header>") < html.index('class="sidenav"') < html.index("<main")
@@ -204,7 +210,7 @@ def test_exam_page_is_read_only_and_lists_profiles(client) -> None:
 def test_exam_page_blocks_modality_mismatch(client) -> None:
     key = _key_for(_query(client, station="any", modality=""), "A0003")
 
-    # 開いたときは予約のモダリティのテンプレートを選んである（ADR-0028）
+    # 開いたときは予約のモダリティのテンプレートを選んである（ADR-0030）
     opened = client.get(f"/exam?key={key}").text
     assert "予約は MR、テンプレートは CT です" not in opened
     assert "この予約は別の装置の予定です" in opened
@@ -256,6 +262,8 @@ def test_exam_size_is_bounded_on_the_server(client, tmp_path, series, images) ->
         "mode": "emergency",
         "patient_id": "E1",
         "name_alphabetic": "A^B",
+        "name_ideographic": "山田^太郎",
+        "sex": "M",
         "series": series,
         "images": images,
         "action": "exam",
@@ -441,7 +449,7 @@ def test_pacs_queue_partial_polls(client) -> None:
     assert "<b>送信ジョブはまだありません。</b>" in partial.text
     assert "<span>撮影して送信すると、ここに出ます。</span>" in partial.text
     assert "<thead>" in partial.text
-    assert '<b class="count-n">0</b>' in partial.text
+    assert '<span class="cnt"><b>0</b>' in partial.text
 
 
 def test_pacs_job_states_are_shown_as_state_marks(client) -> None:
@@ -490,7 +498,7 @@ def _field(html: str, name: str) -> str:
 def test_required_fields_are_marked(client) -> None:
     """必須の欄に「必須」の印と required（docs/spec/12a の 10.5）."""
     html = client.get("/exam").text
-    for name in ("patient_id", "name_alphabetic"):
+    for name in ("patient_id", "name_ideographic", "sex"):
         field = _field(html, name)
         assert "必須" in field, name
         assert " required" in field, name
@@ -500,7 +508,8 @@ def test_required_fields_are_marked(client) -> None:
         field = _field(manual, name)
         assert "必須" in field, name
         assert " required" in field, name
-    for name in ("name_ideographic", "name_phonetic", "birth_date", "study_description"):
+    # 英字の氏名は必須ではない（氏名が分からない患者は漢字・かなだけで撮る）
+    for name in ("name_alphabetic", "name_phonetic", "birth_date", "study_description"):
         assert "必須" not in _field(html, name), name
     for name in ("name_alphabetic", "name_ideographic", "name_phonetic"):
         assert "data-person-name" in _field(html, name), name
@@ -512,6 +521,8 @@ def _emergency(client, **fields: str) -> str:
         "mode": "emergency",
         "patient_id": "E0001",
         "name_alphabetic": "KINKYU^TARO",
+        "name_ideographic": "緊急^太郎",
+        "sex": "M",
         "series": "1",
         "images": "1",
         "action": "exam",
@@ -523,8 +534,9 @@ def _emergency(client, **fields: str) -> str:
 @pytest.mark.parametrize(
     "fields",
     [
-        {"name_alphabetic": ""},
-        {"name_alphabetic": "　 "},
+        {"name_ideographic": ""},
+        {"name_ideographic": "　 "},
+        {"sex": ""},
         {"patient_id": ""},
         {"name_alphabetic": "A=B"},
         {"name_ideographic": "山田\x1b太郎"},

@@ -69,7 +69,7 @@ class StudyConfig(BaseModel):
 
 
 CTSeriesKind = Literal["axial", "localizer", "coronal", "sagittal", "dose_report"]
-# MR のシリーズの種類。位置決めは CT と同じ "localizer"（ADR-0028）
+# MR のシリーズの種類。位置決めは CT と同じ "localizer"（ADR-0030）
 MRSeriesKind = Literal["localizer", "acquisition", "derived"]
 SeriesKind = Literal[
     "axial", "localizer", "coronal", "sagittal", "dose_report", "acquisition", "derived"
@@ -98,7 +98,7 @@ class SeriesConfig(BaseModel):
     # 位置決めの画像ごとの方向。足りなければ先頭から繰り返す
     views: list[LocalizerView] = Field(default_factory=lambda: ["frontal"], min_length=1)
     contrast: bool = Field(False, description="造影のシリーズ（Contrast/Bolus Agent を入れる）")
-    # このシリーズのモダリティ (0008,0060)。None はテンプレートのモダリティ（ADR-0028）
+    # このシリーズのモダリティ (0008,0060)。None はテンプレートのモダリティ（ADR-0030）
     modality: SeriesModality | None = Field(None, description="シリーズのモダリティ")
     # MR のシリーズの断面と撮像（MR 以外では使わない）
     plane: MRPlane = Field("axial", description="MR の断面")
@@ -115,7 +115,7 @@ class SeriesConfig(BaseModel):
         if self.modality is None and self.kind in mr_kinds:
             raise ValueError(f"kind {self.kind!r} needs modality MR")
         if self.modality == "MR" and self.contrast:
-            # MR の造影（Contrast/Bolus Module）はまだ作らない（ADR-0028）
+            # MR の造影（Contrast/Bolus Module）はまだ作らない（ADR-0030）
             raise ValueError("contrast is not supported for MR series")
         return self
 
@@ -261,7 +261,7 @@ class GenerationConfig(BaseModel):
 
 # --- モダリティのダミー（docs/spec/12_modality_emulator.md・docs/spec/03_data_models.md）---
 
-PATIENT_ID_MAX_LENGTH = 16
+PATIENT_ID_MAX_LENGTH = 64
 DicomJsonSequences = dict[str, list[dict]]
 
 

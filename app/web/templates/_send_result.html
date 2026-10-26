@@ -1,9 +1,16 @@
-{% set sent_count = send.results|selectattr("sent")|list|length %}
+{# 送信の結果の知らせ。誰の画像を・どこへ・何枚・送れたかを入れる（docs/spec/12a の 10.5）。
+   枚数は送信ジョブの数（send_sent・send_total。exam.py の _send_context） #}
 {% set done = send.status == "sent" %}
-<div {% if done %}role="status" class="notice notice-ok"{% else %}role="alert" class="notice notice-error"{% endif %}>
+{% set whose = send_patient ~ "の" if send_patient else "" %}
+<div class="notice" {% if done %}role="status" data-k="ok"{% else %}role="alert" data-k="err"{% endif %}>
   <span class="icon {% if done %}icon-check{% else %}icon-triangle-alert{% endif %}" aria-hidden="true"></span>
   <span>
-    <span class="font-semibold">{{ STATUS_LABELS.get(send.status, send.status) }}：{{ send.destination }} へ {{ sent_count }}/{{ send.results|length }} 画像（ジョブ {{ send.job_id }}）</span>
+    <span class="font-semibold">{{ STATUS_LABELS.get(send.status, send.status) }}：
+      {%- if done %}{{ whose ~ " " if whose }}{{ send_sent }}/{{ send_total }} 画像を {{ send.destination }} へ送信しました（ジョブ {{ send.job_id }}）
+      {%- elif send.status == "failed" %}{{ whose }}画像を {{ send.destination }} へ送信できませんでした（{{ send_total }} 画像のうち {{ send_sent }} 画像を送信。ジョブ {{ send.job_id }}）
+      {%- else %}{{ whose ~ " " if whose }}{{ send_sent }}/{{ send_total }} 画像（{{ send.destination }}。ジョブ {{ send.job_id }}）{% endif -%}
+    </span>
+    {% if send_address %}<span class="block text-xs">送信先：{{ send.destination }}（{{ send_address }}）</span>{% endif %}
     {% if send.error %}<span class="block text-xs">{{ send.error }}</span>{% endif %}
   </span>
 </div>

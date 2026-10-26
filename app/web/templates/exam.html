@@ -15,28 +15,31 @@
 {% if load_error %}
 {% with error = load_error %}{% include "_notice.html" %}{% endwith %}
 {% endif %}
-<div class="form-col">
-<form id="exam-form" hx-post="/exam" hx-target="#result" hx-disabled-elt="#actions button" hx-sync="this:drop" class="space-y-3">
+<div class="w-form">
+{# 送るのを止めたときの、誤りの件数の知らせ（app.js）。読み上げるのはこの 1 文だけで、欄の下の文は読み上げない #}
+<div id="error-summary" role="alert"><div class="notice" data-k="err" hidden><span class="icon icon-triangle-alert" aria-hidden="true"></span><span class="t"></span></div></div>
+{# autocomplete="off"：読み込み直したときに、前の患者の値をブラウザーが欄に戻さない（10.5） #}
+<form id="exam-form" hx-post="/exam" hx-target="#result" hx-disabled-elt="#actions button" hx-sync="this:drop" class="space-y-3" novalidate autocomplete="off">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="hidden" id="exam-token" name="exam_token" value="{{ exam_token }}">
   {% if item %}
   <input type="hidden" name="mode" value="scheduled">
   <input type="hidden" name="key" value="{{ key }}">
   <section class="banner" aria-label="患者">
-    <div class="banner-name">
-      <div class="banner-n">{{ ideographic or alphabetic }}</div>
-      {% if phonetic or (ideographic and alphabetic) %}<div class="banner-k">{{ phonetic or alphabetic }}</div>{% endif %}
+    <div class="nm">
+      <div class="n">{{ ideographic or alphabetic }}</div>
+      {% if phonetic or (ideographic and alphabetic) %}<div class="k">{{ phonetic or alphabetic }}</div>{% endif %}
     </div>
-    <div class="banner-f"><div class="l">患者ID</div><div class="v font-mono">{{ item.patient_id }}</div></div>
-    <div class="banner-f"><div class="l">生年月日・性別</div><div class="v">{{ item|birth_label }}</div></div>
-    <div class="banner-f"><div class="l">受付番号</div><div class="v font-mono">{{ item.accession_number or "—" }}</div></div>
-    <div class="banner-f"><div class="l">検査名</div><div class="v">{{ item.requested_procedure_description or "—" }}</div></div>
-    <div class="banner-end"><span class="badge">予約の値（読むだけ）</span></div>
+    <div class="f"><div class="l">患者ID</div><div class="v font-mono">{{ item.patient_id }}</div></div>
+    <div class="f"><div class="l">生年月日・性別</div><div class="v">{{ item|birth_label }}</div></div>
+    <div class="f"><div class="l">受付番号</div><div class="v font-mono">{{ item.accession_number or "—" }}</div></div>
+    <div class="f"><div class="l">検査名</div><div class="v">{{ item.requested_procedure_description or "—" }}</div></div>
+    <div class="end"><span class="badge">予約の値（読むだけ）</span></div>
   </section>
   <section class="sec">
-    <h2 class="sec-title">予約の情報</h2>
-    <div class="sec-body">
-      <dl class="values">
+    <h2>予約の情報</h2>
+    <div class="in">
+      <dl class="kv">
         <dt>予約のモダリティ</dt><dd>{{ item.modality or "—" }}</dd>
         <dt>Study Instance UID</dt><dd>{% with uid = item.study_instance_uid %}{% include "_uid.html" %}{% endwith %}</dd>
         <dt>ワークリストの文字コード</dt><dd>{{ item.specific_character_set|charset_label }}</dd>
@@ -53,71 +56,110 @@
   </section>
   {% else %}
   <input type="hidden" name="mode" value="emergency">
-  <section class="sec">
-    <h2 class="sec-title">緊急の患者（予約なし）</h2>
-    <div class="sec-body">
+  <section class="sec" id="emergency-patient">
+    <h2>緊急の患者（予約なし）</h2>
+    <div class="in">
       <p class="mb-4 text-xs text-label">予約なし（受付番号は空）。予約から撮るときは、<a class="link" href="/worklist">ワークリスト</a>で予約を選んでください。姓と名は空白で区切って入れてください（DICOM の区切りの ^ に置き換えます）。</p>
-      <div class="grid gap-4 sm:grid-cols-3">
-        <label class="field">
-          <span class="field-label">患者ID<span class="req">必須</span></span>
-          <input type="text" name="patient_id" class="input" maxlength="16" required aria-required="true">
-        </label>
-        <label class="field">
-          <span class="field-label">氏名（英字。例 KINKYU TARO）<span class="req">必須</span></span>
-          <input type="text" name="name_alphabetic" class="input" maxlength="64" data-person-name required aria-required="true">
-        </label>
-        <label class="field">
-          <span class="field-label">氏名（漢字。例 緊急 太郎）</span>
-          <input type="text" name="name_ideographic" class="input" maxlength="64" data-person-name>
-        </label>
-        <label class="field">
-          <span class="field-label">氏名（かな）</span>
-          <input type="text" name="name_phonetic" class="input" maxlength="64" data-person-name>
-        </label>
-        <label class="field">
-          <span class="field-label">生年月日</span>
-          <input type="date" name="birth_date" class="input">
-        </label>
-        <label class="field">
-          <span class="field-label">性別</span>
-          <select name="sex" class="input">
-            {% for value, label in sex_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
-          </select>
-        </label>
-        <label class="field sm:col-span-3">
-          <span class="field-label">検査名</span>
-          <input type="text" name="study_description" class="input" maxlength="64">
-        </label>
+      {# 欄の誤りは、欄（label）の中の下に 1 行（.msg：印と文。parts.md の入力欄）。入力のたびにスクリプトが出し、サーバーで断った誤りも同じ行に結ぶ #}
+      {% macro error_line(name) %}<span class="msg" id="error-{{ name }}" hidden><span class="icon icon-triangle-alert ic" aria-hidden="true"></span><span class="t"></span></span>{% endmacro %}
+      <div class="grid gap-4 sm:grid-cols-3" data-charset-fallback="{{ config.character_set_fallback }}">
+        <div>
+          <label class="field">
+            <span class="l">患者ID<span class="req">必須</span></span>
+            <input type="text" name="patient_id" class="input" maxlength="64" required aria-required="true" autofocus data-check="patient-id" data-message="{{ input_messages['patient-id'] }}" data-required-message="{{ required_messages['patient_id'] }}" aria-describedby="error-patient_id">
+            {{ error_line("patient_id") }}
+          </label>
+          <div class="mt-2">
+            <button type="button" class="btn btn-sm" data-temporary-id>仮の ID を作る</button>
+          </div>
+          <p class="mt-2 text-xs text-label">患者ID が分からないとき。{{ config.temporary_patient_id_prefix }} と日時の番号を入れます。</p>
+        </div>
+        <div>
+          <label class="field">
+            <span class="l">氏名（漢字。例 緊急 太郎）<span class="req">必須</span></span>
+            <input type="text" name="name_ideographic" class="input" maxlength="64" data-person-name required aria-required="true" data-check="ideographic" data-message="{{ input_messages['ideographic'] }}" data-required-message="{{ required_messages['name_ideographic'] }}" aria-describedby="error-name_ideographic">
+            {{ error_line("name_ideographic") }}
+          </label>
+          <div class="mt-2">
+            <label class="flex items-center gap-2 text-xs text-label">
+              <input type="checkbox" name="name_unknown" value="1" data-unknown-name data-ideographic="{{ unknown_name_ideographic }}" data-phonetic="{{ unknown_name_phonetic }}">
+              <span>氏名が分からない（{{ unknown_name_ideographic|replace("^", " ") }}）</span>
+            </label>
+          </div>
+        </div>
+        <div>
+          <label class="field">
+            <span class="l">氏名（かな。例 キンキュウ タロウ）</span>
+            <input type="text" name="name_phonetic" class="input" maxlength="64" data-person-name data-check="phonetic" data-message="{{ input_messages['phonetic'] }}" data-note="{{ phonetic_converted_note }}"{% if config.patient_input_test_mode %} data-test-mode{% endif %} aria-describedby="error-name_phonetic note-name_phonetic">
+            {{ error_line("name_phonetic") }}
+          </label>
+          <p class="mt-2 text-xs text-label" id="note-name_phonetic" aria-live="polite" hidden></p>
+          <p class="mt-2 text-xs text-label" id="mode-name_phonetic">{% if config.patient_input_test_mode %}かなの確かめ：試験の形（半角カナ・ひらがなもそのまま送る）{% else %}かなの確かめ：全角カタカナ{% endif %}</p>
+        </div>
+        <div>
+          <label class="field">
+            <span class="l">氏名（英字。例 KINKYU TARO）</span>
+            <input type="text" name="name_alphabetic" class="input" maxlength="64" data-person-name data-check="alphabetic" data-message="{{ input_messages['alphabetic'] }}" aria-describedby="error-name_alphabetic">
+            {{ error_line("name_alphabetic") }}
+          </label>
+        </div>
+        <div>
+          <label class="field">
+            <span class="l">生年月日</span>
+            <input type="date" name="birth_date" class="input" data-check="birth-date" data-today="{{ server_today }}" data-message="{{ input_messages['birth-date'] }}" aria-describedby="error-birth_date">
+            {{ error_line("birth_date") }}
+          </label>
+        </div>
+        <div>
+          <label class="field">
+            <span class="l">性別<span class="req">必須</span></span>
+            <select name="sex" class="select" required aria-required="true" data-check="required" data-required-message="{{ required_messages['sex'] }}" aria-describedby="error-sex">
+              {% for value, label in sex_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+            {{ error_line("sex") }}
+          </label>
+        </div>
+        <div class="sm:col-span-3">
+          <label class="field">
+            <span class="l">検査名</span>
+            <input type="text" name="study_description" class="input" maxlength="64" aria-describedby="error-study_description">
+            {{ error_line("study_description") }}
+          </label>
+        </div>
       </div>
     </div>
   </section>
   {% endif %}
   <section class="sec">
-    <h2 class="sec-title">撮影の設定</h2>
-    <div class="sec-body">
+    <h2>撮影の設定</h2>
+    <div class="in">
       <div class="grid gap-4 sm:grid-cols-3">
         <label class="field">
-          <span class="field-label">テンプレート</span>
-          <select id="exam-template" name="template" class="input" hx-get="/exam/check" hx-include="#exam-form [name='key'], #exam-form [name='profile']" hx-target="#actions" hx-trigger="change">
+          <span class="l">テンプレート</span>
+          <select id="exam-template" name="template" class="select" hx-get="/exam/check" hx-include="#exam-form [name='key'], #exam-form [name='profile']" hx-target="#actions" hx-trigger="change">
             {% for name in templates %}<option value="{{ name }}"{% if name == selected_template %} selected{% endif %}>{{ name }}</option>{% endfor %}
           </select>
         </label>
         <label class="field">
-          <span class="field-label">装置（装置のプロファイル）</span>
-          <select name="profile" class="input" hx-get="/exam/check" hx-include="#exam-form [name='key'], #exam-form [name='template']" hx-target="#actions" hx-trigger="change">
+          <span class="l">装置（装置のプロファイル）</span>
+          <select name="profile" class="select" hx-get="/exam/check" hx-include="#exam-form [name='key'], #exam-form [name='template']" hx-target="#actions" hx-trigger="change">
             <option value=""{% if not selected_profile %} selected{% endif %}>なし</option>
             {% for profile in profiles %}<option value="{{ profile.name }}"{% if profile.name == selected_profile %} selected{% endif %}>{{ profile.name }}（{{ profile.modality }}・{{ profile.model_name }}）</option>{% endfor %}
           </select>
         </label>
-        <label class="field">
-          <span class="field-label">文字コード（画像）</span>
-          <select name="charset" class="input">
-            {% for value in charset_choices %}<option value="{{ value }}"{% if value == config.character_set %} selected{% endif %}>{{ value }}</option>{% endfor %}
+        {# 選択肢は意味の分かる名前で出す（値は docs/spec/12 の 7.1）。「自動」の行き先と、
+           JIS（半角カナと漢字）の注意を選択の下に出す（注意は選んだときだけ。app.js） #}
+        <div class="field">
+          <label class="l" for="exam-charset">文字コード（画像）</label>
+          <select id="exam-charset" name="charset" class="select" aria-describedby="charset-auto-note charset-warning">
+            {% for value in charset_choices %}<option value="{{ value }}"{% if value == config.character_set %} selected{% endif %}>{{ charset_labels.get(value, value) }}</option>{% endfor %}
           </select>
-        </label>
+          <p id="charset-auto-note" class="hint">{{ auto_charset_note }}</p>
+          <p id="charset-warning" class="field-warn hint" data-charset-warning="{{ jis_kana_choices }}"{% if config.character_set not in jis_kana_choices.split() %} hidden{% endif %}><span class="icon icon-triangle-alert" aria-hidden="true"></span>{{ jis_kana_warning }}</p>
+        </div>
         <label class="field">
-          <span class="field-label">異常のデータ</span>
-          <select name="abnormal_level" class="input">
+          <span class="l">異常のデータ</span>
+          <select name="abnormal_level" class="select">
             {% for value, label in abnormal_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
           </select>
         </label>
@@ -127,6 +169,20 @@
       <p class="mt-2 text-xs text-label">{% if config.worklist.use_mpps %}MPPS：使う（{{ config.mpps_peer().ae_title }}）{% else %}MPPS：使わない{% endif %}</p>
       {% for error in profile_errors %}<p role="alert" class="mt-2 text-xs text-danger">{{ error }}</p>{% endfor %}
     </div>
+  </section>
+  {# 撮る前に「誰を・どこへ」を操作の行の真上に出す（docs/spec/12a の 10.5）。緊急の患者は、
+     入れた値を入力のたびに写す（app.js の data-mirror） #}
+  {% if item %}{% set t_alpha, t_ideo, t_phon = item.patient_name|name_parts %}{% endif %}
+  <section id="exam-target" class="banner" aria-label="撮る患者と送信先">
+    <div class="nm">
+      <div class="n" {% if not item %}data-mirror="name_ideographic" {% endif %}data-empty="漢字の氏名なし">{% if item %}{{ t_ideo or "漢字の氏名なし" }}{% else %}漢字の氏名なし{% endif %}</div>
+      <div class="k" {% if not item %}data-mirror="name_phonetic" {% endif %}data-empty="カナなし">{% if item %}{{ t_phon or "カナなし" }}{% else %}カナなし{% endif %}</div>
+    </div>
+    <div class="f"><div class="l">氏名（英字）</div><div class="v" {% if not item %}data-mirror="name_alphabetic" {% endif %}data-empty="—">{% if item %}{{ t_alpha or "—" }}{% else %}—{% endif %}</div></div>
+    <div class="f"><div class="l">患者ID</div><div class="v font-mono" {% if not item %}data-mirror="patient_id" {% endif %}data-empty="—">{% if item %}{{ item.patient_id }}{% else %}—{% endif %}</div></div>
+    <div class="f"><div class="l">生年月日・性別</div><div class="v"{% if not item %} data-mirror-birth{% endif %}>{% if item %}{{ item|birth_label }}{% else %}生年月日なし{% endif %}</div></div>
+    <div class="f"><div class="l">受付番号</div><div class="v font-mono">{% if item %}{{ item.accession_number or "—" }}{% else %}—（予約なし）{% endif %}</div></div>
+    <div class="f"><div class="l">送信先</div><div class="v">{{ destination.name }} <span class="font-mono text-xs text-label">{{ destination.ae_title }}・{{ destination.host }}:{{ destination.port }}</span></div></div>
   </section>
   <div id="actions">{% include "_exam_actions.html" %}</div>
   <p class="busy busy-exam" role="status"><span class="icon icon-refresh-cw animate-spin" aria-hidden="true"></span>撮影しています。終わるまでボタンは押せません</p>
