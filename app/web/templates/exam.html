@@ -68,20 +68,23 @@
             <input type="text" name="patient_id" class="input" maxlength="64" required aria-required="true" autofocus data-check="patient-id" data-message="{{ input_messages['patient-id'] }}" data-required-message="{{ required_messages['patient_id'] }}" aria-describedby="error-patient_id">
             {{ error_line("patient_id") }}
           </label>
+          <div class="mt-2">
+            <button type="button" class="btn btn-sm" data-temporary-id>仮の ID を作る</button>
+          </div>
+          <p class="mt-2 text-xs text-label">患者ID が分からないとき。{{ config.temporary_patient_id_prefix }} と日時の番号を入れます。</p>
         </div>
         <div>
           <label class="field">
-            <span class="l">氏名（英字。例 KINKYU TARO）<span class="req">必須</span></span>
-            <input type="text" name="name_alphabetic" class="input" maxlength="64" data-person-name required aria-required="true" data-check="alphabetic" data-message="{{ input_messages['alphabetic'] }}" data-required-message="{{ required_messages['name_alphabetic'] }}" aria-describedby="error-name_alphabetic">
-            {{ error_line("name_alphabetic") }}
-          </label>
-        </div>
-        <div>
-          <label class="field">
-            <span class="l">氏名（漢字。例 緊急 太郎）</span>
-            <input type="text" name="name_ideographic" class="input" maxlength="64" data-person-name data-check="ideographic" data-message="{{ input_messages['ideographic'] }}" aria-describedby="error-name_ideographic">
+            <span class="l">氏名（漢字。例 緊急 太郎）<span class="req">必須</span></span>
+            <input type="text" name="name_ideographic" class="input" maxlength="64" data-person-name required aria-required="true" data-check="ideographic" data-message="{{ input_messages['ideographic'] }}" data-required-message="{{ required_messages['name_ideographic'] }}" aria-describedby="error-name_ideographic">
             {{ error_line("name_ideographic") }}
           </label>
+          <div class="mt-2">
+            <label class="flex items-center gap-2 text-xs text-label">
+              <input type="checkbox" name="name_unknown" value="1" data-unknown-name data-ideographic="{{ unknown_name_ideographic }}" data-phonetic="{{ unknown_name_phonetic }}">
+              <span>氏名が分からない（{{ unknown_name_ideographic|replace("^", " ") }}）</span>
+            </label>
+          </div>
         </div>
         <div>
           <label class="field">
@@ -94,6 +97,13 @@
         </div>
         <div>
           <label class="field">
+            <span class="l">氏名（英字。例 KINKYU TARO）</span>
+            <input type="text" name="name_alphabetic" class="input" maxlength="64" data-person-name data-check="alphabetic" data-message="{{ input_messages['alphabetic'] }}" aria-describedby="error-name_alphabetic">
+            {{ error_line("name_alphabetic") }}
+          </label>
+        </div>
+        <div>
+          <label class="field">
             <span class="l">生年月日</span>
             <input type="date" name="birth_date" class="input" data-check="birth-date" data-today="{{ server_today }}" data-message="{{ input_messages['birth-date'] }}" aria-describedby="error-birth_date">
             {{ error_line("birth_date") }}
@@ -101,8 +111,8 @@
         </div>
         <div>
           <label class="field">
-            <span class="l">性別</span>
-            <select name="sex" class="select" aria-describedby="error-sex">
+            <span class="l">性別<span class="req">必須</span></span>
+            <select name="sex" class="select" required aria-required="true" data-check="required" data-required-message="{{ required_messages['sex'] }}" aria-describedby="error-sex">
               {% for value, label in sex_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
             </select>
             {{ error_line("sex") }}

@@ -258,6 +258,8 @@ def test_exam_size_is_bounded_on_the_server(client, tmp_path, series, images) ->
         "mode": "emergency",
         "patient_id": "E1",
         "name_alphabetic": "A^B",
+        "name_ideographic": "山田^太郎",
+        "sex": "M",
         "series": series,
         "images": images,
         "action": "exam",
@@ -492,7 +494,7 @@ def _field(html: str, name: str) -> str:
 def test_required_fields_are_marked(client) -> None:
     """必須の欄に「必須」の印と required（docs/spec/12a の 10.5）."""
     html = client.get("/exam").text
-    for name in ("patient_id", "name_alphabetic"):
+    for name in ("patient_id", "name_ideographic", "sex"):
         field = _field(html, name)
         assert "必須" in field, name
         assert " required" in field, name
@@ -502,7 +504,8 @@ def test_required_fields_are_marked(client) -> None:
         field = _field(manual, name)
         assert "必須" in field, name
         assert " required" in field, name
-    for name in ("name_ideographic", "name_phonetic", "birth_date", "study_description"):
+    # 英字の氏名は必須ではない（氏名が分からない患者は漢字・かなだけで撮る）
+    for name in ("name_alphabetic", "name_phonetic", "birth_date", "study_description"):
         assert "必須" not in _field(html, name), name
     for name in ("name_alphabetic", "name_ideographic", "name_phonetic"):
         assert "data-person-name" in _field(html, name), name
@@ -514,6 +517,8 @@ def _emergency(client, **fields: str) -> str:
         "mode": "emergency",
         "patient_id": "E0001",
         "name_alphabetic": "KINKYU^TARO",
+        "name_ideographic": "緊急^太郎",
+        "sex": "M",
         "series": "1",
         "images": "1",
         "action": "exam",
@@ -525,8 +530,9 @@ def _emergency(client, **fields: str) -> str:
 @pytest.mark.parametrize(
     "fields",
     [
-        {"name_alphabetic": ""},
-        {"name_alphabetic": "　 "},
+        {"name_ideographic": ""},
+        {"name_ideographic": "　 "},
+        {"sex": ""},
         {"patient_id": ""},
         {"name_alphabetic": "A=B"},
         {"name_ideographic": "山田\x1b太郎"},

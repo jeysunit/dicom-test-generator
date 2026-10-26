@@ -311,7 +311,8 @@ PN（Person Name）は英字・漢字・かなの 3 つのコンポーネント�
 YAMADA^TARO=山田^太郎=ヤマダ^タロウ
 ```
 
-- 英字のコンポーネントグループは常に書く
+- 英字のコンポーネントグループは常に書く（モダリティエミュレーターの身元不明の患者は
+  英字を空にし、先頭を `=` にする。[12a](12a_web_screens_and_cli.md) の 10.5）
 - 漢字は `use_ideographic`、かなは `use_phonetic` が `true` で、値があるときだけ
   書く。どちらも Job の `character_set` の値を、病院テンプレートの
   `overrides.patient_module.patient_name` が上書きする。

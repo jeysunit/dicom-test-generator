@@ -239,7 +239,7 @@
       }
     });
     form.querySelectorAll("[data-check]").forEach(function (input) {
-      if (input instanceof HTMLInputElement) {
+      if (input instanceof HTMLInputElement || input instanceof HTMLSelectElement) {
         convertPhonetic(input);
         if (!checkField(input)) {
           failed += 1;
@@ -279,6 +279,66 @@
       showFieldError(field, notice.textContent.trim());
       field.focus();
     }
+  });
+
+  // 身元不明の患者（docs/spec/12a の 10.5）。「仮の ID を作る」はサーバーに頭と日時の番号を作らせて
+  // 患者ID の欄に入れる（同じ秒に2回押しても重ならないよう、番号はサーバーが決める）。
+  // 「氏名が分からない」は、設定の漢字・かなの氏名を入れて欄を読むだけにし、英字は空にする
+  // （サーバーも同じ値に置き換える）。外すと、入れた値を消して欄を戻す
+  document.addEventListener("click", function (event) {
+    var button = event.target instanceof Element ? event.target.closest("[data-temporary-id]") : null;
+    var form = button && button.closest("form");
+    var field = form && form.elements.namedItem("patient_id");
+    if (!button || !(field instanceof HTMLInputElement)) {
+      return;
+    }
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    button.disabled = true;
+    fetch("/exam/temporary-id", {
+      method: "POST",
+      headers: { "X-CSRF-Token": meta ? meta.getAttribute("content") || "" : "" },
+    })
+      .then(function (response) {
+        if (!response.ok) {
+          throw new Error("status " + response.status);
+        }
+        return response.json();
+      })
+      .then(function (body) {
+        field.value = body.patient_id;
+        checkField(field);
+        field.focus();
+      })
+      .catch(function () {
+        showFieldError(field, "仮の ID を作れませんでした。もう一度押してください。");
+      })
+      .then(function () {
+        button.disabled = false;
+      });
+  });
+  document.addEventListener("change", function (event) {
+    var box = event.target;
+    if (!(box instanceof HTMLInputElement) || !box.hasAttribute("data-unknown-name") || !box.form) {
+      return;
+    }
+    var values = {
+      name_alphabetic: "",
+      name_ideographic: box.getAttribute("data-ideographic") || "",
+      name_phonetic: box.getAttribute("data-phonetic") || "",
+    };
+    Object.keys(values).forEach(function (name) {
+      var input = box.form.elements.namedItem(name);
+      if (input instanceof HTMLInputElement) {
+        input.value = box.checked ? values[name] : "";
+        input.readOnly = box.checked;
+        convertPhonetic(input);
+        if (box.checked) {
+          checkField(input);
+        } else {
+          showFieldError(input, "");
+        }
+      }
+    });
   });
 
   // ワークリストの一覧：行を選んだら「再検索」を押せるようにする（docs/spec/12a の

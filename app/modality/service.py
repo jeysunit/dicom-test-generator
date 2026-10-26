@@ -53,10 +53,11 @@ from app.core.path_safety import ensure_within, safe_path_component
 from app.core.patient_input import (
     current_date,
     current_datetime,
+    temporary_patient_id,
     validate_emergency_patient,
     validate_study_description,
 )
-from app.core.person_name import GROUP_SEPARATOR, compose_person_name
+from app.core.person_name import compose_person_name
 from app.core.uid_generator import UIDGenerator
 from app.core.validation_text import describe_validation_error
 from app.core.worklist_charset import resolve_image_character_set
@@ -305,6 +306,10 @@ class ModalityService:
         self._auto_commitment = auto_commitment
         # 同時に走る撮影は1つ（画面のプロセスの中。docs/spec/12a の 10.5）
         self._exam_lock = threading.Lock()
+        # 仮の患者ID を渡した最後の秒と、その秒に渡した数（同じ秒に2回押しても重ねない）
+        self._temporary_id_lock = threading.Lock()
+        self._temporary_id_second: datetime | None = None
+        self._temporary_id_count = 0
         # 送信ジョブの一覧に出す患者・検査の値（元のファイルから読み、ジョブの番号で覚える）
         self._job_summaries: dict[int, tuple[str, str, str, str, str]] = {}
 
@@ -603,6 +608,26 @@ class ModalityService:
         """
         return compose_person_name(alphabetic, ideographic, phonetic)
 
+    def new_temporary_patient_id(self) -> str:
+        """身元不明の患者の仮の患者ID を作る（頭は設定、日時は設定のタイムゾーンの今。10.5）.
+
+        同じ秒に2回作っても重ならない（2つ目から `-2`）。この画面のプロセスの中だけで数える。
+        """
+        moment = current_datetime(self.config.timezone).replace(microsecond=0)
+        with self._temporary_id_lock:
+            if moment == self._temporary_id_second:
+                self._temporary_id_count += 1
+            else:
+                self._temporary_id_second = moment
+                self._temporary_id_count = 1
+            return temporary_patient_id(
+                self.config.temporary_patient_id_prefix, moment, self._temporary_id_count
+            )
+
+    def unknown_name(self) -> tuple[str, str]:
+        """氏名が分からない患者の（漢字・かな）の氏名（設定。英字は空にする。10.5）."""
+        return self.config.unknown_name_ideographic, self.config.unknown_name_phonetic
+
     def today(self) -> date:
         """生年月日の上限にする今日（設定のタイムゾーン。OS の時計の地域に頼らない）."""
         return current_date(self.config.timezone)
@@ -837,12 +862,6 @@ class ModalityService:
             emergency_patient = request.emergency_patient
             if emergency_patient is None:
                 raise ConfigurationError("emergency_patient is required for an emergency exam")
-            if not emergency_patient.patient_name.split(GROUP_SEPARATOR, 1)[0].strip():
-                # 緊急の患者の氏名（英字）は必須（docs/spec/12a の 10.5）。画面と CLI の両方に効く
-                raise ValidationError(
-                    "緊急の患者の氏名（英字）は必須です",
-                    {"patient_id": emergency_patient.patient_id},
-                )
             _reject_value_delimiter(
                 (
                     ("Patient ID", emergency_patient.patient_id),
