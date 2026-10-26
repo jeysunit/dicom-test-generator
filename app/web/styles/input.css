@@ -205,6 +205,26 @@
   padding-top: 12px;
 }
 
+/* 接続先の表：確認中は、押した行（「すべて接続確認」なら全部の行）の結果を「確認中」の札にする */
+.conn td.res .wait-mark {
+  display: none;
+}
+.conn tr:has(.htmx-request) td.res > :not(.wait-mark),
+#conn-sec:has(.hd .htmx-request) .conn td.res > :not(.wait-mark) {
+  display: none;
+}
+.conn tr:has(.htmx-request) td.res .wait-mark,
+#conn-sec:has(.hd .htmx-request) .conn td.res .wait-mark {
+  display: inline-flex;
+}
+.conn td.res .none {
+  color: var(--color-label);
+}
+/* 中身の無い知らせの置き場は、区画の間をあけない */
+#echo-notice:empty {
+  display: none;
+}
+
 /* 知らせの印（Lucide のアイコン）は状態の色 */
 .notice .icon {
   color: var(--n, var(--color-label));

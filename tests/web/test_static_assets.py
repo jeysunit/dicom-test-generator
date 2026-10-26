@@ -45,7 +45,7 @@ def test_built_css_is_committed_and_uses_the_kit_tokens() -> None:
     css = (STATIC / "app.css").read_text(encoding="utf-8")
     assert ".text-label{color:var(--color-label)!important}" in css.replace(" ", "")
     kit = STATIC / "ui-kit"
-    assert (kit / "VERSION").read_text(encoding="utf-8").strip() == "1.0.0"
+    assert (kit / "VERSION").read_text(encoding="utf-8").strip() == "1.0.1"
     assert "--color-primary: #4B4FBF;" in (kit / "tokens.css").read_text(encoding="utf-8")
     assert ".btn-primary{" in (kit / "components.css").read_text(encoding="utf-8")
 

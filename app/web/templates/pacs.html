@@ -1,45 +1,11 @@
 {% extends "base.html" %}
 {% block title %}PACS{% endblock %}
 {% block content %}
-{# 画面の型 F（区画＋下に一覧）：上に送信先の区画、下に送信ジョブの一覧（12a の 10.6） #}
+{# 画面の型 F（区画＋下に一覧）：上に接続先の区画、下に送信ジョブの一覧（12a の 10.6） #}
 <div class="pagehead"><h1>PACS</h1></div>
-<section class="sec">
-  <h2>送信先</h2>
-  <div class="in flush overflow-x-auto">
-    <table class="tbl">
-      <thead>
-        <tr>
-          <th scope="col">名称</th>
-          <th scope="col">AEタイトル</th>
-          <th scope="col">ホスト</th>
-          <th scope="col">ポート</th>
-          <th scope="col">保管の確認</th>
-          <th scope="col"><span class="sr-only">接続確認の実行</span></th>
-          <th scope="col">最後の接続確認</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for destination in destinations %}
-        <tr>
-          <td>{{ destination.name }}{% if destination.name == config.default_destination %} <span class="badge">標準</span>{% endif %}</td>
-          <td class="font-mono">{{ destination.ae_title }}</td>
-          <td class="font-mono">{{ destination.host }}</td>
-          <td class="font-mono">{{ destination.port }}</td>
-          <td>{{ "使う" if destination.storage_commitment else "使わない" }}</td>
-          <td>
-            <button type="button" class="btn btn-sm row-open" hx-post="/pacs/echo/{{ destination.name|urlencode }}" hx-target="#echo-{{ loop.index }}" hx-disabled-elt="this">
-              <span class="icon icon-activity" aria-hidden="true"></span>接続確認
-            </button>
-          </td>
-          {# 最後の接続確認：開いたときは、この画面を動かしている間に覚えた最後の結果と時刻。押すと結果で差し替える #}
-          {% set probe = link_probes.get(destination.name) %}
-          <td id="echo-{{ loop.index }}" class="text-xs text-label">{% if probe %}<span class="st" data-k="{{ probe.kind }}">{{ "成功" if probe.ok else "失敗" }}</span> {{ probe.at }}{% else %}—{% endif %}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
+{# 接続確認を押した直後の知らせ（区画の上） #}
+<div id="echo-notice" aria-live="polite"></div>
+{% include "_conn_table.html" %}
 <section class="sec">
   <h2 class="hd">送信ジョブ
     {# 失敗の件数は 2 秒ごとの再取得で差し替える（#retry-slot）。押すと確認の窓を出す #}

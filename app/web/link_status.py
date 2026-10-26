@@ -17,13 +17,35 @@ LABEL_OK = "接続中"
 LABEL_NG = "一部が接続不可"
 LABEL_UNKNOWN = "未確認"
 
+# 接続確認の失敗の理由の 1 句と、次にすること（10.6）。英語の原文は画面に出さず、記録に残す。
+# pynetdicom は、接続の拒否・時間切れ・ホスト名を引けないことを区別せずに返す
+REASON_NO_ANSWER = "応答がありません"
+REASON_REFUSED = "接続を断られました"
+REASON_PEER_FAILED = "相手が失敗を返しました"
+REASON_AE_TITLE = "AEタイトルが合いません"
+_ECHO_REASONS = (
+    ("AEタイトル", REASON_AE_TITLE, "相手の側に、この装置の AEタイトルを登録してください。"),
+    ("rejected by the peer", REASON_REFUSED, "相手の側の AEタイトルの登録と設定を確かめてください。"),
+    ("failed with status", REASON_PEER_FAILED, "相手の側の記録を確かめてください。"),
+)
+_NEXT_NO_ANSWER = "相手が動いているかと、ホスト名とポート番号を確かめてください。"
+
+
+def echo_reason(message: str) -> tuple[str, str]:
+    """接続確認の失敗の原文を、（理由の 1 句, 次にすること）にする."""
+    for needle, reason, next_step in _ECHO_REASONS:
+        if needle in message:
+            return reason, next_step
+    return REASON_NO_ANSWER, _NEXT_NO_ANSWER
+
 
 @dataclass(frozen=True)
 class Probe:
-    """1 つの相手に最後に試した結果."""
+    """1 つの相手に最後に試した結果。失敗のときは理由の 1 句を持つ."""
 
     ok: bool
     at: str
+    reason: str = ""
 
     @property
     def kind(self) -> str:
@@ -35,11 +57,11 @@ class LinkStatus:
     worklist: Probe | None = None
     destinations: dict[str, Probe] = field(default_factory=dict)
 
-    def record_worklist(self, ok: bool) -> None:
-        self.worklist = Probe(ok, _now())
+    def record_worklist(self, ok: bool, reason: str = "") -> None:
+        self.worklist = Probe(ok, _now(), reason)
 
-    def record_destination(self, name: str, ok: bool) -> None:
-        self.destinations[name] = Probe(ok, _now())
+    def record_destination(self, name: str, ok: bool, reason: str = "") -> None:
+        self.destinations[name] = Probe(ok, _now(), reason)
 
     def overall(self, destination_names: list[str]) -> tuple[str, str]:
         """全体の状態の札の（種類, 文字）。失敗が 1 つでもあれば「一部が接続不可」.

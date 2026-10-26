@@ -1,6 +1,10 @@
-{% if result %}
-<span role="status" class="inline-flex items-center gap-1 text-value"><span class="st" data-k="ok">成功</span>{{ result.elapsed_ms }} ms</span>
-{% else %}
-<span role="alert" class="inline-flex items-center gap-1 text-foreground"><span class="st" data-k="ng">失敗</span>{{ error }}</span>
-{% endif %}
+{# 接続確認の応答：押した行の「最後の接続確認」を差し替え、区画の上の知らせ（#echo-notice）と上の帯を同梱して差し替える #}
+{% include "_echo_cell.html" %}
+<div id="echo-notice" hx-swap-oob="true">
+  {% if notice.ok %}
+  <div role="status" class="notice" data-k="ok"><span class="icon icon-check" aria-hidden="true"></span><span>{{ notice.text }}</span></div>
+  {% else %}
+  <div role="alert" class="notice" data-k="err"><span class="icon icon-triangle-alert" aria-hidden="true"></span><span>{{ notice.text }}</span></div>
+  {% endif %}
+</div>
 {% if oob_band %}{% include "_band.html" %}{% endif %}
