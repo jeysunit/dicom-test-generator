@@ -62,6 +62,10 @@ function line(name, text) {
 eval(fs.readFileSync(process.argv[1], "utf8"));
 
 const out = {};
+// 画面の上の誤りの件数の知らせ（role="alert" の箱の中の .notice と .t）
+const summaryText = { textContent: "" };
+const summaryNotice = { hidden: true, querySelector: (selector) => (selector === ".t" ? summaryText : null) };
+lines["error-summary"] = { querySelector: (selector) => (selector === ".notice" ? summaryNotice : null) };
 // 数の欄（確かめの属性 data-check が無い）：0 は範囲の外
 const count = new HTMLInputElement({
   name: "routine_images", value: "0", min: "1", max: "5", willValidate: true,
@@ -83,6 +87,7 @@ out.beforeRequest = {
   prevented, focused: focused.slice(), message: count.custom, shown: countLine.hidden ? "" : countLine.textContent,
   staleSexLineCleared: sexLine.hidden, staleStudyLineCleared: studyLine.hidden,
 };
+out.summary = { hidden: summaryNotice.hidden, text: summaryText.textContent };
 
 // 性別を選び直したら、サーバーで断った誤りが消える
 sexLine.hidden = false; sexLine.textContent = "性別は、男・女・その他から選んでください。";
@@ -100,6 +105,20 @@ dispatch("input", { target: count });
 prevented = false;
 dispatch("htmx:beforeRequest", { detail: { elt: form }, preventDefault() { prevented = true; } });
 out.afterFix = { prevented, message: count.custom, shown: countLine.hidden };
+out.summaryAfterFix = { hidden: summaryNotice.hidden, text: summaryText.textContent };
+
+// 生年月日：サーバーの今日（data-today）まで通す。ブラウザの今日より先でもよく、その翌日は断る
+const birth = new HTMLInputElement({
+  name: "birth_date", value: "", willValidate: true, validate: () => true,
+  attrs: { "data-check": "birth-date", "data-message": "今日以前です", "data-today": "2999-01-02" },
+});
+const birthLine = line("birth_date", "");
+birth.value = "2999-01-02";
+dispatch("input", { target: birth });
+const serverToday = birthLine.hidden;
+birth.value = "2999-01-03";
+dispatch("input", { target: birth });
+out.birth = { serverToday, nextDay: birthLine.hidden, text: birthLine.textContent };
 console.log(JSON.stringify(out));
 """
 
@@ -135,3 +154,14 @@ def test_server_refusal_is_cleared_when_the_unchecked_field_is_fixed(probe) -> N
 
 def test_fixed_count_field_goes_through(probe) -> None:
     assert probe["afterFix"] == {"prevented": False, "message": "", "shown": True}
+
+
+def test_error_count_is_announced_when_sending_is_stopped_and_cleared_when_it_goes_through(probe) -> None:
+    assert probe["summary"] == {"hidden": False, "text": "入力に誤りが 1 件あります。最初の誤りの欄に移ります。"}
+    assert probe["summaryAfterFix"] == {"hidden": True, "text": ""}
+
+
+def test_birth_date_is_allowed_up_to_the_server_today(probe) -> None:
+    """ブラウザの今日より先でも、サーバーの今日までは画面で止めない。その翌日は止める."""
+    assert probe["birth"]["serverToday"] is True
+    assert probe["birth"]["nextDay"] is False and probe["birth"]["text"] == "今日以前です"

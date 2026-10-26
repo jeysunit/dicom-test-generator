@@ -100,6 +100,14 @@
     var day = ("0" + now.getDate()).slice(-2);
     return now.getFullYear() + "-" + month + "-" + day;
   }
+  // 生年月日の上限：ブラウザの現地の今日と、画面を開いたときのサーバーの今日（設定のタイム
+  // ゾーン。data-today）の遅いほうではなく、進んでいるほうにする。サーバーより先に行きすぎて
+  // 止めない（UTC のブラウザで日本の朝に今日生まれを入れても通す）。最後の判定はサーバーが行う
+  function latestBirthDate(input) {
+    var server = input.getAttribute("data-today") || "";
+    var local = today();
+    return server > local ? server : local;
+  }
   var PHONETIC_CHARS = /^[ァ-ヺ・-ヾ^ ]*$/;
   var HIRAGANA = /[ぁ-ゖゝゞ]/g;
   var HIRAGANA_TO_KATAKANA = 0x60;
@@ -128,14 +136,16 @@
       return input.hasAttribute("data-test-mode") || PHONETIC_CHARS.test(text);
     }
     if (kind === "birth-date") {
-      return !value || value <= today();
+      return !value || value <= latestBirthDate(input);
     }
     return true;
   }
   function showFieldError(input, message) {
     var line = document.getElementById(input.getAttribute("data-error-line") || "error-" + input.name);
     if (line) {
-      line.textContent = message;
+      // 誤りの行は、印（.icon）と文（.t）。文の置き場が無い行は、行の全体を文にする
+      var text = line.querySelector ? line.querySelector(".t") : null;
+      (text || line).textContent = message;
       line.hidden = !message;
     }
     if (message) {
@@ -143,6 +153,17 @@
     } else {
       input.removeAttribute("aria-invalid");
     }
+  }
+  // 送るのを止めたとき、画面の上に誤りの件数を知らせる（role="alert"。欄の下の文は読み上げない）
+  function showErrorSummary(count) {
+    var box = document.getElementById("error-summary");
+    var notice = box && box.querySelector(".notice");
+    var text = notice && notice.querySelector(".t");
+    if (!text) {
+      return;
+    }
+    text.textContent = count ? "入力に誤りが " + count + " 件あります。最初の誤りの欄に移ります。" : "";
+    notice.hidden = !count;
   }
   function checkField(input) {
     var kind = input.getAttribute("data-check");
@@ -209,6 +230,8 @@
       return;
     }
     var first = null;
+    var failed = 0;
+    showErrorSummary(0);
     // 前の応答でサーバーが断った誤りは、送り直す前に消す（確かめの無い欄は、ここでしか消えない）
     Array.prototype.forEach.call(form.elements, function (control) {
       if (control.name && !control.hasAttribute("data-check")) {
@@ -218,26 +241,31 @@
     form.querySelectorAll("[data-check]").forEach(function (input) {
       if (input instanceof HTMLInputElement) {
         convertPhonetic(input);
-        if (!checkField(input) && !first) {
-          first = input;
+        if (!checkField(input)) {
+          failed += 1;
+          first = first || input;
         }
       }
     });
     if (first) {
       event.preventDefault();
+      showErrorSummary(failed);
       first.focus();
       return;
     }
     // form は novalidate なので、ブラウザの検証は自分で呼ぶ。確かめの無い欄（数の欄）の範囲・
     // 必須・整数を、ほかの欄と同じく欄の外の 1 行に出す（吹き出しは使わない）。日本語の文は
     // 下の invalid が setCustomValidity で付けるので、validationMessage にその文が入る
-    var invalid = Array.prototype.find.call(form.elements, function (control) {
+    var invalids = Array.prototype.filter.call(form.elements, function (control) {
       return control.willValidate && !control.hasAttribute("data-check") && !control.checkValidity();
     });
-    if (invalid) {
+    if (invalids.length) {
       event.preventDefault();
-      showFieldError(invalid, invalid.validationMessage);
-      invalid.focus();
+      invalids.forEach(function (control) {
+        showFieldError(control, control.validationMessage);
+      });
+      showErrorSummary(invalids.length);
+      invalids[0].focus();
     }
   });
   // サーバーで断った誤りも、その欄の下に結ぶ

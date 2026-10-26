@@ -50,7 +50,12 @@ from app.core.models import (
     WorklistItem,
 )
 from app.core.path_safety import ensure_within, safe_path_component
-from app.core.patient_input import validate_emergency_patient, validate_study_description
+from app.core.patient_input import (
+    current_date,
+    current_datetime,
+    validate_emergency_patient,
+    validate_study_description,
+)
 from app.core.person_name import GROUP_SEPARATOR, compose_person_name
 from app.core.uid_generator import UIDGenerator
 from app.core.validation_text import describe_validation_error
@@ -598,6 +603,10 @@ class ModalityService:
         """
         return compose_person_name(alphabetic, ideographic, phonetic)
 
+    def today(self) -> date:
+        """生年月日の上限にする今日（設定のタイムゾーン。OS の時計の地域に頼らない）."""
+        return current_date(self.config.timezone)
+
     def image_character_set(
         self, worklist_character_set: list[str] | None, choice: str | None = None
     ) -> list[str]:
@@ -783,7 +792,9 @@ class ModalityService:
         modality = self.template_modality(template)
         # 撮影は始めたときの装置で最後まで行う（途中で切り替えは受けない。ADR-0023）
         station = self.current_station()
-        now = datetime.now()
+        # 検査の日付・時刻は、設定のタイムゾーンの壁時計（OS の時計の地域に頼らない）。生年月日の
+        # 「今日」と同じ時計なので、今日生まれの患者の検査日が生年月日より前にならない
+        now = current_datetime(self.config.timezone)
         notices: list[str] = []
         choice = request.charset or self.config.character_set
         record: ExamRecord | None = None
@@ -852,6 +863,7 @@ class ModalityService:
                     request.study_description,
                     character_set,
                     test_mode=self.config.patient_input_test_mode,
+                    today=now.date(),
                 )
             previous = None
             if request.append:

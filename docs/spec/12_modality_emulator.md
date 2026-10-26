@@ -827,6 +827,7 @@ modality:
   character_set: "auto"         # auto, utf8, jis, jis_kana
   character_set_fallback: "utf8"  # utf8, jis, jis_kana（auto は不可）
   patient_input_test_mode: false  # true：緊急の患者の氏名（かな）を確かめず直さず出す（12a の 10.5）
+  timezone: "Asia/Tokyo"        # 緊急の患者の生年月日の「今日」を決める（IANA の名前。12a の 10.5）
   default_template: "ct_generic"
   default_profile: null         # 装置プロファイル（spec/13）。null は重ねない
   default_hospital: null        # 病院テンプレート（null で使わない）

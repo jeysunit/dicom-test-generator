@@ -7,6 +7,7 @@ import json
 import re
 import shutil
 import subprocess
+from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -156,7 +157,7 @@ def test_page_shows_the_normal_form_by_default(client) -> None:
 
 
 def test_exam_page_marks_each_field_for_the_script(client) -> None:
-    """入力した時に分かるよう、欄に確かめの種類・文・誤りの行を結ぶ。誤りの行は label の外の直下."""
+    """入力した時に分かるよう、欄に確かめの種類・文・誤りの行を結ぶ。誤りの行は label の中の下（.msg）."""
     page = html_lib.unescape(client.get("/exam").text)
     assert re.search(r'<form id="exam-form"[^>]* novalidate', page)
     for name, kind, message in (
@@ -172,16 +173,66 @@ def test_exam_page_marks_each_field_for_the_script(client) -> None:
         assert f'data-check="{kind}"' in label, name
         assert f'data-message="{message}"' in label, name
         assert f'aria-describedby="error-{name}' in label, name
-        # 誤りの行は label の外の直下。読み上げない（画面の上の知らせだけが role="alert"）
-        assert f'id="error-{name}"' not in label, name
-        after = page[label_end + len("</label>") :].lstrip()
-        assert after.startswith(f'<p class="mt-2 text-xs text-danger" id="error-{name}" hidden>'), name
-        assert 'role="alert"' not in after[: after.index("</p>")], name
+        # 誤りの行は label の中の下で、印と文（.msg）。読み上げない（画面の上の知らせだけが role="alert"）
+        line = re.search(rf'<span class="msg" id="error-{name}" hidden>(.*?)</span></span>', label, re.S)
+        assert line, name
+        assert 'class="icon icon-triangle-alert ic" aria-hidden="true"' in line.group(1), name
+        assert '<span class="t"></span>' in line.group(0), name
+        assert 'role="alert"' not in line.group(0), name
     for name in ("sex", "study_description"):
         assert f'id="error-{name}"' in page
+    # 送るのを止めたときの件数の知らせ（読み上げる唯一の場所）。form の外の上に置く
+    assert page.index('<div id="error-summary" role="alert">') < page.index('<form id="exam-form"')
     # 患者ID は先頭の欄で、上限は 64 字（VR LO）
     patient_id = page[page.index('name="patient_id"') : page.index(">", page.index('name="patient_id"'))]
     assert "autofocus" in patient_id and 'maxlength="64"' in patient_id
+
+
+def _freeze_clock_at_utc(monkeypatch, instant: datetime) -> None:
+    """OS の時計の地域に関わらず、`datetime.now(tz)` が同じ 1 つの時刻を返すようにする."""
+
+    class FrozenDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return instant.astimezone(tz)
+
+    monkeypatch.setattr("app.core.patient_input.datetime", FrozenDatetime)
+
+
+def test_birth_date_today_is_decided_in_the_configured_timezone(client, monkeypatch) -> None:
+    """UTC の 2030-01-01 20:00 は日本（既定の Asia/Tokyo）では 01-02 の朝。今日生まれを断らない."""
+    _freeze_clock_at_utc(monkeypatch, datetime(2030, 1, 1, 20, 0, tzinfo=timezone.utc))
+
+    # 画面は、サーバーの今日を欄に持たせる（ブラウザの現地の日付が先に行かなくても通すため）
+    assert 'data-today="2030-01-02"' in client.get("/exam").text
+    page = _post(client, birth_date="2030-01-02")
+    assert 'role="alert"' not in page
+    # 日本の明日は、断る
+    assert BIRTH_DATE_FUTURE_MESSAGE in _post(client, birth_date="2030-01-03")
+
+
+def test_birth_date_follows_the_timezone_setting(tmp_path, worklist_scp, storage_scp, monkeypatch) -> None:
+    _freeze_clock_at_utc(monkeypatch, datetime(2030, 1, 1, 20, 0, tzinfo=timezone.utc))
+    data = modality_config(tmp_path, worklist_scp.port, storage_scp.port).model_dump()
+    data["timezone"] = "UTC"
+    app = create_app(
+        ModalityConfig.model_validate(data),
+        config_path=tmp_path / "app_config.yaml",
+        web=WebConfig(),
+        password=None,
+    )
+    utc_client = TestClient(app, base_url=BASE_URL)
+
+    # UTC の今日は 2030-01-01。日本の今日（01-02）は、UTC の設定では明日
+    assert BIRTH_DATE_FUTURE_MESSAGE in _post(utc_client, birth_date="2030-01-02")
+    assert 'role="alert"' not in _post(utc_client, birth_date="2030-01-01")
+
+
+def test_unknown_timezone_is_refused_by_the_config(tmp_path, worklist_scp, storage_scp) -> None:
+    data = modality_config(tmp_path, worklist_scp.port, storage_scp.port).model_dump()
+    data["timezone"] = "Mars/Olympus"
+    with pytest.raises(ValueError, match="タイムゾーン"):
+        ModalityConfig.model_validate(data)
 
 
 def test_script_range_covers_every_jis_x_0208_character() -> None:

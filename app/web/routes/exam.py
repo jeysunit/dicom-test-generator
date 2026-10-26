@@ -145,6 +145,7 @@ def exam_page(request: Request, key: str = "") -> HTMLResponse:
         input_messages=INPUT_MESSAGES,
         required_messages=REQUIRED_MESSAGES,
         phonetic_converted_note=PHONETIC_CONVERTED_NOTE,
+        server_today=service.today().isoformat(),
         blocker=_blocker(service, item, template, profile),
         exam_token=ExamTokens.issue(),
         **_retake_context(service, item),
@@ -288,6 +289,7 @@ def exam_run(
                 strict=not append,
                 character_set=service.image_character_set(None, charset or None),
                 test_mode=service.config.patient_input_test_mode,
+                today=service.today(),
             )
         exam_request = ExamRequest(
             worklist_key=None if emergency_patient else key,

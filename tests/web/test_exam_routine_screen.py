@@ -45,6 +45,27 @@ def test_count_fields_carry_the_label_for_japanese_validation(client) -> None:
     assert "で入れてください" in script
 
 
+def test_every_count_field_is_tied_to_its_error_line(client) -> None:
+    """数の欄は、すべて id のある誤りの行を data-error-line と aria-describedby で指す（スクリプトが文を出す先）."""
+    key = key_for(query_worklist(client), "A0001")
+    pages = {
+        "予約のルーチン": client.get(f"/exam?key={key}").text,
+        "手で入れる": client.get("/exam/routine?template=ct_generic&routine=manual").text,
+    }
+    for label, html in pages.items():
+        fields = re.findall(r"<input[^>]*data-count-label=[^>]*>", html)
+        assert fields, label
+        for field in fields:
+            line = re.search(r'data-error-line="([^"]+)"', field)
+            assert line, f"{label}: {field}"
+            assert f'id="{line.group(1)}"' in html, label
+            assert f'aria-describedby="{line.group(1)}"' in field, label
+    # 必須の印は .req（赤い札にしない）
+    manual = pages["手で入れる"]
+    assert manual.count('<span class="req">必須</span>') == 2
+    assert "badge text-danger" not in manual
+
+
 def test_head_order_selects_the_head_routine(client) -> None:
     key = key_for(query_worklist(client), "A0002")  # 頭部 CT
 

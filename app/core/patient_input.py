@@ -21,6 +21,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 from .exceptions import ValidationError
 from .models import PATIENT_ID_MAX_LENGTH, ScheduledPatient
@@ -31,6 +32,9 @@ from .worklist_charset import find_unrepresentable_chars
 PN_GROUP_MAX_LENGTH = 64
 PN_COMPONENT_MAX_COUNT = 5
 LO_MAX_LENGTH = 64
+# 生年月日の「今日」を決めるタイムゾーンの既定（サーバーの OS の時計の地域に頼らない。
+# UTC のコンテナでも日本の日付で確かめる。docs/spec/12a の 10.5）
+DEFAULT_TIMEZONE = "Asia/Tokyo"
 SEX_VALUES = ("M", "F", "O")
 _ASCII_PRINTABLE_MIN = 0x20
 _ASCII_PRINTABLE_MAX = 0x7E
@@ -78,15 +82,17 @@ def validate_emergency_patient(
     character_set: Sequence[str] | None = None,
     *,
     test_mode: bool = False,
+    today: date | None = None,
 ) -> None:
     """緊急の患者の値を確かめる。誤りは `FieldValidationError`（最初の1件）.
 
     `character_set` は画像の Specific Character Set の値（漢字の氏名が表せるか）。
+    `today` は生年月日の上限（設定のタイムゾーンの今日）。
     画面・CLI・サービスの全部がここを通る。
     """
     validate_patient_id(patient.patient_id)
     validate_person_name(patient.patient_name, character_set, test_mode=test_mode)
-    validate_birth_date(patient.birth_date)
+    validate_birth_date(patient.birth_date, today)
     validate_sex(patient.sex)
     validate_study_description(study_description)
 
@@ -100,6 +106,7 @@ def build_emergency_patient(
     strict: bool = True,
     character_set: Sequence[str] | None = None,
     test_mode: bool = False,
+    today: date | None = None,
 ) -> ScheduledPatient:
     """値を確かめてから `ScheduledPatient` にする。pydantic の英語の文より先に日本語の文で断る.
 
@@ -111,7 +118,7 @@ def build_emergency_patient(
         patient_name = normalize_phonetic_in_name(patient_name, test_mode=test_mode)
         validate_patient_id(patient_id)
         validate_person_name(patient_name, character_set, test_mode=test_mode)
-        validate_birth_date(birth_date)
+        validate_birth_date(birth_date, today)
         validate_sex(sex)
     return ScheduledPatient(
         patient_id=patient_id, patient_name=patient_name, birth_date=birth_date, sex=sex
@@ -227,8 +234,18 @@ def normalize_phonetic_in_name(patient_name: str, *, test_mode: bool = False) ->
     return GROUP_SEPARATOR.join(groups)
 
 
+def current_datetime(timezone: str = DEFAULT_TIMEZONE) -> datetime:
+    """指定したタイムゾーンでの今の日時（DICOM の日付・時刻と同じく、タイムゾーンの情報は持たない）."""
+    return datetime.now(ZoneInfo(timezone)).replace(tzinfo=None)
+
+
+def current_date(timezone: str = DEFAULT_TIMEZONE) -> date:
+    """指定したタイムゾーンでの今日."""
+    return current_datetime(timezone).date()
+
+
 def validate_birth_date(value: str, today: date | None = None) -> None:
-    """生年月日：空か、暦にある YYYYMMDD で今日以前."""
+    """生年月日：空か、暦にある YYYYMMDD で今日以前。`today` が無ければ既定のタイムゾーンの今日."""
     if not value:
         return
     parsed = None
@@ -239,7 +256,7 @@ def validate_birth_date(value: str, today: date | None = None) -> None:
             parsed = None
     if parsed is None:
         raise FieldValidationError("生年月日は、暦にある日付を入力してください。", "birth_date")
-    if parsed > (today or date.today()):
+    if parsed > (today or current_date()):
         raise FieldValidationError(BIRTH_DATE_FUTURE_MESSAGE, "birth_date")
 
 
