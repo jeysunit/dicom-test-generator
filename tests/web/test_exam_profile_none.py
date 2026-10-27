@@ -14,6 +14,7 @@ from web_helpers import (
     query_worklist,
 )
 
+from app.core.models import WorklistItem
 from app.web.app import create_app
 from app.web.settings import WebConfig
 
@@ -87,3 +88,32 @@ def test_none_on_the_screen_does_not_apply_the_default_profile(
     assert "dtg_synthetic_ct" not in html  # 重ねなかった知らせも出さない（選んだのは利用者）
     (ds,) = _written(tmp_path)
     assert ds.ManufacturerModelName != "DTG Synthetic CT 64"
+
+
+def test_pt_order_is_taken_from_the_screen_with_a_ct_default_profile(
+    ct_default_client, tmp_path
+) -> None:
+    """PT の予約も同じ：画面は petct_generic と「なし」を選び、そのまま撮れる（ADR-0032）."""
+    item = WorklistItem(
+        key="ptorder001",
+        patient_name="PET^HANAKO",
+        patient_id="P000099",
+        birth_date="19600101",
+        sex="F",
+        study_instance_uid="2.25.100000000000000000000000000000000099",
+        accession_number="A0099",
+        requested_procedure_description="FDG PET/CT 全身",
+        modality="PT",
+    )
+    ct_default_client.app.state.service.find_item = lambda key: item
+    page = ct_default_client.get(f"/exam?key={item.key}").text
+    assert '<option value="petct_generic" selected>' in page
+    assert _selected_profile(page) == ""
+
+    html = _exam(ct_default_client, item.key, "petct_generic", "")
+
+    assert "撮影完了" in html, html
+    assert "設定の既定の装置（dtg_synthetic_ct）は PT ではない" in html
+    datasets = _written(tmp_path)
+    assert {ds.Modality for ds in datasets} == {"PT"}
+    assert {ds.ManufacturerModelName for ds in datasets} == {"DTG Synthetic PET/CT"}

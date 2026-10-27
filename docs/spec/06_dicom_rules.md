@@ -243,9 +243,9 @@ CT の Image Type の値 3 の Defined Terms は `AXIAL` と `LOCALIZER`
 
 ### 5.2 MR Image の属性
 
-画像を作れるモダリティは CT と MR だけ。テンプレートのモダリティ（`info.modality`）が
-ほかの値（CR・US など）なら、画像を作る前に断る（`DICOMValidationError`）。前は CT・MR
-以外のテンプレートでも CT Image として作っていた。
+画像を作れるモダリティは CT・MR・PT（5.4）だけ。テンプレートのモダリティ
+（`info.modality`）がほかの値（CR・US など）なら、画像を作る前に断る
+（`DICOMValidationError`）。前は CT・MR 以外のテンプレートでも CT Image として作っていた。
 
 MR のシリーズ（[ADR-0030](../decisions/0030-mr-images.md)）は MR Image Storage
 （1.2.840.10008.5.1.4.1.1.4）で作る。MR Image IOD（PS3.3 A.4）の必須のモジュールを
