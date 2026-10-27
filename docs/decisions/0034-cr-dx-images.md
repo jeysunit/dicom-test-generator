@@ -27,8 +27,10 @@ DX の IOD には For Presentation と For Processing の2つの SOP Class が�
    試せる
 4. 画素は 1248 行 × 1024 列・Bits Stored 12・符号なしに固定し、Imager Pixel Spacing
    は架空の 0.342 mm にする。Job の画素の大きさには従わない（PET の行列と同じ扱い）
-5. 対になる部位の左右は、ルーチンの `laterality` で決める。予約の記述から左右を
-   読み取らない
+5. 部位と左右は、ルーチンの `body_part` と `laterality` で決める。CR の対になる
+   部位は Laterality (0020,0060) に `R`・`L` だけを入れ（PS3.3 C.7.3.1）、DX は
+   Image Laterality (0020,0062) に `R`・`L`・`B`、対にならない部位は `U` を入れる
+   （C.8.11.2）。予約の記述から左右を読み取らない
 6. CR・DX の画像は Frame of Reference と Image Plane を持たず、Patient Orientation
    (0020,0020) を持つ（PS3.3 C.7.6.1 の Type 2C、C.8.11.3 の Type 1C）
 7. テンプレート `cr_generic`・`dx_generic` と、例の装置のプロファイルを足す。予約の

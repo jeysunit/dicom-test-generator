@@ -146,21 +146,32 @@ US はこの change の範囲に入れない（依頼の範囲は CT・MR・CR/D
 ### 図形の置き方
 
 図形は、画像の患者座標（Image Position (Patient)・Image Orientation (Patient)・
-Pixel Spacing から計算する、各画素の中心の x・y・z）で評価する。軸位・冠状断・
-矢状断が同じ Frame of Reference の中の同じ図形を切った断面になるので、同じ点は
-どのシリーズでも同じ区分になる。
+Pixel Spacing から計算する、各画素の中心の x・y・z）で評価する。図形の中心と
+半径は、1回の撮影（同じ Frame of Reference UID の画像の組）で一度だけ患者座標で
+決め、その撮影の全シリーズで同じものを使う。シリーズごとに決め直すと、断面や
+枚数を変えただけで別の図形になり、MPR や位置合わせの試験の基準にならないため。
 
 基本の図形は、回転楕円体1つと位置の目印である。
 
-- 回転楕円体の中心は、断面の中では画像の中心（行・列の数 × 画素間隔の半分）、
-  断面に垂直な向きではそのシリーズの位置の範囲の中央に置く
-- 断面の中の半径は視野の 0.4 倍、垂直な向きの半径は位置の範囲の 0.55 倍にする。
-  範囲の中央の画像で円がいちばん大きく、両端に向かって小さくなる。両端の画像でも
-  円は消えない
-- 位置の目印は1辺が視野の 0.04 倍の正方形で、中心から視野の 0.3 倍の円の上に
-  置く。角度はシリーズの中の番号 k（0 始まり）と画像の数 n から 360° × k / n
-  にする。回転楕円体は中央に対して対称なので、中央から同じ距離の2枚は円の大きさが
-  同じになる。目印の角度が違うので、その2枚も見分けられる
+- 回転楕円体の中心の x・y は、軸位の視野（列・行の数 × 画素間隔）の中央に置く。
+  z は、その撮影の軸位のシリーズのうち位置の範囲がいちばん長いものの範囲の中央に
+  置く。軸位が無い撮影（MR の矢状断だけなど）は、最初の断層のシリーズの範囲で
+  決める
+- x・y の半径は視野の 0.4 倍、z の半径はその範囲の 0.55 倍にする。範囲の中央の
+  画像で円がいちばん大きく、両端に向かって小さくなる。両端の画像でも円は消えない
+- 位置の目印は3次元の図形ではなく、画像ごとに描く印である。1辺が視野の 0.04 倍の
+  正方形で、画像の中心から視野の 0.3 倍の円の上に置く。角度はシリーズの中の番号
+  k（0 始まり）と画像の数 n から 360° × k / n にする。回転楕円体は中央に対して
+  対称なので、中央から同じ距離の2枚は円の大きさが同じになる。目印の角度が違うので、
+  その2枚も見分けられる
+
+今の冠状断・矢状断の画像の位置（spec/06 の 5.1）は、軸位と同じ範囲を覆わない。
+冠状断の Image Position (Patient) は `[0, y, 0]` で、列は −z の向きに進むので、
+画像は z が 0 以下の範囲を写す。軸位は z が `start_z`（既定 0）から +z に進むので、
+冠状断と軸位はほとんど交わらず、冠状断に図形がほぼ写らない。そこで、`phantom` の
+ときだけ、冠状断と矢状断の Image Position (Patient) の z を、その撮影の軸位の範囲の
+上端にする（推奨。proposal の「依頼者が決めること」の 8）。ほかの方式の位置は
+今のままにする。
 
 位置決め・CR・DX のような投影の画像は、位置が変わらないので、基本の図形では体の楕円
 1つを描き、方向と何枚目かを焼き込みの文字で示す。
@@ -286,10 +297,10 @@ Burned In Annotation は Type 1 なので、ほかの方式では `NO` を書く
 | シリーズ | 方向ごとに1シリーズ（View Position はシリーズの値） | ルーチンの1シリーズに全部の方向 |
 | Presentation Intent Type | 無い | `FOR PRESENTATION` |
 | Image Type | `ORIGINAL\PRIMARY` | `ORIGINAL\PRIMARY\`（Value 3 は長さ 0） |
-| Body Part Examined | ルーチンの部位（Type 2） | ルーチンの部位（Type 3） |
+| Body Part Examined | ルーチンの `body_part`（Type 2） | ルーチンの `body_part`（Type 3） |
 | View Position | シリーズの方向（Type 2） | 画像ごとの方向（DX Positioning、Type 3） |
 | View Code Sequence | 無い | PA・AP・左側面・右側面のときだけ CID 4010 のコード |
-| Laterality / Image Laterality | 対になる部位は Laterality (0020,0060) にルーチンの `laterality` | Image Laterality に `laterality`（対にならない部位は `U`） |
+| Laterality / Image Laterality | 対になる部位だけ Laterality (0020,0060) にルーチンの `laterality`（`R`・`L` だけ。PS3.3 C.7.3.1）。対にならない部位には書かない | Image Laterality にルーチンの `laterality`（`R`・`L`・`B`）。対にならない部位は `U` |
 | Anatomic Region Sequence | 入れる（任意） | 入れる（Type 1。上のコードの表） |
 | Patient Orientation | 正面の方向（AP・PA・斜位・側臥位）は `L\F`、側面（LL・RL）は `P\F` | 同じ |
 | Photometric Interpretation | テンプレートの値（既定 `MONOCHROME2`） | 同じ |
@@ -319,6 +330,7 @@ Burned In Annotation は Type 1 なので、ほかの方式では `NO` を書く
 - 設定・CLI・Job の画素の方式の既定は `ct_realistic`（`gradient`）のまま。`phantom`
   を選ばない画像は、画素も属性も今と同じになる。PR 1 の最初に、今の既定の撮影の
   画素と属性のハッシュを固定する試験を足し、変更の後も同じことを確かめる
+- 冠状断・矢状断の位置を直すのは `phantom` のときだけで、ほかの方式の位置は今と同じ
 - 今の CT・MR・PT の試験は、書き換えずに通す
 - CR・DX のテンプレートは今は無いので、CR・DX の画像は新しく作れるようになるだけで、
   今の撮影の結果は変わらない。ただし、spec/06 の 5.2 は「CR・US などのテンプレートは
@@ -331,7 +343,7 @@ Burned In Annotation は Type 1 なので、ほかの方式では `NO` を書く
 |----|------|------|
 | PR 1 | 既定の固定 | `ct_realistic` と `simple_text` の今の画素・属性のハッシュが変わらない（変更の前に書く） |
 | PR 1 | 位置で変わる | 軸位 30 枚で、隣の画像の図形の画素の数が違い、中央の画像でいちばん多い。中央から同じ距離の2枚は、目印の位置が違う |
-| PR 1 | 断面の間で同じ図形 | 軸位と冠状断が交わる点で、両方の画像の区分が同じ |
+| PR 1 | 断面の間で同じ図形 | スライス厚と枚数の違う軸位2つと冠状断・矢状断が交わる線の上で、図形の内側・境界の近く・外側の点の区分がすべての画像で同じ。胸部 単純の COR の中央の画像に図形が写る。ほかの方式では冠状断の位置が今と同じ |
 | PR 1 | 偽物の決まり | 帯の外の画素の値の種類が区分の数以下。帯に最大の値の画素がある。全画像（位置決めを含む）に帯がある |
 | PR 1 | 属性 | `phantom` で Burned In Annotation `YES`・Recognizable Visual Features `NO`・Image Comments。ほかの方式では無い |
 | PR 1 | 選び方 | Job・`quick --pixel-mode phantom`・`exam --pixel-mode phantom`・設定の既定で選べる。不正な方式は今と同じく断る |
@@ -339,6 +351,7 @@ Burned In Annotation は Type 1 なので、ほかの方式では `NO` を書く
 | PR 2 | DX の IOD | Table A.26-1 の必須のモジュールと上の表の値。Image Type の Value 3 が長さ 0、Modality LUT Sequence が無い |
 | PR 2 | `MONOCHROME1` | 画素が反転し、Presentation LUT Shape が `INVERSE`、Sign が `+1` |
 | PR 2 | 撮影 | CR・DX の予約で `cr_generic`・`dx_generic` が選ばれ、ルーチンの並びで撮れる。Storage SCP のスタブが受け取る（`tests/integration/`） |
+| PR 2 | 部位と左右 | CR・DX × `R`・`L`・`B`・省略で、CR の `B`、対になる部位の省略、対にならない部位の `R` を読み込みで断る。DX の胸部は Image Laterality `U`、CR の膝は Laterality `R` |
 | PR 3 | 部位の図形 | `head` の軸位で、骨の輪の内と外の値。`spine` で z が進むと骨とすきまが交互になる。`chest` の側面の投影は肺の楕円が1つ |
 | PR 3 | MR の強調 | T1 と T2 で液の値の大小が入れ替わる。MRA で血管が最大 |
 | PR 3 | CT の相 | 動脈相の血管の値が 300 HU、単純が 40 HU |
@@ -353,7 +366,7 @@ Burned In Annotation は Type 1 なので、ほかの方式では `NO` を書く
 |----|------|-----------|
 | 1 | 基本の図形（`phantom`）を CT・MR に入れる | 02 の 3 章、03、06 の 4 章、07 の 3.6、12a の CLI。ADR-0033 を採用にする |
 | 2 | CR・DX の画像。`phantom` は基本の図形の投影の画像 | 06 に CR・DX の節、13 の 4.3、roadmap。ADR-0034 を採用にする |
-| 3 | 部位の図形・MR の強調・CT の相。ルーチンに `phantom`・`weighting`・`phase`・`laterality` を書く | 03・06・ルーチンの形（exam-routines） |
+| 3 | 部位の図形・MR の強調・CT の相。ルーチンに `phantom`・`weighting`・`phase` を書く | 03・06・ルーチンの形（exam-routines） |
 
 PR 2 は PR 1 に依存する（焼き込みの帯を使う）。PR 3 は PR 1 と 2 の後に入れ、
 最後にこの change を archive する。

@@ -38,18 +38,38 @@ DTG は、DTG が扱うモダリティ（CT・MR・CR・DX・US）ごとに、�
 ### Requirement: ルーチンに図形の部位と撮像の区別を書ける
 
 DTG は、ルーチンの YAML に、図形の部位 `phantom`（`head`・`chest`・`trunk`・
-`abdomen`・`spine`・`limb`）と、CR・DX の左右 `laterality`（`R`・`L`・`U`・`B`）を
-書けなければならない（SHALL）。MR のシリーズには強調 `weighting`（`T1`・`T2`・`PD`・
+`abdomen`・`spine`・`limb`）を書けなければならない（SHALL）。CR・DX のルーチンは
+部位 `body_part`（Body Part Examined の語。`CHEST`・`ABDOMEN`・`LSPINE`・`CSPINE`・
+`KNEE`・`HAND`）を必ず持ち、対になる部位（`KNEE`・`HAND`）は左右 `laterality` を
+必ず持つ。`laterality` は CR では `R`・`L`、DX では `R`・`L`・`B` で、対にならない
+部位には書けない。CR の対になる部位は Laterality (0020,0060)、DX は Image
+Laterality (0020,0062) に入れ、DX の対にならない部位の Image Laterality は `U` に
+する（PS3.3 C.7.3.1・C.8.11.2）。MR のシリーズには強調 `weighting`（`T1`・`T2`・`PD`・
 `FLAIR`・`T2STAR`・`DWI`・`ADC`・`MRA`）、CT の造影のシリーズには相 `phase`
-（`arterial`・`portal`・`delayed`）を書ける。どれも省ける。`weighting` を省いた
-MR のシリーズはシーケンスから決め、`phase` を省いた造影のシリーズは `portal` に
-する。`laterality` を省いた CR・DX のルーチンは `U` にする。付けるルーチンには、
-design.md の「検査ごとのシリーズの構成」の値を書く。
+（`arterial`・`portal`・`delayed`）を書ける。`phantom`・`weighting`・`phase` は
+省ける。`weighting` を省いた MR のシリーズはシーケンスから決め、`phase` を省いた
+造影のシリーズは `portal` にする。付けるルーチンには、design.md の「検査ごとの
+シリーズの構成」の値を書く。
 
 #### Scenario: 付けるルーチンの値
 
 - **WHEN** `templates/routine/` を読み込む
-- **THEN** `ct_head_plain` と `mr_head` の `phantom` は `head`、`dx_knee` の `laterality` は `R`、`mr_head` の FLAIR の `weighting` は `FLAIR` になっている
+- **THEN** `ct_head_plain` と `mr_head` の `phantom` は `head`、`dx_knee` の `body_part` は `KNEE` で `laterality` は `R`、`mr_head` の FLAIR の `weighting` は `FLAIR` になっている
+
+#### Scenario: 対になる部位の左右が無い
+
+- **WHEN** `body_part: KNEE` で `laterality` の無い CR のルーチンを読み込む
+- **THEN** ルーチンは読み込まれず、設定の誤りとして知らせる
+
+#### Scenario: CR の両側
+
+- **WHEN** CR のルーチンに `laterality: B` を書く
+- **THEN** ルーチンは読み込まれず、設定の誤りとして知らせる（CR の Laterality は `R`・`L` だけ）
+
+#### Scenario: 対にならない部位の左右
+
+- **WHEN** `body_part: CHEST` の DX のルーチンに `laterality: R` を書く
+- **THEN** ルーチンは読み込まれず、設定の誤りとして知らせる
 
 #### Scenario: 造影でないシリーズの相
 

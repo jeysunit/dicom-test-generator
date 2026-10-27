@@ -62,11 +62,18 @@ DTG が画像を作れるモダリティは CT・MR・PT だけで、CR と DX �
    ことが多く、ビューアの白黒の反転の試験に使えるため
 5. DX の SOP Class。（推奨）For Presentation だけを作る。For Processing は CAD
    などの後処理の入力で、PACS の表示の試験には要らない
-6. 対になる部位（膝・手）の左右。（推奨）ルーチンの YAML に `laterality` を書き、
-   付けるルーチンは架空の `R` にする。予約の検査の記述から左右を読み取る処理は
-   作らない
+6. 対になる部位（膝・手）の左右。（推奨）CR・DX のルーチンの YAML に部位
+   `body_part` と左右 `laterality` を書き、付けるルーチンは架空の `R` にする。CR は
+   Laterality (0020,0060) が `R`・`L` だけなので、両側（`B`）は DX だけで書ける。
+   予約の検査の記述から左右を読み取る処理は作らない
 7. PET。（推奨）この change の範囲に入れず、PT のシリーズは今の画素のままにする。
    PET/CT の検査で `phantom` を選ぶと、CT のシリーズだけが図形になる
+8. 冠状断・矢状断の画像の位置。今の冠状断は z が 0 以下の範囲を写し、軸位（z が
+   0 以上）とほとんど交わらないので、図形がほぼ写らない（design.md の「図形の
+   置き方」）。（推奨）`phantom` のときだけ、冠状断と矢状断の Image Position
+   (Patient) の z を軸位の範囲の上端にする。既定の方式の位置は変えない。
+   代わりの案：どの方式でも位置を直す（断面どうしの位置は正しくなるが、既定の
+   撮影の画像の値が変わり、今の試験の期待値の書き換えに承認が要る）
 
 ## Capabilities
 
@@ -77,7 +84,8 @@ DTG が画像を作れるモダリティは CT・MR・PT だけで、CR と DX �
 ### Modified Capabilities
 
 - `exam-routines`: CR・DX のルーチンで画像を作れるようにし、ルーチンに部位の図形
-  （`phantom`）・左右（`laterality`）・MR の強調（`weighting`）・造影の相（`phase`）を
+  （`phantom`）・CR・DX の部位と左右（`body_part`・`laterality`）・MR の強調
+  （`weighting`）・造影の相（`phase`）を
   書けるようにする
 
 ## Impact
@@ -90,7 +98,8 @@ DTG が画像を作れるモダリティは CT・MR・PT だけで、CR と DX �
 - モダリティ：`app/modality/config.py`・`service.py`（`phantom` を選べるようにする）。
   CLI：`--pixel-mode` の選択肢に `phantom`
 - テンプレート：`templates/modality/cr_generic.yaml`・`dx_generic.yaml`（新しい）、
-  `templates/routine/` の各ルーチンに `phantom`・`laterality`・`weighting`・`phase`
+  `templates/routine/` の各ルーチンに `phantom`・`body_part`・`laterality`・
+  `weighting`・`phase`
 - 装置のプロファイル：`profiles/examples/dtg_synthetic_cr.yaml`・`dtg_synthetic_dx.yaml`
   （新しい）、作れる SOP Class に CR・DX を足す
 - spec：02 の 3 章、03、06 の 4 章と 5 章（CR・DX の節を足す。5.2 の「CR・US など
