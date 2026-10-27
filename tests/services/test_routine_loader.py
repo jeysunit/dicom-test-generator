@@ -35,8 +35,19 @@ EXPECTED_IMAGES = {
     "dx_knee": [2],
     "dx_hand": [3],
     "us_abdomen": [16],
+    # PET/CT（ADR-0032）：Topogram 1、CT 333（1000mm ÷ 3mm）、PET 300 × 2（1000mm ÷ 3.27mm）、
+    # 線量の画面 1
+    "pt_whole_body": [1, 333, 300, 300, 1],
+    "pt_whole_body_pet_first": [300, 300, 1, 333, 1],
 }
-DEFAULTS = {"CT": "ct_chest_plain", "MR": "mr_head", "CR": "cr_chest", "DX": "dx_chest", "US": "us_abdomen"}
+DEFAULTS = {
+    "CT": "ct_chest_plain",
+    "MR": "mr_head",
+    "PT": "pt_whole_body",
+    "CR": "cr_chest",
+    "DX": "dx_chest",
+    "US": "us_abdomen",
+}
 
 
 def test_shipped_routines_have_the_designed_image_counts() -> None:

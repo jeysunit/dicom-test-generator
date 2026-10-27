@@ -80,6 +80,9 @@ SERIES_KIND_LABELS = {
     # MR のルーチン（位置決めは CT と同じ "localizer"）
     "acquisition": "撮像",
     "derived": "計算画像",
+    # PET/CT のルーチンの PT のシリーズ
+    "pet_ac": "PET（減弱補正あり）",
+    "pet_nac": "PET（補正なし）",
 }
 # 受け付け済みの撮影のトークンを覚える数（二重の受付を止める。古いものから忘れる）
 TOKEN_MEMORY = 512

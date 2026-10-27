@@ -95,6 +95,22 @@ OMIT_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
         "EchoTrainLength",
         "RepetitionTime",  # Type 2C だが、この道具は常に出す
         "InversionTime",  # Type 2C（Scanning Sequence が IR のとき）
+        # PET Image の Type 1・Type 2（PS3.3 C.8.9.1・C.8.9.4）
+        "SeriesDate",
+        "SeriesTime",
+        "Units",
+        "CountsSource",
+        "SeriesType",
+        "NumberOfSlices",
+        "CorrectedImage",
+        "DecayCorrection",
+        "CollimatorType",
+        "FrameReferenceTime",
+        "ImageIndex",
+        "AcquisitionDate",
+        "AcquisitionTime",
+        "ActualFrameDuration",
+        "DecayFactor",  # Type 1C（Decay Correction が NONE でないとき）
     }
 )
 
@@ -113,6 +129,16 @@ EMPTY_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
         # MR Image の Type 1（PS3.3 C.8.3.1）
         "ScanningSequence",
         "SequenceVariant",
+        # PET Image の Type 1（PS3.3 C.8.9.1・C.8.9.4）
+        "SeriesDate",
+        "SeriesTime",
+        "Units",
+        "CountsSource",
+        "SeriesType",
+        "NumberOfSlices",
+        "DecayCorrection",
+        "FrameReferenceTime",
+        "ImageIndex",
     }
 )
 

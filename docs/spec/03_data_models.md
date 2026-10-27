@@ -94,24 +94,27 @@ class SeriesConfig(BaseModel):
 
 | 欄 | 型 | 既定 | 中身 |
 |----|----|------|------|
-| `kind` | `axial`・`localizer`・`coronal`・`sagittal`・`dose_report`・`dose_sr`、MR は `localizer`・`acquisition`・`derived` | `axial` | シリーズの種類（spec/06 の 5.1〜5.3） |
+| `kind` | `axial`・`localizer`・`coronal`・`sagittal`・`dose_report`・`dose_sr`、MR は `localizer`・`acquisition`・`derived`、PT は `pet_ac`・`pet_nac` | `axial` | シリーズの種類（spec/06 の 5.1〜5.4） |
 | `views` | `frontal`・`lateral` の並び | `["frontal"]` | 位置決めの画像ごとの方向。足りなければ繰り返す |
 | `contrast` | bool | false | 造影のシリーズ |
-| `modality` | `CT`・`MR`・`SR`・None | None | このシリーズのモダリティ。None はテンプレートのモダリティ（`dose_sr` は `SR`。[ADR-0030](../decisions/0030-mr-images.md)・[ADR-0031](../decisions/0031-dose-report-sr.md)） |
+| `modality` | `CT`・`MR`・`SR`・`PT`・None | None | このシリーズのモダリティ。None はテンプレートのモダリティ（`dose_sr` は `SR`。[ADR-0030](../decisions/0030-mr-images.md)・[ADR-0031](../decisions/0031-dose-report-sr.md)・[ADR-0032](../decisions/0032-pet-ct-studies.md)） |
 | `plane` | `axial`・`sagittal`・`coronal`・`three_plane` | `axial` | MR の断面。`three_plane` は画像を3等分して axial・coronal・sagittal の順にする |
 | `sequence` | `SE`・`IR`・`GR`・`EP` | `SE` | MR の Scanning Sequence |
 | `acquisition_type` | `2D`・`3D` | `2D` | MR Acquisition Type |
 
-`kind` が `acquisition`・`derived` のシリーズは `modality` を MR にする（CT のシリーズ
-に MR の種類を入れると検証で止まる）。MR のテンプレートで手で入れたシリーズは、
-種類が `axial` なら MR の撮像（`acquisition`）にする。
+`kind` が `acquisition`・`derived` のシリーズは `modality` を MR に、`pet_ac`・`pet_nac` は
+PT にする（CT のシリーズに MR・PET の種類を入れると検証で止まる）。MR のテンプレートで
+手で入れたシリーズは、種類が `axial` なら MR の撮像（`acquisition`）に、PET/CT のテンプレート
+（モダリティ PT）では、`axial` なら減弱補正ありの PET（`pet_ac`）、`localizer` と
+`dose_report` なら CT のシリーズにする。MR・PT のシリーズに造影（`contrast`）は使えない。
 
 ルーチンそのもの（`templates/routine/` の YAML）は `app/core/routine.py` の
 `Routine` で読む。形はモダリティごとに違う（CT はシリーズの種類と再構成、MR は
 シーケンス、CR・DX は撮影の方向、US は静止画と動画の数）。どのシリーズも `images`
 （既定の画像数）を必ず持つ。MR のシリーズは、断面 `plane`、スライス厚 `slice_thickness`、
 すきま `spacing`（画像の間隔は スライス厚 + すきま）、`sequence`、`acquisition_type`
-を持つ。
+を持つ。PET/CT（`modality: PT`）のシリーズは、行ごとに `modality`（CT か PT）と `kind`
+（CT の種類か `pet_ac`・`pet_nac`）を書き、`slice_thickness` を持つ。
 
 ### 3.3 InstanceConfig
 

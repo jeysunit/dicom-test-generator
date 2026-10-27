@@ -230,6 +230,12 @@ Web 画面は HTTP Basic 認証が必須で（ユーザー名は `dtg`）、パ�
   撮る。緊急の患者を MR で撮るときは、画面のテンプレートで `mr_generic` を選ぶか、
   CLI で `exam --emergency -m mr_generic` を使う。装置のプロファイルは、例の
   `dtg_synthetic_mr` を選べる
+- PET/CT の予約（Modality が `PT`）も、テンプレートを指定しなければ PET/CT のテンプレート
+  （`petct_generic`）で撮る。1つの検査に CT のシリーズ（Topogram・CT・線量の画面）と PT の
+  シリーズ（補正あり・補正なし）が入る。緊急の患者は、テンプレート `petct_generic` を選ぶ。
+  ルーチン `pt_whole_body_pet_first` は PT のシリーズを先に送る（PACS の検査の Modality の
+  並びが `PT\CT` になるか `CT\PT` になるかを試せる）。装置のプロファイルは例の
+  `dtg_synthetic_petct`
 
 ## 7. CLI だけでできること
 

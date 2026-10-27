@@ -21,10 +21,11 @@ from .models import (
     MRPlane,
     MRSequence,
     MRSeriesKind,
+    PTSeriesKind,
     SeriesConfig,
 )
 
-RoutineModality = Literal["CT", "MR", "CR", "DX", "US"]
+RoutineModality = Literal["CT", "MR", "PT", "CR", "DX", "US"]
 # 画面と CLI の1シリーズの画像数の上限（docs/spec/12a の 10.5）と同じ
 MAX_ROUTINE_IMAGES_PER_SERIES = 1000
 # View Position (0018,5101) の定義の語（PS3.3 C.8.1.1 の Table C.8-1。人の検査の語）
@@ -69,6 +70,37 @@ class MRRoutineSeries(_RoutineSeries):
     acquisition_type: MRAcquisitionType = "2D"
 
 
+class PETCTRoutineSeries(_RoutineSeries):
+    """PET/CT の1シリーズ。`modality` が CT なら CT の種類、PT なら PET の種類（ADR-0032）.
+
+    PET/CT の検査は、同じ検査（Study）に CT のシリーズと PT のシリーズが入る。
+    """
+
+    modality: Literal["CT", "PT"]
+    kind: CTSeriesKind | PTSeriesKind
+    slice_thickness: float = Field(5.0, gt=0)
+    views: list[LocalizerView] | None = None
+    contrast: bool = False
+
+    @model_validator(mode="after")
+    def _kind_matches_modality(self) -> PETCTRoutineSeries:
+        is_pet_kind = self.kind in ("pet_ac", "pet_nac")
+        if self.modality == "PT" and not is_pet_kind:
+            raise ValueError(f"kind {self.kind!r} is not a PT series kind")
+        if self.modality == "CT" and is_pet_kind:
+            raise ValueError(f"kind {self.kind!r} needs modality PT")
+        if self.views is not None:
+            if self.kind != "localizer":
+                raise ValueError("views is only for a localizer series")
+            if len(self.views) != self.images:
+                raise ValueError(
+                    f"views has {len(self.views)} entries but images is {self.images}"
+                )
+        if self.modality == "PT" and self.contrast:
+            raise ValueError("contrast is not supported for PT series")
+        return self
+
+
 class ProjectionRoutineSeries(_RoutineSeries):
     """CR・DX の1シリーズ。`views` は撮影の方向（画像1枚に1方向）."""
 
@@ -95,10 +127,17 @@ class USRoutineSeries(BaseModel):
         return self.still_images + self.clips
 
 
-RoutineSeries = CTRoutineSeries | MRRoutineSeries | ProjectionRoutineSeries | USRoutineSeries
+RoutineSeries = (
+    CTRoutineSeries
+    | MRRoutineSeries
+    | PETCTRoutineSeries
+    | ProjectionRoutineSeries
+    | USRoutineSeries
+)
 SERIES_MODELS: dict[str, type[BaseModel]] = {
     "CT": CTRoutineSeries,
     "MR": MRRoutineSeries,
+    "PT": PETCTRoutineSeries,
     "CR": ProjectionRoutineSeries,
     "DX": ProjectionRoutineSeries,
     "US": USRoutineSeries,
@@ -247,6 +286,21 @@ DEFAULT_DOSE_REPORT_MODE: DoseReportMode = "screen"
 DOSE_SR_DESCRIPTION = "Radiation Dose SR"
 
 
+def _dose_sr_row(
+    screen: CTRoutineSeries | PETCTRoutineSeries, series_number: int | None
+) -> CTRoutineSeries | PETCTRoutineSeries:
+    """線量の画面の行と同じ形の、線量の報告（SR）の行."""
+    fields = {
+        "kind": "dose_sr",
+        "description": DOSE_SR_DESCRIPTION,
+        "images": 1,
+        "series_number": series_number,
+    }
+    if isinstance(screen, PETCTRoutineSeries):
+        return PETCTRoutineSeries(modality="CT", **fields)
+    return CTRoutineSeries(**fields)
+
+
 def apply_dose_report_mode(
     routine: Routine, keep: list[int], images: list[int], mode: DoseReportMode
 ) -> tuple[Routine, list[int], list[int]]:
@@ -257,7 +311,7 @@ def apply_dose_report_mode(
     SR（1 枚）に替え、`both` は線量の画面の次に SR（1 枚）の行を足す。線量の画面の行を
     撮らない（`keep` に無い）ときと、`screen` は何も変えない。
     """
-    if mode == "screen" or routine.modality != "CT":
+    if mode == "screen" or routine.modality not in ("CT", "PT"):
         return routine, keep, images
     wanted = dict(zip(keep, images, strict=True))
     series: list = []
@@ -265,25 +319,18 @@ def apply_dose_report_mode(
     positions: dict[int, list[tuple[int, int]]] = {}
     for index, item in enumerate(routine.series):
         is_dose_screen = (
-            isinstance(item, CTRoutineSeries) and item.kind == "dose_report" and index in wanted
+            isinstance(item, (CTRoutineSeries, PETCTRoutineSeries))
+            and item.kind == "dose_report"
+            and index in wanted
         )
         if is_dose_screen and mode == "sr":
-            series.append(
-                CTRoutineSeries(
-                    kind="dose_sr",
-                    description=DOSE_SR_DESCRIPTION,
-                    images=1,
-                    series_number=item.series_number,
-                )
-            )
+            series.append(_dose_sr_row(item, item.series_number))
             positions[index] = [(len(series) - 1, 1)]
             continue
         series.append(item)
         positions[index] = [(len(series) - 1, wanted.get(index, 0))]
         if is_dose_screen and mode == "both":
-            series.append(
-                CTRoutineSeries(kind="dose_sr", description=DOSE_SR_DESCRIPTION, images=1)
-            )
+            series.append(_dose_sr_row(item, None))
             positions[index].append((len(series) - 1, 1))
     pairs = [pair for index in keep if index in positions for pair in positions[index]]
     return (
@@ -313,6 +360,25 @@ def routine_series_configs(
                     views=series.views or ["frontal"],
                     contrast=series.contrast,
                     modality="SR" if series.kind == "dose_sr" else None,
+                )
+            )
+        elif isinstance(series, PETCTRoutineSeries):
+            is_pet = series.modality == "PT"
+            configs.append(
+                SeriesConfig(
+                    series_number=number,
+                    series_description=series.description,
+                    num_images=count,
+                    protocol_name=routine.protocol_name,
+                    slice_thickness=series.slice_thickness,
+                    slice_spacing=series.slice_thickness,
+                    kind=series.kind,
+                    views=series.views or ["frontal"],
+                    contrast=series.contrast,
+                    # PET/CT は CT と PT が同じ検査に入るので、モダリティを必ず決める
+                    modality=(
+                        "PT" if is_pet else "SR" if series.kind == "dose_sr" else "CT"
+                    ),
                 )
             )
         elif isinstance(series, MRRoutineSeries):

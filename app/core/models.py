@@ -72,11 +72,27 @@ class StudyConfig(BaseModel):
 CTSeriesKind = Literal["axial", "localizer", "coronal", "sagittal", "dose_report", "dose_sr"]
 # MR のシリーズの種類。位置決めは CT と同じ "localizer"（ADR-0030）
 MRSeriesKind = Literal["localizer", "acquisition", "derived"]
+# PET のシリーズの種類：減弱補正あり（AC）・補正なし（NAC）の再構成（ADR-0032）
+PTSeriesKind = Literal["pet_ac", "pet_nac"]
 SeriesKind = Literal[
     "axial", "localizer", "coronal", "sagittal", "dose_report", "dose_sr", "acquisition",
-    "derived",
+    "derived", "pet_ac", "pet_nac",
 ]
-SeriesModality = Literal["CT", "MR", "SR"]
+SeriesModality = Literal["CT", "MR", "SR", "PT"]
+# モダリティごとに作れるシリーズの種類。"localizer" は CT と MR の両方にある
+KINDS_BY_MODALITY: dict[str, frozenset[str]] = {
+    "CT": frozenset({"axial", "localizer", "coronal", "sagittal", "dose_report"}),
+    "MR": frozenset({"localizer", "acquisition", "derived"}),
+    "SR": frozenset({"dose_sr"}),
+    "PT": frozenset({"pet_ac", "pet_nac"}),
+}
+# その種類だけを持つモダリティ（"localizer" は複数あるので入れない）
+KIND_MODALITY: dict[str, str] = {
+    kind: modality
+    for modality, kinds in KINDS_BY_MODALITY.items()
+    for kind in kinds
+    if kind != "localizer"
+}
 MRPlane = Literal["axial", "sagittal", "coronal", "three_plane"]
 # Scanning Sequence (0018,0020) の値（PS3.3 C.8.3.1。RM は使わない）
 MRSequence = Literal["SE", "IR", "GR", "EP"]
@@ -109,25 +125,20 @@ class SeriesConfig(BaseModel):
 
     @model_validator(mode="after")
     def _kind_matches_modality(self) -> SeriesConfig:
-        mr_kinds = ("acquisition", "derived")
-        if self.kind == "dose_sr":
-            # 線量の報告の SR。モダリティを決めていなければ、作るときに SR にする
-            if self.modality not in (None, "SR"):
-                raise ValueError("kind 'dose_sr' needs modality SR")
+        if self.modality is None:
+            # モダリティを決めていないシリーズは、作るときにテンプレートのモダリティ
+            # （線量の報告の SR は SR）にする。MR・PET の種類はモダリティが要る
+            owner = KIND_MODALITY.get(self.kind)
+            if owner in ("MR", "PT"):
+                raise ValueError(f"kind {self.kind!r} needs modality {owner}")
             return self
-        if self.modality == "SR":
-            raise ValueError(f"kind {self.kind!r} is not an SR series kind")
-        if self.modality == "MR" and self.kind in (
-            "axial", "coronal", "sagittal", "dose_report"
-        ):
-            raise ValueError(f"kind {self.kind!r} is not an MR series kind")
-        if self.modality == "CT" and self.kind in mr_kinds:
-            raise ValueError(f"kind {self.kind!r} needs modality MR")
-        if self.modality is None and self.kind in mr_kinds:
-            raise ValueError(f"kind {self.kind!r} needs modality MR")
-        if self.modality == "MR" and self.contrast:
-            # MR の造影（Contrast/Bolus Module）はまだ作らない（ADR-0030）
-            raise ValueError("contrast is not supported for MR series")
+        if self.kind not in KINDS_BY_MODALITY[self.modality]:
+            expected = KIND_MODALITY.get(self.kind)
+            hint = f"; it needs modality {expected}" if expected is not None else ""
+            raise ValueError(f"kind {self.kind!r} is not an {self.modality} series kind{hint}")
+        if self.modality in ("MR", "PT") and self.contrast:
+            # MR・PET の造影（Contrast/Bolus Module）はまだ作らない（ADR-0030）
+            raise ValueError(f"contrast is not supported for {self.modality} series")
         return self
 
 
