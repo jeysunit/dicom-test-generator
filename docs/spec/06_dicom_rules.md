@@ -520,7 +520,8 @@ Frame of Reference と Image Plane のモジュールは持たない。シリー
   この後に当てる
 - 規格とルーチンが値を決める属性は、プロファイルの `set` に書けない（書けば作成を
   始めずに `ProfileMismatchError`。spec/13 の 4.3）。CR は Laterality・Body Part
-  Examined・View Position、DX は Presentation Intent Type・Image Laterality・Pixel
+  Examined・View Position、DX は Presentation Intent Type・Image Type（値 3 は長さ 0。
+  C.8.11.3.1.1）・Image Laterality・Pixel
   Intensity Relationship とその Sign・Rescale Intercept・Rescale Slope・Rescale
   Type・Presentation LUT Shape・Lossy Image Compression・Burned In Annotation・
   Body Part Examined・View Position

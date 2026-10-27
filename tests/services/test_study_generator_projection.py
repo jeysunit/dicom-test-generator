@@ -231,10 +231,11 @@ def test_example_profiles(tmp_path, template, profile, model) -> None:
 @pytest.mark.parametrize(
     ("template", "keyword", "value"),
     [
-        ("dx_generic", "RescaleSlope", "2"),
-        ("dx_generic", "PresentationLUTShape", "INVERSE"),
-        ("dx_generic", "ImageLaterality", "L"),
-        ("cr_generic", "Laterality", "L"),
+        ("dx_generic", "RescaleSlope", '"2"'),
+        ("dx_generic", "PresentationLUTShape", '"INVERSE"'),
+        ("dx_generic", "ImageLaterality", '"L"'),
+        ("dx_generic", "ImageType", '["ORIGINAL", "PRIMARY", "AXIAL"]'),
+        ("cr_generic", "Laterality", '"L"'),
     ],
 )
 def test_profile_cannot_set_values_fixed_by_the_standard(
@@ -258,7 +259,7 @@ def test_profile_cannot_set_values_fixed_by_the_standard(
                 '  transfer_syntaxes: ["1.2.840.10008.1.2.1"]',
                 "attributes:",
                 "  set:",
-                f'    {keyword}: "{value}"',
+                f"    {keyword}: {value}",
             ]
         ),
         encoding="utf-8",

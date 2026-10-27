@@ -315,6 +315,7 @@ FIXED_KEYWORDS: dict[str, frozenset[str]] = {
     "DX": frozenset(
         {
             "PresentationIntentType",
+            "ImageType",
             "ImageLaterality",
             "PixelIntensityRelationship",
             "PixelIntensityRelationshipSign",
