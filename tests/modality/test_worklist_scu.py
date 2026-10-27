@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
-from modality_peers import LOCALHOST, free_port
+from modality_peers import LOCALHOST, free_port, today
 
 from app.core.exceptions import AssociationError, ValidationError, WorklistQueryError
 from app.modality.config import WorklistPeerConfig
@@ -81,7 +81,7 @@ def test_peer_ignoring_cancel_is_stopped(worklist_scp) -> None:
 
 
 def _today_range() -> str:
-    return parse_date_option("today", date.today())
+    return parse_date_option("today", today())
 
 
 def test_parse_date_option() -> None:
