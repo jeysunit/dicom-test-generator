@@ -94,14 +94,24 @@ class SeriesConfig(BaseModel):
 
 | 欄 | 型 | 既定 | 中身 |
 |----|----|------|------|
-| `kind` | `axial`・`localizer`・`coronal`・`sagittal`・`dose_report` | `axial` | シリーズの種類（spec/06 の 5.1） |
+| `kind` | `axial`・`localizer`・`coronal`・`sagittal`・`dose_report`、MR は `localizer`・`acquisition`・`derived` | `axial` | シリーズの種類（spec/06 の 5.1・5.2） |
 | `views` | `frontal`・`lateral` の並び | `["frontal"]` | 位置決めの画像ごとの方向。足りなければ繰り返す |
 | `contrast` | bool | false | 造影のシリーズ |
+| `modality` | `CT`・`MR`・None | None | このシリーズのモダリティ。None はテンプレートのモダリティ（[ADR-0030](../decisions/0030-mr-images.md)） |
+| `plane` | `axial`・`sagittal`・`coronal`・`three_plane` | `axial` | MR の断面。`three_plane` は画像を3等分して axial・coronal・sagittal の順にする |
+| `sequence` | `SE`・`IR`・`GR`・`EP` | `SE` | MR の Scanning Sequence |
+| `acquisition_type` | `2D`・`3D` | `2D` | MR Acquisition Type |
+
+`kind` が `acquisition`・`derived` のシリーズは `modality` を MR にする（CT のシリーズ
+に MR の種類を入れると検証で止まる）。MR のテンプレートで手で入れたシリーズは、
+種類が `axial` なら MR の撮像（`acquisition`）にする。
 
 ルーチンそのもの（`templates/routine/` の YAML）は `app/core/routine.py` の
 `Routine` で読む。形はモダリティごとに違う（CT はシリーズの種類と再構成、MR は
 シーケンス、CR・DX は撮影の方向、US は静止画と動画の数）。どのシリーズも `images`
-（既定の画像数）を必ず持つ。
+（既定の画像数）を必ず持つ。MR のシリーズは、断面 `plane`、スライス厚 `slice_thickness`、
+すきま `spacing`（画像の間隔は スライス厚 + すきま）、`sequence`、`acquisition_type`
+を持つ。
 
 ### 3.3 InstanceConfig
 

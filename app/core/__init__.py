@@ -38,7 +38,7 @@ from .exceptions import (
 )
 from .abnormal_generator import AbnormalGenerator, apply_abnormal_to_dataset
 from .device_profile import DeviceProfile, apply_device_profile, normalize_character_set
-from .generator import CT_IMAGE_STORAGE, DICOMBuilder
+from .generator import CT_IMAGE_STORAGE, MR_IMAGE_STORAGE, DICOMBuilder
 from .models import (
     AbnormalConfig,
     CharacterSetConfig,
@@ -79,6 +79,7 @@ __all__ = [
     "WorklistQueryError",
     "CharacterSetConfig",
     "CT_IMAGE_STORAGE",
+    "MR_IMAGE_STORAGE",
     "ConfigurationError",
     "DICOMBuildError",
     "DICOMBuilder",

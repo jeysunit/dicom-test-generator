@@ -86,6 +86,15 @@ OMIT_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
         "PatientPosition",
         "PositionReferenceIndicator",
         "InstanceCreatorUID",
+        # MR Image の Type 1・Type 2（PS3.3 C.8.3.1）
+        "ScanningSequence",
+        "SequenceVariant",
+        "ScanOptions",
+        "MRAcquisitionType",
+        "EchoTime",
+        "EchoTrainLength",
+        "RepetitionTime",  # Type 2C だが、この道具は常に出す
+        "InversionTime",  # Type 2C（Scanning Sequence が IR のとき）
     }
 )
 
@@ -101,6 +110,9 @@ EMPTY_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
         "PixelSpacing",
         "RescaleIntercept",
         "RescaleSlope",
+        # MR Image の Type 1（PS3.3 C.8.3.1）
+        "ScanningSequence",
+        "SequenceVariant",
     }
 )
 

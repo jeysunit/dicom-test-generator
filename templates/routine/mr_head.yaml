@@ -12,24 +12,28 @@ series:
     images: 15
     plane: "three_plane"
     slice_thickness: 8.0
+    sequence: "GR"
   - kind: "acquisition"
     description: "DWI b1000"
     images: 25
     plane: "axial"
     slice_thickness: 5.0
     spacing: 1.0
+    sequence: "EP"
   - kind: "derived"
     description: "ADC"
     images: 25
     plane: "axial"
     slice_thickness: 5.0
     spacing: 1.0
+    sequence: "EP"
   - kind: "acquisition"
     description: "T2*"
     images: 25
     plane: "axial"
     slice_thickness: 5.0
     spacing: 1.0
+    sequence: "GR"
   - kind: "acquisition"
     description: "T1 SAG"
     images: 25
@@ -48,8 +52,11 @@ series:
     plane: "axial"
     slice_thickness: 5.0
     spacing: 1.0
+    sequence: "IR"
   - kind: "acquisition"
     description: "TOF MRA"
     images: 116
     plane: "axial"
     slice_thickness: 1.3
+    sequence: "GR"
+    acquisition_type: "3D"

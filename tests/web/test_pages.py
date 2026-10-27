@@ -210,12 +210,16 @@ def test_exam_page_is_read_only_and_lists_profiles(client) -> None:
 def test_exam_page_blocks_modality_mismatch(client) -> None:
     key = _key_for(_query(client, station="any", modality=""), "A0003")
 
-    html = client.get(f"/exam?key={key}").text
+    # 開いたときは予約のモダリティのテンプレートを選んである（ADR-0030）
+    opened = client.get(f"/exam?key={key}").text
+    assert "予約は MR、テンプレートは CT です" not in opened
+    assert "この予約は別の装置の予定です" in opened
+
+    # CT のテンプレートに選び直すと撮れない
+    html = client.get("/exam/check", params={"key": key, "template": "ct_generic"}).text
 
     assert "予約は MR、テンプレートは CT です" in html
-    assert "この予約は別の装置の予定です" in html
-    actions = html.split('id="actions"', 1)[1]
-    assert "disabled" in actions.split("</div>", 1)[0]
+    assert "disabled" in html
 
 
 def test_exam_check_partial_follows_profile_choice(client) -> None:

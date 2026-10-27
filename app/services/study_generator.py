@@ -37,9 +37,12 @@ from app.core import (
 from app.core.exceptions import DICOMValidationError
 from app.core.generator import (
     DOSE_REPORT_CONVERSION_TYPE,
+    MR_IMAGE_STORAGE,
     RETIRED_TRANSFER_SYNTAXES,
     SECONDARY_CAPTURE_IMAGE_STORAGE,
 )
+from app.core.models import SeriesConfig
+from pydantic import ValidationError as PydanticValidationError
 from app.core.series_layout import dose_report_lines, series_spatial
 from app.core.path_safety import ensure_within, safe_path_component
 from app.core.worklist_charset import ensure_dataset_encodable
@@ -71,6 +74,17 @@ CT_IMAGE_TAG_MAP = {
     "convolution_kernel": "ConvolutionKernel",
 }
 
+MR_IMAGE_TAG_MAP = {
+    "magnetic_field_strength": "MagneticFieldStrength",
+    "imaged_nucleus": "ImagedNucleus",
+    "receive_coil_name": "ReceiveCoilName",
+}
+
+# この道具が画像を作れるモダリティ（シリーズの Modality。ADR-0030）
+GENERATABLE_MODALITIES = ("CT", "MR")
+# テンプレートと違うモダリティのシリーズに使う SOP Class
+MODALITY_SOP_CLASSES = {"CT": CT_IMAGE_STORAGE, "MR": MR_IMAGE_STORAGE}
+
 # simple_text の画像の Bits Stored（CT Image は 12〜16。PS3.3 C.8.2.1.1.5）
 SIMPLE_TEXT_BITS_STORED = 12
 
@@ -101,7 +115,7 @@ class StudyGeneratorService:
     """DICOMスタディ生成を担うService Layer."""
 
     # 装置のプロファイルで作れる SOP Class（docs/spec/13 の 4.3。P1 は CT だけ）
-    PROFILE_CREATABLE_SOP_CLASSES = frozenset({CT_IMAGE_STORAGE})
+    PROFILE_CREATABLE_SOP_CLASSES = frozenset({CT_IMAGE_STORAGE, MR_IMAGE_STORAGE})
 
     def __init__(self, profile_loader: ProfileLoaderService | None = None) -> None:
         self._template_loader = TemplateLoaderService()
@@ -162,6 +176,15 @@ class StudyGeneratorService:
             profile = self._load_profile(config.device_profile)
 
             modality = self._resolve_modality(template)
+            if modality not in GENERATABLE_MODALITIES:
+                raise DICOMValidationError(
+                    f"Modality {modality} cannot be generated "
+                    f"(supported: {', '.join(GENERATABLE_MODALITIES)})",
+                    {"modality": modality},
+                )
+            series_list = [
+                self._resolve_series(series, modality) for series in config.series_list
+            ]
             sop_class_uid, implementation_version_name = self._resolve_file_meta_settings(
                 template
             )
@@ -208,16 +231,21 @@ class StudyGeneratorService:
 
             generated_count = 0
             file_sequence = 1
-            for series_config in config.series_list:
+            for series_config in series_list:
                 series_uid = uid_generator.generate_series_uid()
                 dose_report = series_config.kind == "dose_report"
+                mr_series = series_config.modality == "MR"
                 for image_index in range(series_config.num_images):
                     sop_uid = uid_generator.generate_sop_uid(
                         allow_invalid=config.abnormal.allow_invalid_sop_uid
                     )
                     file_meta = self._file_meta_builder.build(
                         sop_class_uid=(
-                            SECONDARY_CAPTURE_IMAGE_STORAGE if dose_report else sop_class_uid
+                            SECONDARY_CAPTURE_IMAGE_STORAGE
+                            if dose_report
+                            else sop_class_uid
+                            if series_config.modality == modality
+                            else MODALITY_SOP_CLASSES[series_config.modality]
                         ),
                         sop_instance_uid=sop_uid,
                         transfer_syntax_uid=config.transfer_syntax.uid,
@@ -241,19 +269,27 @@ class StudyGeneratorService:
                     if dose_report:
                         dataset = self._dicom_builder.build_dose_report(
                             pixel_data=self._pixel_generator.generate_text_lines(
-                                dose_report_lines(config.series_list, image_index)
+                                dose_report_lines(series_list, image_index)
                             ),
                             **common,
                         )
                     else:
                         pixel_data, bits_stored = self._generate_pixel_data(config, sop_uid)
-                        dataset = self._dicom_builder.build_ct_image(
+                        build = (
+                            self._dicom_builder.build_mr_image
+                            if mr_series
+                            else self._dicom_builder.build_ct_image
+                        )
+                        dataset = build(
                             spatial=series_spatial(series_config, image_index),
                             pixel_data=pixel_data,
                             bits_stored=bits_stored,
                             **common,
                         )
-                    self._apply_template_attributes(dataset, template, ct_image=not dose_report)
+                    self._apply_template_attributes(
+                        dataset, template, ct_image=not dose_report and not mr_series,
+                        mr_image=mr_series,
+                    )
                     if scheduled is not None:
                         apply_scheduled_context(dataset, scheduled)
                     # 装置のプロファイルの attributes とプライベートタグは最後に当てる
@@ -500,10 +536,35 @@ class StudyGeneratorService:
     def _sequence_width(total_images: int) -> int:
         return max(4, len(str(total_images)))
 
+    @staticmethod
+    def _resolve_series(series: SeriesConfig, template_modality: str) -> SeriesConfig:
+        """モダリティを決めていないシリーズに、テンプレートのモダリティを入れる（ADR-0030）.
+
+        MR のテンプレートで手で入れたシリーズ（種類の既定は axial）は、MR の撮像にする。
+        """
+        if series.modality is not None:
+            return series
+        update: dict[str, object] = {"modality": template_modality}
+        if template_modality == "MR" and series.kind == "axial":
+            update["kind"] = "acquisition"
+        try:
+            # 組み合わせの検証（MR に冠状断など）をやり直す
+            return SeriesConfig.model_validate({**series.model_dump(), **update})
+        except PydanticValidationError as exc:
+            raise DICOMValidationError(
+                f"Series {series.series_number} (kind {series.kind}) cannot be made with "
+                f"the {template_modality} template: {exc.errors()[0]['msg']}",
+                {"series_number": series.series_number, "modality": template_modality},
+            ) from exc
+
     def _apply_template_attributes(
-        self, dataset: Dataset, template: dict, ct_image: bool = True
+        self,
+        dataset: Dataset,
+        template: dict,
+        ct_image: bool = True,
+        mr_image: bool = False,
     ) -> None:
-        """テンプレートの装置の値と、`ct_image` なら CT の撮影の値を当てる."""
+        """テンプレートの装置の値と、`ct_image`・`mr_image` なら撮影の値を当てる."""
         general_equipment = template.get("general_equipment", {})
         if isinstance(general_equipment, dict):
             self._apply_attributes(dataset, general_equipment, GENERAL_EQUIPMENT_TAG_MAP)
@@ -511,6 +572,9 @@ class StudyGeneratorService:
         ct_values = template.get("ct_image", {})
         if ct_image and isinstance(ct_values, dict):
             self._apply_attributes(dataset, ct_values, CT_IMAGE_TAG_MAP)
+        mr_values = template.get("mr_image", {})
+        if mr_image and isinstance(mr_values, dict):
+            self._apply_attributes(dataset, mr_values, MR_IMAGE_TAG_MAP)
 
     def _apply_attributes(
         self, dataset: Dataset, source: dict, keyword_map: dict[str, str]

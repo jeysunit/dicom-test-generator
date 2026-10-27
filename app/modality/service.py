@@ -71,7 +71,7 @@ from app.core.routine import (
     MAX_ROUTINE_IMAGES_PER_SERIES,
     Routine,
     assign_series_numbers,
-    ct_series_configs,
+    routine_series_configs,
     match_routine,
 )
 from app.services import ProfileLoaderService, StudyGeneratorService, TemplateLoaderService
@@ -209,6 +209,8 @@ class ExamRequest(BaseModel):
     emergency_patient: ScheduledPatient | None = None
     study_description: str = ""
     template: str | None = None
+    # 装置のプロファイル。None は設定の既定（テンプレートのモダリティと違えば重ねない）、
+    # "" は「なし」（画面で選んだとき。重ねない）。ADR-0030
     profile: str | None = None
     hospital: str | None = None
     images_per_series: list[int] = Field(default_factory=lambda: [1], min_length=1)
@@ -750,7 +752,7 @@ class ModalityService:
                 )
         wanted = [routine.series[index].series_number for index in keep]
         numbers = assign_series_numbers(wanted, used)
-        series = ct_series_configs(routine, numbers, keep, images)
+        series = routine_series_configs(routine, numbers, keep, images)
         return routine, series, [number is not None for number in wanted]
 
     def template_modality(self, template_name: str) -> str:
@@ -759,6 +761,44 @@ class ModalityService:
         if isinstance(info, dict) and isinstance(info.get("modality"), str):
             return info["modality"]
         return DEFAULT_TEMPLATE_MODALITY
+
+    def template_for_modality(self, modality: str) -> str:
+        """モダリティに合うテンプレートの名前（ADR-0030）.
+
+        設定の既定のテンプレートが合えばそれ、合わなければ名前の順で最初に合うもの。
+        合うテンプレートが無ければ既定のテンプレート（撮影が「予約は MR、テンプレートは
+        CT です」と断る）。
+        """
+        default = self.config.default_template
+        if not modality or self.template_modality(default) == modality:
+            return default
+        for name in self.available_templates():
+            if self.template_modality(name) == modality:
+                return name
+        return default
+
+    def _profile_name(self, request: ExamRequest, template: str) -> str | None:
+        """撮影に重ねる装置のプロファイル（ADR-0030）.
+
+        「なし」（""）は重ねない。指定しなければ設定の既定を、テンプレートのモダリティと
+        違えば重ねない（テンプレートを明示したときも）。
+        """
+        if request.profile is not None:
+            return request.profile or None
+        return self.profile_for_template(self.config.default_profile, template)
+
+    def profile_for_template(self, profile: str | None, template: str) -> str | None:
+        """既定の装置のプロファイルがテンプレートのモダリティと違えば、重ねない（None）.
+
+        テンプレートを予約のモダリティに合わせたとき、別のモダリティの既定のプロファイルで
+        撮影が止まらないようにする。明示した（引数の）プロファイルには使わない。
+        """
+        if not profile:
+            return None
+        loaded = self._profile_loader.load(profile)
+        if loaded.device.modality != self.template_modality(template):
+            return None
+        return profile
 
     def _check_total_images(self, total: int) -> None:
         limit = self.config.max_images_per_exam
@@ -834,6 +874,11 @@ class ModalityService:
             # 撮影済みの予約は、設定の撮り直しの形に従う（6.3・ADR-0024）
             record = self.queue.exam_record(item.key)
             self._check_retake(request, record)
+            if request.template is None and item.modality and item.modality != modality:
+                # テンプレートを指定しない撮影は、予約のモダリティに合うテンプレートで撮る
+                # （ADR-0030）。合うものが無ければ、下の確かめが断る
+                template = self.template_for_modality(item.modality)
+                modality = self.template_modality(template)
             ensure_modality_matches(item, modality)
             character_set = resolve_image_character_set(
                 choice, item.specific_character_set, self.config.character_set_fallback
@@ -936,7 +981,18 @@ class ModalityService:
         )
         if station.station_name:
             ctx = ctx.model_copy(update={"station_name": station.station_name})
-        profile_name = request.profile or self.config.default_profile
+        profile_name = self._profile_name(request, template)
+        default_profile = self.config.default_profile
+        if (
+            profile_name is None
+            and default_profile
+            and self.profile_for_template(default_profile, template) is None
+        ):
+            # 既定の装置がモダリティに合わずに重ねなかった（画面で「なし」に変えてあっても）
+            notices.append(
+                f"設定の既定の装置（{self.config.default_profile}）は {modality} ではないので、"
+                "装置のプロファイルを重ねません"
+            )
         use_mpps = self._uses_mpps(request, profile_name)
         if (use_mpps or not ctx.scheduled) and ctx.study_instance_uid is None:
             # MPPS と画像の Study をそろえるため、N-CREATE より前に UID を作る（8.4.1）。
@@ -1265,7 +1321,7 @@ class ModalityService:
             raise ConfigurationError("Unsupported pixel mode", {"pixel_mode": pixel_mode})
         study_date = (record.study_date if record else "") or now.strftime("%Y%m%d")
         study_time = (record.study_time if record else "") or now.strftime("%H%M%S")
-        profile_name = request.profile or self.config.default_profile
+        profile_name = self._profile_name(request, template)
         transfer_syntax = (
             profile_transfer_syntax(self._profile_loader.load(profile_name))
             if profile_name

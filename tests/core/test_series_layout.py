@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.core.models import SeriesConfig
-from app.core.series_layout import dose_report_lines, image_type, series_spatial
+from app.core.series_layout import dose_report_lines, image_type, mr_plane, series_spatial
 
 
 def _series(kind: str, **extra: object) -> SeriesConfig:
@@ -81,3 +81,70 @@ def test_dose_report_lists_acquired_series_only() -> None:
     assert [row.split()[0] for row in rows] == ["1", "2"]
     # 軸位 60 枚 × 5mm = 30cm、CTDIvol 10 mGy で DLP 300
     assert rows[1].split()[-1] == "300.00"
+
+
+def _mr(kind: str = "acquisition", **extra: object) -> SeriesConfig:
+    return SeriesConfig(series_number=1, num_images=5, kind=kind, modality="MR", **extra)
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected"),
+    [
+        ("acquisition", ["ORIGINAL", "PRIMARY", "M", "ND"]),
+        ("localizer", ["ORIGINAL", "PRIMARY", "M", "ND"]),
+        ("derived", ["DERIVED", "SECONDARY"]),
+    ],
+)
+def test_mr_image_type(kind: str, expected: list[str]) -> None:
+    assert image_type(_mr(kind)) == expected
+
+
+def test_mr_series_kind_needs_the_mr_modality() -> None:
+    with pytest.raises(ValueError, match="needs modality MR"):
+        SeriesConfig(series_number=1, num_images=1, kind="acquisition", modality="CT")
+    with pytest.raises(ValueError, match="not an MR series kind"):
+        SeriesConfig(series_number=1, num_images=1, kind="axial", modality="MR")
+
+
+def test_mr_planes_follow_the_orientation_of_the_plane() -> None:
+    axial = series_spatial(_mr(plane="axial", slice_spacing=6.0), 2)
+    sagittal = series_spatial(_mr(plane="sagittal", slice_spacing=6.0), 2)
+    coronal = series_spatial(_mr(plane="coronal", slice_spacing=6.0), 2)
+
+    assert axial.image_position_patient == [0.0, 0.0, 12.0]
+    assert axial.image_orientation_patient == [1.0, 0.0, 0.0, 0.0, 1.0, 0.0]
+    assert sagittal.image_position_patient == [12.0, 0.0, 0.0]
+    assert sagittal.image_orientation_patient == [0.0, 1.0, 0.0, 0.0, 0.0, -1.0]
+    assert coronal.image_position_patient == [0.0, 12.0, 0.0]
+    assert coronal.image_orientation_patient == [1.0, 0.0, 0.0, 0.0, 0.0, -1.0]
+
+
+def test_mr_three_plane_localizer_splits_images_into_three_planes() -> None:
+    series = SeriesConfig(
+        series_number=1, num_images=15, kind="localizer", modality="MR", plane="three_plane"
+    )
+
+    assert [mr_plane(series, index) for index in (0, 4, 5, 9, 10, 14)] == [
+        ("axial", 0),
+        ("axial", 4),
+        ("coronal", 0),
+        ("coronal", 4),
+        ("sagittal", 0),
+        ("sagittal", 4),
+    ]
+
+
+def test_mr_three_plane_remainder_goes_to_the_last_plane() -> None:
+    series = SeriesConfig(
+        series_number=1, num_images=7, kind="localizer", modality="MR", plane="three_plane"
+    )
+
+    assert [mr_plane(series, index)[0] for index in range(7)] == [
+        "axial",
+        "axial",
+        "coronal",
+        "coronal",
+        "sagittal",
+        "sagittal",
+        "sagittal",
+    ]

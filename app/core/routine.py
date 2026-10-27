@@ -14,7 +14,15 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 from .exceptions import ValidationError
-from .models import CTSeriesKind, LocalizerView, SeriesConfig
+from .models import (
+    CTSeriesKind,
+    LocalizerView,
+    MRAcquisitionType,
+    MRPlane,
+    MRSequence,
+    MRSeriesKind,
+    SeriesConfig,
+)
 
 RoutineModality = Literal["CT", "MR", "CR", "DX", "US"]
 # 画面と CLI の1シリーズの画像数の上限（docs/spec/12a の 10.5）と同じ
@@ -51,10 +59,14 @@ class CTRoutineSeries(_RoutineSeries):
 
 
 class MRRoutineSeries(_RoutineSeries):
-    kind: Literal["localizer", "acquisition", "derived"]
-    plane: Literal["axial", "sagittal", "coronal", "three_plane"]
+    kind: MRSeriesKind
+    plane: MRPlane
     slice_thickness: float = Field(..., gt=0)
+    # スライス間のすきま（mm）。画像の間隔は スライス厚 + すきま
     spacing: float = Field(0.0, ge=0)
+    # 撮像の種類（Scanning Sequence・MR Acquisition Type。ADR-0030）
+    sequence: MRSequence = "SE"
+    acquisition_type: MRAcquisitionType = "2D"
 
 
 class ProjectionRoutineSeries(_RoutineSeries):
@@ -228,26 +240,43 @@ def assign_series_numbers(
     return numbers
 
 
-def ct_series_configs(
+def routine_series_configs(
     routine: Routine, numbers: list[int], keep: list[int], images: list[int]
 ) -> list[SeriesConfig]:
-    """CT のルーチンの `keep` の位置のシリーズを、`images` の画像数で SeriesConfig にする."""
+    """CT・MR のルーチンの `keep` の位置のシリーズを、`images` の画像数で SeriesConfig にする."""
     configs = []
     for number, index, count in zip(numbers, keep, images, strict=True):
         series = routine.series[index]
-        if not isinstance(series, CTRoutineSeries):
-            raise ValidationError(f"{routine.modality} の画像はまだ作れません")
-        configs.append(
-            SeriesConfig(
-                series_number=number,
-                series_description=series.description,
-                num_images=count,
-                protocol_name=routine.protocol_name,
-                slice_thickness=series.slice_thickness,
-                slice_spacing=series.slice_thickness,
-                kind=series.kind,
-                views=series.views or ["frontal"],
-                contrast=series.contrast,
+        if isinstance(series, CTRoutineSeries):
+            configs.append(
+                SeriesConfig(
+                    series_number=number,
+                    series_description=series.description,
+                    num_images=count,
+                    protocol_name=routine.protocol_name,
+                    slice_thickness=series.slice_thickness,
+                    slice_spacing=series.slice_thickness,
+                    kind=series.kind,
+                    views=series.views or ["frontal"],
+                    contrast=series.contrast,
+                )
             )
-        )
+        elif isinstance(series, MRRoutineSeries):
+            configs.append(
+                SeriesConfig(
+                    series_number=number,
+                    series_description=series.description,
+                    num_images=count,
+                    protocol_name=routine.protocol_name,
+                    slice_thickness=series.slice_thickness,
+                    slice_spacing=series.slice_thickness + series.spacing,
+                    kind=series.kind,
+                    modality="MR",
+                    plane=series.plane,
+                    sequence=series.sequence,
+                    acquisition_type=series.acquisition_type,
+                )
+            )
+        else:
+            raise ValidationError(f"{routine.modality} の画像はまだ作れません")
     return configs

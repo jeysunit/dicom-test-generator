@@ -10,7 +10,7 @@ from app.core.routine import (
     Routine,
     assign_series_numbers,
     check_routine_set,
-    ct_series_configs,
+    routine_series_configs,
     match_routine,
 )
 
@@ -128,10 +128,10 @@ def test_assign_series_numbers_rejects_a_taken_number(
         assign_series_numbers(wanted, used)
 
 
-def test_ct_series_configs_carry_the_routine_values() -> None:
+def test_routine_series_configs_carry_the_routine_values() -> None:
     routine = _ct("x", [], kind="coronal", slice_thickness=3.0, contrast=True)
 
-    (series,) = ct_series_configs(routine, [4], [0], [10])
+    (series,) = routine_series_configs(routine, [4], [0], [10])
 
     assert series.series_number == 4
     assert series.num_images == 10
@@ -140,3 +140,51 @@ def test_ct_series_configs_carry_the_routine_values() -> None:
     assert series.contrast is True
     assert series.protocol_name == "X"
     assert series.series_description == "AX"
+
+
+def test_mr_routine_series_configs_carry_plane_sequence_and_gap() -> None:
+    routine = Routine.model_validate(
+        {
+            "name": "mr_x",
+            "label": "x",
+            "modality": "MR",
+            "protocol_name": "X",
+            "default": True,
+            "series": [
+                {
+                    "kind": "acquisition",
+                    "description": "FLAIR",
+                    "images": 4,
+                    "plane": "sagittal",
+                    "slice_thickness": 5.0,
+                    "spacing": 1.0,
+                    "sequence": "IR",
+                    "acquisition_type": "3D",
+                }
+            ],
+        }
+    )
+
+    (series,) = routine_series_configs(routine, [2], [0], [3])
+
+    assert series.modality == "MR"
+    assert series.kind == "acquisition"
+    assert series.plane == "sagittal"
+    assert series.sequence == "IR"
+    assert series.acquisition_type == "3D"
+    # 画像の間隔は スライス厚 + すきま
+    assert series.slice_thickness == 5.0
+    assert series.slice_spacing == 6.0
+    assert series.num_images == 3
+
+
+def test_bundled_mr_routines_load_with_a_sequence() -> None:
+    from app.services.routine_loader import RoutineLoaderService
+
+    head = RoutineLoaderService().get("mr_head")
+    by_description = {series.description: series for series in head.series}
+
+    assert by_description["FLAIR"].sequence == "IR"
+    assert by_description["DWI b1000"].sequence == "EP"
+    assert by_description["TOF MRA"].acquisition_type == "3D"
+    assert by_description["T2 AX"].sequence == "SE"

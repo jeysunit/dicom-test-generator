@@ -69,6 +69,17 @@ class StudyConfig(BaseModel):
 
 
 CTSeriesKind = Literal["axial", "localizer", "coronal", "sagittal", "dose_report"]
+# MR のシリーズの種類。位置決めは CT と同じ "localizer"（ADR-0030）
+MRSeriesKind = Literal["localizer", "acquisition", "derived"]
+SeriesKind = Literal[
+    "axial", "localizer", "coronal", "sagittal", "dose_report", "acquisition", "derived"
+]
+SeriesModality = Literal["CT", "MR"]
+MRPlane = Literal["axial", "sagittal", "coronal", "three_plane"]
+# Scanning Sequence (0018,0020) の値（PS3.3 C.8.3.1。RM は使わない）
+MRSequence = Literal["SE", "IR", "GR", "EP"]
+# MR Acquisition Type (0018,0023) の値（PS3.3 C.8.3.1）
+MRAcquisitionType = Literal["2D", "3D"]
 LocalizerView = Literal["frontal", "lateral"]
 
 
@@ -83,10 +94,30 @@ class SeriesConfig(BaseModel):
     slice_spacing: float = Field(5.0, gt=0, description="スライス間隔（mm）")
     start_z: float = Field(0.0, description="開始Z座標（mm）")
     # 撮影のルーチンのシリーズの種類（docs/spec/03・ADR-0025）。既定の axial は今までの画像
-    kind: CTSeriesKind = Field("axial", description="シリーズの種類")
+    kind: SeriesKind = Field("axial", description="シリーズの種類")
     # 位置決めの画像ごとの方向。足りなければ先頭から繰り返す
     views: list[LocalizerView] = Field(default_factory=lambda: ["frontal"], min_length=1)
     contrast: bool = Field(False, description="造影のシリーズ（Contrast/Bolus Agent を入れる）")
+    # このシリーズのモダリティ (0008,0060)。None はテンプレートのモダリティ（ADR-0030）
+    modality: SeriesModality | None = Field(None, description="シリーズのモダリティ")
+    # MR のシリーズの断面と撮像（MR 以外では使わない）
+    plane: MRPlane = Field("axial", description="MR の断面")
+    sequence: MRSequence = Field("SE", description="MR の Scanning Sequence")
+    acquisition_type: MRAcquisitionType = Field("2D", description="MR Acquisition Type")
+
+    @model_validator(mode="after")
+    def _kind_matches_modality(self) -> SeriesConfig:
+        mr_kinds = ("acquisition", "derived")
+        if self.modality == "MR" and self.kind in ("axial", "coronal", "sagittal", "dose_report"):
+            raise ValueError(f"kind {self.kind!r} is not an MR series kind")
+        if self.modality == "CT" and self.kind in mr_kinds:
+            raise ValueError(f"kind {self.kind!r} needs modality MR")
+        if self.modality is None and self.kind in mr_kinds:
+            raise ValueError(f"kind {self.kind!r} needs modality MR")
+        if self.modality == "MR" and self.contrast:
+            # MR の造影（Contrast/Bolus Module）はまだ作らない（ADR-0030）
+            raise ValueError("contrast is not supported for MR series")
+        return self
 
 
 class InstanceConfig(BaseModel):

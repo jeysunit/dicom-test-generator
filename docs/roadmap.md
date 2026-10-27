@@ -26,7 +26,7 @@
 | 項目 | 現在の状態 | 関係するドキュメント |
 |------|------------|----------------------|
 | Web 画面でのファイルの作成（Job YAML や `quick` に相当する画面） | ファイルの作成は CLI の `generate`・`quick` で行う。Web 画面は撮影だけを持つ | [ADR-0022](decisions/0022-remove-desktop-gui.md) |
-| CT 以外のモダリティ（MR・CR・DX・US など） | 作成できる SOP Class は CT Image Storage だけ | [spec/13](spec/13_device_profiles.md) の 4.3 |
+| CT・MR 以外のモダリティ（CR・DX・US など） | 作成できる SOP Class は CT Image Storage と MR Image Storage だけ（[ADR-0030](decisions/0030-mr-images.md)） | [spec/13](spec/13_device_profiles.md) の 4.3 |
 | 装置プロファイルの `uid`・`pixel`・`series` フィールド | モデルにフィールドが無く、書くと検証エラーになる | [spec/13](spec/13_device_profiles.md) の 3.1・11 章 |
 | 装置プロファイルの `worklist` フィールド | 予約の値の転記方法はプロファイルで変えられない | [spec/13](spec/13_device_profiles.md) の 8 章 |
 | 装置プロファイルの `services.modality_worklist` | 値を持つだけで、動作に反映されない | [spec/13](spec/13_device_profiles.md) の 3.1 |
