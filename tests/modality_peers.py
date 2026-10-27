@@ -27,6 +27,8 @@ from pynetdicom.sop_class import (
     Verification,
 )
 
+from app.core.patient_input import DEFAULT_TIMEZONE, current_date
+
 LOCALHOST = "127.0.0.1"
 WORKLIST_YAML = Path(__file__).parent / "modality" / "data" / "worklist.yaml"
 STATUS_PENDING = 0xFF00
@@ -92,6 +94,15 @@ def _code_sequence(values: list[str] | None) -> list[Dataset]:
     return [item]
 
 
+def today() -> date:
+    """試験の「今日」。アプリの設定の既定のタイムゾーン（Asia/Tokyo）での今日.
+
+    `date.today()` は OS のタイムゾーン（CI では UTC）の今日で、JST の 0〜9 時には
+    アプリの「今日」と1日ずれる。予約の日付も試験の期待値も、これで決める。
+    """
+    return current_date(DEFAULT_TIMEZONE)
+
+
 def build_worklist_dataset(raw: dict[str, Any], character_set: list[str]) -> Dataset:
     """YAML の1件（合成の患者）から MWL の応答を作る."""
     ds = Dataset()
@@ -123,7 +134,7 @@ def build_worklist_dataset(raw: dict[str, Any], character_set: list[str]) -> Dat
     sps.ScheduledStationAETitle = sps_raw.get("station_ae_title", "")
     start_date = sps_raw.get("start_date", "")
     sps.ScheduledProcedureStepStartDate = (
-        date.today().strftime("%Y%m%d") if start_date == "TODAY" else start_date
+        today().strftime("%Y%m%d") if start_date == "TODAY" else start_date
     )
     sps.ScheduledProcedureStepStartTime = sps_raw.get("start_time", "")
     sps.Modality = sps_raw.get("modality", "")

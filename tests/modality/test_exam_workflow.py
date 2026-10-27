@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import closing
-from datetime import date
 from pathlib import Path
 
 import pytest
-from modality_peers import LOCALHOST, free_port
+from modality_peers import LOCALHOST, free_port, today
 from pydicom import dcmread
 
 from app.core.exceptions import (
@@ -171,7 +170,7 @@ def test_append_keeps_the_study_and_adds_series(tmp_path, worklist_scp) -> None:
     assert added.StudyDescription == one.StudyDescription
     assert int(added.SeriesNumber) == 3  # 前の撮影の 2 シリーズの続き
     # PPS の開始はこの撮影の日時（Study の日時とは別）
-    assert added.PerformedProcedureStepStartDate == date.today().strftime("%Y%m%d")
+    assert added.PerformedProcedureStepStartDate == today().strftime("%Y%m%d")
     assert added.PerformedProcedureStepID != one.PerformedProcedureStepID
 
 
