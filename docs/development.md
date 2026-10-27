@@ -107,6 +107,11 @@ DTG の機能ではない。スタブは `tests/modality_peers.py` にある。
 - MWL の SCP のスタブは、予約を YAML（合成した患者だけ）から作成し、`EVT_C_FIND`
   のハンドラーで返す。文字コードを変えた応答も作成できる
 - ポートはテストごとに空いているものを使う。固定のポートは使わない
+- 試験の「今日」（スタブの予約の日付と、期待する日付）は `modality_peers.today()`
+  で決める。アプリと同じく設定の既定のタイムゾーン（Asia/Tokyo）の今日で、
+  `date.today()`（OS のタイムゾーン。CI では UTC）は使わない。使うと JST の 0〜9 時に
+  1日ずれて落ちる（`tests/modality/test_today_in_the_jst_morning.py` が時刻を固定して
+  確かめる）
 - 保管確認の SCP と MPPS の SCP のスタブは、結果を返す経路（同じ・別の
   Association）、返す Status、返す値をテストごとに変えられる
   （[ADR-0021](decisions/0021-test-only-commitment-and-mpps-peers.md)）

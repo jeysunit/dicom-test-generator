@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import sqlite3
 from contextlib import closing
-from datetime import date
 from pathlib import Path
 
 import pytest
@@ -147,7 +146,7 @@ def test_selected_station_names_itself_in_every_association(
     )
     service.select_station("MR1号機")
 
-    assert service.default_query(date.today()).station_ae_title == "DTG_MR01"
+    assert service.default_query(service.today()).station_ae_title == "DTG_MR01"
     item = service.query_worklist(WorklistQuery(accession_number="A0001")).items[0]
     service.echo()
     exam = service.exam(ExamRequest(worklist_key=item.key, pixel_mode="simple_text"))
