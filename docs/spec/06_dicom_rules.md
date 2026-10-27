@@ -127,17 +127,20 @@ Job の `abnormal.allow_invalid_sop_uid` が `true` のとき、SOP Instance UID
 
 ### 4.1 モード
 
-Job の `pixel_spec.mode` で選ぶ（[ADR-0005](../decisions/0005-pixel-modes.md)）。
-どちらのモードも CT Image（PS3.3 C.8.2.1）の画素として書く。
+Job の `pixel_spec.mode` で選ぶ（[ADR-0005](../decisions/0005-pixel-modes.md)・
+[ADR-0033](../decisions/0033-phantom-pixels.md)）。どのモードも CT のシリーズでは
+CT Image（PS3.3 C.8.2.1）の画素として書く（MR は 5.2、PET は 5.4）。既定は
+`ct_realistic` で、`phantom` は選んだときだけ使う。
 
 | モード | 用途 | Bits Allocated | Bits Stored | Pixel Representation | 内容 |
 |--------|------|----------------|-------------|----------------------|------|
 | `simple_text` | 簡易確認 | 16 | 12（固定） | 1（符号あり） | SOP Instance UID の文字列 |
 | `ct_realistic` | ビューアでの表示 | 16 | 12〜16（既定 12） | 1（符号あり） | HU 値のパターン |
+| `phantom` | スライスを送る・MPR の試験 | 16 | 12〜16（既定 12） | 1（符号あり） | スライスの位置で断面が変わる図形と位置の目印（4.6） |
 
 ### 4.2 画素の属性
 
-`DICOMBuilder`（`app/core/generator.py`）が、どちらのモードでも次の値を書く。
+`DICOMBuilder`（`app/core/generator.py`）が、CT のシリーズにはどのモードでも次の値を書く。
 
 | Tag | Attribute Name | 値 |
 |-----|----------------|----|
@@ -199,6 +202,70 @@ Pixel Representation 1 の画素は、Bits Stored のビット数の 2 の補数
 符号拡張するため別の値に変わる（12 ビットの 2048 は −2048）。
 `DICOMBuilder` は範囲を超える画素を `DICOMBuildError` で拒否する。
 
+### 4.6 phantom
+
+画素の患者座標で3次元の図形を評価し、スライスの位置で断面の大きさが変わる画像を
+作る（`app/core/phantom.py`。[ADR-0033](../decisions/0033-phantom-pixels.md)）。
+画素に文字は描かない。
+
+**図形を決める**：図形（回転楕円体1つ）は、1回の撮影（同じ Frame of Reference UID
+の画像の組）で一度だけ患者座標（mm）で決め、その撮影の全シリーズで使う。
+
+| 値 | 決め方 |
+|----|--------|
+| 中心の x・y | 軸位の視野の中央。視野は CT が 列数 × 0.5 mm と 行数 × 0.5 mm、MR が 240 mm |
+| x・y の半径 | 視野の 0.4 倍 |
+| 中心の z と z の半径 | 位置の範囲がいちばん長い軸位のシリーズ（CT の軸位、MR の `plane: axial` の撮像・計算で作った画像）の範囲の中央と、範囲の長さの 0.55 倍（1枚だけのシリーズは、範囲の長さの代わりにスライス間隔を使う）。軸位が無ければ、今の冠状断・矢状断が写す範囲（z が 0 から視野の高さだけ下）の中央と、視野の高さの 0.55 倍 |
+
+**画素を作る**：各画素の中心の患者座標を、Image Position (Patient)・Image
+Orientation (Patient)・Pixel Spacing から計算する（PS3.3 C.7.6.2.1.1）。回転楕円体の
+内側を図形の値、外側を背景の値にする。CT の位置決め（投影の画像）は、画像の面に
+垂直な向きの座標を図形の中心に置いて評価する（回転楕円体の影の形）。MR の
+位置決めは断層の画像として評価する。
+
+**位置の目印**：どの画像にも、1辺が画像の小さいほうの辺の 0.04 倍（2 画素以上）の
+正方形を、画像の中心から 0.3 倍の円の上に目印の値で描く。角度はシリーズの中の
+番号 k（0 始まり）と画像の数 n から 360° × k / n で、0° は中心の右、番号が進むと
+上へ回る。回転楕円体は中央に対して対称なので、中央から同じ距離の2枚は断面の
+大きさが同じになるが、目印の位置で見分けられる。目印は3次元の図形に含めない。
+
+**値**：区分ごとに一定の値にする。ノイズ・ぼかしは足さない。
+
+| 区分 | CT（HU。格納値は HU + 1024） | MR（符号なしの Bits Stored の上限に対する割合。四捨五入） |
+|------|------------------------------|----------------------------------------------------------|
+| 背景 | −1000 | 0 |
+| 図形 | 40 | 0.40 |
+| 位置の目印 | 1000 | 0.90 |
+
+Rescale・Window の値は、CT は 4.2、MR は 5.2 のとおり。MR は Bits Stored 16 でも
+符号なしで上限まで書く（16 ビットの目印は 58982）。
+
+**画像の位置**：冠状断・矢状断と CT の位置決めの Image Position (Patient) の z を、
+軸位の範囲の上端（いちばん長い軸位のシリーズの最後の画像の z）にする。軸位が
+無ければ 0 のまま。MR の冠状断・矢状断の断面（`three_plane` を含む）も同じ。
+ほかのモードの位置は 5.1 のまま変えない。
+
+**偽物の印**：図形で画素を作った画像（CT の位置決め・軸位・冠状断・矢状断と MR の
+画像）には、装置のプロファイル（[spec/13](13_device_profiles.md)）を当てた後に次を
+書き、プロファイルの値より優先する。線量の画面・線量の報告の SR・PET/CT の PT の
+シリーズには書かない。ほかのモードの画像にも書かない。
+
+| Tag | Attribute Name | 値 |
+|-----|----------------|----|
+| (0008,0070) | Manufacturer | `DTG SYNTHETIC` |
+| (0008,1090) | Manufacturer's Model Name | `DTG SYNTHETIC` |
+| (0020,4000) | Image Comments | `SYNTHETIC TEST DATA` |
+| (0028,0301) | Burned In Annotation | `NO` |
+| (0028,0302) | Recognizable Visual Features | `NO` |
+
+Burned In Annotation と Recognizable Visual Features は General Image Module の
+Type 3（PS3.3 C.7.6.1）。Software Versions・Device Serial Number・Station Name・
+プライベートタグは装置のプロファイルの値のまま。異常のデータ（1.1）はこの後に
+当てる。
+
+**PET/CT**：`phantom` でも PT のシリーズは図形にせず、`ct_realistic` の
+`gradient` の画素で作る（5.4）。
+
 ## 5. CT Image の必須の属性
 
 CT Image IOD（PS3.3 A.3）の Type 1・2・2C の属性のうち、Job・テンプレート・
@@ -220,7 +287,9 @@ CT の Image Type の値 3 の Defined Terms は `AXIAL` と `LOCALIZER`
 ### 5.1 撮影のルーチンのシリーズの種類
 
 撮影のルーチン（[ADR-0025](../decisions/0025-exam-routines.md)）で撮ったシリーズは、
-種類ごとに次の値にする。手で入れたシリーズは軸位で、上の表のとおり。
+種類ごとに次の値にする。手で入れたシリーズは軸位で、上の表のとおり。画素の
+モードが `phantom` のときは、位置決め・冠状断・矢状断の画像の位置の z を軸位の
+範囲の上端にする（4.6）。
 
 | 種類 | SOP Class | Image Type | Image Orientation (Patient) | 画像の位置 |
 |------|-----------|------------|-----------------------------|------------|

@@ -138,14 +138,17 @@ def mr_plane(series: SeriesConfig, image_index: int) -> tuple[str, int]:
     return THREE_PLANE_ORDER[plane_index], image_index - plane_index * per_plane
 
 
-def _mr_spatial(series: SeriesConfig, image_index: int) -> SpatialCoordinates:
+def _mr_spatial(
+    series: SeriesConfig, image_index: int, top_z: float | None
+) -> SpatialCoordinates:
     """MR の画像の位置と向き。断面ごとに、CT の断面の画像と同じ軸へ間隔ずつ進める."""
     plane, position_index = mr_plane(series, image_index)
     offset = series.start_z + position_index * series.slice_spacing
+    z = 0.0 if top_z is None else top_z
     if plane == "coronal":
-        position, orientation = [0.0, offset, 0.0], CORONAL_ORIENTATION
+        position, orientation = [0.0, offset, z], CORONAL_ORIENTATION
     elif plane == "sagittal":
-        position, orientation = [offset, 0.0, 0.0], SAGITTAL_ORIENTATION
+        position, orientation = [offset, 0.0, z], SAGITTAL_ORIENTATION
     else:
         position, orientation = [0.0, 0.0, offset], AXIAL_ORIENTATION
     return SpatialCoordinates(
@@ -161,24 +164,31 @@ def localizer_view(series: SeriesConfig, image_index: int) -> str:
     return series.views[image_index % len(series.views)]
 
 
-def series_spatial(series: SeriesConfig, image_index: int) -> SpatialCoordinates:
+def series_spatial(
+    series: SeriesConfig, image_index: int, top_z: float | None = None
+) -> SpatialCoordinates:
     """シリーズの種類ごとの画像の位置と向き.
 
     軸位は z、冠状断は前後（y）、矢状断は左右（x）の向きに、スライス間隔ずつ進める。
     位置決めは投影の画像なので、どの画像も原点に置き、向きだけを方向で変える。
+
+    `top_z` は図形の方式（phantom）のときだけ渡す。冠状断・矢状断・位置決めの
+    Image Position (Patient) の z をその値（軸位の範囲の上端）にし、軸位の範囲を
+    覆う位置に置く（ADR-0033）。渡さなければ z は 0 のまま。
     """
     if image_index < 0:
         raise ValueError(f"image_index must be >= 0, got {image_index}")
     if series.modality == "MR":
-        return _mr_spatial(series, image_index)
+        return _mr_spatial(series, image_index, top_z)
     offset = series.start_z + image_index * series.slice_spacing
+    z = 0.0 if top_z is None else top_z
     if series.kind == "localizer":
-        position, location = [0.0, 0.0, 0.0], 0.0
+        position, location = [0.0, 0.0, z], 0.0
         orientation = VIEW_ORIENTATIONS[localizer_view(series, image_index)]
     elif series.kind == "coronal":
-        position, location, orientation = [0.0, offset, 0.0], offset, CORONAL_ORIENTATION
+        position, location, orientation = [0.0, offset, z], offset, CORONAL_ORIENTATION
     elif series.kind == "sagittal":
-        position, location, orientation = [offset, 0.0, 0.0], offset, SAGITTAL_ORIENTATION
+        position, location, orientation = [offset, 0.0, z], offset, SAGITTAL_ORIENTATION
     else:
         position, location, orientation = [0.0, 0.0, offset], offset, AXIAL_ORIENTATION
     return SpatialCoordinates(

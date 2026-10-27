@@ -26,6 +26,7 @@ from app.core import (
     InstanceConfig,
     PixelGenerator,
     PixelSpecCTRealistic,
+    PixelSpecPhantom,
     ProfileMismatchError,
     ScheduledContext,
     UIDContext,
@@ -42,7 +43,13 @@ from app.core.generator import (
     RETIRED_TRANSFER_SYNTAXES,
     SECONDARY_CAPTURE_IMAGE_STORAGE,
 )
-from app.core.models import SeriesConfig
+from app.core.models import SeriesConfig, SpatialCoordinates
+from app.core.phantom import (
+    PHANTOM_MARKS,
+    PhantomShape,
+    series_phantom_pixels,
+    study_phantom_shape,
+)
 from pydantic import ValidationError as PydanticValidationError
 from app.core.dose_sr import (
     XRAY_RADIATION_DOSE_SR_STORAGE,
@@ -246,6 +253,9 @@ class StudyGeneratorService:
                     )
             self._reject_retired_transfer_syntax(config.transfer_syntax.uid)
             sequence_width = self._sequence_width(total_images)
+            # 図形は撮影（この Frame of Reference）ごとに一度だけ決める（ADR-0033）
+            shape = self._phantom_shape(config, series_list)
+            top_z = shape.top_z if shape is not None else None
 
             output_dir = Path(config.output_dir)
             try:
@@ -320,7 +330,7 @@ class StudyGeneratorService:
                             events=dose_sr_events, **common
                         )
                     else:
-                        spatial = series_spatial(series_config, image_index)
+                        spatial = series_spatial(series_config, image_index, top_z)
                         if pt_series:
                             dataset = self._dicom_builder.build_pt_image(
                                 spatial=spatial,
@@ -328,7 +338,13 @@ class StudyGeneratorService:
                                 **common,
                             )
                         else:
-                            pixel_data, bits_stored = self._generate_pixel_data(config, sop_uid)
+                            pixel_data, bits_stored = (
+                                self._generate_phantom_pixels(
+                                    config, shape, series_config, spatial, image_index
+                                )
+                                if shape is not None
+                                else self._generate_pixel_data(config, sop_uid)
+                            )
                             build = (
                                 self._dicom_builder.build_mr_image
                                 if mr_series
@@ -356,6 +372,10 @@ class StudyGeneratorService:
                         apply_device_profile(
                             dataset, profile, apply_station_name=apply_station_name
                         )
+                    if shape is not None and not (dose_report or dose_sr or pt_series):
+                        # 図形で画素を作った画像だけに、偽物の印を書く
+                        for keyword, value in PHANTOM_MARKS.items():
+                            setattr(dataset, keyword, value)
                     if dose_report:
                         self._keep_secondary_capture_shape(dataset)
                     elif dose_sr:
@@ -605,13 +625,53 @@ class StudyGeneratorService:
         # 文字の画像も CT の 16 ビットで書く（PS3.3 C.8.2.1.1.5。DICOMBuilder が広げる）
         return pixels, SIMPLE_TEXT_BITS_STORED
 
+    @staticmethod
+    def _phantom_shape(
+        config: GenerationConfig, series_list: list[SeriesConfig]
+    ) -> PhantomShape | None:
+        """図形の方式のときだけ、軸位の視野と範囲から図形を決める."""
+        if not isinstance(config.pixel_spec, PixelSpecPhantom):
+            return None
+        return study_phantom_shape(
+            series_list, rows=config.pixel_spec.height, cols=config.pixel_spec.width
+        )
+
+    @staticmethod
+    def _generate_phantom_pixels(
+        config: GenerationConfig,
+        shape: PhantomShape,
+        series_config: SeriesConfig,
+        spatial: SpatialCoordinates,
+        image_index: int,
+    ) -> tuple[np.ndarray, int]:
+        bits_stored = config.pixel_spec.bits_stored
+        pixels = series_phantom_pixels(
+            shape,
+            series_config,
+            spatial,
+            image_index,
+            rows=config.pixel_spec.height,
+            cols=config.pixel_spec.width,
+            bits_stored=bits_stored,
+        )
+        return pixels, bits_stored
+
     def _generate_pet_pixels(self, config: GenerationConfig, sop_uid: str) -> np.ndarray:
-        """PET の画素。行列は PET の大きさ（128）で、ジョブの画素の大きさには従わない."""
-        if isinstance(config.pixel_spec, PixelSpecCTRealistic):
+        """PET の画素。行列は PET の大きさ（128）で、ジョブの画素の大きさには従わない.
+
+        図形の方式（phantom）でも PT のシリーズは図形にせず、既定の `gradient` にする
+        （ADR-0033 の「決めないこと」）。
+        """
+        if isinstance(config.pixel_spec, (PixelSpecCTRealistic, PixelSpecPhantom)):
+            pattern = (
+                config.pixel_spec.pattern
+                if isinstance(config.pixel_spec, PixelSpecCTRealistic)
+                else "gradient"
+            )
             return self._pixel_generator.generate_ct_realistic(
                 width=PET_MATRIX_SIZE,
                 height=PET_MATRIX_SIZE,
-                pattern=config.pixel_spec.pattern,
+                pattern=pattern,
                 bits_stored=PET_PIXEL_BITS,
             )
         return self._pixel_generator.generate_simple_text(

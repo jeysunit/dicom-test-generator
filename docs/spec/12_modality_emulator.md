@@ -834,7 +834,7 @@ modality:
   default_template: "ct_generic"
   default_profile: null         # 装置プロファイル（spec/13）。null は重ねない
   default_hospital: null        # 病院テンプレート（null で使わない）
-  default_pixel_mode: "ct_realistic"  # simple_text, ct_realistic
+  default_pixel_mode: "ct_realistic"  # simple_text, ct_realistic, phantom
   worklist:
     ae_title: "RIS_TEST"
     host: "127.0.0.1"

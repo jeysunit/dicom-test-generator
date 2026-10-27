@@ -289,7 +289,8 @@ class DICOMBuilder:
         if pixel_data.dtype == np.uint8:
             pixels = np.rint(pixel_data.astype(np.float64) * upper / np.iinfo(np.uint8).max)
             pixels = pixels.astype(np.uint16)
-        elif pixel_data.dtype == np.int16:
+        elif pixel_data.dtype in (np.int16, np.uint16):
+            # uint16 は図形の画素（phantom）。16 ビットの上限まで符号なしで持つ
             if pixel_data.size and (int(pixel_data.min()) < 0 or int(pixel_data.max()) > upper):
                 raise DICOMBuildError(
                     f"Pixel values {int(pixel_data.min())}..{int(pixel_data.max())} "

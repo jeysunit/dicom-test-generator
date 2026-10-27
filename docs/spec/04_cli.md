@@ -113,14 +113,14 @@ python -m app.cli quick [options]
 | `--study-date DATE` | 検査日（YYYYMMDD） | 実行した日 |
 | `--hospital NAME` | 病院テンプレート | なし |
 | `--profile NAME` | 装置プロファイル。Transfer Syntax はプロファイルの最初のもの | なし |
-| `--pixel-mode MODE` | ピクセルモード（`simple_text`・`ct_realistic`） | ct_realistic |
+| `--pixel-mode MODE` | ピクセルモード（`simple_text`・`ct_realistic`・`phantom`。[06](06_dicom_rules.md) の 4 章） | ct_realistic |
 | `--abnormal-level L` | 異常のデータのレベル（`none`・`mild`・`moderate`・`severe`。[02](02_core_engine.md) の 7 章） | none |
 
 ### 4.3 動作
 
 - 患者ID が患者マスターに無い、テンプレートが無い、`--series` と `--images`
   の件数が一致しない、`--images` に正の整数以外がある、`--pixel-mode` が
-  上の2つ以外のときは、設定エラー（終了コード 2）
+  上の3つ以外のときは、設定エラー（終了コード 2）
 - 検査時刻は実行した時刻。UID は UUID 2.25 方式、文字セットと
   Transfer Syntax（`--profile` が無いとき）は既定値を使う
 - 進捗バーは出さない。`--verbose`・`--quiet`・`--log-file` は無く、ログは

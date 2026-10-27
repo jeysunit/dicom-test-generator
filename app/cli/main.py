@@ -206,7 +206,7 @@ def _create_parser() -> argparse.ArgumentParser:
     quick_parser.add_argument(
         "--pixel-mode",
         default="ct_realistic",
-        help="ピクセルモード（simple_text / ct_realistic）",
+        help="ピクセルモード（simple_text / ct_realistic / phantom）",
     )
     quick_parser.add_argument(
         "--abnormal-level",

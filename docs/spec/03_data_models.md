@@ -173,13 +173,21 @@ class PixelSpecCTRealistic(BaseModel):
     pattern: Literal["gradient", "circle", "noise"] = "gradient"
     bits_stored: int = Field(12, ge=12, le=16)  # CT は 12〜16（PS3.3 C.8.2.1.1.5）
 
-PixelSpec = PixelSpecSimple | PixelSpecCTRealistic
+class PixelSpecPhantom(BaseModel):
+    mode: Literal["phantom"] = "phantom"
+    width: int = Field(512, ge=64, le=4096)
+    height: int = Field(512, ge=64, le=4096)
+    bits_stored: int = Field(12, ge=12, le=16)  # CT・MR とも 12〜16
+
+PixelSpec = PixelSpecSimple | PixelSpecCTRealistic | PixelSpecPhantom
 ```
 
 - `PixelSpecSimple` の `background_color`・`text_color`・`font_size` は検証する
   だけで、作成には使わない。Simple Text は黒の背景・白の文字・16 ポイントで
   描画する（[02_core_engine.md](02_core_engine.md) の 3.1）
 - Simple Text の画像は Bits Stored 12 で書く
+- `PixelSpecPhantom` は図形の画素（[06_dicom_rules.md](06_dicom_rules.md) の 4.6）。
+  既定は `PixelSpecCTRealistic` のままで、Phantom は選んだときだけ使う
 
 ### 4.2 TransferSyntaxConfig
 
@@ -238,7 +246,7 @@ class GenerationConfig(BaseModel):
     device_profile: str | None = Field(None, description="装置のプロファイル名")
     uid_method: Literal["uuid_2_25", "custom_root"] = "uuid_2_25"
     uid_custom_root: str | None = Field(None, description="カスタムRoot")
-    pixel_spec: PixelSpecSimple | PixelSpecCTRealistic
+    pixel_spec: PixelSpecSimple | PixelSpecCTRealistic | PixelSpecPhantom
     transfer_syntax: TransferSyntaxConfig
     character_set: CharacterSetConfig
     abnormal: AbnormalConfig = Field(default_factory=AbnormalConfig)
