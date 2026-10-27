@@ -844,7 +844,7 @@ python -m app.cli exam --emergency --patient-id E0001 \
 | `--routine NAME` | 撮影のルーチン（`templates/routine/`。10.5・ADR-0025） | `-s`・`-i` を省くと、予約に当てたルーチン |
 | `--routine-images LIST` | ルーチンの各シリーズの画像数（数はルーチンのシリーズの数と同じ） | ルーチンの標準の数 |
 | `--dose-report MODE` | CT のルーチンの線量の報告：`screen`（線量の画面の画像）・`sr`（X-Ray Radiation Dose SR）・`both`（両方。[ADR-0031](../decisions/0031-dose-report-sr.md)） | `screen` |
-| `--pixel-mode MODE` | ピクセル | 設定の初期値 |
+| `--pixel-mode MODE` | ピクセル（`simple_text`・`ct_realistic`・`phantom`。[06](06_dicom_rules.md) の 4 章） | 設定の初期値 |
 | `--abnormal-level L` | 異常のデータ | none |
 | `--charset C` | `auto`・`utf8`・`jis`・`jis_kana`（Orthanc 1.13.0 へ送る画像は `utf8` か `jis`。[spec/12](12_modality_emulator.md) の 14.4） | 設定の初期値 |
 | `-o, --output DIR` | 出力フォルダ | 設定の初期値 |

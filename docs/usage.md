@@ -267,3 +267,8 @@ dtg -v "$PWD/job.yaml:/app/job.yaml:ro" "$IMAGE" python -m app.cli generate /app
 - 装置プロファイルを重ねる：`--profile dtg_synthetic_ct`。読み込める装置
   プロファイルは `python -m app.cli profiles list` で確認する。実在の装置の
   プロファイルの作り方と配置場所は [spec/13](spec/13_device_profiles.md) にある
+- スライスの位置で変わる図形の画像を作成する：`--pixel-mode phantom`（`quick`・
+  `exam`）、Job の `pixel_spec.mode: phantom`、設定の `modality.default_pixel_mode:
+  phantom`。スライスを送ると円の大きさが変わり、小さい四角の目印が画像ごとに回る。
+  画素に文字は描かず、Manufacturer を `DTG SYNTHETIC`、Image Comments を
+  `SYNTHETIC TEST DATA` にする（[spec/06](spec/06_dicom_rules.md) の 4.6）

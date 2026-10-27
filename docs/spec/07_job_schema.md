@@ -207,7 +207,7 @@ PN への組み立ては spec/06 の 7.2 にある。
 
 ### 3.6 pixel_spec
 
-`mode` で 2 つの形に分かれる。`mode` は省略できない。画素の規則は spec/06 の
+`mode` で 3 つの形に分かれる。`mode` は省略できない。画素の規則は spec/06 の
 4 章にある。
 
 `mode: "simple_text"`
@@ -228,6 +228,14 @@ PN への組み立ては spec/06 の 7.2 にある。
 | `height` | int | - | 高さ（64〜4096） | 512 |
 | `pattern` | string | - | `gradient` / `circle` / `noise` | `gradient` |
 | `bits_stored` | int | - | 12〜16（CT。PS3.3 C.8.2.1.1.5）。範囲の外は検証のエラー | 12 |
+
+`mode: "phantom"`（図形の画素。spec/06 の 4.6。選んだときだけ使う）
+
+| フィールド | 型 | 必須 | 説明 | 既定値 |
+|-----------|-----|------|------|--------|
+| `width` | int | - | 幅（64〜4096） | 512 |
+| `height` | int | - | 高さ（64〜4096） | 512 |
+| `bits_stored` | int | - | 12〜16（CT・MR）。範囲の外は検証のエラー | 12 |
 
 ### 3.7 transfer_syntax
 
