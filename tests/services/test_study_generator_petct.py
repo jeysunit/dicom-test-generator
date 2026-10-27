@@ -169,6 +169,7 @@ def test_pet_isotope_module_is_fdg(study) -> None:
     assert float(item.RadionuclideHalfLife) == pytest.approx(6586.2)
     # 投与は撮影の 60 分前
     assert item.RadiopharmaceuticalStartDateTime == "20261025100000"
+    assert item.RadiopharmaceuticalStartTime == "100000"  # Type 3。古い表示系向け
 
 
 def test_pet_image_module_and_pixels(study) -> None:
@@ -178,9 +179,12 @@ def test_pet_image_module_and_pixels(study) -> None:
     assert ds.ImageIndex == 2
     assert float(ds.RescaleIntercept) == 0.0  # PET では常に 0（C.8.9.4）
     assert float(ds.RescaleSlope) == 1.0
-    assert ds.FrameReferenceTime == "0"
     assert ds.ActualFrameDuration == 120000
-    assert float(ds.DecayFactor) > 1.0  # Decay Correction が NONE でないときは必須（1C）
+    # 画素の値はフレームの中ほど（C.8.9.4.1.5）。Decay Correction が START なので、
+    # Decay Factor はそこから撮影の開始までの減衰（投与からの 60 分の減衰ではない）
+    assert float(ds.FrameReferenceTime) == 60000
+    assert float(ds.DecayFactor) == pytest.approx(2 ** (60 / 6586.2), rel=1e-6)
+    assert float(ds.DecayFactor) < 1.01
     assert (ds.BitsAllocated, ds.BitsStored, ds.HighBit) == (16, 16, 15)
     assert ds.PixelRepresentation == 0
     assert ds.pixel_array.dtype == np.uint16

@@ -45,6 +45,9 @@ PET_CORRECTED_IMAGE = {
 }
 PET_RECONSTRUCTION_METHOD = "3D iterative"
 PET_ACTUAL_FRAME_DURATION_MS = 120000
+# 画素の値の時刻（Series の日時からの ms）。フレームの中ほど
+PET_FRAME_REFERENCE_TIME_MS = PET_ACTUAL_FRAME_DURATION_MS // 2
+MS_PER_SECOND = 1000
 PET_BITS = 16  # Bits Allocated = Bits Stored（C.8.9.4）
 PET_UPTAKE_MINUTES = 60  # 投与から撮影までの時間
 # 放射性医薬品（F-18 FDG）。コードは CID 4020・4021（PS3.16）の SCT の値
@@ -458,11 +461,13 @@ class DICOMBuilder:
             ds.ContentDate = study_config.study_date
             ds.ContentTime = study_config.study_time
             # PET Image Module（C.8.9.4）
-            ds.FrameReferenceTime = "0"
+            # 画素の値はフレームの中ほどの時刻のもの（C.8.9.4.1.5 の例 1）。Decay Correction
+            # が START なので、そこから撮影の開始（Series の日時）までの減衰で割り戻す
+            ds.FrameReferenceTime = str(PET_FRAME_REFERENCE_TIME_MS)
             ds.ImageIndex = instance_config.instance_number
             ds.ActualFrameDuration = PET_ACTUAL_FRAME_DURATION_MS
             ds.DecayFactor = format_ds(
-                2 ** (PET_UPTAKE_MINUTES * 60 / PET_HALF_LIFE_S)
+                2 ** (PET_FRAME_REFERENCE_TIME_MS / MS_PER_SECOND / PET_HALF_LIFE_S)
             )
             # SOP Common Module
             ds.SOPClassUID = PT_IMAGE_STORAGE
@@ -503,6 +508,8 @@ class DICOMBuilder:
         item.Radiopharmaceutical = PET_RADIOPHARMACEUTICAL_NAME
         item.RadiopharmaceuticalCodeSequence = Sequence([code(PET_RADIOPHARMACEUTICAL_CODE)])
         item.RadiopharmaceuticalStartDateTime = start.strftime("%Y%m%d%H%M%S")
+        # Type 3。Start DateTime を読まない古い表示系のために、時刻だけも入れる
+        item.RadiopharmaceuticalStartTime = start.strftime("%H%M%S")
         item.RadionuclideTotalDose = format_ds(PET_TOTAL_DOSE_BQ)
         item.RadionuclideHalfLife = format_ds(PET_HALF_LIFE_S)
         item.RadionuclidePositronFraction = format_ds(PET_POSITRON_FRACTION)

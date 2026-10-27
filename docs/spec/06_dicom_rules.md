@@ -332,21 +332,25 @@ UID を PT と共有する。PET Image IOD（PS3.3 A.21）の必須のモジュ�
 | Corrected Image (0028,0051) | 2 | 補正あり（`pet_ac`）：`DECY\ATTN\SCAT\DTIM\RAN\NORM`、補正なし（`pet_nac`）：`DECY\DTIM\RAN\NORM` |
 | Decay Correction (0054,1102) | 1 | `START` |
 | Collimator Type (0018,1181) | 2 | `NONE` |
-| Radiopharmaceutical Information Sequence (0054,0016) | 2 | 1 項目：F-18 `(77004003, SCT, "^18^Fluorine")`、FDG `(35321007, SCT, "Fluorodeoxyglucose F^18^")`、投与の日時（撮影の 60 分前）、総量 370 MBq、半減期 6586.2 s、陽電子率 0.97 |
+| Radiopharmaceutical Information Sequence (0054,0016) | 2 | 1 項目：F-18 `(77004003, SCT, "^18^Fluorine")`、FDG `(35321007, SCT, "Fluorodeoxyglucose F^18^")`、投与の日時（撮影の 60 分前。Radiopharmaceutical Start DateTime (0018,1078) と、古い表示系向けに Type 3 の Radiopharmaceutical Start Time (0018,1072)）、総量 370 MBq、半減期 6586.2 s、陽電子率 0.97 |
 | Patient Orientation Code Sequence・Patient Gantry Relationship Code Sequence (0054,0410・0414) | 2 | 空 |
 | Image Type (0008,0008) | 1 | `ORIGINAL\PRIMARY` |
 | Samples per Pixel / Photometric Interpretation | 1 | `1` / `MONOCHROME2` |
 | Bits Allocated / Bits Stored / High Bit | 1 | `16` / `16` / `15`。Pixel Representation は `0` |
 | Rescale Intercept / Slope (0028,1052・1053) | 1 | `0` / `1`（PET では Intercept は常に 0。C.8.9.4） |
-| Frame Reference Time (0054,1300) | 1 | `0` |
+| Frame Reference Time (0054,1300) | 1 | `60000`（フレームの中ほど。C.8.9.4.1.5 の例 1） |
 | Image Index (0054,1330) | 1 | シリーズの中の画像の番号（1 始まり） |
 | Acquisition Date / Time (0008,0022・0032) | 2 | 検査の日時 |
 | Actual Frame Duration (0018,1242) | 2 | 120000 ms |
-| Decay Factor (0054,1321) | 1C | 投与から撮影までの 60 分の減衰 `2^(3600 / 半減期)` |
+| Decay Factor (0054,1321) | 1C | Frame Reference Time から撮影の開始（Series の日時）までの減衰 `2^(60 / 半減期)`（約 1.0063） |
 
+- Decay Correction が `START` なので、画素は撮影の開始の時刻に補正した値で、Decay
+  Factor はフレームの中の減衰の分だけ。補正した時刻は Decay Factor・Frame Reference
+  Time・半減期・Series の日時から求まる（C.8.9.1.1.5）。投与の時刻への補正（`ADMIN`）
+  ではないので、投与から撮影までの 60 分の減衰は入れない
 - 行列は 128 × 128、視野は 700 mm（Pixel Spacing は 700 ÷ 128）。ジョブの画素の大きさ
-  には従わない。`ct_realistic` は 16 ビットの上限までの値、`simple_text` は 0〜32767 に
-  伸ばす
+  には従わない。画素の値は 0〜32767：`ct_realistic` は負でない値をそのまま、
+  `simple_text` は 0〜32767 に伸ばす
 - Image Position (Patient)・Image Orientation (Patient)・Slice Location・Slice
   Thickness は CT の軸位と同じ軸（z）に、スライス厚ずつ進める。PET のスライス厚は
   3.27 mm（ルーチン）
