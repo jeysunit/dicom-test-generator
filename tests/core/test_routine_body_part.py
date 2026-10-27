@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError as PydanticValidationError
 
+from app.core.exceptions import TemplateParseError
 from app.core.models import SeriesConfig
 from app.core.routine import Routine, routine_series_configs
 from app.services.routine_loader import RoutineLoaderService
@@ -90,6 +93,26 @@ def test_bundled_cr_and_dx_routines_carry_body_part_and_laterality() -> None:
             routine = loader.get(f"{modality}_{name}")
             assert routine.body_part is not None
             assert routine.laterality is None
+
+
+def test_cr_routine_file_without_body_part_stops_loading_and_names_the_file(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "cr_site.yaml").write_text(
+        "name: cr_site\n"
+        "label: x\n"
+        "modality: CR\n"
+        "protocol_name: X\n"
+        "series:\n"
+        "  - {description: X, images: 1, views: [PA]}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(TemplateParseError) as excinfo:
+        RoutineLoaderService(tmp_path).list_routines()
+
+    assert "cr_site.yaml" in str(excinfo.value)
+    assert "needs body_part" in excinfo.value.details["error"]
 
 
 def test_cr_routine_series_configs_are_one_view_per_series() -> None:

@@ -226,6 +226,10 @@ Web 画面は HTTP Basic 認証が必須で（ユーザー名は `dtg`）、パ�
 - 撮影のルーチンは `templates/routine/` の YAML（CT・MR・CR・DX・US の部位ごと）。
   施設のルーチンは同じ形の YAML を足して作る。US のルーチンは、US の画像を作れる
   ようになるまで使えない
+- 施設が足す CR・DX のルーチンの YAML には `body_part` が要る（膝・手など対になる
+  部位は `laterality` も）。無いと、ルーチン全部の読み込みが `TemplateParseError`
+  で止まり、CT などの撮影も止まる。誤りの文には、YAML のファイル名（ルーチンの名前と
+  同じ）が入る
 - CR・DX の予約も、テンプレートを指定しなければ CR・DX のテンプレート（`cr_generic`・
   `dx_generic`）で撮る。CR は方向ごとに1シリーズ、DX は1シリーズに全部の方向が入る。
   緊急の患者は、画面のテンプレートで選ぶか、CLI で `exam --emergency -m cr_generic`

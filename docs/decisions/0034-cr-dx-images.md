@@ -1,6 +1,6 @@
 # ADR-0034: CR・DX の画像は、CR Image Storage と DX の For Presentation で作る
 
-- 状態：採用
+- 状態：提案
 - 作成日：2026-10-27
 - 最終更新日：2026-10-28
 
