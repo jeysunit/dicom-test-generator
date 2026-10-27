@@ -59,6 +59,7 @@ from app.core.projection import (
     PROJECTION_COLUMNS,
     PROJECTION_ROWS,
     PROJECTION_SOP_CLASSES,
+    fixed_keywords_set_by,
     keep_projection_shape,
 )
 from pydantic import ValidationError as PydanticValidationError
@@ -577,6 +578,14 @@ class StudyGeneratorService:
             raise ProfileMismatchError(
                 f"Specific Character Set {shown} is not supported by the device "
                 f"(supported: {'; '.join(profile.character_set.supported)})",
+                details,
+            )
+        fixed = fixed_keywords_set_by(template_modality, profile.attributes.set_values)
+        if fixed:
+            # CR・DX の規格が決める値とルーチンの部位・左右は変えられない（docs/spec/06 の 5.5）
+            raise ProfileMismatchError(
+                f"attributes.set cannot change {', '.join(fixed)} for {template_modality} "
+                "images (fixed by PS3.3 C.8.1・C.8.11 or the routine)",
                 details,
             )
         sop_class_uid = profile.storage.sop_classes[0]

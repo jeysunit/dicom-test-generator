@@ -8,6 +8,7 @@ Series の共通の値は DICOMBuilder が書く。通信・ファイル・ロ�
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 import numpy as np
@@ -304,6 +305,36 @@ DX_REQUIRED_KEYWORDS = frozenset(
         "WindowWidth",
     }
 )
+
+
+# 規格か DTG が値を決める属性。装置のプロファイルの `set` では変えられない（変えると
+# C.8.11.3 の決まり（Rescale は恒等、Presentation LUT Shape と Sign は Photometric
+# Interpretation に合わせる）や、ルーチンの部位・左右と食い違う）
+FIXED_KEYWORDS: dict[str, frozenset[str]] = {
+    "CR": frozenset({"Laterality", "BodyPartExamined", "ViewPosition"}),
+    "DX": frozenset(
+        {
+            "PresentationIntentType",
+            "ImageLaterality",
+            "PixelIntensityRelationship",
+            "PixelIntensityRelationshipSign",
+            "RescaleIntercept",
+            "RescaleSlope",
+            "RescaleType",
+            "PresentationLUTShape",
+            "LossyImageCompression",
+            "BurnedInAnnotation",
+            "BodyPartExamined",
+            "ViewPosition",
+        }
+    ),
+}
+
+
+def fixed_keywords_set_by(modality: str, keywords: Iterable[str]) -> list[str]:
+    """`keywords`（装置のプロファイルの `set`）のうち、CR・DX で変えられない属性."""
+    fixed = FIXED_KEYWORDS.get(modality, frozenset())
+    return sorted(keyword for keyword in keywords if keyword in fixed)
 
 
 def _is_required(modality: str | None, keyword: str) -> bool:

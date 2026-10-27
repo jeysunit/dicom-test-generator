@@ -20,7 +20,7 @@ from app.core import (
     StudyConfig,
     TransferSyntaxConfig,
 )
-from app.core.exceptions import DICOMValidationError
+from app.core.exceptions import DICOMValidationError, ProfileMismatchError
 from app.core.phantom import marker_bounds, xray_phantom_values
 from app.core.projection import CR_IMAGE_STORAGE, DX_IMAGE_STORAGE_FOR_PRESENTATION
 from app.core.routine import routine_series_configs
@@ -226,6 +226,50 @@ def test_example_profiles(tmp_path, template, profile, model) -> None:
     assert {ds.ManufacturerModelName for ds in phantom} == {"DTG SYNTHETIC"}
     assert {ds.StationName for ds in phantom} == {f"DTG{template[:2].upper()}01"}
     assert all("FrameOfReferenceUID" not in ds for ds in plain + phantom)
+
+
+@pytest.mark.parametrize(
+    ("template", "keyword", "value"),
+    [
+        ("dx_generic", "RescaleSlope", "2"),
+        ("dx_generic", "PresentationLUTShape", "INVERSE"),
+        ("dx_generic", "ImageLaterality", "L"),
+        ("cr_generic", "Laterality", "L"),
+    ],
+)
+def test_profile_cannot_set_values_fixed_by_the_standard(
+    tmp_path, template, keyword, value
+) -> None:
+    """Rescale・Presentation LUT Shape・左右などは規格とルーチンが決める（spec/06 の 5.5）."""
+    modality = template[:2].upper()
+    profile_dir = tmp_path / "profiles"
+    profile_dir.mkdir()
+    (profile_dir / "fixed.yaml").write_text(
+        "\n".join(
+            [
+                "schema_version: 1",
+                'name: "fixed"',
+                "device:",
+                f'  modality: "{modality}"',
+                '  manufacturer: "X"',
+                '  manufacturers_model_name: "X"',
+                "storage:",
+                f'  sop_classes: ["{CR_IMAGE_STORAGE if modality == "CR" else DX_IMAGE_STORAGE_FOR_PRESENTATION}"]',
+                '  transfer_syntaxes: ["1.2.840.10008.1.2.1"]',
+                "attributes:",
+                "  set:",
+                f'    {keyword}: "{value}"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    service = StudyGeneratorService(
+        profile_loader=ProfileLoaderService(environ={"DTG_PROFILE_DIRS": str(profile_dir)})
+    )
+    routine = "cr_knee" if modality == "CR" else "dx_knee"
+
+    with pytest.raises(ProfileMismatchError, match=keyword):
+        _generate(_config(tmp_path, _routine_series(routine), template, profile="fixed"), service)
 
 
 def test_manual_series_with_the_cr_template_is_a_chest_pa(tmp_path) -> None:

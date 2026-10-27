@@ -515,8 +515,15 @@ Frame of Reference と Image Plane のモジュールは持たない。シリー
 - 装置のプロファイルを重ねた後、Frame of Reference・Image Plane の属性（Image
   Position・Image Orientation・Pixel Spacing・Slice Thickness・Slice Location・
   Spacing Between Slices）、Patient Position、Modality LUT Sequence を外す。上の表の
-  必須の属性は、プロファイルの `omit` で外しても戻し、Type 1 を空にしても戻す。
-  プロファイルの `set` で書いた値はそのまま使う。異常のデータ（1.1）はこの後に当てる
+  必須の属性は、プロファイルの `omit` で外しても戻し、Type 1 を空（空の並びを含む）に
+  しても戻す。プロファイルの `set` で書いた値はそのまま使う。異常のデータ（1.1）は
+  この後に当てる
+- 規格とルーチンが値を決める属性は、プロファイルの `set` に書けない（書けば作成を
+  始めずに `ProfileMismatchError`。spec/13 の 4.3）。CR は Laterality・Body Part
+  Examined・View Position、DX は Presentation Intent Type・Image Laterality・Pixel
+  Intensity Relationship とその Sign・Rescale Intercept・Rescale Slope・Rescale
+  Type・Presentation LUT Shape・Lossy Image Compression・Burned In Annotation・
+  Body Part Examined・View Position
 - テンプレートの `general_equipment` を重ねる。KVP などの撮影の条件の属性は書かない
 
 ## 6. マルチスライスの空間座標
