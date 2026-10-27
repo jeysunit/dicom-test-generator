@@ -76,23 +76,62 @@ MRSeriesKind = Literal["localizer", "acquisition", "derived"]
 PTSeriesKind = Literal["pet_ac", "pet_nac"]
 SeriesKind = Literal[
     "axial", "localizer", "coronal", "sagittal", "dose_report", "dose_sr", "acquisition",
-    "derived", "pet_ac", "pet_nac",
+    "derived", "pet_ac", "pet_nac", "projection",
 ]
-SeriesModality = Literal["CT", "MR", "SR", "PT"]
-# モダリティごとに作れるシリーズの種類。"localizer" は CT と MR の両方にある
+SeriesModality = Literal["CT", "MR", "SR", "PT", "CR", "DX"]
+# モダリティごとに作れるシリーズの種類。"localizer" は CT と MR、"projection"（一般撮影の
+# 投影の画像。ADR-0034）は CR と DX にある
 KINDS_BY_MODALITY: dict[str, frozenset[str]] = {
     "CT": frozenset({"axial", "localizer", "coronal", "sagittal", "dose_report"}),
     "MR": frozenset({"localizer", "acquisition", "derived"}),
     "SR": frozenset({"dose_sr"}),
     "PT": frozenset({"pet_ac", "pet_nac"}),
+    "CR": frozenset({"projection"}),
+    "DX": frozenset({"projection"}),
 }
-# その種類だけを持つモダリティ（"localizer" は複数あるので入れない）
+# その種類だけを持つモダリティ（複数のモダリティにある種類は入れない）
 KIND_MODALITY: dict[str, str] = {
     kind: modality
     for modality, kinds in KINDS_BY_MODALITY.items()
     for kind in kinds
-    if kind != "localizer"
+    if sum(kind in others for others in KINDS_BY_MODALITY.values()) == 1
 }
+# View Position (0018,5101) の定義の語（PS3.3 C.8.1.1 の Table C.8-1。人の検査の語）
+ProjectionView = Literal["AP", "PA", "LL", "RL", "RLD", "LLD", "RLO", "LLO"]
+# CR・DX の部位（Body Part Examined の語。PS3.16 Annex L）と、対になる部位（ADR-0034）
+BodyPart = Literal["CHEST", "ABDOMEN", "LSPINE", "CSPINE", "KNEE", "HAND"]
+PAIRED_BODY_PARTS = frozenset({"KNEE", "HAND"})
+# 左右。CR の Laterality (0020,0060) は R・L だけ（PS3.3 C.7.3.1）、DX の Image
+# Laterality (0020,0062) は B も書ける（C.8.11.2。U は対にならない部位に DTG が入れる）
+Laterality = Literal["R", "L", "B"]
+LATERALITIES_BY_MODALITY: dict[str, frozenset[str]] = {
+    "CR": frozenset({"R", "L"}),
+    "DX": frozenset({"R", "L", "B"}),
+}
+
+
+def check_body_part_laterality(
+    modality: str, body_part: str | None, laterality: str | None
+) -> None:
+    """CR・DX の部位と左右の組を確かめる。合わなければ ValueError（ADR-0034）.
+
+    対になる部位は左右が要り、対にならない部位には左右を書けない。CR の左右は R・L だけ。
+    """
+    if body_part is None:
+        if laterality is not None:
+            raise ValueError("laterality needs body_part")
+        return
+    if body_part in PAIRED_BODY_PARTS:
+        if laterality is None:
+            raise ValueError(f"body_part {body_part} is a paired structure and needs laterality")
+        allowed = LATERALITIES_BY_MODALITY.get(modality, frozenset())
+        if laterality not in allowed:
+            raise ValueError(
+                f"laterality {laterality} is not allowed for {modality} "
+                f"(allowed: {', '.join(sorted(allowed))})"
+            )
+    elif laterality is not None:
+        raise ValueError(f"body_part {body_part} is not a paired structure; remove laterality")
 MRPlane = Literal["axial", "sagittal", "coronal", "three_plane"]
 # Scanning Sequence (0018,0020) の値（PS3.3 C.8.3.1。RM は使わない）
 MRSequence = Literal["SE", "IR", "GR", "EP"]
@@ -122,6 +161,11 @@ class SeriesConfig(BaseModel):
     plane: MRPlane = Field("axial", description="MR の断面")
     sequence: MRSequence = Field("SE", description="MR の Scanning Sequence")
     acquisition_type: MRAcquisitionType = Field("2D", description="MR Acquisition Type")
+    # CR・DX の画像ごとの撮影の方向。足りなければ先頭から繰り返す（ADR-0034）
+    view_positions: list[ProjectionView] = Field(default_factory=lambda: ["PA"], min_length=1)
+    # CR・DX の部位と左右（ルーチンの body_part・laterality）
+    body_part: BodyPart | None = Field(None, description="CR・DX の部位")
+    laterality: Laterality | None = Field(None, description="CR・DX の左右")
 
     @model_validator(mode="after")
     def _kind_matches_modality(self) -> SeriesConfig:
@@ -136,9 +180,15 @@ class SeriesConfig(BaseModel):
             expected = KIND_MODALITY.get(self.kind)
             hint = f"; it needs modality {expected}" if expected is not None else ""
             raise ValueError(f"kind {self.kind!r} is not an {self.modality} series kind{hint}")
-        if self.modality in ("MR", "PT") and self.contrast:
-            # MR・PET の造影（Contrast/Bolus Module）はまだ作らない（ADR-0030）
+        if self.modality in ("MR", "PT", "CR", "DX") and self.contrast:
+            # MR・PET・CR・DX の造影（Contrast/Bolus Module）はまだ作らない（ADR-0030）
             raise ValueError(f"contrast is not supported for {self.modality} series")
+        if self.modality in ("CR", "DX"):
+            if self.modality == "CR" and len(set(self.view_positions)) != 1:
+                raise ValueError(
+                    "a CR series has exactly one view (View Position is a series value)"
+                )
+            check_body_part_laterality(self.modality, self.body_part, self.laterality)
         return self
 
 

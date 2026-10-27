@@ -1,0 +1,47 @@
+# Device Profile: dtg_synthetic_dx
+# 架空の DX の装置のプロファイル（仕組みの例。docs/spec/13_device_profiles.md）。
+# 実在の装置の写しではない。実在の装置のプロファイルはリポジトリの外に置く。
+
+schema_version: 1
+name: "dtg_synthetic_dx"
+description: "架空の DX（装置のプロファイルの仕組みの例）"
+
+source:
+  title: ""
+  version: ""
+  date: ""
+  url: ""
+  document_id: ""
+  notes: "架空。実在の装置のコンフォーマンスステートメントの写しではない"
+
+device:
+  modality: "DX"
+  manufacturer: "DTG Synthetic"
+  manufacturers_model_name: "DTG Synthetic DX Flat Panel"
+  software_versions: ["DTG-DX 2.0.0"]
+  device_serial_number: "DTG000790"
+  station_name: "DTGDX01"
+  implementation_version_name: "DTG_DX_200"
+
+storage:
+  sop_classes:
+    - "1.2.840.10008.5.1.4.1.1.1.1"   # Digital X-Ray Image Storage - For Presentation
+  transfer_syntaxes:
+    - "1.2.840.10008.1.2.1"           # Explicit VR Little Endian
+    - "1.2.840.10008.1.2"             # Implicit VR Little Endian
+
+character_set:
+  default: "ISO 2022 IR 13\\ISO 2022 IR 87"
+  supported:
+    - "ISO 2022 IR 13\\ISO 2022 IR 87"
+    - "ISO 2022 IR 6\\ISO 2022 IR 87"
+    - "ISO_IR 192"
+
+attributes:
+  set:
+    DetectorType: "SCINTILLATOR"
+
+services:
+  modality_worklist: true
+  mpps: false
+  storage_commitment: false

@@ -224,8 +224,16 @@ Web 画面は HTTP Basic 認証が必須で（ユーザー名は `dtg`）、パ�
   終了コード 2 で停止する
 - `exam --mpps`・`--no-mpps` で、その撮影だけ MPPS の設定を上書きできる
 - 撮影のルーチンは `templates/routine/` の YAML（CT・MR・CR・DX・US の部位ごと）。
-  施設のルーチンは同じ形の YAML を足して作る。CR・DX・US のルーチンは、それらの
-  画像を作れるようになるまで使えない
+  施設のルーチンは同じ形の YAML を足して作る。US のルーチンは、US の画像を作れる
+  ようになるまで使えない
+- CR・DX の予約も、テンプレートを指定しなければ CR・DX のテンプレート（`cr_generic`・
+  `dx_generic`）で撮る。CR は方向ごとに1シリーズ、DX は1シリーズに全部の方向が入る。
+  緊急の患者は、画面のテンプレートで選ぶか、CLI で `exam --emergency -m cr_generic`
+  を使う。画像の大きさは 1024 × 1248 に決まっていて、`pixel_spec` の幅と高さには
+  従わない。膝と手の左右はルーチンの `laterality`（付けるルーチンは `R`）で決まる。
+  白黒の反転（`MONOCHROME1`）を試すときは、テンプレートの
+  `xray_image.photometric_interpretation` を `MONOCHROME1` にしたテンプレートを
+  足す。装置のプロファイルは、例の `dtg_synthetic_cr`・`dtg_synthetic_dx` を選べる
 - MR の予約は、テンプレートを指定しなければ MR のテンプレート（`mr_generic`）で
   撮る。緊急の患者を MR で撮るときは、画面のテンプレートで `mr_generic` を選ぶか、
   CLI で `exam --emergency -m mr_generic` を使う。装置のプロファイルは、例の

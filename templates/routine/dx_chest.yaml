@@ -6,6 +6,7 @@ modality: "DX"
 protocol_name: "CHEST"
 default: true
 keywords: ["胸部", "CHEST"]
+body_part: "CHEST"
 series:
   - description: "Chest"
     images: 2

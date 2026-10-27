@@ -48,6 +48,10 @@ CT_MARKER_HU = 1000
 MR_BACKGROUND_FRACTION = 0.0
 MR_SHAPE_FRACTION = 0.40
 MR_MARKER_FRACTION = 0.90
+# CR・DX の値（MONOCHROME2 の、Bits Stored の上限に対する割合。ADR-0034）
+XRAY_BACKGROUND_FRACTION = 0.05
+XRAY_SHAPE_FRACTION = 0.35
+XRAY_MARKER_FRACTION = 0.80
 
 
 @dataclass(frozen=True)
@@ -66,14 +70,54 @@ CT_PHANTOM_VALUES = PhantomValues(
 )
 
 
-def mr_phantom_values(bits_stored: int) -> PhantomValues:
-    """MR の値。符号なしの Bits Stored の上限に割合を掛けて丸める."""
+def _fraction_values(
+    bits_stored: int, background: float, shape: float, marker: float
+) -> PhantomValues:
+    """符号なしの Bits Stored の上限に割合を掛けて丸めた値."""
     upper = (1 << bits_stored) - 1
     return PhantomValues(
-        background=int(np.rint(upper * MR_BACKGROUND_FRACTION)),
-        shape=int(np.rint(upper * MR_SHAPE_FRACTION)),
-        marker=int(np.rint(upper * MR_MARKER_FRACTION)),
+        background=int(np.rint(upper * background)),
+        shape=int(np.rint(upper * shape)),
+        marker=int(np.rint(upper * marker)),
     )
+
+
+def mr_phantom_values(bits_stored: int) -> PhantomValues:
+    """MR の値。符号なしの Bits Stored の上限に割合を掛けて丸める."""
+    return _fraction_values(
+        bits_stored, MR_BACKGROUND_FRACTION, MR_SHAPE_FRACTION, MR_MARKER_FRACTION
+    )
+
+
+def xray_phantom_values(bits_stored: int) -> PhantomValues:
+    """CR・DX の値（MONOCHROME2）。符号なしの Bits Stored の上限に割合を掛けて丸める."""
+    return _fraction_values(
+        bits_stored, XRAY_BACKGROUND_FRACTION, XRAY_SHAPE_FRACTION, XRAY_MARKER_FRACTION
+    )
+
+
+def projection_phantom_pixels(
+    rows: int, cols: int, index: int, count: int, values: PhantomValues
+) -> np.ndarray:
+    """CR・DX の投影の画像の基本の図形（体の楕円1つと位置の目印。符号なしの uint16）.
+
+    投影の画像は位置を持たないので、楕円は画像の中央に置き、半径は列・行の数の
+    0.4 倍にする。方向は画素に描かず、View Position などのタグで示す（ADR-0034）。
+    """
+    if count < 1 or not 0 <= index < count:
+        raise PixelGenerationError(
+            f"Image index {index} is outside the series of {count} images", mode="phantom"
+        )
+    r = (np.arange(rows, dtype=np.float64)[:, None] + 0.5 - rows / 2) / (
+        rows * SHAPE_RADIUS_FRACTION
+    )
+    c = (np.arange(cols, dtype=np.float64)[None, :] + 0.5 - cols / 2) / (
+        cols * SHAPE_RADIUS_FRACTION
+    )
+    pixels = np.where(r**2 + c**2 <= 1.0, values.shape, values.background).astype(np.uint16)
+    r0, r1, c0, c1 = marker_bounds(rows, cols, index, count)
+    pixels[max(r0, 0) : max(r1, 0), max(c0, 0) : max(c1, 0)] = values.marker
+    return pixels
 
 
 @dataclass(frozen=True)

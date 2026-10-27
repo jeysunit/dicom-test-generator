@@ -63,7 +63,7 @@ hl7.org、IHE の Technical Framework）で確認し、spec か ADR に規格の
 - Query/Retrieve（C-MOVE・C-GET）の SCU、HL7 の受信と送信
 - 本番の PACS への接続を前提にした機能（認証の強化・監査ログなど）
 
-CT 以外のモダリティ（MR・CR・DX・US など）はまだ実装していない
+CT・MR・PT・CR・DX 以外のモダリティ（US など）はまだ実装していない
 （[roadmap.md](roadmap.md)）。
 
 ## 5. 想定する利用者

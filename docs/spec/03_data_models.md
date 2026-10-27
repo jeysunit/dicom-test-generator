@@ -94,19 +94,24 @@ class SeriesConfig(BaseModel):
 
 | 欄 | 型 | 既定 | 中身 |
 |----|----|------|------|
-| `kind` | `axial`・`localizer`・`coronal`・`sagittal`・`dose_report`・`dose_sr`、MR は `localizer`・`acquisition`・`derived`、PT は `pet_ac`・`pet_nac` | `axial` | シリーズの種類（spec/06 の 5.1〜5.4） |
+| `kind` | `axial`・`localizer`・`coronal`・`sagittal`・`dose_report`・`dose_sr`、MR は `localizer`・`acquisition`・`derived`、PT は `pet_ac`・`pet_nac`、CR・DX は `projection` | `axial` | シリーズの種類（spec/06 の 5.1〜5.5） |
 | `views` | `frontal`・`lateral` の並び | `["frontal"]` | 位置決めの画像ごとの方向。足りなければ繰り返す |
 | `contrast` | bool | false | 造影のシリーズ |
-| `modality` | `CT`・`MR`・`SR`・`PT`・None | None | このシリーズのモダリティ。None はテンプレートのモダリティ（`dose_sr` は `SR`。[ADR-0030](../decisions/0030-mr-images.md)・[ADR-0031](../decisions/0031-dose-report-sr.md)・[ADR-0032](../decisions/0032-pet-ct-studies.md)） |
+| `modality` | `CT`・`MR`・`SR`・`PT`・`CR`・`DX`・None | None | このシリーズのモダリティ。None はテンプレートのモダリティ（`dose_sr` は `SR`。[ADR-0030](../decisions/0030-mr-images.md)・[ADR-0031](../decisions/0031-dose-report-sr.md)・[ADR-0032](../decisions/0032-pet-ct-studies.md)） |
 | `plane` | `axial`・`sagittal`・`coronal`・`three_plane` | `axial` | MR の断面。`three_plane` は画像を3等分して axial・coronal・sagittal の順にする |
 | `sequence` | `SE`・`IR`・`GR`・`EP` | `SE` | MR の Scanning Sequence |
 | `acquisition_type` | `2D`・`3D` | `2D` | MR Acquisition Type |
+| `view_positions` | `AP`・`PA`・`LL`・`RL`・`RLD`・`LLD`・`RLO`・`LLO` の並び | `["PA"]` | CR・DX の画像ごとの方向（View Position）。足りなければ繰り返す。CR は1種類だけ |
+| `body_part` | `CHEST`・`ABDOMEN`・`LSPINE`・`CSPINE`・`KNEE`・`HAND`・None | None | CR・DX の部位（Body Part Examined） |
+| `laterality` | `R`・`L`・`B`・None | None | CR・DX の左右。対になる部位（`KNEE`・`HAND`）だけに書き、必ず書く。CR は `R`・`L` だけ |
 
 `kind` が `acquisition`・`derived` のシリーズは `modality` を MR に、`pet_ac`・`pet_nac` は
 PT にする（CT のシリーズに MR・PET の種類を入れると検証で止まる）。MR のテンプレートで
 手で入れたシリーズは、種類が `axial` なら MR の撮像（`acquisition`）に、PET/CT のテンプレート
 （モダリティ PT）では、`axial` なら減弱補正ありの PET（`pet_ac`）、`localizer` と
-`dose_report` なら CT のシリーズにする。MR・PT のシリーズに造影（`contrast`）は使えない。
+`dose_report` なら CT のシリーズにする。CR・DX のテンプレートでは、`axial` なら胸部
+（`CHEST`）の PA の投影の画像（`projection`）にする。MR・PT・CR・DX のシリーズに造影
+（`contrast`）は使えない。
 
 ルーチンそのもの（`templates/routine/` の YAML）は `app/core/routine.py` の
 `Routine` で読む。形はモダリティごとに違う（CT はシリーズの種類と再構成、MR は
@@ -115,6 +120,12 @@ PT にする（CT のシリーズに MR・PET の種類を入れると検証で�
 すきま `spacing`（画像の間隔は スライス厚 + すきま）、`sequence`、`acquisition_type`
 を持つ。PET/CT（`modality: PT`）のシリーズは、行ごとに `modality`（CT か PT）と `kind`
 （CT の種類か `pet_ac`・`pet_nac`）を書き、`slice_thickness` を持つ。
+
+CR・DX のルーチンは、ルーチンの欄に部位 `body_part` を必ず書き、対になる部位
+（`KNEE`・`HAND`）には左右 `laterality` も必ず書く（[ADR-0034](../decisions/0034-cr-dx-images.md)）。
+`laterality` は CR では `R`・`L`、DX では `R`・`L`・`B` で、対にならない部位には
+書けない。CR・DX 以外のルーチンには、どちらも書けない。違えば読み込みで止まる。
+付けるルーチンの膝と手は、架空の `R` にしてある。
 
 ### 3.3 InstanceConfig
 

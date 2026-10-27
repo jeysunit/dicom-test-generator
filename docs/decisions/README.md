@@ -40,7 +40,7 @@ ADR の一覧と、ADR に固有の書き方です。ドキュメントに共通
 | [0031](0031-dose-report-sr.md) | CT の線量の報告は、線量の画面のほかに X-Ray Radiation Dose SR のシリーズでも作れる | 採用 |
 | [0032](0032-pet-ct-studies.md) | PET/CT の検査は、同じ Study に CT と PT のシリーズを入れて作る | 採用 |
 | [0033](0033-phantom-pixels.md) | 図形の画素は、患者座標で評価した幾何学の図形にし、偽物の印はタグに書く | 提案 |
-| [0034](0034-cr-dx-images.md) | CR・DX の画像は、CR Image Storage と DX の For Presentation で作る | 提案 |
+| [0034](0034-cr-dx-images.md) | CR・DX の画像は、CR Image Storage と DX の For Presentation で作る | 採用 |
 
 0001〜0013 は、この形式を決める前に書いたものです。冒頭の行をこの形式に
 そろえ、本文は語の置き換えだけにとどめています。

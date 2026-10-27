@@ -4,6 +4,7 @@ label: "腰椎"
 modality: "CR"
 protocol_name: "LUMBAR SPINE"
 keywords: ["腰椎", "L-SPINE", "LSPINE", "LUMBAR"]
+body_part: "LSPINE"
 series:
   - description: "L-Spine AP"
     images: 1
