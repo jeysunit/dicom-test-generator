@@ -25,19 +25,24 @@
 
 ## 2. CR・DX（PR 2）
 
-- [ ] 2.1 spec 06 に CR・DX の節を足し、5.2 の「断る」から CR・DX を外す。13 の 4.3 と
+- [x] 2.1 spec 06 に CR・DX の節を足し、5.2 の「断る」から CR・DX を外す。13 の 4.3 と
       roadmap を直す
-- [ ] 2.2 CR Image・DX Image の必須の属性の試験を先に書き、`app/core/generator.py` に
-      作る処理を足す。`MONOCHROME1` の試験も書く
-- [ ] 2.3 CR・DX のルーチンの `body_part`・`laterality` と、その検証（CR の `B`、
+- [x] 2.2 CR Image・DX Image の必須の属性の試験を先に書き、`app/core/generator.py` に
+      作る処理を足す。`MONOCHROME1` の試験も書く（モジュールの値は
+      `app/core/projection.py` に分けた）
+- [x] 2.3 CR・DX のルーチンの `body_part`・`laterality` と、その検証（CR の `B`、
       対になる部位の省略、対にならない部位の左右を断る）を試験を先に書いて足し、
       `templates/routine/` の `cr_*`・`dx_*` に書く
-- [ ] 2.4 `templates/modality/cr_generic.yaml`・`dx_generic.yaml` と、
+- [x] 2.4 `templates/modality/cr_generic.yaml`・`dx_generic.yaml` と、
       `profiles/examples/dtg_synthetic_cr.yaml`・`dtg_synthetic_dx.yaml` を足す
-- [ ] 2.5 CR・DX の予約と緊急の患者を、画面と CLI で撮る試験（`tests/web/`・
+- [x] 2.5 CR・DX の予約と緊急の患者を、画面と CLI で撮る試験（`tests/web/`・
       `tests/integration/`）を書く
-- [ ] 2.6 CR・DX のテンプレートを断ることを確かめる今の試験があれば、直す前に承認を得る
-- [ ] 2.7 見本の画像を dciodvfy で検査し、結果を PR の本文に書く。ADR-0034 を採用にする
+- [x] 2.6 CR・DX のテンプレートを断ることを確かめる今の試験があれば、直す前に承認を得る
+      （該当する試験は無かった）
+- [ ] 2.7 見本の画像を dciodvfy で検査し、結果を PR の本文に書く。そのうえで
+      ADR-0034 を採用にする
+      （dciodvfy は手元に無く、PR 2 では検査していない。dciodvfy の検査の後に
+      採用にする。未実施）
 
 ## 3. 部位の図形（PR 3）
 

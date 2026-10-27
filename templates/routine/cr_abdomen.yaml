@@ -4,6 +4,7 @@ label: "腹部"
 modality: "CR"
 protocol_name: "ABDOMEN"
 keywords: ["腹部", "ABDOMEN"]
+body_part: "ABDOMEN"
 series:
   - description: "Abdomen AP supine"
     images: 1

@@ -11,6 +11,14 @@ from pydicom.valuerep import format_number_as_ds
 
 from .dose_sr import XRAY_RADIATION_DOSE_SR_STORAGE, DoseEvent, dose_sr_content
 from .exceptions import DICOMBuildError
+from .projection import (
+    DEFAULT_PHOTOMETRIC_INTERPRETATION,
+    PROJECTION_SOP_CLASSES,
+    check_photometric_interpretation,
+    projection_attributes,
+    projection_pixels,
+    set_projection_pixel_data,
+)
 from .series_layout import (
     CONTRAST_AGENT,
     MR_FIELD_OF_VIEW_MM,
@@ -491,6 +499,73 @@ class DICOMBuilder:
             if isinstance(exc, DICOMBuildError):
                 raise
             raise DICOMBuildError(f"Failed to build PET image dataset: {exc}") from exc
+
+    def build_projection_image(
+        self,
+        patient: Patient,
+        study_config: StudyConfig,
+        series_config: SeriesConfig,
+        instance_config: InstanceConfig,
+        uid_context: UIDContext,
+        pixel_data: np.ndarray,
+        file_meta: FileMetaDataset,
+        sop_instance_uid: str,
+        series_instance_uid: str,
+        specific_character_set: str | None = None,
+        use_ideographic: bool = True,
+        use_phonetic: bool = True,
+        photometric_interpretation: str = DEFAULT_PHOTOMETRIC_INTERPRETATION,
+    ) -> Dataset:
+        """CR Image（PS3.3 A.2）か DX Image For Presentation（A.26）を構築（ADR-0034）.
+
+        `pixel_data` は MONOCHROME2 の値。Frame of Reference と Image Plane は持たない。
+        """
+        try:
+            if str(getattr(file_meta, "MediaStorageSOPInstanceUID", "")) != sop_instance_uid:
+                raise DICOMBuildError(
+                    "SOP Instance UID mismatch between dataset and file meta",
+                    tag="MediaStorageSOPInstanceUID",
+                )
+            sop_class_uid = PROJECTION_SOP_CLASSES.get(str(series_config.modality))
+            if str(getattr(file_meta, "MediaStorageSOPClassUID", "")) != sop_class_uid:
+                raise DICOMBuildError(
+                    f"SOP Class {getattr(file_meta, 'MediaStorageSOPClassUID', '')} does not "
+                    f"match the {series_config.modality} series (expected {sop_class_uid})",
+                    tag="MediaStorageSOPClassUID",
+                )
+            photometric = check_photometric_interpretation(photometric_interpretation)
+            ds = self._patient_study_series(
+                file_meta,
+                patient,
+                study_config,
+                series_config,
+                uid_context,
+                series_instance_uid,
+                specific_character_set,
+                use_ideographic,
+                use_phonetic,
+            )
+            ds.update(
+                projection_attributes(
+                    series_config, instance_config.instance_number - 1, photometric
+                )
+            )
+            # General Image Module・General Acquisition Module
+            ds.InstanceNumber = str(instance_config.instance_number)
+            ds.AcquisitionNumber = str(instance_config.acquisition_number)
+            ds.ContentDate = study_config.study_date
+            ds.ContentTime = study_config.study_time
+            # SOP Common Module
+            ds.SOPClassUID = sop_class_uid
+            ds.SOPInstanceUID = sop_instance_uid
+            ds.InstanceCreatorUID = uid_context.instance_creator_uid
+            set_projection_pixel_data(ds, projection_pixels(pixel_data, photometric), photometric)
+            self._apply_transfer_syntax(ds, file_meta)
+            return ds
+        except Exception as exc:
+            if isinstance(exc, DICOMBuildError):
+                raise
+            raise DICOMBuildError(f"Failed to build CR/DX image dataset: {exc}") from exc
 
     @staticmethod
     def _radiopharmaceutical(study_config: StudyConfig) -> Dataset:

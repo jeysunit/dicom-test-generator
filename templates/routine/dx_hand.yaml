@@ -4,6 +4,9 @@ label: "手"
 modality: "DX"
 protocol_name: "HAND"
 keywords: ["手", "HAND"]
+# 対になる部位。左右は架空の R（予約の記述からは読み取らない。ADR-0034）
+body_part: "HAND"
+laterality: "R"
 series:
   - description: "Hand"
     images: 3

@@ -6,6 +6,7 @@ modality: "CR"
 protocol_name: "CHEST"
 default: true
 keywords: ["胸部", "CHEST"]
+body_part: "CHEST"
 series:
   - description: "Chest PA"
     images: 1

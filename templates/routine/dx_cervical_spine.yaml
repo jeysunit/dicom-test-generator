@@ -4,6 +4,7 @@ label: "頸椎"
 modality: "DX"
 protocol_name: "CERVICAL SPINE"
 keywords: ["頸椎", "頚椎", "C-SPINE", "CSPINE", "CERVICAL"]
+body_part: "CSPINE"
 series:
   - description: "C-Spine"
     images: 3

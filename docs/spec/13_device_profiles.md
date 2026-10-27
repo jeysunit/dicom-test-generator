@@ -257,8 +257,13 @@ services:
 - 重ねた後の文字コードが `character_set.supported` に無い
   （`supported` が空なら検証しない）
 - `storage.sop_classes` の最初の SOP Class を、DTG がまだ作成できない
-  （現在作成できるのは CT Image Storage・MR Image Storage・PET Image Storage。
-  [ADR-0030](../decisions/0030-mr-images.md)・[ADR-0032](../decisions/0032-pet-ct-studies.md)）
+  （現在作成できるのは CT Image Storage・MR Image Storage・PET Image Storage・
+  CR Image Storage・Digital X-Ray Image Storage - For Presentation。
+  [ADR-0030](../decisions/0030-mr-images.md)・[ADR-0032](../decisions/0032-pet-ct-studies.md)・
+  [ADR-0034](../decisions/0034-cr-dx-images.md)）
+- CR・DX のテンプレートで、`attributes.set` に規格とルーチンが値を決める属性
+  （Rescale・Presentation LUT Shape・左右など。[spec/06](06_dicom_rules.md) の 5.5）
+  を書いた
 
 文字コードの比較方法：値を `\` で分け、前後の空白を除く。値 1 が空なら
 `ISO 2022 IR 6` とみなす（PS3.3 C.12.1.1.2）。値が無い（空・属性なし）ときは
@@ -467,7 +472,7 @@ Device profile not found: abc (searched=/a, /b, /repo/profiles/examples)
 | モデル・読み込み・検証・重ね方（装置の値・Transfer Syntax・文字コード・属性・プライベートタグ）・CLI | 実装済み（10 章のテスト） |
 | `exam --profile`・`modality.default_profile`・撮影の画面の「装置」 | 実装済み |
 | `services.mpps`・`services.storage_commitment` を MPPS・保管確認に反映する（[12_modality_emulator.md](12_modality_emulator.md) の 8.3.3・8.4.1） | 実装済み。`services.modality_worklist` は反映しない |
-| `uid`・`pixel`・`series` のフィールド。CT・MR・PT 以外の SOP Class | 未実装。モデルにフィールドが無く、作成できる SOP Class は CT Image Storage・MR Image Storage・PET Image Storage だけ |
+| `uid`・`pixel`・`series` のフィールド。CT・MR・PT・CR・DX 以外の SOP Class | 未実装。モデルにフィールドが無く、作成できる SOP Class は CT Image Storage・MR Image Storage・PET Image Storage・CR Image Storage・Digital X-Ray Image Storage - For Presentation だけ |
 | `worklist` フィールド | 未実装 |
 
 未実装のものは [roadmap.md](../roadmap.md) にもある。

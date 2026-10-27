@@ -1,0 +1,27 @@
+# Modality Template: cr_generic
+# 一般の CR のテンプレート。装置の名前は架空（docs/decisions/0016-generic-template-names.md）。
+# 画像は CR Image Storage で、方向ごとに1シリーズ（docs/spec/06 の 5.5・ADR-0034）
+
+info:
+  name: "cr_generic"
+  manufacturer: "DTG Synthetic"
+  model_name: "DTG Synthetic CR"
+  modality: "CR"
+  version: "1.0"
+  description: "一般の CR テンプレート（合成）"
+
+file_meta:
+  media_storage_sop_class_uid: "1.2.840.10008.5.1.4.1.1.1"
+  transfer_syntax_uid: "1.2.840.10008.1.2"
+  implementation_version_name: "DICOM_GEN_1.1"
+
+general_equipment:
+  manufacturer: "DTG Synthetic"
+  institution_name: ""
+  station_name: "DTG_CR"
+  manufacturers_model_name: "DTG Synthetic CR"
+  software_versions: "V4.0"
+
+# Photometric Interpretation は MONOCHROME2（既定）か MONOCHROME1
+xray_image:
+  photometric_interpretation: "MONOCHROME2"

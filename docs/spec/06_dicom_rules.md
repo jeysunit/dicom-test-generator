@@ -245,10 +245,12 @@ Rescale・Window の値は、CT は 4.2、MR は 5.2 のとおり。MR は Bits 
 無ければ 0 のまま。MR の冠状断・矢状断の断面（`three_plane` を含む）も同じ。
 ほかのモードの位置は 5.1 のまま変えない。
 
-**偽物の印**：図形で画素を作った画像（CT の位置決め・軸位・冠状断・矢状断と MR の
-画像）には、装置のプロファイル（[spec/13](13_device_profiles.md)）を当てた後に次を
-書き、プロファイルの値より優先する。線量の画面・線量の報告の SR・PET/CT の PT の
-シリーズには書かない。ほかのモードの画像にも書かない。
+**偽物の印**：図形で画素を作った画像（CT の位置決め・軸位・冠状断・矢状断、MR の
+画像、CR・DX の画像（5.5））には、装置のプロファイル
+（[spec/13](13_device_profiles.md)）を当てた後に次を書き、プロファイルの値より
+優先する。線量の画面・線量の報告の SR・PET/CT の PT のシリーズには書かない。
+ほかのモードの画像にも書かない（DX の Burned In Annotation だけは、どのモードでも
+`NO` を書く。5.5）。
 
 | Tag | Attribute Name | 値 |
 |-----|----------------|----|
@@ -312,8 +314,8 @@ CT の Image Type の値 3 の Defined Terms は `AXIAL` と `LOCALIZER`
 
 ### 5.2 MR Image の属性
 
-画像を作れるモダリティは CT・MR・PT（5.4）だけ。テンプレートのモダリティ
-（`info.modality`）がほかの値（CR・US など）なら、画像を作る前に断る
+画像を作れるモダリティは CT・MR・PT（5.4）・CR・DX（5.5）だけ。テンプレートの
+モダリティ（`info.modality`）がほかの値（US など）なら、画像を作る前に断る
 （`DICOMValidationError`）。前は CT・MR 以外のテンプレートでも CT Image として作っていた。
 
 MR のシリーズ（[ADR-0030](../decisions/0030-mr-images.md)）は MR Image Storage
@@ -448,6 +450,82 @@ UID を PT と共有する。PET Image IOD（PS3.3 A.21）の必須のモジュ�
   3.27 mm（ルーチン）
 - PET の再構成（`pet_ac`・`pet_nac`）は別のシリーズ（C.8.9.1 の Note）。Series
   Description と Protocol Name はルーチンの値
+
+### 5.5 CR・DX の画像の属性
+
+CR のシリーズは CR Image Storage（1.2.840.10008.5.1.4.1.1.1）、DX のシリーズは
+Digital X-Ray Image Storage - For Presentation（1.2.840.10008.5.1.4.1.1.1.1）で作る
+（[ADR-0034](../decisions/0034-cr-dx-images.md)）。テンプレートは `cr_generic`・
+`dx_generic`、例の装置のプロファイルは `dtg_synthetic_cr`・`dtg_synthetic_dx`。
+CR Image IOD（PS3.3 A.2）と Digital X-Ray Image IOD（A.26）の必須のモジュールを持ち、
+Frame of Reference と Image Plane のモジュールは持たない。シリーズの種類は
+`projection`（投影の画像）で、画像ごとの方向は `view_positions` に持つ。
+
+| 属性 | CR | DX |
+|------|----|----|
+| Modality (0008,0060) | `CR` | `DX` |
+| シリーズ | ルーチンの1行が1シリーズ。1シリーズの方向は1つ（View Position はシリーズの値。C.8.1.1） | ルーチンの1行が1シリーズ。全部の方向を入れる |
+| Presentation Intent Type (0008,0068) | 無い | `FOR PRESENTATION`（Type 1。C.8.11.1） |
+| Image Type (0008,0008) | `ORIGINAL\PRIMARY` | `ORIGINAL\PRIMARY\`（値 3 は長さ 0。C.8.11.3.1.1） |
+| Body Part Examined (0018,0015) | ルーチンの `body_part`（Type 2） | ルーチンの `body_part`（Type 3） |
+| View Position (0018,5101) | シリーズの方向（Type 2） | 画像ごとの方向（DX Positioning。Type 3） |
+| View Code Sequence (0054,0220) | 無い | PA・AP・LL・RL のときだけ、CID 4010 のコード（下の表） |
+| Positioner Type (0018,1508) | 無い | 空（DX Positioning の Type 2） |
+| Laterality (0020,0060) | 対になる部位だけ、ルーチンの `laterality`（`R`・`L`。Type 2C） | 無い |
+| Image Laterality (0020,0062) | 無い | ルーチンの `laterality`（`R`・`L`・`B`）。対にならない部位は `U`（Type 1） |
+| Anatomic Region Sequence (0008,2218) | 部位のコード（General Anatomy Optional Macro） | 部位のコード（Type 1） |
+| Patient Orientation (0020,0020) | 正面の方向（AP・PA・斜位・側臥位）は `L\F`、側面（LL・RL）は `P\F` | 同じ |
+| Photometric Interpretation (0028,0004) | テンプレートの `xray_image.photometric_interpretation`（既定 `MONOCHROME2`） | 同じ |
+| Rows × Columns | 1248 × 1024（固定。Job の `pixel_spec` の幅と高さには従わない） | 同じ |
+| Bits Allocated / Stored / High Bit / Pixel Representation | 16 / 12 / 11 / 0 | 同じ |
+| Imager Pixel Spacing (0018,1164) | `0.342\0.342`（架空。Type 3） | 同じ（Type 1） |
+| Pixel Intensity Relationship / Sign (0028,1040・1041) | 無い | `LOG` / `MONOCHROME2` は `-1`、`MONOCHROME1` は `1` |
+| Rescale Intercept / Slope / Type | 無い | `0` / `1` / `US`。Modality LUT Sequence は持たない |
+| Presentation LUT Shape (2050,0020) | 無い | `MONOCHROME2` は `IDENTITY`、`MONOCHROME1` は `INVERSE` |
+| Window Center / Width | `2048` / `4096` | 同じ（`FOR PRESENTATION` なので必須） |
+| Lossy Image Compression (0028,2110) | 無い | `00` |
+| Burned In Annotation (0028,0301) | `phantom` だけ `NO`（4.6） | どの方式でも `NO`（Type 1） |
+| Detector Type (0018,7004) | 無い | 空（Type 2） |
+| Acquisition Context Sequence (0040,0555) | 無い | 空（Type 2） |
+
+部位のコード（PS3.16 CID 4031）と方向のコード（CID 4010）は次のとおり。
+
+| `body_part` | Anatomic Region Sequence | 方向 | View Code Sequence |
+|-------------|--------------------------|------|--------------------|
+| `CHEST` | 816094009 Chest | `PA` | 272479007 postero-anterior |
+| `ABDOMEN` | 818981001 Abdomen | `AP` | 399348003 antero-posterior |
+| `LSPINE` | 122496007 Lumbar spine | `LL` | 399173006 left lateral |
+| `CSPINE` | 122494005 Cervical spine | `RL` | 399198007 right lateral |
+| `KNEE` | 72696002 Knee | — | — |
+| `HAND` | 85562004 Hand | — | — |
+
+- 画素は、どの方式も `MONOCHROME2` の値で作る。`phantom` は画像の中央に体の楕円
+  （半径は列・行の数の 0.4 倍）を描き、位置の目印を 4.6 と同じ決まりで描く。値は
+  上限（4095）に対する割合で、背景 0.05、楕円 0.35、目印 0.80。`ct_realistic` は
+  0〜4095 の範囲で `pattern` の模様を描く。`simple_text` は文字を 0〜4095 に広げる。
+  `MONOCHROME1` では、上限からこの値を引いた値を書く（表示は同じになる）
+- 部位と左右は、ルーチンの `body_part`・`laterality`（spec/03 の 3.2）で決める。予約の
+  記述からは読み取らない。CR・DX のテンプレートで手で入れたシリーズは、胸部
+  （`CHEST`）の PA の画像にする
+- Patient Orientation の値は、正面の画像を患者に向き合って見る向き（行は患者の左、
+  列は足の向き）、側面の画像を前から後ろの向きに描くとした代表例である
+  （PS3.3 C.7.6.1.1.1）
+- 斜位（`RLO`・`LLO`）と側臥位（`RLD`・`LLD`）は View Position だけを書き、View
+  Code Sequence は入れない（コードを確かめていないため）
+- 装置のプロファイルを重ねた後、Frame of Reference・Image Plane の属性（Image
+  Position・Image Orientation・Pixel Spacing・Slice Thickness・Slice Location・
+  Spacing Between Slices）、Patient Position、Modality LUT Sequence を外す。上の表の
+  必須の属性は、プロファイルの `omit` で外しても戻し、Type 1 を空（空の並びを含む）に
+  しても戻す。プロファイルの `set` で書いた値はそのまま使う。異常のデータ（1.1）は
+  この後に当てる
+- 規格とルーチンが値を決める属性は、プロファイルの `set` に書けない（書けば作成を
+  始めずに `ProfileMismatchError`。spec/13 の 4.3）。CR は Laterality・Body Part
+  Examined・View Position、DX は Presentation Intent Type・Image Type（値 3 は長さ 0。
+  C.8.11.3.1.1）・Image Laterality・Pixel
+  Intensity Relationship とその Sign・Rescale Intercept・Rescale Slope・Rescale
+  Type・Presentation LUT Shape・Lossy Image Compression・Burned In Annotation・
+  Body Part Examined・View Position
+- テンプレートの `general_equipment` を重ねる。KVP などの撮影の条件の属性は書かない
 
 ## 6. マルチスライスの空間座標
 

@@ -1,0 +1,29 @@
+# Modality Template: dx_generic
+# 一般の DX のテンプレート。装置の名前は架空（docs/decisions/0016-generic-template-names.md）。
+# 画像は Digital X-Ray Image Storage - For Presentation で、1シリーズに全部の方向
+# （docs/spec/06 の 5.5・ADR-0034）
+
+info:
+  name: "dx_generic"
+  manufacturer: "DTG Synthetic"
+  model_name: "DTG Synthetic DX"
+  modality: "DX"
+  version: "1.0"
+  description: "一般の DX テンプレート（合成）"
+
+file_meta:
+  media_storage_sop_class_uid: "1.2.840.10008.5.1.4.1.1.1.1"
+  transfer_syntax_uid: "1.2.840.10008.1.2"
+  implementation_version_name: "DICOM_GEN_1.1"
+
+general_equipment:
+  manufacturer: "DTG Synthetic"
+  institution_name: ""
+  station_name: "DTG_DX"
+  manufacturers_model_name: "DTG Synthetic DX"
+  software_versions: "V4.0"
+
+# Photometric Interpretation は MONOCHROME2（既定）か MONOCHROME1。MONOCHROME1 は
+# Presentation LUT Shape を INVERSE にする
+xray_image:
+  photometric_interpretation: "MONOCHROME2"

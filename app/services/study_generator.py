@@ -47,8 +47,20 @@ from app.core.models import SeriesConfig, SpatialCoordinates
 from app.core.phantom import (
     PHANTOM_MARKS,
     PhantomShape,
+    projection_phantom_pixels,
     series_phantom_pixels,
     study_phantom_shape,
+    xray_phantom_values,
+)
+from app.core.projection import (
+    DEFAULT_PHOTOMETRIC_INTERPRETATION,
+    PHOTOMETRIC_INTERPRETATIONS,
+    PROJECTION_BITS_STORED,
+    PROJECTION_COLUMNS,
+    PROJECTION_ROWS,
+    PROJECTION_SOP_CLASSES,
+    fixed_keywords_set_by,
+    keep_projection_shape,
 )
 from pydantic import ValidationError as PydanticValidationError
 from app.core.dose_sr import (
@@ -99,14 +111,19 @@ MR_IMAGE_TAG_MAP = {
     "receive_coil_name": "ReceiveCoilName",
 }
 
-# この道具が画像を作れるモダリティ（シリーズの Modality。ADR-0030・ADR-0032）
-GENERATABLE_MODALITIES = ("CT", "MR", "PT")
+# この道具が画像を作れるモダリティ（シリーズの Modality。ADR-0030・ADR-0032・ADR-0034）
+GENERATABLE_MODALITIES = ("CT", "MR", "PT", "CR", "DX")
+# 一般撮影（投影の画像）のモダリティ。手で入れたシリーズは胸部の PA にする
+PROJECTION_MODALITIES = ("CR", "DX")
+MANUAL_PROJECTION_BODY_PART = "CHEST"
+MANUAL_PROJECTION_VIEW = "PA"
 # テンプレートと違うモダリティのシリーズに使う SOP Class
 MODALITY_SOP_CLASSES = {
     "CT": CT_IMAGE_STORAGE,
     "MR": MR_IMAGE_STORAGE,
     "PT": PT_IMAGE_STORAGE,
     "SR": XRAY_RADIATION_DOSE_SR_STORAGE,
+    **PROJECTION_SOP_CLASSES,
 }
 
 # PET の ct_realistic の画素の符号なし 16 ビットの上限を決める Bits（PS3.3 C.8.9.4）
@@ -149,9 +166,9 @@ CT_ONLY_KEYWORDS = (
 class StudyGeneratorService:
     """DICOMスタディ生成を担うService Layer."""
 
-    # 装置のプロファイルで作れる SOP Class（docs/spec/13 の 4.3。P1 は CT だけ）
+    # 装置のプロファイルで作れる SOP Class（docs/spec/13 の 4.3）
     PROFILE_CREATABLE_SOP_CLASSES = frozenset(
-        {CT_IMAGE_STORAGE, MR_IMAGE_STORAGE, PT_IMAGE_STORAGE}
+        {CT_IMAGE_STORAGE, MR_IMAGE_STORAGE, PT_IMAGE_STORAGE, *PROJECTION_SOP_CLASSES.values()}
     )
 
     def __init__(self, profile_loader: ProfileLoaderService | None = None) -> None:
@@ -228,6 +245,7 @@ class StudyGeneratorService:
             specific_character_set, use_ideographic, use_phonetic = (
                 self._resolve_character_set_settings(config, template)
             )
+            photometric = self._resolve_photometric_interpretation(template)
             apply_station_name = True
             if profile is not None:
                 site_equipment = site_overrides.get("general_equipment")
@@ -287,6 +305,7 @@ class StudyGeneratorService:
                 dose_sr = series_config.kind == "dose_sr"
                 mr_series = series_config.modality == "MR"
                 pt_series = series_config.modality == "PT"
+                projection = series_config.modality in PROJECTION_MODALITIES
                 for image_index in range(series_config.num_images):
                     sop_uid = uid_generator.generate_sop_uid(
                         allow_invalid=config.abnormal.allow_invalid_sop_uid
@@ -328,6 +347,14 @@ class StudyGeneratorService:
                     elif dose_sr:
                         dataset = self._dicom_builder.build_dose_sr(
                             events=dose_sr_events, **common
+                        )
+                    elif projection:
+                        dataset = self._dicom_builder.build_projection_image(
+                            pixel_data=self._generate_projection_pixels(
+                                config, series_config, image_index, sop_uid
+                            ),
+                            photometric_interpretation=photometric,
+                            **common,
                         )
                     else:
                         spatial = series_spatial(series_config, image_index, top_z)
@@ -378,6 +405,8 @@ class StudyGeneratorService:
                             setattr(dataset, keyword, value)
                     if dose_report:
                         self._keep_secondary_capture_shape(dataset)
+                    elif projection:
+                        keep_projection_shape(dataset, series_config, image_index, photometric)
                     elif dose_sr:
                         self._keep_sr_shape(dataset)
                         if scheduled is not None:
@@ -551,6 +580,14 @@ class StudyGeneratorService:
                 f"(supported: {'; '.join(profile.character_set.supported)})",
                 details,
             )
+        fixed = fixed_keywords_set_by(template_modality, profile.attributes.set_values)
+        if fixed:
+            # CR・DX の規格が決める値とルーチンの部位・左右は変えられない（docs/spec/06 の 5.5）
+            raise ProfileMismatchError(
+                f"attributes.set cannot change {', '.join(fixed)} for {template_modality} "
+                "images (fixed by PS3.3 C.8.1・C.8.11 or the routine)",
+                details,
+            )
         sop_class_uid = profile.storage.sop_classes[0]
         if sop_class_uid not in self.PROFILE_CREATABLE_SOP_CLASSES:
             raise ProfileMismatchError(
@@ -624,6 +661,55 @@ class StudyGeneratorService:
         )
         # 文字の画像も CT の 16 ビットで書く（PS3.3 C.8.2.1.1.5。DICOMBuilder が広げる）
         return pixels, SIMPLE_TEXT_BITS_STORED
+
+    @staticmethod
+    def _resolve_photometric_interpretation(template: dict) -> str:
+        """CR・DX の Photometric Interpretation（テンプレートの `xray_image`。ADR-0034）."""
+        section = template.get("xray_image", {})
+        value = (
+            section.get("photometric_interpretation", DEFAULT_PHOTOMETRIC_INTERPRETATION)
+            if isinstance(section, dict)
+            else DEFAULT_PHOTOMETRIC_INTERPRETATION
+        )
+        if value not in PHOTOMETRIC_INTERPRETATIONS:
+            raise DICOMValidationError(
+                f"xray_image.photometric_interpretation {value!r} is not allowed "
+                f"(allowed: {', '.join(PHOTOMETRIC_INTERPRETATIONS)})",
+                {"photometric_interpretation": str(value)},
+            )
+        return str(value)
+
+    def _generate_projection_pixels(
+        self,
+        config: GenerationConfig,
+        series_config: SeriesConfig,
+        image_index: int,
+        sop_uid: str,
+    ) -> np.ndarray:
+        """CR・DX の画素（MONOCHROME2 の値）。大きさは固定で、Job の幅と高さには従わない.
+
+        `phantom` は体の楕円と位置の目印、`ct_realistic` は 0〜上限（4095）の模様、
+        `simple_text` は文字（DICOMBuilder が 0〜上限に広げる）。
+        """
+        if isinstance(config.pixel_spec, PixelSpecPhantom):
+            return projection_phantom_pixels(
+                PROJECTION_ROWS,
+                PROJECTION_COLUMNS,
+                image_index,
+                series_config.num_images,
+                xray_phantom_values(PROJECTION_BITS_STORED),
+            )
+        if isinstance(config.pixel_spec, PixelSpecCTRealistic):
+            # 符号ありの Bits Stored 13 の上限は、符号なしの 12 の上限（4095）と同じ
+            return self._pixel_generator.generate_ct_realistic(
+                width=PROJECTION_COLUMNS,
+                height=PROJECTION_ROWS,
+                pattern=config.pixel_spec.pattern,
+                bits_stored=PROJECTION_BITS_STORED + 1,
+            )
+        return self._pixel_generator.generate_simple_text(
+            sop_instance_uid=sop_uid, width=PROJECTION_COLUMNS, height=PROJECTION_ROWS
+        )
 
     @staticmethod
     def _phantom_shape(
@@ -729,6 +815,12 @@ class StudyGeneratorService:
         elif template_modality == "PT" and series.kind in ("localizer", "dose_report"):
             # 位置決めと線量の画面は CT の画像
             update["modality"] = "CT"
+        elif template_modality in PROJECTION_MODALITIES and series.kind == "axial":
+            # CR・DX のテンプレートで手で入れたシリーズは、胸部の PA の投影の画像（ADR-0034）
+            update["kind"] = "projection"
+            update["view_positions"] = [MANUAL_PROJECTION_VIEW]
+        if update.get("kind", series.kind) == "projection" and series.body_part is None:
+            update["body_part"] = MANUAL_PROJECTION_BODY_PART
         try:
             # 組み合わせの検証（MR に冠状断など）をやり直す
             return SeriesConfig.model_validate({**series.model_dump(), **update})

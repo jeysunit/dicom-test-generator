@@ -15,21 +15,25 @@ from pydantic import BaseModel, Field, model_validator
 
 from .exceptions import ValidationError
 from .models import (
+    BodyPart,
     CTSeriesKind,
+    Laterality,
     LocalizerView,
     MRAcquisitionType,
     MRPlane,
     MRSequence,
     MRSeriesKind,
+    ProjectionView,
     PTSeriesKind,
     SeriesConfig,
+    check_body_part_laterality,
 )
 
 RoutineModality = Literal["CT", "MR", "PT", "CR", "DX", "US"]
 # 画面と CLI の1シリーズの画像数の上限（docs/spec/12a の 10.5）と同じ
 MAX_ROUTINE_IMAGES_PER_SERIES = 1000
-# View Position (0018,5101) の定義の語（PS3.3 C.8.1.1 の Table C.8-1。人の検査の語）
-ProjectionView = Literal["AP", "PA", "LL", "RL", "RLD", "LLD", "RLO", "LLO"]
+# 部位と左右を持つモダリティ（一般撮影。ADR-0034）
+PROJECTION_MODALITIES = ("CR", "DX")
 
 
 class _RoutineSeries(BaseModel):
@@ -155,6 +159,9 @@ class Routine(BaseModel):
     protocol_name: str = Field(..., min_length=1, max_length=64)
     default: bool = False
     keywords: list[str] = Field(default_factory=list)
+    # CR・DX の部位と左右（Body Part Examined の語、R・L・B。ADR-0034）
+    body_part: BodyPart | None = None
+    laterality: Laterality | None = None
     series: list[RoutineSeries] = Field(..., min_length=1)
 
     @model_validator(mode="before")
@@ -177,6 +184,20 @@ class Routine(BaseModel):
                     raise ValueError(
                         "a CR series has exactly one view (View Position is a series value)"
                     )
+        return self
+
+    @model_validator(mode="after")
+    def _body_part_and_laterality(self) -> Routine:
+        """CR・DX は部位が要り、対になる部位は左右が要る。ほかのモダリティには書けない."""
+        if self.modality not in PROJECTION_MODALITIES:
+            if self.body_part is not None or self.laterality is not None:
+                raise ValueError(
+                    f"body_part and laterality are only for CR and DX, not {self.modality}"
+                )
+            return self
+        if self.body_part is None:
+            raise ValueError(f"a {self.modality} routine needs body_part")
+        check_body_part_laterality(self.modality, self.body_part, self.laterality)
         return self
 
     @property
@@ -343,7 +364,10 @@ def apply_dose_report_mode(
 def routine_series_configs(
     routine: Routine, numbers: list[int], keep: list[int], images: list[int]
 ) -> list[SeriesConfig]:
-    """CT・MR のルーチンの `keep` の位置のシリーズを、`images` の画像数で SeriesConfig にする."""
+    """ルーチンの `keep` の位置のシリーズを、`images` の画像数で SeriesConfig にする.
+
+    US のルーチンは画像を作れないので ValidationError。
+    """
     configs = []
     for number, index, count in zip(numbers, keep, images, strict=True):
         series = routine.series[index]
@@ -395,6 +419,21 @@ def routine_series_configs(
                     plane=series.plane,
                     sequence=series.sequence,
                     acquisition_type=series.acquisition_type,
+                )
+            )
+        elif isinstance(series, ProjectionRoutineSeries):
+            # CR は方向ごとに1シリーズ、DX は1シリーズに全部の方向（ADR-0034）
+            configs.append(
+                SeriesConfig(
+                    series_number=number,
+                    series_description=series.description,
+                    num_images=count,
+                    protocol_name=routine.protocol_name,
+                    kind="projection",
+                    modality=routine.modality,
+                    view_positions=list(series.views),
+                    body_part=routine.body_part,
+                    laterality=routine.laterality,
                 )
             )
         else:
