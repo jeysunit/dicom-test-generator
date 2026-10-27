@@ -17,7 +17,7 @@
           <th scope="col">AEタイトル</th>
           <th scope="col">ホスト名:ポート番号</th>
           <th scope="col">最後の接続確認</th>
-          <th scope="col"><span class="sr-only">操作</span></th>
+          <th scope="col" class="act"><span class="sr-only">操作</span></th>
         </tr>
       </thead>
       <tbody>
@@ -29,7 +29,7 @@
           <td class="font-mono">{{ destination.host }}:{{ destination.port }}</td>
           {# 最後の接続確認：開いたときは、この画面を動かしている間に覚えた最後の結果と時刻。押すと結果で差し替える #}
           <td id="echo-{{ loop.index }}" class="res">{% with probe = link_probes.get(destination.name) %}{% include "_echo_cell.html" %}{% endwith %}</td>
-          <td>
+          <td class="act">
             <button type="button" class="btn btn-sm row-open" hx-post="/pacs/echo/{{ destination.name|urlencode }}" hx-target="#echo-{{ loop.index }}" hx-disabled-elt="this" aria-label="{{ destination.name }} の接続確認">
               <span class="icon icon-activity" aria-hidden="true"></span>接続確認
             </button>
@@ -42,7 +42,7 @@
           <td class="font-mono">{{ config.worklist.ae_title }}</td>
           <td class="font-mono">{{ config.worklist.host }}:{{ config.worklist.port }}</td>
           <td id="echo-worklist" class="res">{% with probe = worklist_probe %}{% include "_echo_cell.html" %}{% endwith %}</td>
-          <td>
+          <td class="act">
             <button type="button" class="btn btn-sm row-open" hx-post="/pacs/echo-worklist" hx-target="#echo-worklist" hx-disabled-elt="this" aria-label="ワークリストの取得先の接続確認">
               <span class="icon icon-activity" aria-hidden="true"></span>接続確認
             </button>
