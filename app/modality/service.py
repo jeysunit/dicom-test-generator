@@ -68,12 +68,16 @@ from app.core.worklist_mapping import (
     scheduled_context_from_item,
 )
 from app.core.routine import (
+    DEFAULT_DOSE_REPORT_MODE,
     MAX_ROUTINE_IMAGES_PER_SERIES,
+    DoseReportMode,
     Routine,
+    apply_dose_report_mode,
     assign_series_numbers,
     routine_series_configs,
     match_routine,
 )
+from app.core.series_layout import dose_events
 from app.services import ProfileLoaderService, StudyGeneratorService, TemplateLoaderService
 from app.services.profile_loader import profile_transfer_syntax
 from app.services.routine_loader import RoutineLoaderService
@@ -228,6 +232,8 @@ class ExamRequest(BaseModel):
     # ルーチンのうち撮るシリーズの位置（0 始まり）と、その画像数。無ければ全部・既定の数
     routine_series: list[int] | None = None
     routine_images: list[int] | None = None
+    # CT のルーチンの線量の報告：画面（Secondary Capture）・SR・両方（ADR-0031）
+    dose_report: DoseReportMode = DEFAULT_DOSE_REPORT_MODE
 
 
 class ExamResult(BaseModel):
@@ -750,9 +756,15 @@ class ModalityService:
                     f"{routine.series[index].description} の画像数は "
                     f"1〜{MAX_ROUTINE_IMAGES_PER_SERIES} にしてください"
                 )
+        routine, keep, images = apply_dose_report_mode(routine, keep, images, request.dose_report)
         wanted = [routine.series[index].series_number for index in keep]
         numbers = assign_series_numbers(wanted, used)
         series = routine_series_configs(routine, numbers, keep, images)
+        if any(s.kind == "dose_sr" for s in series) and not dose_events(series):
+            # 線量の報告（SR）には撮影が1つ以上要る（TID 10011 の行 10）
+            raise ValidationError(
+                "線量の報告（SR）を撮るときは、位置決めか軸位のシリーズも撮ってください"
+            )
         return routine, series, [number is not None for number in wanted]
 
     def template_modality(self, template_name: str) -> str:

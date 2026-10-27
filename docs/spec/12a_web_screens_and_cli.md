@@ -465,6 +465,12 @@ standalone の実行ファイル）にする。** 選んだ理由は ADR-0011 �
   - 選択肢は予約（緊急の患者はテンプレート）のモダリティのルーチンと、最後の
     「手で入れる」。ルーチンを選び直すか、テンプレートを変えると、行を描き直す
     （テンプレートを変えたときは当て直す）
+  - 撮影の設定の「線量の報告（CT）」：画面（画像。初期値）・SR・画面（画像）と SR
+    （[ADR-0031](../decisions/0031-dose-report-sr.md)）。ルーチンの「線量の画面」の行を
+    撮るときだけ効き、SR は行を SR（1 枚）に替え、両方は次の番号で SR を足す。ルーチンの
+    行の表は変えない。SR を撮るときは位置決めか軸位のシリーズも撮る（外して無くすと、
+    「線量の報告（SR）を撮るときは、位置決めか軸位のシリーズも撮ってください」と出す）。
+    手で入れる撮影には効かない
   - 画像数は 1〜1000。範囲の外なら「Lung 1mm の画像数は 1〜1000 にしてください」の
     ようにシリーズの名前で知らせる
   - [外す] を押すと、その行は撮影の対象から外れる。行は消さずに薄く打ち消し線を付けて
@@ -837,6 +843,7 @@ python -m app.cli exam --emergency --patient-id E0001 \
 | `-i, --images LIST` | 各シリーズの画像数（手で入れる） | `-s` だけなら、シリーズごとに 1 枚 |
 | `--routine NAME` | 撮影のルーチン（`templates/routine/`。10.5・ADR-0025） | `-s`・`-i` を省くと、予約に当てたルーチン |
 | `--routine-images LIST` | ルーチンの各シリーズの画像数（数はルーチンのシリーズの数と同じ） | ルーチンの標準の数 |
+| `--dose-report MODE` | CT のルーチンの線量の報告：`screen`（線量の画面の画像）・`sr`（X-Ray Radiation Dose SR）・`both`（両方。[ADR-0031](../decisions/0031-dose-report-sr.md)） | `screen` |
 | `--pixel-mode MODE` | ピクセル | 設定の初期値 |
 | `--abnormal-level L` | 異常のデータ | none |
 | `--charset C` | `auto`・`utf8`・`jis`・`jis_kana`（Orthanc 1.13.0 へ送る画像は `utf8` か `jis`。[spec/12](12_modality_emulator.md) の 14.4） | 設定の初期値 |
@@ -853,7 +860,8 @@ python -m app.cli exam --emergency --patient-id E0001 \
 
 - `-s`・`-i`・`--routine` を省くと、画面と同じ決まり（10.5）で当てたルーチンの並びと
   枚数で撮る。`--routine`・`--routine-images` と `-s`・`-i` を一緒に指定したら、撮影
-  せずに終了コード 4。`--routine-images` の数がシリーズの数と違っても終了コード 4
+  せずに終了コード 4。`--routine-images` の数がシリーズの数と違っても終了コード 4。
+  `--dose-report` を `-s`・`-i` と一緒に指定しても終了コード 4
 - 結果の行と `--json`（`routine`）に、使ったルーチンの名前を出す。手で入れた撮影は
   `null`
 

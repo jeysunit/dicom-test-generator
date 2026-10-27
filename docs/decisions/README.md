@@ -37,6 +37,7 @@ ADR の一覧と、ADR に固有の書き方です。ドキュメントに共通
 | [0028](0028-shared-ui-kit-css.md) | 画面の CSS は 3 製品で共通の ui-kit の写しを読み、DTG の CSS には差分だけを書く | 採用 |
 | [0029](0029-unknown-patient-emergency-input.md) | 身元不明の患者は、仮の ID と空の英字の氏名で撮れるようにする | 採用 |
 | [0030](0030-mr-images.md) | MR の画像は、シリーズのモダリティで MR Image Storage として作る | 採用 |
+| [0031](0031-dose-report-sr.md) | CT の線量の報告は、線量の画面のほかに X-Ray Radiation Dose SR のシリーズでも作れる | 採用 |
 
 0001〜0013 は、この形式を決める前に書いたものです。冒頭の行をこの形式に
 そろえ、本文は語の置き換えだけにとどめています。

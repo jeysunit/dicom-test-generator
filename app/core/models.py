@@ -68,13 +68,15 @@ class StudyConfig(BaseModel):
     num_series: int = Field(..., ge=1, le=100, description="シリーズ数")
 
 
-CTSeriesKind = Literal["axial", "localizer", "coronal", "sagittal", "dose_report"]
+# dose_report は線量の画面（Secondary Capture）、dose_sr は線量の報告の SR（ADR-0031）
+CTSeriesKind = Literal["axial", "localizer", "coronal", "sagittal", "dose_report", "dose_sr"]
 # MR のシリーズの種類。位置決めは CT と同じ "localizer"（ADR-0030）
 MRSeriesKind = Literal["localizer", "acquisition", "derived"]
 SeriesKind = Literal[
-    "axial", "localizer", "coronal", "sagittal", "dose_report", "acquisition", "derived"
+    "axial", "localizer", "coronal", "sagittal", "dose_report", "dose_sr", "acquisition",
+    "derived",
 ]
-SeriesModality = Literal["CT", "MR"]
+SeriesModality = Literal["CT", "MR", "SR"]
 MRPlane = Literal["axial", "sagittal", "coronal", "three_plane"]
 # Scanning Sequence (0018,0020) の値（PS3.3 C.8.3.1。RM は使わない）
 MRSequence = Literal["SE", "IR", "GR", "EP"]
@@ -108,7 +110,16 @@ class SeriesConfig(BaseModel):
     @model_validator(mode="after")
     def _kind_matches_modality(self) -> SeriesConfig:
         mr_kinds = ("acquisition", "derived")
-        if self.modality == "MR" and self.kind in ("axial", "coronal", "sagittal", "dose_report"):
+        if self.kind == "dose_sr":
+            # 線量の報告の SR。モダリティを決めていなければ、作るときに SR にする
+            if self.modality not in (None, "SR"):
+                raise ValueError("kind 'dose_sr' needs modality SR")
+            return self
+        if self.modality == "SR":
+            raise ValueError(f"kind {self.kind!r} is not an SR series kind")
+        if self.modality == "MR" and self.kind in (
+            "axial", "coronal", "sagittal", "dose_report"
+        ):
             raise ValueError(f"kind {self.kind!r} is not an MR series kind")
         if self.modality == "CT" and self.kind in mr_kinds:
             raise ValueError(f"kind {self.kind!r} needs modality MR")

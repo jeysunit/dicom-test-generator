@@ -20,6 +20,7 @@ from app.core.exceptions import (
 )
 from app.core.models import WorklistItem
 from app.core.patient_input import build_emergency_patient, current_date
+from app.core.routine import DEFAULT_DOSE_REPORT_MODE
 from app.modality.config import load_modality_config
 from app.modality.service import AUTO_ROUTINE, ExamRequest, ModalityService, SendResult
 from app.modality.worklist_scu import (
@@ -34,6 +35,7 @@ DEFAULT_CONFIG = "config/app_config.yaml"
 CHARSET_CHOICES = ("auto", "utf8", "jis", "jis_kana")
 PIXEL_MODE_CHOICES = ("simple_text", "ct_realistic")
 ABNORMAL_LEVEL_CHOICES = ("none", "mild", "moderate", "severe")
+DOSE_REPORT_CHOICES = ("screen", "sr", "both")
 QUEUE_STATUS_CHOICES = ("pending", "sending", "sent", "failed")
 STALE_MARK = "  [STALE]"
 
@@ -129,6 +131,14 @@ def register_modality_commands(
     exam_parser.add_argument(
         "--routine-images",
         help="ルーチンの各シリーズの画像数（カンマ区切り。数はルーチンのシリーズの数と同じ）",
+    )
+    exam_parser.add_argument(
+        "--dose-report",
+        choices=DOSE_REPORT_CHOICES,
+        help=(
+            "CT のルーチンの線量の報告：screen は線量の画面（画像）、sr は X-Ray Radiation "
+            f"Dose SR、both は両方（default: {DEFAULT_DOSE_REPORT_MODE}）"
+        ),
     )
     exam_parser.add_argument("--pixel-mode", choices=PIXEL_MODE_CHOICES, help="ピクセル")
     exam_parser.add_argument(
@@ -252,6 +262,8 @@ def _exam_series_options(
     manual = args.series is not None or args.images is not None
     if manual and (args.routine or args.routine_images):
         raise ValidationError("--routine・--routine-images と -s・-i は一緒に使えません")
+    if manual and args.dose_report:
+        raise ValidationError("--dose-report と -s・-i は一緒に使えません（ルーチンの撮影用）")
     if manual:
         series = args.series if args.series is not None else len(args.images.split(","))
         return _parse_images(args.images, series), None, None
@@ -309,6 +321,7 @@ def exam_command(args: argparse.Namespace) -> int:
             emergency_study_instance_uid=args.study_uid,
             routine=routine,
             routine_images=routine_images,
+            dose_report=args.dose_report or DEFAULT_DOSE_REPORT_MODE,
         )
     )
     if result.mpps is not None and not result.mpps.sent:

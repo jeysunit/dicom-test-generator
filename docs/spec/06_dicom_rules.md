@@ -275,6 +275,67 @@ MR のシリーズ（[ADR-0030](../decisions/0030-mr-images.md)）は MR Image S
 - テンプレートの `mr_image`（Magnetic Field Strength・Imaged Nucleus・Receive Coil
   Name）と `general_equipment` を重ねる
 
+### 5.3 線量の報告の SR
+
+CT の検査の線量の報告は、5.1 の線量の画面（Secondary Capture）のほかに、
+X-Ray Radiation Dose SR（1.2.840.10008.5.1.4.1.1.88.67。[ADR-0031](../decisions/0031-dose-report-sr.md)）
+でも作れる。種類は `dose_sr`、Modality (0008,0060) は `SR`。
+
+| モジュール | 値 |
+|------------|----|
+| SR Document Series（PS3.3 C.17.1） | Modality `SR`、Series Number、Referenced Performed Procedure Step Sequence（Type 2。MPPS を使えば予約の値で入る） |
+| Enhanced General Equipment（C.7.5.2） | Manufacturer・Model Name・Software Versions はテンプレート、Device Serial Number は `DTG0001`（装置のプロファイルが決めれば上書き）。Device UID (0018,1002) は Instance Creator UID と同じ |
+| SR Document General（C.17.2） | Completion Flag `COMPLETE`、Verification Flag `UNVERIFIED`、Content Date/Time は検査の日時、Performed Procedure Code Sequence は空。予約の撮影では Referenced Request Sequence (0040,A370)（Type 1C。下）。Current Requested Procedure Evidence Sequence (0040,A375)（Type 1C）に、同じ撮影で作った画像（線量の画面を含む。SR は含めない）を Study・Series ごとに入れる |
+| SR Document Content（C.17.3） | TID 10011 の木（下） |
+
+内容の木（PS3.16 TID 10011・10012・10013・10014。必須の行と、条件を満たして必須になる行）：
+
+- 根：CONTAINER「X-Ray Radiation Dose Report」(113701, DCM)。Content Template
+  Sequence は `DCMR`・`10011`。以下の行は、この順で並べる
+- HAS CONCEPT MOD：Procedure reported (121058, DCM) = Computed Tomography X-Ray
+  (77477000, SCT)。その下に HAS CONCEPT MOD の Has Intent (363703001, SCT) =
+  Diagnostic Intent (261004008, SCT。CID 3629)
+- HAS OBS CONTEXT：Observer Type (121005, DCM) = Device、Device Observer UID
+  (121012, DCM)、Start of X-Ray Irradiation (113809, DCM)・End of X-Ray
+  Irradiation (113810, DCM)（検査の日時から、撮影1回につき 30 秒後まで）、
+  Scope of Accumulation (113705, DCM) = Study (113014, DCM) と、その下の
+  HAS PROPERTIES の Study Instance UID (110180, DCM)
+- CONTAINS：CT Accumulated Dose Data (113811, DCM)（撮影の数 {events} と、DLP の合計
+  mGy.cm）、撮影ごとに CT Acquisition (113819, DCM)、最後に Source of Dose Information
+  (113854, DCM) = Automated Data Collection (113856, DCM)
+- 撮影（CT Acquisition）：Target Region = Entire body (38266002, SCT)、CT Acquisition
+  Type（CID 10013。位置決めは Constant Angle Acquisition (113805, DCM)、軸位は Spiral
+  Acquisition (116152004, SCT)）、Irradiation Event UID、CT Acquisition Parameters
+  （Exposure Time・Scanning Length（画像数 × 画像の間隔）・Nominal Single/Total
+  Collimation Width・Number of X-Ray Sources・CT X-Ray Source Parameters（KVP・Maximum
+  X-Ray Tube Current・X-Ray Tube Current。軸位だけ Exposure Time per Rotation）。軸位
+  だけ Exposed Range と Pitch Factor）、CT Dose（Mean CTDIvol・CTDIw Phantom Type =
+  IEC 320mm Body CT Dosimetry Phantom (113691, DCM。CID 4053)・DLP）
+- TID 10013 の条件：Exposure Time per Rotation（行 19）と CT Dose（行 21）は「Constant
+  Angle でなければ必須」の IF の条件で、Constant Angle でも入れてよい（PS3.16 6.1.8）。
+  位置決めには Exposure Time per Rotation を入れない（管球が回らない）。CT Dose は
+  位置決めにも入れ、TID 10012 の DLP の合計（撮影ごとの DLP の和）を線量の画面と
+  そろえる。Pitch Factor（行 12）は Spiral か Sequenced のとき、Exposed Range（TID 10014
+  の行 3）は Spiral のときだけ（IFF）。CT Dose Check Details（TID 10015。行 35）は、
+  中の2つの容器が「装置が線量の警告・通知を持つとき」の条件で、DTG は持たないので空
+- 撮影になるのは、同じ検査の CT の位置決めと軸位のシリーズ（線量の画面と同じ。MR の
+  位置決めは含めない）。CTDIvol と DLP は線量の画面と同じ架空の値で、合計も一致する。
+  撮影が1つも無ければ作らない
+- SR のシリーズは、ほかのシリーズを全部作った後に作る（Job の並びの途中に書いて
+  あっても最後のファイルになる。シリーズ番号は書いたとおり）
+- Referenced Request Sequence の項目（Referenced Request Macro。PS3.3 C.17-3c）：
+  Study Instance UID、Referenced Study Sequence（予約の値。無ければ空）、Accession
+  Number、Issuer of Accession Number Sequence（予約にあれば）、Placer・Filler Order
+  Number（予約の C-FIND で受けないので空。Type 2）、Requested Procedure ID・
+  Description、Requested Procedure Code Sequence（予約の値。無ければ空）、Reason for
+  the Requested Procedure（予約にあれば）。予約なし（緊急の患者）では入れない
+- 画像に入れる Request Attributes Sequence と、Performed Procedure Step の ID・開始の
+  日時・説明は General Series Module（C.7.3.1）の属性で、SR の IOD（A.35.8）に無いので
+  SR には入れない
+- 数値は NUM、単位は UCUM（`mGy`・`mGy.cm`・`kV`・`mA`・`s`・`mm`・`{events}`・
+  `{ratio}`・`{X-Ray sources}`）。文字はすべて ASCII
+- 画素・Frame of Reference は持たない。装置のプロファイルが足した画像の属性は外す
+
 ## 6. マルチスライスの空間座標
 
 ### 6.1 計算の規則

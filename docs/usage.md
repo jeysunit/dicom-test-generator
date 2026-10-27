@@ -211,6 +211,7 @@ Web 画面は HTTP Basic 認証が必須で（ユーザー名は `dtg`）、パ�
 | ワークリストの取得 | `python -m app.cli worklist query` |
 | 予約から撮影して送信（予約に当てたルーチン） | `python -m app.cli exam --from-worklist <キー> --send` |
 | ルーチンを選んで撮影 | `python -m app.cli exam --from-worklist <キー> --routine ct_head_plain` |
+| 線量の報告を SR で撮影（`screen`・`sr`・`both`） | `python -m app.cli exam --from-worklist <キー> --dose-report both` |
 | シリーズ数と画像数を手で入れて撮影 | `python -m app.cli exam --from-worklist <キー> -s 2 -i 1,20` |
 | 予約の無い患者で撮影 | `python -m app.cli exam --emergency --patient-id E0001 --patient-name "KINKYU^TARO"` |
 | 予約の無い患者の検査に追加で撮影（前の撮影と同じ患者ID・氏名） | `python -m app.cli exam --emergency --append --study-uid <前の撮影の Study Instance UID> --patient-id E0001 --patient-name "KINKYU^TARO"` |
