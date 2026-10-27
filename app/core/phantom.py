@@ -11,10 +11,11 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import astuple, dataclass
 
 import numpy as np
 
+from .exceptions import PixelGenerationError
 from .models import SeriesConfig, SpatialCoordinates
 from .series_layout import MR_FIELD_OF_VIEW_MM
 
@@ -175,14 +176,23 @@ def render_phantom(
     count: int,
     values: PhantomValues,
     projection: bool = False,
+    dtype: type[np.integer] = np.int16,
 ) -> np.ndarray:
-    """1枚の画像の画素（int16）.
+    """1枚の画像の画素（CT は int16、MR は符号なしの uint16）.
 
     `projection` は投影の画像（位置決め）で、画像の面に垂直な向きの座標を図形の
     中心に置いて評価する（回転楕円体の影は中心を通る断面と同じ形になる）。
     """
     if count < 1 or not 0 <= index < count:
-        raise ValueError(f"index must be in 0..count-1, got index={index} count={count}")
+        raise PixelGenerationError(
+            f"Image index {index} is outside the series of {count} images", mode="phantom"
+        )
+    limits = np.iinfo(dtype)
+    if min(astuple(values)) < limits.min or max(astuple(values)) > limits.max:
+        raise PixelGenerationError(
+            f"Phantom values {astuple(values)} do not fit {np.dtype(dtype).name}",
+            mode="phantom",
+        )
     x, y, z = _pixel_coordinates(position, orientation, pixel_spacing, rows, cols)
     coords = [x, y, z]
     if projection:
@@ -192,7 +202,7 @@ def render_phantom(
     inside = sum(
         ((coords[axis] - shape.center[axis]) / shape.radii[axis]) ** 2 for axis in range(3)
     ) <= 1.0
-    pixels = np.where(inside, values.shape, values.background).astype(np.int16)
+    pixels = np.where(inside, values.shape, values.background).astype(dtype)
     r0, r1, c0, c1 = marker_bounds(rows, cols, index, count)
     pixels[max(r0, 0) : max(r1, 0), max(c0, 0) : max(c1, 0)] = values.marker
     return pixels
@@ -243,4 +253,5 @@ def series_phantom_pixels(
         count=series.num_images,
         values=values,
         projection=not mr_series and series.kind == "localizer",
+        dtype=np.uint16 if mr_series else np.int16,
     )

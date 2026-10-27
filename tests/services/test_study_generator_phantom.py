@@ -87,7 +87,7 @@ def _stored(ds: pydicom.Dataset) -> np.ndarray:
 
 
 def _without_marker(ds: pydicom.Dataset, index: int, count: int) -> np.ndarray:
-    pixels = _stored(ds).copy()
+    pixels = _stored(ds).astype(np.int64)
     r0, r1, c0, c1 = marker_bounds(int(ds.Rows), int(ds.Columns), index, count)
     pixels[r0:r1, c0:c1] = -1
     return pixels
@@ -239,3 +239,78 @@ def test_petct_keeps_pet_pixels_and_marks_only_ct(tmp_path) -> None:
     assert "ImageComments" not in pet
     row = _stored(pet)[0]
     assert np.all(np.diff(row.astype(np.int64)) >= 0)
+
+
+def test_mr_three_plane_localizer_shares_the_shape_with_the_axial_series(tmp_path) -> None:
+    # MR の画素間隔は 240 / 512 = 0.46875 mm。37.5 mm と 15 mm はその整数倍
+    series_list = [
+        SeriesConfig(
+            series_number=1, num_images=6, kind="localizer", modality="MR",
+            plane="three_plane", slice_spacing=37.5,
+        ),
+        SeriesConfig(
+            series_number=2, num_images=10, kind="acquisition", modality="MR", plane="axial"
+        ),
+    ]
+    by_series = _generate(_config(tmp_path, series_list, template="mr_generic"))
+    localizer, axial = by_series[1], by_series[2]
+    coronal = localizer[3]
+    spacing = 240.0 / 512
+
+    assert len({ds.FrameOfReferenceUID for s in by_series.values() for ds in s}) == 1
+    assert float(coronal.ImagePositionPatient[1]) == 37.5
+    assert float(coronal.ImagePositionPatient[2]) == 45.0
+    assert float(axial[6].ImagePositionPatient[2]) == 30.0
+    a = _without_marker(axial[6], 6, 10)[round(37.5 / spacing)]
+    c = _without_marker(coronal, 3, 6)[round((45.0 - 30.0) / spacing)]
+    keep = (a >= 0) & (c >= 0)
+    assert np.array_equal(a[keep], c[keep])
+    assert mr_phantom_values(12).shape in set(a[keep].tolist())
+
+
+def test_sixteen_bit_mr_phantom(tmp_path) -> None:
+    series_list = [
+        SeriesConfig(
+            series_number=1, num_images=3, kind="acquisition", modality="MR", plane="axial"
+        )
+    ]
+    by_series = _generate(
+        _config(
+            tmp_path, series_list, template="mr_generic",
+            pixel_spec=PixelSpecPhantom(bits_stored=16),
+        )
+    )
+    ds = by_series[1][1]
+
+    assert int(ds.BitsStored) == 16
+    assert int(_stored(ds).max()) == mr_phantom_values(16).marker
+
+
+def test_dose_sr_does_not_get_the_marks(tmp_path) -> None:
+    series_list = [
+        SeriesConfig(series_number=1, num_images=2),
+        SeriesConfig(series_number=2, num_images=1, kind="dose_sr"),
+    ]
+    by_series = _generate(_config(tmp_path, series_list))
+    sr = by_series[2][0]
+
+    assert sr.Modality == "SR"
+    assert sr.Manufacturer != MARK_MANUFACTURER
+    assert "ImageComments" not in sr
+    assert by_series[1][0].Manufacturer == MARK_MANUFACTURER
+
+
+def test_marks_are_written_before_the_abnormal_data(tmp_path, monkeypatch) -> None:
+    import app.services.study_generator as study_generator
+
+    seen: list[str] = []
+    original = study_generator.apply_abnormal_to_dataset
+
+    def record(dataset, generator):
+        seen.append(str(dataset.get("Manufacturer", "")))
+        return original(dataset, generator)
+
+    monkeypatch.setattr(study_generator, "apply_abnormal_to_dataset", record)
+    _generate(_config(tmp_path, [SeriesConfig(series_number=1, num_images=2)]))
+
+    assert seen == [MARK_MANUFACTURER, MARK_MANUFACTURER]

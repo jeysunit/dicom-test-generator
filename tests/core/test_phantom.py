@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from app.core.exceptions import PixelGenerationError
 from app.core.models import SeriesConfig
 from app.core.phantom import (
     CT_PHANTOM_VALUES,
@@ -205,5 +206,49 @@ def test_marker_moves_around_the_centre() -> None:
 def test_render_rejects_a_count_smaller_than_the_index() -> None:
     shape = phantom_shape([_axial()], FOV)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(PixelGenerationError):
         _render(shape, [0.0, 0.0, 0.0], AXIAL_ORIENTATION, index=3, count=3)
+
+
+def test_render_rejects_values_that_do_not_fit_the_dtype() -> None:
+    shape = phantom_shape([_axial()], FOV)
+
+    with pytest.raises(PixelGenerationError):
+        render_phantom(
+            shape,
+            position=[0.0, 0.0, 0.0],
+            orientation=AXIAL_ORIENTATION,
+            pixel_spacing=(SPACING, SPACING),
+            rows=SIZE,
+            cols=SIZE,
+            index=0,
+            count=1,
+            values=mr_phantom_values(16),
+        )
+
+
+def test_sixteen_bit_mr_values_fit_unsigned_pixels() -> None:
+    shape = phantom_shape([_axial()], FOV)
+    values = mr_phantom_values(16)
+
+    pixels = render_phantom(
+        shape,
+        position=[0.0, 0.0, 70.0],
+        orientation=AXIAL_ORIENTATION,
+        pixel_spacing=(SPACING, SPACING),
+        rows=SIZE,
+        cols=SIZE,
+        index=0,
+        count=1,
+        values=values,
+        dtype=np.uint16,
+    )
+
+    assert pixels.dtype == np.uint16
+    assert int(pixels.max()) == values.marker == 58982
+
+
+def test_a_single_axial_image_still_has_a_z_radius() -> None:
+    shape = phantom_shape([_axial(1, 5.0)], FOV)
+
+    assert shape.radii[2] == pytest.approx(0.55 * 5.0)
