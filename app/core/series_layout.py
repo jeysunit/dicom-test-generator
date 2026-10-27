@@ -98,8 +98,16 @@ def dose_report_lines(series_list: list[SeriesConfig], page: int = 0) -> list[st
 
 
 def dose_events(series_list: list[SeriesConfig]) -> list[SeriesConfig]:
-    """線量の報告に載せる撮影（位置決め・軸位のシリーズ）。線量の画面と同じ並び."""
-    return [series for series in series_list if series.kind in ("localizer", "axial")]
+    """線量の報告に載せる撮影（CT の位置決め・軸位のシリーズ）。線量の画面と同じ並び.
+
+    MR の位置決めは X 線の撮影ではないので載せない。モダリティを決めていない
+    シリーズ（None）は CT として扱う（生成の側が、テンプレートのモダリティを入れる）。
+    """
+    return [
+        series
+        for series in series_list
+        if series.kind in ("localizer", "axial") and series.modality in (None, "CT")
+    ]
 
 
 def series_dose(series: SeriesConfig) -> tuple[float, float]:

@@ -9,8 +9,10 @@ from pydicom.dataset import Dataset
 
 from app.core.dose_sr import (
     DEVICE_OBSERVER_UID,
+    InstanceReference,
     dose_events_of,
     dose_sr_content,
+    evidence_sequence,
 )
 from app.core.exceptions import DICOMBuildError
 from app.core.models import SeriesConfig
@@ -127,7 +129,8 @@ def test_events_are_the_localizer_and_axial_series_only() -> None:
         _find(event, "CT Acquisition Type")[0].ConceptCodeSequence[0].CodeValue
         for event in events
     ]
-    assert types == ["113806", "116152004"]  # Stationary、Spiral
+    # 位置決めは Constant Angle、軸位は Spiral（CID 10013）
+    assert types == ["113805", "116152004"]
     uids = [_find(event, "Irradiation Event UID")[0].UID for event in events]
     assert len(set(uids)) == 2
 
@@ -167,7 +170,6 @@ def test_spiral_event_has_pitch_and_exposed_range_but_the_scout_does_not() -> No
         ("KVP", "kV"),
         ("Maximum X-Ray Tube Current", "mA"),
         ("X-Ray Tube Current", "mA"),
-        ("Exposure Time per Rotation", "s"),
         ("Mean CTDIvol", "mGy"),
         ("DLP", "mGy.cm"),
     ],
@@ -182,12 +184,59 @@ def test_each_event_has_the_mandatory_numbers_with_ucum_units(meaning: str, unit
         )
 
 
+def test_exposure_time_per_rotation_is_only_for_the_spiral() -> None:
+    """TID 10013 の行 19 は Constant Angle 以外で必須。位置決めは管球が回らない."""
+    scout, spiral = _find(_content(), "CT Acquisition")
+
+    assert not _find(scout, "Exposure Time per Rotation")
+    assert _number(_find(spiral, "Exposure Time per Rotation")[0]) == (0.5, "s")
+
+
+def test_mr_localizer_is_not_an_irradiation_event() -> None:
+    series = [
+        SeriesConfig(series_number=1, num_images=3, kind="localizer", modality="MR"),
+        SeriesConfig(series_number=2, num_images=10, kind="axial", modality="CT"),
+        SeriesConfig(series_number=3, num_images=1, kind="dose_sr", modality="SR"),
+    ]
+
+    (event,) = dose_events_of(series, ["2.25.20"])
+    assert event.series.series_number == 2
+    with pytest.raises(DICOMBuildError, match="at least one localizer or axial"):
+        dose_events_of(series[:1] + series[2:], [])
+
+
+def test_evidence_groups_the_instances_by_study_and_series() -> None:
+    refs = [
+        InstanceReference("2.25.1", "2.25.31", "1.2.840.10008.5.1.4.1.1.2", "2.25.41"),
+        InstanceReference("2.25.1", "2.25.31", "1.2.840.10008.5.1.4.1.1.2", "2.25.42"),
+        InstanceReference("2.25.1", "2.25.32", "1.2.840.10008.5.1.4.1.1.7", "2.25.43"),
+    ]
+
+    (study,) = evidence_sequence(refs)
+
+    assert study.StudyInstanceUID == "2.25.1"
+    first, second = study.ReferencedSeriesSequence
+    assert first.SeriesInstanceUID == "2.25.31"
+    assert [s.ReferencedSOPInstanceUID for s in first.ReferencedSOPSequence] == [
+        "2.25.41",
+        "2.25.42",
+    ]
+    (screen,) = second.ReferencedSOPSequence
+    assert screen.ReferencedSOPClassUID == "1.2.840.10008.5.1.4.1.1.7"
+
+
 def test_each_event_has_the_codes_and_the_phantom() -> None:
     for event in _find(_content(), "CT Acquisition"):
         (region,) = _find(event, "Target Region")
         assert region.ConceptCodeSequence[0].CodeValue == "38266002"
         (phantom,) = _find(event, "CTDIw Phantom Type")
-        assert phantom.ConceptCodeSequence[0].CodeValue == "113691"
+        code = phantom.ConceptCodeSequence[0]
+        # CID 4053 の表の Code Meaning のとおり
+        assert (code.CodeValue, code.CodingSchemeDesignator, code.CodeMeaning) == (
+            "113691",
+            "DCM",
+            "IEC 320mm Body CT Dosimetry Phantom",
+        )
         assert len(_find(event, "CT Acquisition Parameters")) == 1
         assert len(_find(event, "CT X-Ray Source Parameters")) == 1
         assert len(_find(event, "CT Dose")) == 1

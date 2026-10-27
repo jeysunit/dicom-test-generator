@@ -213,6 +213,8 @@ class ExamRequest(BaseModel):
     emergency_patient: ScheduledPatient | None = None
     study_description: str = ""
     template: str | None = None
+    # 装置のプロファイル。None は設定の既定（テンプレートのモダリティと違えば重ねない）、
+    # "" は「なし」（画面で選んだとき。重ねない）。ADR-0030
     profile: str | None = None
     hospital: str | None = None
     images_per_series: list[int] = Field(default_factory=lambda: [1], min_length=1)
@@ -788,13 +790,14 @@ class ModalityService:
         return default
 
     def _profile_name(self, request: ExamRequest, template: str) -> str | None:
-        """撮影に重ねる装置のプロファイル。テンプレートを指定しない撮影は、設定の既定が
-        テンプレートのモダリティと違えば重ねない（ADR-0030）."""
-        if request.profile:
-            return request.profile
-        if request.template is None:
-            return self.profile_for_template(self.config.default_profile, template)
-        return self.config.default_profile
+        """撮影に重ねる装置のプロファイル（ADR-0030）.
+
+        「なし」（""）は重ねない。指定しなければ設定の既定を、テンプレートのモダリティと
+        違えば重ねない（テンプレートを明示したときも）。
+        """
+        if request.profile is not None:
+            return request.profile or None
+        return self.profile_for_template(self.config.default_profile, template)
 
     def profile_for_template(self, profile: str | None, template: str) -> str | None:
         """既定の装置のプロファイルがテンプレートのモダリティと違えば、重ねない（None）.
@@ -991,7 +994,13 @@ class ModalityService:
         if station.station_name:
             ctx = ctx.model_copy(update={"station_name": station.station_name})
         profile_name = self._profile_name(request, template)
-        if profile_name is None and not request.profile and self.config.default_profile:
+        default_profile = self.config.default_profile
+        if (
+            profile_name is None
+            and default_profile
+            and self.profile_for_template(default_profile, template) is None
+        ):
+            # 既定の装置がモダリティに合わずに重ねなかった（画面で「なし」に変えてあっても）
             notices.append(
                 f"設定の既定の装置（{self.config.default_profile}）は {modality} ではないので、"
                 "装置のプロファイルを重ねません"

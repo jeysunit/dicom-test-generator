@@ -23,16 +23,22 @@
    装置（Device Observer UID）と撮影の開始・終了の日時、蓄積の範囲は Study（その
    Study Instance UID つき）。TID 10012 の蓄積（撮影の数と DLP の合計）と、撮影ごとの
    TID 10013 を持つ
-3. 撮影（TID 10013）は、そのシリーズの位置決め（Stationary Acquisition）と軸位
-   （Spiral Acquisition）を1つずつ。数値は線量の画面と同じ架空の CTDIvol と DLP、
-   撮影の長さは 画像数 × 画像の間隔。線量の画面と SR の合計は一致する。撮影条件
-   （管電圧・管電流・コリメーションなど）は定数の架空の値で、軸位だけが Pitch Factor と
-   Exposed Range を持つ（それぞれ Spiral のとき必須）。撮影の Irradiation Event UID は
-   撮影ごとに作る
+3. 撮影（TID 10013）は、CT の位置決め（Constant Angle Acquisition。管球を止めて
+   寝台を動かす撮影で、CID 10013 の値）と軸位（Spiral Acquisition）のシリーズを1つずつ。
+   数値は線量の画面と同じ架空の CTDIvol と DLP、撮影の長さは 画像数 × 画像の間隔。
+   撮影条件（管電圧・管電流・コリメーションなど）は定数の架空の値で、軸位だけが
+   Pitch Factor・Exposed Range・Exposure Time per Rotation を持つ。CT Dose の容器は
+   Constant Angle では必須でないが入れてよい（PS3.16 6.1.8 の IF）ので、位置決めにも
+   入れ、線量の画面と SR の合計を一致させる。撮影の Irradiation Event UID は撮影ごとに
+   作る
 4. SR Document の各モジュール（PS3.3 A.35.8）を持ち、画素・Frame of Reference は持たない。
    Enhanced General Equipment の Device Serial Number (Type 1) は、テンプレートと装置の
    プロファイルが決めなければ既定の値を入れる。装置のプロファイルが足した画像の属性は
-   外す
+   外す。予約の値は、画像の Request Attributes Sequence（General Series Module の属性で、
+   SR の IOD に無い）ではなく、SR Document General Module の Referenced Request Sequence
+   （予約を満たす文書で必須の Type 1C）に入れる。同じ撮影で作った画像は Current Requested
+   Procedure Evidence Sequence に入れる（作った側が画像を知っているときの Type 1C）。
+   そのため SR は、ほかのシリーズの後に作る
 5. 撮影のとき、`dose_report`（画面 `screen`・SR `sr`・両方 `both`）で選ぶ。`sr` はルーチンの
    線量の画面の行（シリーズ番号を含む）を SR に替え、`both` は画面の次に SR の行を足す。
    撮らない行には何もしない。CT 以外と手で入れたシリーズには使わない。画面は「線量の
@@ -64,12 +70,19 @@
 - 投影 X 線（TID 10001）、Enhanced X-Ray Radiation Dose SR、Radiopharmaceutical
   Radiation Dose SR
 - 撮影ごとの Target Region の使い分け（今は Entire body）
+- 画像に Irradiation Event UID (0008,3010) を入れて SR の撮影と結ぶこと（CT Image では
+  Type 3。今は SR の中だけに持つ）
+- SR の Start・End of X-Ray Irradiation（検査の日時から）と Content Date・Time（撮影の
+  日時。追加撮影では Study の日時と違う）の食い違いを合わせること
+- 装置のプロファイルの `sop_classes` に X-Ray Radiation Dose SR Storage が無いときに、
+  SR を断ること（今はプロファイルによらず作る）
 
 ## 出典
 
-- PS3.3 A.35.8（X-Ray Radiation Dose SR IOD）、C.17.1〜C.17.3、C.7.5.2
-- PS3.16 TID 10011・10012・10013・10014・1002・1004、CID 4030・4031・4053・10000・10001・
-  10013・10021
+- PS3.3 A.35.8（X-Ray Radiation Dose SR IOD）、C.17.1〜C.17.3（C.17.2.3・C.17.2.8 の
+  Referenced Request Macro を含む）、C.7.3.1、C.7.5.2
+- PS3.16 6.1.7・6.1.8（必須の種類と IF・IFF の条件）、TID 10011・10012・10013・10014・
+  10015・1002・1004、CID 4030・4031・4053・10000・10001・10013・10021
 - PS3.4 B.5、F.7.2
 
 ## 関連

@@ -9,6 +9,7 @@ from modality_peers import LOCALHOST, MppsRecorder, free_port
 from pydicom import dcmread
 
 from app.core.exceptions import ValidationError
+from app.core.models import ScheduledPatient
 from app.modality.config import ModalityConfig
 from app.modality.service import AUTO_ROUTINE, ExamRequest, ModalityService
 from app.modality.worklist_scu import WorklistQuery
@@ -150,6 +151,74 @@ def test_mpps_lists_the_sr_as_a_non_image_composite(
     scout = by_description["Scout"]
     assert len(scout.ReferencedImageSequence) == 1
     assert list(scout.ReferencedNonImageCompositeSOPInstanceSequence) == []
+
+
+def _split(result) -> tuple[list, object]:
+    datasets = [dcmread(path, stop_before_pixels=True) for path in result.files]
+    (sr,) = [ds for ds in datasets if ds.SOPClassUID == SR_SOP_CLASS]
+    return [ds for ds in datasets if ds.SOPClassUID != SR_SOP_CLASS], sr
+
+
+def _evidence_uids(sr) -> set[str]:
+    return {
+        sop.ReferencedSOPInstanceUID
+        for study in sr.CurrentRequestedProcedureEvidenceSequence
+        for series in study.ReferencedSeriesSequence
+        for sop in series.ReferencedSOPSequence
+    }
+
+
+def test_scheduled_sr_carries_the_referenced_request(tmp_path, worklist_scp) -> None:
+    """予約から撮った SR は Referenced Request Sequence（PS3.3 C.17.2、Type 1C）を持つ."""
+    result = _exam(_service(tmp_path, worklist_scp.port), dose_report="both")
+
+    images, sr = _split(result)
+    (request,) = sr.ReferencedRequestSequence
+    image_request = images[0].RequestAttributesSequence[0]
+    assert request.StudyInstanceUID == sr.StudyInstanceUID
+    assert request.AccessionNumber == "A0001"
+    assert request.RequestedProcedureID == image_request.RequestedProcedureID
+    assert request.RequestedProcedureDescription == image_request.RequestedProcedureDescription
+    for keyword in (
+        "ReferencedStudySequence",
+        "PlacerOrderNumberImagingServiceRequest",
+        "FillerOrderNumberImagingServiceRequest",
+        "RequestedProcedureCodeSequence",
+    ):
+        assert keyword in request  # Type 2
+    # 画像の General Series の属性は、SR の IOD（A.35.8）に無いので入れない
+    for keyword in ("RequestAttributesSequence", "PerformedProcedureStepID"):
+        assert keyword not in sr
+        assert keyword in images[0]
+
+
+def test_sr_lists_the_images_of_the_exam_as_evidence(tmp_path, worklist_scp) -> None:
+    result = _exam(_service(tmp_path, worklist_scp.port), dose_report="both")
+
+    images, sr = _split(result)
+    assert _evidence_uids(sr) == {str(ds.SOPInstanceUID) for ds in images}
+    (study,) = sr.CurrentRequestedProcedureEvidenceSequence
+    assert study.StudyInstanceUID == sr.StudyInstanceUID
+    assert len(study.ReferencedSeriesSequence) == 6  # 線量の画面を含む画像のシリーズ
+
+
+def test_emergency_sr_has_no_request_but_lists_the_evidence(tmp_path, worklist_scp) -> None:
+    service = _service(tmp_path, worklist_scp.port)
+
+    result = service.exam(
+        ExamRequest(
+            emergency_patient=ScheduledPatient(patient_id="E1", patient_name="KINKYU^TARO"),
+            template="ct_generic",
+            routine="ct_chest_plain",
+            routine_images=[1, 1, 1, 1, 1, 1],
+            dose_report="sr",
+        )
+    )
+
+    images, sr = _split(result)
+    assert "ReferencedRequestSequence" not in sr
+    assert "RequestAttributesSequence" not in sr
+    assert _evidence_uids(sr) == {str(ds.SOPInstanceUID) for ds in images}
 
 
 def test_manual_series_ignore_the_dose_report_choice(tmp_path, worklist_scp) -> None:
