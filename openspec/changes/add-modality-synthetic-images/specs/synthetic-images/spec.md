@@ -25,7 +25,7 @@ Reference UID の画像の組）で一度だけ患者座標で決め、全シリ
 #### Scenario: 断面の間で同じ図形
 
 - **WHEN** 同じ撮影で、スライス厚と枚数の違う軸位2つと冠状断・矢状断を `phantom` で作り、それらの画像が交わる線の上で、図形の内側・境界の近く・外側の点を選ぶ
-- **THEN** どの点も、交わるすべての画像で区分が同じ（目印の画素は比べない）
+- **THEN** どの点も、交わるすべての画像で区分が同じ（目印の画素は比べない。焼き込みを選んだときは帯の画素も比べない）
 
 #### Scenario: 冠状断に図形が写る
 
@@ -46,13 +46,13 @@ Comments (0020,4000) を `SYNTHETIC TEST DATA`、Burned In Annotation (0028,0301
 
 #### Scenario: 画素の値の種類
 
-- **WHEN** `phantom` で、基本の図形（回転楕円体と目印）の画像を作る
+- **WHEN** `phantom` で、焼き込みを選ばずに基本の図形（回転楕円体と目印）の画像を作る
 - **THEN** 画素の値は、背景・図形・目印の 3 種類以下
 
 #### Scenario: 偽物の印のタグ
 
 - **WHEN** `phantom` で、CT の胸部 単純のルーチンを撮る
-- **THEN** 位置決めを含む全画像で、Manufacturer と Manufacturer's Model Name は `DTG SYNTHETIC`、Image Comments は `SYNTHETIC TEST DATA`、Burned In Annotation は `NO`、Recognizable Visual Features は `NO` になる
+- **THEN** 位置決めを含め、図形で画素を作った全画像で Manufacturer と Manufacturer's Model Name は `DTG SYNTHETIC`、Image Comments は `SYNTHETIC TEST DATA`、Burned In Annotation は `NO`、Recognizable Visual Features は `NO` になる。線量の画面の Manufacturer は今の値のまま
 
 #### Scenario: 装置のプロファイルを当てた撮影
 
@@ -65,18 +65,26 @@ DTG は、`phantom` で焼き込み（Job の `pixel_spec.burn_in`、CLI の `--
 `modality.burn_in`）を選んだときだけ、画像の上端の帯に `TEST / SYNTHETIC`・患者 ID・
 検査日・シリーズ番号・何枚目か・位置（投影の画像は方向）を、画素の値の最小と最大
 だけで描かなければならない（SHALL）。そのときだけ Burned In Annotation を `YES` に
-する。描く字は ASCII の印字できる字だけにする。`phantom` 以外の方式と一緒に
-選ぶと、設定の誤りとして断る。
+する。描く字は ASCII の印字できる字だけにする。焼き込みは `phantom` のときだけ
+効く。CLI・Job で `phantom` 以外の方式と一緒に明示すると、設定の誤りとして断る。
+設定の `modality.burn_in: true` は、設定の `default_pixel_mode` が `phantom` の
+ときだけ書ける。CLI の `--burn-in`・`--no-burn-in` は設定より優先し、CLI で
+`phantom` 以外の方式を選んだ撮影は、設定によらず焼き込まない。
 
 #### Scenario: 位置決めの画像にも帯がある
 
 - **WHEN** `phantom` で焼き込みを選び、CT の胸部 単純のルーチンを撮る
-- **THEN** 位置決めを含む全画像の上端の帯に最大の値の画素があり、帯の外の画素の値は区分の数以下で、Burned In Annotation は `YES` になる
+- **THEN** 位置決めを含め、図形で画素を作った全画像の上端の帯に最大の値の画素があり、帯の外の画素の値は区分の数以下で、Burned In Annotation は `YES` になる。線量の画面には帯を描かない
+
+#### Scenario: 描く文字
+
+- **WHEN** 患者 ID `P000001`、検査日 2026-10-27 の予約を、`phantom` で焼き込みを選んで撮る
+- **THEN** 描く文字列に `TEST / SYNTHETIC`・`P000001`・`20261027` が入り、どの行も帯の幅に収まる
 
 #### Scenario: 描けない字
 
 - **WHEN** 患者 ID に ASCII 以外の字がある予約を、`phantom` で焼き込みを選んで撮る
-- **THEN** その字は `?` で焼き込まれ、撮影は止まらない
+- **THEN** その字は `?` で焼き込まれ、撮影は止まらない。Burned In Annotation は `YES` のまま（検査日と ID の残りの字が描かれ、匿名化の試験では `YES` が安全側になるため）
 
 #### Scenario: 図形でない方式の焼き込み
 

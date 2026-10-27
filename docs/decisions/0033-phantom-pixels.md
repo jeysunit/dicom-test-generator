@@ -58,8 +58,8 @@ PS3.15 の Clean Pixel Data Option の処理が要る（PS3.15 E.3.1）。
 ## 結果
 
 - スライスを送ると図形が変わる。偽物の印は Manufacturer と Image Comments で見える
-- Basic Profile で匿名化すると Image Comments は消えるが、Manufacturer は残る
-  （PS3.15 Table E.1-1）
+- Basic Profile で匿名化すると Image Comments は消える。Manufacturer は Basic
+  Profile の消す対象に入っていない（PS3.15 Table E.1-1）
 - `phantom` の画像は、装置のプロファイルを当てても Manufacturer と Manufacturer's
   Model Name が `DTG SYNTHETIC` になる。ほかの装置の値はプロファイルのまま
 - 画素の方式が3つになり、spec/02・06・07 と CLI の選択肢が増える

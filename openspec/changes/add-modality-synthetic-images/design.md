@@ -96,8 +96,10 @@ Burned In Annotation `NO` を足す（E.3.1。出典 13）。患者 ID を画素
 消すだけでは匿名化にならない。
 
 Table E.1-1 では、Image Comments (0020,4000) は Basic Profile で消す（`X`）属性で、
-Manufacturer (0008,0070) と Manufacturer's Model Name (0008,1090) は表に無いので
-残る（出典 14）。匿名化した後の画像にも、Manufacturer の偽物の印は残る。
+Manufacturer (0008,0070) と Manufacturer's Model Name (0008,1090) は表に無く、
+Basic Profile では消す対象に入っていない（出典 14）。匿名化の道具は消す属性を
+足せる（E.1.1）ので、必ず残るとは言えないが、Basic Profile どおりの道具なら
+匿名化した後の画像にも Manufacturer の偽物の印が残る。
 
 ### コード（PS3.16）
 
@@ -224,8 +226,8 @@ Rescale・Window の値は、今の CT・MR の値のままにする（spec/06 �
 - ほかの方式の画像には、今と同じく Burned In Annotation・Recognizable Visual
   Features・Image Comments を書かない。DX の Burned In Annotation は Type 1 なので、
   ほかの方式でも `NO` を書く（PR 2）
-- Basic Profile で匿名化すると Image Comments は消えるが、Manufacturer は残る
-  （「調べたこと」の「匿名化と焼き込み」）
+- Basic Profile で匿名化すると Image Comments は消える。Manufacturer は Basic
+  Profile の消す対象に入っていない（「調べたこと」の「匿名化と焼き込み」）
 
 ### 焼き込み（選んだときだけ。PR 4）
 
@@ -244,7 +246,11 @@ Z +55.0 mm
 - 文字は Pillow の既定のフォントで描き、画像の幅 256 画素ごとに 1 倍ずつ、最近傍で
   拡大する。外部のフォントに頼らないので、Docker のイメージでも同じに描ける
 - 描くのは ASCII の印字できる字だけで、ほかの字は `?` にする（患者 ID に全角の字が
-  あるとき）
+  あるとき）。撮影は止めず、Burned In Annotation は `YES` のままにする。検査日と
+  ID の残りの字は描かれ、匿名化の試験では `YES` のほうが安全側になるため
+- 1行が帯の幅に収まらないときは、拡大の倍率を下げて収める。倍率 1 でも収まらない
+  行は、帯の幅に収まる字までを描き、残りを切る。その場合も Burned In Annotation は
+  `YES` のままにする
 - 帯は Window の幅を変えても読めるように、画素の値の最小と最大だけで描く
 - 文字は英字・数字・記号だけで、日本語は描かない。Docker のイメージには日本語の
   フォントが無く、フォントを同梱するとライセンスとイメージの大きさの確かめが要る
@@ -257,8 +263,13 @@ Z +55.0 mm
 - CLI：`--pixel-mode phantom`（`quick` と `exam`）
 - 設定：`modality.default_pixel_mode: phantom`
 - 焼き込み（PR 4）は、Job の `pixel_spec.burn_in: true`、CLI の `--burn-in`、設定の
-  `modality.burn_in: true` で選ぶ（推奨）。`phantom` 以外の方式と一緒に選ぶと、
-  設定の誤りとして断る。既定は焼き込まない
+  `modality.burn_in: true` で選ぶ（推奨）。既定は焼き込まない。焼き込みは
+  `phantom` のときだけ効き、次の順に決める
+  - CLI の `--burn-in`・`--no-burn-in` は設定より優先する。CLI・Job で `phantom`
+    以外の方式と一緒に `burn_in` を明示すると、設定の誤りとして断る
+  - 設定の `modality.burn_in: true` は、設定の `default_pixel_mode` が `phantom` の
+    ときだけ書ける（ほかの方式なら設定の読み込みで断る）
+  - CLI の `--pixel-mode` で `phantom` 以外を選んだ撮影は、設定によらず焼き込まない
 - 既定は今の `ct_realistic` のまま。線量の画面（Secondary Capture）と線量の報告の
   SR は、方式によらず今のまま作る
 
@@ -397,7 +408,7 @@ Z +55.0 mm
 | PR 3 | 部位の図形 | `head` の軸位で、骨の輪の内と外の値。`spine` で z が進むと骨とすきまが交互になる。`chest` の側面の投影は肺の楕円が1つ |
 | PR 3 | MR の強調 | T1 と T2 で液の値の大小が入れ替わる。MRA で血管が最大 |
 | PR 3 | CT の相 | 動脈相の血管の値が 300 HU、単純が 40 HU |
-| PR 4 | 焼き込み | 焼き込みを選んだ全画像（位置決め・CR・DX を含む）の帯に最大の値の画素があり、帯の外の値の種類が区分の数以下。Burned In Annotation `YES`。ASCII 以外の字は `?` になり撮影は止まらない。`phantom` 以外と一緒に選ぶと断る |
+| PR 4 | 焼き込み | 焼き込みを選んだ、図形で画素を作った全画像（位置決めを含む。PR 2 の後なら CR・DX も）の帯に最大の値の画素があり、帯の外の値の種類が区分の数以下。Burned In Annotation `YES`。描く文字列に `TEST / SYNTHETIC`・患者 ID・検査日が入り、既定の大きさ（512 × 512）では各行が帯の幅に収まる。ASCII 以外の字は `?` になり撮影は止まらない。CLI と設定の優先の順、`phantom` 以外と一緒に明示すると断ること |
 
 外部の検査器（dicom3tools の dciodvfy）は依存に入れない（`requirements.txt` を
 変えない）。PR 2 で CR・DX の見本の画像を手元の dciodvfy で一度検査し、結果を PR の
@@ -413,7 +424,8 @@ Z +55.0 mm
 | 4 | 選んだときだけの焼き込み（`burn_in`） | 02 の 3 章、06 の 4 章、07 の 3.6、12a の CLI |
 
 PR 2 は PR 1 に依存する（図形と偽物の印のタグを使う）。PR 3 は PR 1 と 2 の後に
-入れる。PR 4 は PR 1 の後ならいつ入れてもよい。最後にこの change を archive する。
+入れる。PR 4 は PR 1 の後ならいつ入れてもよい。PR 4 を PR 2 より先に入れたときは、
+CR・DX の焼き込みとその試験を PR 2 が受け持つ。最後にこの change を archive する。
 
 ## 確かめること（実装の PR で）
 
