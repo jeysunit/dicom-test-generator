@@ -228,6 +228,35 @@ def test_exam_with_profile(monkeypatch, capsys, tmp_path, config) -> None:
     assert "no_such_profile" in err
 
 
+def test_exam_with_phantom_pixel_mode(monkeypatch, capsys, tmp_path, config) -> None:
+    """exam --pixel-mode phantom：図形の画像に偽物の印を書く（ADR-0033）."""
+    code, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0001",
+        "--patient-name", "KINKYU^TARO", "--profile", "dtg_synthetic_ct", "-s", "1", "-i", "2",
+        "--pixel-mode", "phantom", "--json",
+    )
+
+    assert code == 0
+    for path in json.loads(out)["files"]:
+        ds = pydicom.dcmread(path)
+        assert ds.Manufacturer == "DTG SYNTHETIC"
+        assert ds.BurnedInAnnotation == "NO"
+
+
+def test_exam_uses_phantom_from_the_config(monkeypatch, capsys, tmp_path, config) -> None:
+    raw = yaml.safe_load(config.read_text(encoding="utf-8"))
+    raw["modality"]["default_pixel_mode"] = "phantom"
+    config.write_text(yaml.safe_dump(raw), encoding="utf-8")
+
+    code, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0001",
+        "--patient-name", "KINKYU^TARO", "-s", "1", "-i", "1", "--json",
+    )
+
+    assert code == 0
+    assert pydicom.dcmread(json.loads(out)["files"][0]).ImageComments == "SYNTHETIC TEST DATA"
+
+
 def test_exam_emergency_unrepresentable_char_is_exit_4(
     monkeypatch, capsys, tmp_path, config
 ) -> None:

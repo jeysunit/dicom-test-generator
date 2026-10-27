@@ -42,7 +42,7 @@ _DELETE = 0x7F
 CharacterSetChoice = Literal["auto", "utf8", "jis", "jis_kana"]
 FallbackChoice = Literal["utf8", "jis", "jis_kana"]
 QueryCharacterSet = Literal["ISO_IR 192", "utf8", "jis", "jis_kana"]
-PixelMode = Literal["simple_text", "ct_realistic"]
+PixelMode = Literal["simple_text", "ct_realistic", "phantom"]
 # 撮影済みの予約の撮り直しの形（docs/spec/12 の 6.3・ADR-0024）
 RetakeMode = Literal["append", "new_order"]
 

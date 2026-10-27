@@ -202,7 +202,19 @@ class PixelSpecCTRealistic(BaseModel):
     bits_stored: int = Field(12, ge=12, le=16)
 
 
-PixelSpec = PixelSpecSimple | PixelSpecCTRealistic
+class PixelSpecPhantom(BaseModel):
+    """図形（phantom）モードピクセル設定（docs/spec/06 の 4.6・ADR-0033）."""
+
+    model_config = {"frozen": True}
+
+    mode: Literal["phantom"] = "phantom"
+    width: int = Field(512, ge=64, le=4096)
+    height: int = Field(512, ge=64, le=4096)
+    # CT Image は 12〜16（PS3.3 C.8.2.1.1.5）。MR も同じ範囲で書く
+    bits_stored: int = Field(12, ge=12, le=16)
+
+
+PixelSpec = PixelSpecSimple | PixelSpecCTRealistic | PixelSpecPhantom
 
 
 class TransferSyntaxConfig(BaseModel):
@@ -255,7 +267,7 @@ class GenerationConfig(BaseModel):
     device_profile: str | None = Field(None, description="装置のプロファイル名（docs/spec/13）")
     uid_method: Literal["uuid_2_25", "custom_root"] = "uuid_2_25"
     uid_custom_root: str | None = Field(None, description="カスタムRoot")
-    pixel_spec: PixelSpecSimple | PixelSpecCTRealistic
+    pixel_spec: PixelSpecSimple | PixelSpecCTRealistic | PixelSpecPhantom
     transfer_syntax: TransferSyntaxConfig
     character_set: CharacterSetConfig
     abnormal: AbnormalConfig = Field(default_factory=AbnormalConfig)

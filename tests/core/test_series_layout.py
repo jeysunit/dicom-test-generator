@@ -148,3 +148,38 @@ def test_mr_three_plane_remainder_goes_to_the_last_plane() -> None:
         "sagittal",
         "sagittal",
     ]
+
+
+def test_top_z_moves_coronal_sagittal_and_localizer_only() -> None:
+    coronal = series_spatial(_series("coronal", slice_spacing=3.0), 2, top_z=145.0)
+    sagittal = series_spatial(_series("sagittal", slice_spacing=3.0), 1, top_z=145.0)
+    localizer = series_spatial(_series("localizer"), 0, top_z=145.0)
+    axial = series_spatial(_series("axial", slice_spacing=5.0), 2, top_z=145.0)
+
+    assert coronal.image_position_patient == [0.0, 6.0, 145.0]
+    assert coronal.slice_location == 6.0
+    assert sagittal.image_position_patient == [3.0, 0.0, 145.0]
+    assert localizer.image_position_patient == [0.0, 0.0, 145.0]
+    assert axial.image_position_patient == [0.0, 0.0, 10.0]
+
+
+def test_top_z_moves_mr_coronal_and_sagittal_planes() -> None:
+    three_plane = SeriesConfig(
+        series_number=1, num_images=15, kind="localizer", modality="MR", plane="three_plane"
+    )
+
+    axial = series_spatial(three_plane, 1, top_z=120.0)
+    coronal = series_spatial(three_plane, 6, top_z=120.0)
+    sagittal = series_spatial(_mr(plane="sagittal", slice_spacing=6.0), 2, top_z=120.0)
+
+    assert axial.image_position_patient == [0.0, 0.0, 5.0]
+    assert coronal.image_position_patient == [0.0, 5.0, 120.0]
+    assert sagittal.image_position_patient == [12.0, 0.0, 120.0]
+
+
+def test_without_top_z_positions_are_the_same_as_before() -> None:
+    coronal = series_spatial(_series("coronal", slice_spacing=3.0), 2)
+    localizer = series_spatial(_series("localizer"), 0)
+
+    assert coronal.image_position_patient == [0.0, 6.0, 0.0]
+    assert localizer.image_position_patient == [0.0, 0.0, 0.0]

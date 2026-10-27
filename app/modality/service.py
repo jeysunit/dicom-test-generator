@@ -41,6 +41,7 @@ from app.core.models import (
     CharacterSetConfig,
     GenerationConfig,
     PixelSpecCTRealistic,
+    PixelSpecPhantom,
     PixelSpecSimple,
     ScheduledContext,
     ScheduledPatient,
@@ -1326,9 +1327,13 @@ class ModalityService:
         """
         pixel_mode = request.pixel_mode or self.config.default_pixel_mode
         if pixel_mode == "simple_text":
-            pixel_spec: PixelSpecSimple | PixelSpecCTRealistic = PixelSpecSimple()
+            pixel_spec: PixelSpecSimple | PixelSpecCTRealistic | PixelSpecPhantom = (
+                PixelSpecSimple()
+            )
         elif pixel_mode == "ct_realistic":
             pixel_spec = PixelSpecCTRealistic()
+        elif pixel_mode == "phantom":
+            pixel_spec = PixelSpecPhantom()
         else:
             raise ConfigurationError("Unsupported pixel mode", {"pixel_mode": pixel_mode})
         study_date = (record.study_date if record else "") or now.strftime("%Y%m%d")

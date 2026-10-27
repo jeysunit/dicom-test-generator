@@ -19,6 +19,7 @@ from app.core import (
     FileReadError,
     GenerationConfig,
     PixelSpecCTRealistic,
+    PixelSpecPhantom,
     PixelSpecSimple,
     SeriesConfig,
     StudyConfig,
@@ -126,6 +127,8 @@ def quick_command(args: argparse.Namespace) -> int:
         pixel_spec = PixelSpecSimple()
     elif args.pixel_mode == "ct_realistic":
         pixel_spec = PixelSpecCTRealistic()
+    elif args.pixel_mode == "phantom":
+        pixel_spec = PixelSpecPhantom()
     else:
         raise ConfigurationError(
             "Unsupported pixel mode",
