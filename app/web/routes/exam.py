@@ -348,7 +348,8 @@ def exam_run(
             emergency_patient=emergency_patient,
             study_description=study_description.strip() if emergency_patient else "",
             template=template or None,
-            profile=profile or None,
+            # 画面の「なし」（""）は装置を重ねない。設定の既定には戻さない（10.5・ADR-0030）
+            profile=profile,
             **_series_request(routine, routine_series, routine_images, series, images),
             abnormal_level=abnormal_level,
             dose_report=dose_report if routine != MANUAL_ROUTINE else DEFAULT_DOSE_REPORT_MODE,

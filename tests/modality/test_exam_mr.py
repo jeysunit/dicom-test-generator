@@ -112,6 +112,35 @@ def test_default_ct_profile_is_not_applied_to_an_mr_order(tmp_path, worklist_scp
     assert any("dtg_synthetic_ct" in notice and "MR" in notice for notice in result.notices)
 
 
+def test_default_ct_profile_is_not_applied_with_the_mr_template_named(
+    tmp_path, worklist_scp
+) -> None:
+    """テンプレートを明示しても（CLI の -m）、装置を指定しなければ既定の CT を重ねない."""
+    service = _service(tmp_path, worklist_scp.port, default_profile="dtg_synthetic_ct")
+
+    result = service.exam(
+        ExamRequest(worklist_key=_mr_key(service), template="mr_generic", images_per_series=[1])
+    )
+
+    (ds,) = _headers(result.files)
+    assert ds.Modality == "MR"
+    assert ds.ManufacturerModelName == "DTG Synthetic MR"
+    assert any("dtg_synthetic_ct" in notice for notice in result.notices)
+
+
+def test_profile_none_does_not_apply_the_default(tmp_path, worklist_scp) -> None:
+    """「なし」（""）は既定の装置を重ねず、重ねなかった知らせも出さない."""
+    service = _service(tmp_path, worklist_scp.port, default_profile="dtg_synthetic_mr")
+
+    result = service.exam(
+        ExamRequest(worklist_key=_mr_key(service), profile="", images_per_series=[1])
+    )
+
+    (ds,) = _headers(result.files)
+    assert ds.ManufacturerModelName == "DTG Synthetic MR"
+    assert not any("dtg_synthetic_mr" in notice for notice in result.notices)
+
+
 def test_named_profile_must_match_the_modality(tmp_path, worklist_scp) -> None:
     service = _service(tmp_path, worklist_scp.port)
 
