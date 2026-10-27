@@ -232,3 +232,18 @@ def test_keep_projection_shape_removes_planes_and_restores_required() -> None:
     assert ds.BurnedInAnnotation == "NO"
     assert ds.PresentationIntentType == "FOR PRESENTATION"
     assert ds.DetectorType == "SCINTILLATOR"
+
+
+def test_keep_projection_shape_restores_empty_multivalued_type1() -> None:
+    """装置のプロファイルが `set` に空の並びを書いても、Type 1 の多値の属性を戻す."""
+    series = _series("DX", ["PA"])
+    ds = _build(series)
+    ds.ImagerPixelSpacing = []
+    ds.PatientOrientation = []
+    ds.RescaleIntercept = "0"  # 数の 0 は空ではない
+
+    keep_projection_shape(ds, series, 0, "MONOCHROME2")
+
+    assert [float(v) for v in ds.ImagerPixelSpacing] == [0.342, 0.342]
+    assert list(ds.PatientOrientation) == ["L", "F"]
+    assert ds.RescaleIntercept == 0

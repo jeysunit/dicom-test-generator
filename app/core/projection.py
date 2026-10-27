@@ -250,9 +250,21 @@ def keep_projection_shape(
         if not _is_required(series.modality, keyword):
             continue
         if keyword not in ds or (
-            keyword not in TYPE2_KEYWORDS and ds[element.tag].value in ("", None)
+            keyword not in TYPE2_KEYWORDS and _is_empty(ds[element.tag].value)
         ):
             ds[element.tag] = element
+
+
+def _is_empty(value: object) -> bool:
+    """空の値（None・空の文字・値の無い並び）か。数の 0 は空ではない."""
+    if value is None or value == "":
+        return True
+    if isinstance(value, (str, bytes)):
+        return False
+    try:
+        return len(value) == 0  # type: ignore[arg-type]
+    except TypeError:
+        return False
 
 
 # 空を許す必須の属性（Type 2）。ほかの必須の属性は Type 1・1C
