@@ -257,15 +257,18 @@ def keep_projection_shape(
 
 
 def _is_empty(value: object) -> bool:
-    """空の値（None・空の文字・値の無い並び）か。数の 0 は空ではない."""
+    """空の値（None・空の文字・値の無い並び・空の文字だけの並び）か。数の 0 は空ではない."""
     if value is None or value == "":
         return True
-    if isinstance(value, (str, bytes)):
+    if isinstance(value, (str, bytes, Dataset)):
         return False
     try:
-        return len(value) == 0  # type: ignore[arg-type]
+        items = list(value)  # type: ignore[call-overload]
     except TypeError:
         return False
+    if isinstance(value, Sequence):
+        return not items
+    return all(_is_empty(item) for item in items)
 
 
 # 空を許す必須の属性（Type 2）。ほかの必須の属性は Type 1・1C

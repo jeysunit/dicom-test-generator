@@ -238,7 +238,7 @@ def test_keep_projection_shape_restores_empty_multivalued_type1() -> None:
     """装置のプロファイルが `set` に空の並びを書いても、Type 1 の多値の属性を戻す."""
     series = _series("DX", ["PA"])
     ds = _build(series)
-    ds.ImagerPixelSpacing = []
+    ds.ImagerPixelSpacing = ["", ""]
     ds.PatientOrientation = []
     ds.RescaleIntercept = "0"  # 数の 0 は空ではない
 
