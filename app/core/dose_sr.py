@@ -64,7 +64,8 @@ TARGET_REGION: Code = ("123014", CODE_DCM, "Target Region")
 ENTIRE_BODY: Code = ("38266002", CODE_SCT, "Entire body")
 ACQUISITION_TYPE: Code = ("113820", CODE_DCM, "CT Acquisition Type")
 SPIRAL: Code = ("116152004", CODE_SCT, "Spiral Acquisition")
-STATIONARY: Code = ("113806", CODE_DCM, "Stationary Acquisition")
+# 位置決め（管球を止めて寝台を動かす）。CID 10013
+CONSTANT_ANGLE: Code = ("113805", CODE_DCM, "Constant Angle Acquisition")
 IRRADIATION_EVENT_UID: Code = ("113769", CODE_DCM, "Irradiation Event UID")
 ACQUISITION_PARAMETERS: Code = ("113822", CODE_DCM, "CT Acquisition Parameters")
 EXPOSURE_TIME: Code = ("113824", CODE_DCM, "Exposure Time")
@@ -142,6 +143,48 @@ def dose_events_of(series_list: list[SeriesConfig], event_uids: list[str]) -> li
     return events
 
 
+@dataclass(frozen=True)
+class InstanceReference:
+    """同じ検査で作った画像1枚の参照（SR の Current Requested Procedure Evidence）."""
+
+    study_instance_uid: str
+    series_instance_uid: str
+    sop_class_uid: str
+    sop_instance_uid: str
+
+
+def evidence_sequence(references: list[InstanceReference]) -> Sequence:
+    """Current Requested Procedure Evidence Sequence（PS3.3 C.17.2）の項目を作る.
+
+    Hierarchical SOP Instance Reference Macro（C.17-3）の形で、Study・Series ごとに
+    まとめる。並びは作った順。
+    """
+    studies: dict[str, dict[str, list[InstanceReference]]] = {}
+    for ref in references:
+        studies.setdefault(ref.study_instance_uid, {}).setdefault(
+            ref.series_instance_uid, []
+        ).append(ref)
+    items = []
+    for study_uid, series_refs in studies.items():
+        study = Dataset()
+        study.StudyInstanceUID = study_uid
+        series_items = []
+        for series_uid, refs in series_refs.items():
+            series = Dataset()
+            series.SeriesInstanceUID = series_uid
+            sops = []
+            for ref in refs:
+                sop = Dataset()
+                sop.ReferencedSOPClassUID = ref.sop_class_uid
+                sop.ReferencedSOPInstanceUID = ref.sop_instance_uid
+                sops.append(sop)
+            series.ReferencedSOPSequence = Sequence(sops)
+            series_items.append(series)
+        study.ReferencedSeriesSequence = Sequence(series_items)
+        items.append(study)
+    return Sequence(items)
+
+
 def _code(code: Code) -> Dataset:
     value, scheme, meaning = code
     item = Dataset()
@@ -203,8 +246,29 @@ def _datetime(relationship: str, name: Code, value: datetime) -> Dataset:
     return item
 
 
+def _source_parameters(spiral: bool) -> Dataset:
+    """TID 10013 の行 14〜19「CT X-Ray Source Parameters」."""
+    rows = [
+        _text("CONTAINS", SOURCE_ID, "A"),
+        _num("CONTAINS", KVP_CODE, KVP, UNIT_KV),
+        _num("CONTAINS", MAX_TUBE_CURRENT, MAX_TUBE_CURRENT_MA, UNIT_MA),
+        _num("CONTAINS", TUBE_CURRENT, TUBE_CURRENT_MA, UNIT_MA),
+    ]
+    if spiral:
+        # 管球が回らない Constant Angle では入れない（行 19 は Constant Angle 以外で必須）
+        rows.append(
+            _num("CONTAINS", TIME_PER_ROTATION, EXPOSURE_TIME_PER_ROTATION_S, UNIT_S)
+        )
+    return _container("CONTAINS", SOURCE_PARAMETERS, rows)
+
+
 def _event_item(event: DoseEvent) -> Dataset:
-    """TID 10013「CT Irradiation Event Data」の必須の行."""
+    """TID 10013「CT Irradiation Event Data」の必須の行.
+
+    位置決めは Constant Angle Acquisition、軸位は Spiral Acquisition（CID 10013）。
+    CT Dose（行 21）は Constant Angle 以外で必須の IF の条件で、Constant Angle でも
+    入れてよい（PS3.16 6.1.8）。線量の画面と合計をそろえるため、位置決めにも入れる。
+    """
     spiral = event.spiral
     parameters = [
         _num("CONTAINS", EXPOSURE_TIME, EXPOSURE_TIME_S, UNIT_S),
@@ -224,24 +288,14 @@ def _event_item(event: DoseEvent) -> Dataset:
         parameters.append(_num("CONTAINS", PITCH, PITCH_FACTOR, UNIT_RATIO))
     parameters += [
         _num("CONTAINS", NUMBER_OF_SOURCES, 1, UNIT_SOURCES),
-        _container(
-            "CONTAINS",
-            SOURCE_PARAMETERS,
-            [
-                _text("CONTAINS", SOURCE_ID, "A"),
-                _num("CONTAINS", KVP_CODE, KVP, UNIT_KV),
-                _num("CONTAINS", MAX_TUBE_CURRENT, MAX_TUBE_CURRENT_MA, UNIT_MA),
-                _num("CONTAINS", TUBE_CURRENT, TUBE_CURRENT_MA, UNIT_MA),
-                _num("CONTAINS", TIME_PER_ROTATION, EXPOSURE_TIME_PER_ROTATION_S, UNIT_S),
-            ],
-        ),
+        _source_parameters(spiral),
     ]
     return _container(
         "CONTAINS",
         CT_ACQUISITION,
         [
             _code_item("CONTAINS", TARGET_REGION, ENTIRE_BODY),
-            _code_item("CONTAINS", ACQUISITION_TYPE, SPIRAL if spiral else STATIONARY),
+            _code_item("CONTAINS", ACQUISITION_TYPE, SPIRAL if spiral else CONSTANT_ANGLE),
             _uidref("CONTAINS", IRRADIATION_EVENT_UID, event.uid),
             _container("CONTAINS", ACQUISITION_PARAMETERS, parameters),
             _container(

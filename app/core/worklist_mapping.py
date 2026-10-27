@@ -50,6 +50,14 @@ _TOP_LEVEL_SEQUENCES = (
     "RequestedProcedureCodeSequence",
     "ReferencedStudySequence",
 )
+# 画像には写すが、SR Document（PS3.3 A.35.8）の IOD に無い属性（General Series Module）
+_SR_ABSENT_ATTRIBUTES = (
+    "RequestAttributesSequence",
+    "PerformedProcedureStepID",
+    "PerformedProcedureStepStartDate",
+    "PerformedProcedureStepStartTime",
+    "PerformedProcedureStepDescription",
+)
 # Modality Performed Procedure Step SOP Class（PS3.4 F.7）
 MPPS_SOP_CLASS_UID = "1.2.840.10008.3.1.2.3.3"
 # 予約なし（Table A.1-2）で出力しない属性
@@ -303,6 +311,43 @@ def apply_scheduled_context(ds: Dataset, ctx: ScheduledContext) -> None:
     if ctx.station_name:
         # 画像を作った装置の名前（PS3.3 C.7.5.1）。装置の設定の値を優先する
         ds.StationName = ctx.station_name
+
+
+def apply_sr_request(ds: Dataset, ctx: ScheduledContext) -> None:
+    """SR Document（PS3.3 A.35.8）の予約の値を、画像の形から SR の形に直す.
+
+    画像の Request Attributes Sequence と Performed Procedure Step の ID・開始の日時・
+    説明は General Series Module（C.7.3.1）の属性で、SR の IOD には無いので外す。
+    予約の撮影では、代わりに SR Document General Module（C.17.2）の Referenced Request
+    Sequence（Type 1C。予約を満たす文書で必須）に Referenced Request Macro（C.17-3c）を入れる。
+    """
+    for keyword in _SR_ABSENT_ATTRIBUTES:
+        if keyword in ds:
+            delattr(ds, keyword)
+    if ctx.request_attributes is None:
+        return
+    request = Dataset.from_json(ctx.request_attributes)
+    item = Dataset()
+    item.StudyInstanceUID = ds.StudyInstanceUID
+    item.ReferencedStudySequence = _sequence_from_json(
+        ctx.sequences.get("ReferencedStudySequence", [])
+    )
+    item.AccessionNumber = ctx.accession_number
+    if ctx.sequences.get("IssuerOfAccessionNumberSequence"):
+        item.IssuerOfAccessionNumberSequence = _sequence_from_json(
+            ctx.sequences["IssuerOfAccessionNumberSequence"]
+        )
+    # 予約の C-FIND では受け取らないので空（Type 2）
+    item.PlacerOrderNumberImagingServiceRequest = ""
+    item.FillerOrderNumberImagingServiceRequest = ""
+    item.RequestedProcedureID = request.get("RequestedProcedureID", "")
+    item.RequestedProcedureDescription = request.get("RequestedProcedureDescription", "")
+    item.RequestedProcedureCodeSequence = _sequence_from_json(
+        ctx.sequences.get("ProcedureCodeSequence", [])
+    )
+    if request.get("ReasonForTheRequestedProcedure"):
+        item.ReasonForTheRequestedProcedure = request.ReasonForTheRequestedProcedure
+    ds.ReferencedRequestSequence = Sequence([item])
 
 
 def ensure_modality_matches(item: WorklistItem, template_modality: str) -> None:

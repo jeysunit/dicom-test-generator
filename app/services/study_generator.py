@@ -43,11 +43,16 @@ from app.core.generator import (
 )
 from app.core.models import SeriesConfig
 from pydantic import ValidationError as PydanticValidationError
-from app.core.dose_sr import XRAY_RADIATION_DOSE_SR_STORAGE, dose_events_of
+from app.core.dose_sr import (
+    XRAY_RADIATION_DOSE_SR_STORAGE,
+    InstanceReference,
+    dose_events_of,
+    evidence_sequence,
+)
 from app.core.series_layout import dose_events, dose_report_lines, series_spatial
 from app.core.path_safety import ensure_within, safe_path_component
 from app.core.worklist_charset import ensure_dataset_encodable
-from app.core.worklist_mapping import apply_scheduled_context
+from app.core.worklist_mapping import apply_scheduled_context, apply_sr_request
 
 from .profile_loader import ProfileLoaderService
 from .template_loader import TemplateLoaderService
@@ -251,7 +256,10 @@ class StudyGeneratorService:
                     series_list,
                     [uid_generator.generate_event_uid() for _ in dose_events(series_list)],
                 )
-            for series_config in series_list:
+            # SR が参照する同じ検査の画像（Current Requested Procedure Evidence）。SR は
+            # 画像を全部作った後に作る（並びの途中に書いてあっても、最後のファイルにする）
+            evidence: list[InstanceReference] = []
+            for series_config in self._sr_last(series_list):
                 series_uid = uid_generator.generate_series_uid()
                 dose_report = series_config.kind == "dose_report"
                 dose_sr = series_config.kind == "dose_sr"
@@ -329,6 +337,12 @@ class StudyGeneratorService:
                         self._keep_secondary_capture_shape(dataset)
                     elif dose_sr:
                         self._keep_sr_shape(dataset)
+                        if scheduled is not None:
+                            apply_sr_request(dataset, scheduled)
+                        if evidence:
+                            dataset.CurrentRequestedProcedureEvidenceSequence = (
+                                evidence_sequence(evidence)
+                            )
                     # 異常のデータは最後に当てる（予約・プロファイルの値にも効く。
                     # docs/spec/02 の AbnormalGenerator）。none では何も変えない
                     apply_abnormal_to_dataset(dataset, abnormal_generator)
@@ -353,6 +367,16 @@ class StudyGeneratorService:
                     except Exception as exc:
                         raise FileWriteError(str(filepath), str(exc)) from exc
 
+                    if not dose_sr:
+                        # 作った UID で参照する（異常のデータが画像の属性を消していても）
+                        evidence.append(
+                            InstanceReference(
+                                study_instance_uid=uid_context.study_instance_uid,
+                                series_instance_uid=series_uid,
+                                sop_class_uid=str(file_meta.MediaStorageSOPClassUID),
+                                sop_instance_uid=sop_uid,
+                            )
+                        )
                     generated_count += 1
                     file_sequence += 1
                     if progress_callback is not None:
@@ -397,6 +421,13 @@ class StudyGeneratorService:
             dataset.ConversionType = DOSE_REPORT_CONVERSION_TYPE
         if "PatientOrientation" not in dataset:
             dataset.PatientOrientation = ""
+
+    @staticmethod
+    def _sr_last(series_list: list[SeriesConfig]) -> list[SeriesConfig]:
+        """線量の報告（SR）のシリーズを最後に回す。ほかの並びは変えない."""
+        return [s for s in series_list if s.kind != "dose_sr"] + [
+            s for s in series_list if s.kind == "dose_sr"
+        ]
 
     @staticmethod
     def _keep_sr_shape(dataset: Dataset) -> None:
