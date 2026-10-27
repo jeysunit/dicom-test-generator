@@ -30,7 +30,7 @@
         <th scope="col">送信先</th>
         <th scope="col">画像数</th>
         <th scope="col">状態</th>
-        <th scope="col">操作</th>
+        <th scope="col" class="act">操作</th>
       </tr>
     </thead>
     <tbody>
@@ -53,7 +53,7 @@
           <span class="block"><span class="job-error-summary text-xs text-danger">{{ job.last_error|send_error_label }}</span></span>
           {% endif %}
         </td>
-        <td>
+        <td class="act">
           <div class="flex items-center gap-2 whitespace-nowrap">
             {# 送信失敗は送れていない画像だけを、送信完了は新しい件として全部を送り直す（10.6） #}
             {% if job.status in ("failed", "sent") %}

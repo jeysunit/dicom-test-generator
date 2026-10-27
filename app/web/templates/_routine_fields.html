@@ -22,7 +22,7 @@
           <th scope="col">Series Description</th>
           <th scope="col" class="hidden whitespace-nowrap sm:table-cell">種類</th>
           <th scope="col" class="whitespace-nowrap">画像数</th>
-          <th scope="col"><span class="sr-only">外す</span></th>
+          <th scope="col" class="act"><span class="sr-only">外す</span></th>
         </tr>
       </thead>
       <tbody>
@@ -37,7 +37,7 @@
             <input type="hidden" name="routine_series" value="{{ loop.index0 }}">
             <input type="number" name="routine_images" value="{{ series.images }}" min="1" max="{{ max_images_per_series }}" class="input w-20 sm:w-24" required aria-label="{{ series.description }} の画像数" data-count-label="{{ series.description }} の画像数" data-error-line="error-routine-count" aria-describedby="error-routine-count">
           </td>
-          <td><button type="button" class="btn btn-sm row-open" data-remove-series data-description="{{ series.description }}" aria-label="{{ series.description }} を外す"{% if one_row %} aria-disabled="true" aria-describedby="last-series-note" title="最後の1行は外せません"{% endif %}>外す</button></td>
+          <td class="act"><button type="button" class="btn btn-sm row-open" data-remove-series data-description="{{ series.description }}" aria-label="{{ series.description }} を外す"{% if one_row %} aria-disabled="true" aria-describedby="last-series-note" title="最後の1行は外せません"{% endif %}>外す</button></td>
         </tr>
         {% endfor %}
       </tbody>
