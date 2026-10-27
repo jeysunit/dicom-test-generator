@@ -22,11 +22,11 @@
 1. CR・DX の画像を作る処理（IOD・テンプレート・装置のプロファイル）
 2. スライスの位置で変わる画素
 3. 検査の部位で変わる画素
-4. 偽物と分かる印（焼き込みと属性）
+4. 偽物と分かる印（属性）
 
 ## 調べたこと
 
-規格は DICOM PS3.3・PS3.4・PS3.16 の 2026d 版を、2026-10-27 に Defuddle で本文を
+規格は DICOM PS3.3・PS3.4・PS3.15・PS3.16 の 2026d 版を、2026-10-27 に Defuddle で本文を
 取り出して読んだ。番号は末尾の「出典」の番号。
 
 ### CR Image IOD（PS3.3 A.2）
@@ -86,6 +86,18 @@ General Image Module の Burned In Annotation は、`YES` を「患者と撮影�
 あるかどうか分からない」。Recognizable Visual Features (0028,0302) は「画像（か
 画像の組から作った再構成）で患者を識別できる見た目の特徴があるか」で、同じく
 Type 3（出典 4）。DX Image Module では Burned In Annotation が Type 1 になる（出典 7）。
+
+### 匿名化と焼き込み（PS3.15 E.3.1・Table E.1-1）
+
+Basic Application Level Confidentiality Profile は、タグの値を消すか置き換える。
+画素に焼き込まれた情報を消すのは Clean Pixel Data Option で、指定したときだけ
+求められ、「人の確かめが要ることがある」と書く。この Option で処理した画像には
+Burned In Annotation `NO` を足す（E.3.1。出典 13）。患者 ID を画素に描くと、タグを
+消すだけでは匿名化にならない。
+
+Table E.1-1 では、Image Comments (0020,4000) は Basic Profile で消す（`X`）属性で、
+Manufacturer (0008,0070) と Manufacturer's Model Name (0008,1090) は表に無いので
+残る（出典 14）。匿名化した後の画像にも、Manufacturer の偽物の印は残る。
 
 ### コード（PS3.16）
 
@@ -170,11 +182,10 @@ Pixel Spacing から計算する、各画素の中心の x・y・z）で評価�
 画像は z が 0 以下の範囲を写す。軸位は z が `start_z`（既定 0）から +z に進むので、
 冠状断と軸位はほとんど交わらず、冠状断に図形がほぼ写らない。そこで、`phantom` の
 ときだけ、冠状断と矢状断の Image Position (Patient) の z を、その撮影の軸位の範囲の
-上端にする（推奨。proposal の「依頼者が決めること」の 8）。ほかの方式の位置は
-今のままにする。
+上端にする（proposal の「決めたこと」の 8）。ほかの方式の位置は今のままにする。
 
 位置決め・CR・DX のような投影の画像は、位置が変わらないので、基本の図形では体の楕円
-1つを描き、方向と何枚目かを焼き込みの文字で示す。
+1つと位置の目印を描く。方向はタグ（View Position など）で示し、画素には描かない。
 
 ### 値
 
@@ -188,9 +199,39 @@ Pixel Spacing から計算する、各画素の中心の x・y・z）で評価�
 
 Rescale・Window の値は、今の CT・MR の値のままにする（spec/06 の 4.2・5.2）。
 
-### 焼き込みの文字
+### 属性（偽物の印）
 
-画像の上端に、最小の値の帯を敷き、最大の値で次の3行を描く。
+既定の `phantom` の画素には文字を描かない（proposal の「決めたこと」の 1・2）。
+偽物の印は次のタグに書く。
+
+| 属性 | 値 |
+|------|----|
+| Manufacturer (0008,0070) | `DTG SYNTHETIC` |
+| Manufacturer's Model Name (0008,1090) | `DTG SYNTHETIC` |
+| Image Comments (0020,4000) | `SYNTHETIC TEST DATA` |
+| Burned In Annotation (0028,0301) | `NO`（焼き込みを選んだときだけ `YES`） |
+| Recognizable Visual Features (0028,0302) | `NO` |
+
+- 書くのは、画素を `phantom` で作った画像（CT・MR の断層と位置決め、PR 2 からは
+  CR・DX）だけである。線量の画面（Secondary Capture）・線量の報告の SR・PET/CT の
+  PT のシリーズは、画素が図形でないので今の値のままにする
+- この5つは装置のプロファイル（spec/13）を当てた後に書き、プロファイルの device と
+  `attributes.set` の値より優先する。Software Versions・Device Serial Number・
+  Station Name・プライベートタグは、プロファイルの値のままにする
+- Manufacturer と Manufacturer's Model Name の今の値（例の装置のプロファイルと
+  テンプレートの `DTG Synthetic`・`DTG Synthetic CT 64` など）は変えない。今の試験の
+  12 のファイルの 29 か所がこの値を期待しており、既定の撮影の値も変わるため
+- ほかの方式の画像には、今と同じく Burned In Annotation・Recognizable Visual
+  Features・Image Comments を書かない。DX の Burned In Annotation は Type 1 なので、
+  ほかの方式でも `NO` を書く（PR 2）
+- Basic Profile で匿名化すると Image Comments は消えるが、Manufacturer は残る
+  （「調べたこと」の「匿名化と焼き込み」）
+
+### 焼き込み（選んだときだけ。PR 4）
+
+匿名化の道具が画素の焼き込みを見つけられるかを試すための変種である。`phantom` で
+焼き込みを選んだときだけ、画像の上端に最小の値の帯を敷き、最大の値で次の3行を描く。
+Burned In Annotation は `YES` にし、ほかの属性は上の表のままにする。
 
 ```text
 TEST / SYNTHETIC  ID P000001  20261027
@@ -205,23 +246,19 @@ Z +55.0 mm
 - 描くのは ASCII の印字できる字だけで、ほかの字は `?` にする（患者 ID に全角の字が
   あるとき）
 - 帯は Window の幅を変えても読めるように、画素の値の最小と最大だけで描く
-
-### 属性
-
-`phantom` の画像には次を書く。ほかの方式の画像には書かない（今と同じ）。DX の
-Burned In Annotation は Type 1 なので、ほかの方式では `NO` を書く（PR 2）。
-
-| 属性 | 値 |
-|------|----|
-| Burned In Annotation (0028,0301) | `YES` |
-| Recognizable Visual Features (0028,0302) | `NO` |
-| Image Comments (0020,4000) | `SYNTHETIC TEST IMAGE - NOT FOR DIAGNOSIS` |
+- 文字は英字・数字・記号だけで、日本語は描かない。Docker のイメージには日本語の
+  フォントが無く、フォントを同梱するとライセンスとイメージの大きさの確かめが要る
+  ため
+- 患者は架空なので、患者 ID と検査日を描いても実の個人の情報は出ない
 
 ### 選び方
 
 - Job：`pixel_spec.mode: phantom`（`PixelSpecPhantom`。幅・高さは今と同じ範囲）
 - CLI：`--pixel-mode phantom`（`quick` と `exam`）
 - 設定：`modality.default_pixel_mode: phantom`
+- 焼き込み（PR 4）は、Job の `pixel_spec.burn_in: true`、CLI の `--burn-in`、設定の
+  `modality.burn_in: true` で選ぶ（推奨）。`phantom` 以外の方式と一緒に選ぶと、
+  設定の誤りとして断る。既定は焼き込まない
 - 既定は今の `ct_realistic` のまま。線量の画面（Secondary Capture）と線量の報告の
   SR は、方式によらず今のまま作る
 
@@ -242,7 +279,8 @@ Burned In Annotation は Type 1 なので、ほかの方式では `NO` を書く
 | `limb` | 細い円柱（軟部）・同じ軸の2本の円柱（骨）。2本の間に 8 mm のすきま | 縦の棒2本（骨）とすきま |
 
 `spine` は z が進むと骨とすきまが交互に現れ、`chest` は肺の楕円の大きさが変わる。
-基本の図形の位置の目印と焼き込みの文字は、部位の図形でもそのまま描く。
+基本の図形の位置の目印と偽物の印のタグは、部位の図形でもそのまま使う。焼き込みを
+選んだときは、部位の図形にも帯を描く。
 
 ### CT の値（HU。架空）
 
@@ -280,13 +318,13 @@ Burned In Annotation は Type 1 なので、ほかの方式では `NO` を書く
 `phantom` の画像は、次の4つを守る。どれも試験で確かめる。
 
 1. 図形は楕円体・楕円柱・円柱・直方体と、その殻の組み合わせだけで描き、区分ごとに
-   一定の値にする。ノイズ・ぼかし・縁の滑らかな変化・質感を足さない。帯の外の画素の
-   値の種類は、その図形の区分の数以下になる
+   一定の値にする。ノイズ・ぼかし・縁の滑らかな変化・質感を足さない。画素の値の
+   種類は、その図形の区分の数以下になる（焼き込みを選んだときは帯の外で数える）
 2. 臓器・骨の輪郭を写した形を描かない。部位は、位置と大きさの違う図形の組で表す
-3. どの画像にも焼き込みの帯を描く（位置決め・CR・DX も含む）。帯は最小と最大の値
-   だけで描き、窓の幅を変えても読める
-4. Burned In Annotation `YES`、Recognizable Visual Features `NO`、Image Comments の
-   文字を書く
+3. どの画像にも、Manufacturer・Manufacturer's Model Name `DTG SYNTHETIC` と
+   Image Comments `SYNTHETIC TEST DATA` を書く（位置決め・CR・DX も含む）
+4. 既定では画素に文字を描かず、Burned In Annotation `NO` を書く。焼き込みを選んだ
+   ときだけ帯を描き、`YES` を書く。Recognizable Visual Features はどちらも `NO`
 
 ## CR・DX の DICOM の値（PR 2）
 
@@ -312,7 +350,9 @@ Burned In Annotation は Type 1 なので、ほかの方式では `NO` を書く
 | Presentation LUT Shape | 無い | `MONOCHROME2` は `IDENTITY`、`MONOCHROME1` は `INVERSE` |
 | Window Center / Width | 上限の 1/2 / 上限 | 同じ（`FOR PRESENTATION` なので必須） |
 | Lossy Image Compression | 書かない | `00` |
-| Burned In Annotation | `phantom` は `YES`、ほかは書かない | `phantom` は `YES`、ほかは `NO`（Type 1） |
+| Burned In Annotation | `phantom` は `NO`（焼き込みを選んだときは `YES`）、ほかは書かない | `phantom` の焼き込みを選んだときは `YES`、ほかは `NO`（Type 1） |
+| Recognizable Visual Features | `phantom` は `NO`、ほかは書かない | 同じ |
+| Manufacturer・Model Name・Image Comments | `phantom` は「属性（偽物の印）」の値、ほかはプロファイルの値 | 同じ |
 | Detector Type | 無い | 空（Type 2） |
 | Acquisition Context Sequence | 無い | 空（Type 2） |
 | Frame of Reference・Image Plane | 持たない（装置のプロファイルが足しても外す） | 持たない |
@@ -331,6 +371,8 @@ Burned In Annotation は Type 1 なので、ほかの方式では `NO` を書く
   を選ばない画像は、画素も属性も今と同じになる。PR 1 の最初に、今の既定の撮影の
   画素と属性のハッシュを固定する試験を足し、変更の後も同じことを確かめる
 - 冠状断・矢状断の位置を直すのは `phantom` のときだけで、ほかの方式の位置は今と同じ
+- Manufacturer・Manufacturer's Model Name を `DTG SYNTHETIC` にするのは `phantom` の
+  画像だけで、例の装置のプロファイルとテンプレートの値は変えない
 - 今の CT・MR・PT の試験は、書き換えずに通す
 - CR・DX のテンプレートは今は無いので、CR・DX の画像は新しく作れるようになるだけで、
   今の撮影の結果は変わらない。ただし、spec/06 の 5.2 は「CR・US などのテンプレートは
@@ -342,10 +384,10 @@ Burned In Annotation は Type 1 なので、ほかの方式では `NO` を書く
 | PR | 試験 | 内容 |
 |----|------|------|
 | PR 1 | 既定の固定 | `ct_realistic` と `simple_text` の今の画素・属性のハッシュが変わらない（変更の前に書く） |
-| PR 1 | 位置で変わる | 軸位 30 枚で、図形の画素の数（目印と帯を除く）が 15 枚目まで増え続け、15 枚目と 16 枚目でいちばん多く、その先は 30 枚目まで減り続ける（隣どうしで同じ数はよいが、逆向きには変わらない）。中心から同じ距離の2枚（1枚目と 30 枚目、15 枚目と 16 枚目）は、目印の位置が違う |
+| PR 1 | 位置で変わる | 軸位 30 枚で、図形の画素の数（目印を除く）が 15 枚目まで増え続け、15 枚目と 16 枚目でいちばん多く、その先は 30 枚目まで減り続ける（隣どうしで同じ数はよいが、逆向きには変わらない）。中心から同じ距離の2枚（1枚目と 30 枚目、15 枚目と 16 枚目）は、目印の位置が違う |
 | PR 1 | 断面の間で同じ図形 | スライス厚と枚数の違う軸位2つと冠状断・矢状断が交わる線の上で、図形の内側・境界の近く・外側の点の区分がすべての画像で同じ。胸部 単純の COR の中央の画像に図形が写る。ほかの方式では冠状断の位置が今と同じ |
-| PR 1 | 偽物の決まり | 帯の外の画素の値の種類が区分の数以下。帯に最大の値の画素がある。全画像（位置決めを含む）に帯がある |
-| PR 1 | 属性 | `phantom` で Burned In Annotation `YES`・Recognizable Visual Features `NO`・Image Comments。ほかの方式では無い |
+| PR 1 | 偽物の決まり | 画素の値の種類が区分の数以下（文字が無い）。Frame of Reference ごとに図形が1つ |
+| PR 1 | 属性 | `phantom` の全画像（位置決めを含む）で Manufacturer・Manufacturer's Model Name `DTG SYNTHETIC`、Image Comments `SYNTHETIC TEST DATA`、Burned In Annotation `NO`、Recognizable Visual Features `NO`。装置のプロファイルを当てても同じ。線量の画面・SR は今の値。ほかの方式では今と同じ（Burned In Annotation などは無い） |
 | PR 1 | 選び方 | Job・`quick --pixel-mode phantom`・`exam --pixel-mode phantom`・設定の既定で選べる。不正な方式は今と同じく断る |
 | PR 2 | CR の IOD | Table A.2-1 の必須のモジュールの Type 1・2 の属性がある。Frame of Reference UID と Image Position (Patient) が無い。方向ごとに1シリーズ |
 | PR 2 | DX の IOD | Table A.26-1 の必須のモジュールと上の表の値。Image Type の Value 3 が長さ 0、Modality LUT Sequence が無い |
@@ -355,6 +397,7 @@ Burned In Annotation は Type 1 なので、ほかの方式では `NO` を書く
 | PR 3 | 部位の図形 | `head` の軸位で、骨の輪の内と外の値。`spine` で z が進むと骨とすきまが交互になる。`chest` の側面の投影は肺の楕円が1つ |
 | PR 3 | MR の強調 | T1 と T2 で液の値の大小が入れ替わる。MRA で血管が最大 |
 | PR 3 | CT の相 | 動脈相の血管の値が 300 HU、単純が 40 HU |
+| PR 4 | 焼き込み | 焼き込みを選んだ全画像（位置決め・CR・DX を含む）の帯に最大の値の画素があり、帯の外の値の種類が区分の数以下。Burned In Annotation `YES`。ASCII 以外の字は `?` になり撮影は止まらない。`phantom` 以外と一緒に選ぶと断る |
 
 外部の検査器（dicom3tools の dciodvfy）は依存に入れない（`requirements.txt` を
 変えない）。PR 2 で CR・DX の見本の画像を手元の dciodvfy で一度検査し、結果を PR の
@@ -367,16 +410,17 @@ Burned In Annotation は Type 1 なので、ほかの方式では `NO` を書く
 | 1 | 基本の図形（`phantom`）を CT・MR に入れる | 02 の 3 章、03、06 の 4 章、07 の 3.6、12a の CLI。ADR-0033 を採用にする |
 | 2 | CR・DX の画像。`phantom` は基本の図形の投影の画像 | 06 に CR・DX の節、13 の 4.3、roadmap。ADR-0034 を採用にする |
 | 3 | 部位の図形・MR の強調・CT の相。ルーチンに `phantom`・`weighting`・`phase` を書く | 03・06・ルーチンの形（exam-routines） |
+| 4 | 選んだときだけの焼き込み（`burn_in`） | 02 の 3 章、06 の 4 章、07 の 3.6、12a の CLI |
 
-PR 2 は PR 1 に依存する（焼き込みの帯を使う）。PR 3 は PR 1 と 2 の後に入れ、
-最後にこの change を archive する。
+PR 2 は PR 1 に依存する（図形と偽物の印のタグを使う）。PR 3 は PR 1 と 2 の後に
+入れる。PR 4 は PR 1 の後ならいつ入れてもよい。最後にこの change を archive する。
 
 ## 確かめること（実装の PR で）
 
 - 斜位と側臥位の View Code Sequence のコード（CID 4010 の中で確かめる）
 - Patient Orientation の値と、ビューアの表示の向き
 - Pillow の既定のフォントの大きさは版で違う（10.1 から FreeType のフォント）。
-  試験では文字の形を比べず、帯の範囲に最大の値があることだけを確かめる
+  PR 4 の試験では文字の形を比べず、帯の範囲に最大の値があることだけを確かめる
 
 ## 出典
 
@@ -396,6 +440,8 @@ PR 2 は PR 1 に依存する（焼き込みの帯を使う）。PR 3 は PR 1 �
 | 10 | DICOM PS3.4 B.5 Standard SOP Classes | <https://dicom.nema.org/medical/dicom/current/output/chtml/part04/sect_B.5.html> |
 | 11 | DICOM PS3.16 CID 4031 Common Anatomic Region | <https://dicom.nema.org/medical/dicom/current/output/chtml/part16/sect_CID_4031.html> |
 | 12 | DICOM PS3.16 CID 4010 DX View | <https://dicom.nema.org/medical/dicom/current/output/chtml/part16/sect_CID_4010.html> |
+| 13 | DICOM PS3.15 E.3 Basic Application Level Confidentiality Options（E.3.1 Clean Pixel Data Option） | <https://dicom.nema.org/medical/dicom/current/output/chtml/part15/sect_E.3.html> |
+| 14 | DICOM PS3.15 Annex E（Table E.1-1 Application Level Confidentiality Profile Attributes） | <https://dicom.nema.org/medical/dicom/current/output/chtml/part15/chapter_E.html> |
 
 シリーズの並びと枚数の出典は、前の change の design.md の「出典」（AAPM の
 プロトコル集、Radiopaedia、Canon・OHSU の MR のプロトコルなど）にある。

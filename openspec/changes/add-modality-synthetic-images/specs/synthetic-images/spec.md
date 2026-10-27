@@ -15,7 +15,7 @@ Reference UID の画像の組）で一度だけ患者座標で決め、全シリ
 #### Scenario: 軸位のシリーズで円の大きさが変わる
 
 - **WHEN** `phantom` で、軸位 30 枚のシリーズを作る
-- **THEN** 図形の画素の数（目印と帯を除く）は、1枚目から 15 枚目まで増え続け、15 枚目と 16 枚目でいちばん多く、16 枚目から 30 枚目まで減り続ける（隣どうしで同じ数になってもよいが、逆向きには変わらない）
+- **THEN** 図形の画素の数（目印を除く）は、1枚目から 15 枚目まで増え続け、15 枚目と 16 枚目でいちばん多く、16 枚目から 30 枚目まで減り続ける（隣どうしで同じ数になってもよいが、逆向きには変わらない）
 
 #### Scenario: 中央から同じ距離の2枚
 
@@ -25,7 +25,7 @@ Reference UID の画像の組）で一度だけ患者座標で決め、全シリ
 #### Scenario: 断面の間で同じ図形
 
 - **WHEN** 同じ撮影で、スライス厚と枚数の違う軸位2つと冠状断・矢状断を `phantom` で作り、それらの画像が交わる線の上で、図形の内側・境界の近く・外側の点を選ぶ
-- **THEN** どの点も、交わるすべての画像で区分が同じ（目印と帯の画素は比べない）
+- **THEN** どの点も、交わるすべての画像で区分が同じ（目印の画素は比べない）
 
 #### Scenario: 冠状断に図形が写る
 
@@ -36,31 +36,52 @@ Reference UID の画像の組）で一度だけ患者座標で決め、全シリ
 
 DTG は、`phantom` の画像を、楕円体・楕円柱・円柱・直方体とその殻の組み合わせだけで
 描き、区分ごとに一定の値にしなければならない（SHALL）。ノイズ・ぼかし・臓器や骨の
-輪郭を描いてはならない（SHALL NOT）。どの画像にも、上端の帯に `TEST / SYNTHETIC`・
-患者 ID・検査日・シリーズ番号・何枚目か・位置（投影の画像は方向）を、画素の値の
-最小と最大だけで焼き込む。Burned In Annotation (0028,0301) は `YES`、Recognizable Visual Features
-(0028,0302) は `NO`、Image Comments (0020,4000) は
-`SYNTHETIC TEST IMAGE - NOT FOR DIAGNOSIS` にする（PS3.3 C.7.6.1）。
+輪郭を描いてはならない（SHALL NOT）。既定では画素に文字を描かない。偽物の印は
+タグに書き、`phantom` で画素を作ったどの画像（位置決めを含む）でも、Manufacturer
+(0008,0070) と Manufacturer's Model Name (0008,1090) を `DTG SYNTHETIC`、Image
+Comments (0020,4000) を `SYNTHETIC TEST DATA`、Burned In Annotation (0028,0301) を
+`NO`、Recognizable Visual Features (0028,0302) を `NO` にする（PS3.3 C.7.6.1）。
+これらは装置のプロファイルを当てた後に書き、プロファイルの値より優先する。線量の
+画面・線量の報告の SR・PT のシリーズには書かない。
 
-#### Scenario: 帯の外の値の種類
+#### Scenario: 画素の値の種類
 
 - **WHEN** `phantom` で、基本の図形（回転楕円体と目印）の画像を作る
-- **THEN** 帯の外の画素の値は、背景・図形・目印の 3 種類以下
+- **THEN** 画素の値は、背景・図形・目印の 3 種類以下
+
+#### Scenario: 偽物の印のタグ
+
+- **WHEN** `phantom` で、CT の胸部 単純のルーチンを撮る
+- **THEN** 位置決めを含む全画像で、Manufacturer と Manufacturer's Model Name は `DTG SYNTHETIC`、Image Comments は `SYNTHETIC TEST DATA`、Burned In Annotation は `NO`、Recognizable Visual Features は `NO` になる
+
+#### Scenario: 装置のプロファイルを当てた撮影
+
+- **WHEN** Manufacturer が `DTG Synthetic` の装置のプロファイルを当てて、`phantom` で撮る
+- **THEN** 画像の Manufacturer は `DTG SYNTHETIC` になり、Software Versions などのほかの装置の値はプロファイルのままになる
+
+### Requirement: 焼き込みは選んだときだけ描く
+
+DTG は、`phantom` で焼き込み（Job の `pixel_spec.burn_in`、CLI の `--burn-in`、設定の
+`modality.burn_in`）を選んだときだけ、画像の上端の帯に `TEST / SYNTHETIC`・患者 ID・
+検査日・シリーズ番号・何枚目か・位置（投影の画像は方向）を、画素の値の最小と最大
+だけで描かなければならない（SHALL）。そのときだけ Burned In Annotation を `YES` に
+する。描く字は ASCII の印字できる字だけにする。`phantom` 以外の方式と一緒に
+選ぶと、設定の誤りとして断る。
 
 #### Scenario: 位置決めの画像にも帯がある
 
-- **WHEN** `phantom` で、CT の胸部 単純のルーチンを撮る
-- **THEN** 位置決めを含む全画像の上端の帯に、最大の値の画素がある
-
-#### Scenario: 焼き込みの属性
-
-- **WHEN** `phantom` で画像を作る
-- **THEN** Burned In Annotation は `YES`、Recognizable Visual Features は `NO` で、Image Comments に `SYNTHETIC TEST IMAGE - NOT FOR DIAGNOSIS` が入る
+- **WHEN** `phantom` で焼き込みを選び、CT の胸部 単純のルーチンを撮る
+- **THEN** 位置決めを含む全画像の上端の帯に最大の値の画素があり、帯の外の画素の値は区分の数以下で、Burned In Annotation は `YES` になる
 
 #### Scenario: 描けない字
 
-- **WHEN** 患者 ID に ASCII 以外の字がある予約を `phantom` で撮る
+- **WHEN** 患者 ID に ASCII 以外の字がある予約を、`phantom` で焼き込みを選んで撮る
 - **THEN** その字は `?` で焼き込まれ、撮影は止まらない
+
+#### Scenario: 図形でない方式の焼き込み
+
+- **WHEN** `--pixel-mode ct_realistic --burn-in` で `quick` を実行する
+- **THEN** 画像を作らず、設定の誤りとして知らせる
 
 ### Requirement: 図形の方式は選んだときだけ使う
 
@@ -73,7 +94,7 @@ DTG は、画素の方式の既定を `ct_realistic` のままにしなければ
 #### Scenario: 何も選ばない撮影
 
 - **WHEN** 設定の `default_pixel_mode` を変えずに、`--pixel-mode` を付けずに `exam` を実行する
-- **THEN** 画像の画素と属性は、この変更の前と同じ（Burned In Annotation は無い）
+- **THEN** 画像の画素と属性は、この変更の前と同じ（Burned In Annotation は無く、Manufacturer は装置のプロファイルの値）
 
 #### Scenario: CLI で選ぶ
 

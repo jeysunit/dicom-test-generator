@@ -21,13 +21,17 @@ DTG が画像を作れるモダリティは CT・MR・PT だけで、CR と DX �
 
 ## What Changes
 
-この change は3つの PR に分けて入れる（design.md の「PR の分け方」）。
+この change は4つの PR に分けて入れる（design.md の「PR の分け方」）。
 
 - 画素の方式に `phantom`（図形）を足す。画素の患者座標で3次元の図形を評価するので、
   スライスの位置が変われば図形の断面の大きさが変わる。位置の目印（小さい四角）が
-  画像の番号に合わせて円の上を回る。どの画像にも上端の帯に `TEST / SYNTHETIC`・
-  患者 ID・検査日・何枚目か・位置（mm）を焼き込み、Burned In Annotation (0028,0301)
-  を `YES` にする（基本の図形。PR 1）
+  画像の番号に合わせて円の上を回る。画素に文字は描かない。偽物の印はタグに書き、
+  Manufacturer と Manufacturer's Model Name を `DTG SYNTHETIC`、Image Comments
+  (0020,4000) を `SYNTHETIC TEST DATA`、Burned In Annotation (0028,0301) を `NO` に
+  する（基本の図形。PR 1）
+- 文字の焼き込みは、選んだときだけ使う変種として足す。上端の帯に `TEST / SYNTHETIC`・
+  患者 ID・検査日・何枚目か・位置を英字で描き、そのときだけ Burned In Annotation を
+  `YES` にする。匿名化の道具が焼き込みを見つけられるかの試験に使う（焼き込み。PR 4）
 - CR の画像を CR Image Storage、DX の画像を Digital X-Ray Image Storage - For
   Presentation で作る。テンプレート `cr_generic`・`dx_generic` と、例の装置の
   プロファイルを足す。CR・DX の予約と緊急の患者を、画面と CLI で撮れるようにする
@@ -42,44 +46,47 @@ DTG が画像を作れるモダリティは CT・MR・PT だけで、CR と DX �
   Job の `pixel_spec.mode` の既定は今の `ct_realistic`（`gradient`）のままで、
   `phantom` は選んだときだけ使う
 
-## 依頼者が決めること
+## 決めたこと
 
-1. 焼き込む文字。（推奨）英字だけにし、`TEST / SYNTHETIC` と患者 ID・検査日・
-   何枚目か・位置を描く。「架空」の漢字は描かない。Docker のイメージには日本語の
-   フォントが無く、フォントを同梱するとライセンスとイメージの大きさの確かめが要る
-   ため。代わりの案：日本語のフォントを同梱し、「TEST / 架空」と描く
-2. Burned In Annotation の値。（推奨）`phantom` では患者 ID と検査日も焼き込み、
-   `YES` にする。規格は `YES` を「患者と撮影日を識別できる文字が焼き込まれている」と
-   定める（PS3.3 C.7.6.1）。`TEST / SYNTHETIC` と位置だけでは `YES` の定義に
-   合わない。患者は架空なので、ID と日付を描いても実の個人の情報は出ない。
-   代わりの案：ID と日付を描かず、`NO` にする（依頼の「`YES` にする」とは食い違う）
-3. CR・DX の画素の大きさ。（推奨）1024 列 × 1248 行に固定し、検出器の大きさを
-   架空の約 350 × 427 mm（Imager Pixel Spacing 0.342 mm）にする。PET が行列を
-   128 に固定しているのと同じく、Job の `pixel_spec` の幅と高さには従わない。
-   1枚は約 2.5 MB。代わりの案：実の装置に近い 2048 × 2496（1枚 約 10 MB）
-4. CR・DX の Photometric Interpretation。（推奨）既定は `MONOCHROME2` にし、
-   テンプレートで `MONOCHROME1` も選べるようにする。CR 装置は `MONOCHROME1` を出す
-   ことが多く、ビューアの白黒の反転の試験に使えるため
-5. DX の SOP Class。（推奨）For Presentation だけを作る。For Processing は CAD
-   などの後処理の入力で、PACS の表示の試験には要らない
-6. 対になる部位（膝・手）の左右。（推奨）CR・DX のルーチンの YAML に部位
-   `body_part` と左右 `laterality` を書き、付けるルーチンは架空の `R` にする。CR は
-   Laterality (0020,0060) が `R`・`L` だけなので、両側（`B`）は DX だけで書ける。
-   予約の検査の記述から左右を読み取る処理は作らない
-7. PET。（推奨）この change の範囲に入れず、PT のシリーズは今の画素のままにする。
-   PET/CT の検査で `phantom` を選ぶと、CT のシリーズだけが図形になる
-8. 冠状断・矢状断の画像の位置。今の冠状断は z が 0 以下の範囲を写し、軸位（z が
-   0 以上）とほとんど交わらないので、図形がほぼ写らない（design.md の「図形の
-   置き方」）。（推奨）`phantom` のときだけ、冠状断と矢状断の Image Position
-   (Patient) の z を軸位の範囲の上端にする。既定の方式の位置は変えない。
-   代わりの案：どの方式でも位置を直す（断面どうしの位置は正しくなるが、既定の
-   撮影の画像の値が変わり、今の試験の期待値の書き換えに承認が要る）
+2026-10-27 に依頼者が次の 8 つを決めた。1 と 2 は提案の推奨を直した形で、3〜8 は
+推奨のとおりである。
+
+1. 既定の `phantom` の画素には文字を描かない。画素は図形と位置の目印だけにする。
+   実務の CT・MR・CR/DX の画像に文字の焼き込みはまれで（セカンダリーキャプチャを
+   除く）、既定の画像は実務に近い形にするため
+2. Burned In Annotation は `NO` にする。偽物の印はタグに書き、Manufacturer
+   (0008,0070) と Manufacturer's Model Name (0008,1090) を `DTG SYNTHETIC`、
+   Image Comments (0020,4000) を `SYNTHETIC TEST DATA` にする。Recognizable Visual
+   Features (0028,0302) は `NO` にする。患者 ID が画素にあると、タグを消すだけでは
+   匿名化にならない（PS3.15 の Clean Pixel Data のオプションが要る）。文字の
+   焼き込みは、選んだときだけ使う変種として残す。描く文字は英字だけ（`TEST /
+   SYNTHETIC`・患者 ID・検査日・何枚目か・位置）で、そのときだけ Burned In
+   Annotation を `YES` にする。匿名化の道具が焼き込みを見つけられるかの試験に使う
+3. CR・DX の画素は 1024 列 × 1248 行に固定し、検出器の大きさを架空の約
+   350 × 427 mm（Imager Pixel Spacing 0.342 mm）にする。PET が行列を 128 に固定して
+   いるのと同じく、Job の `pixel_spec` の幅と高さには従わない。1枚は約 2.5 MB
+4. CR・DX の Photometric Interpretation は、既定を `MONOCHROME2` にし、テンプレートで
+   `MONOCHROME1` も選べるようにする。CR 装置は `MONOCHROME1` を出すことが多く、
+   ビューアの白黒の反転の試験に使えるため
+5. DX は For Presentation だけを作る。For Processing は CAD などの後処理の入力で、
+   PACS の表示の試験には要らない
+6. 対になる部位（膝・手）の左右は、CR・DX のルーチンの YAML の部位 `body_part` と
+   左右 `laterality` で決め、付けるルーチンは架空の `R` にする。CR は Laterality
+   (0020,0060) が `R`・`L` だけなので、両側（`B`）は DX だけで書ける。予約の検査の
+   記述から左右を読み取る処理は作らない
+7. PET はこの change の範囲に入れず、PT のシリーズは今の画素のままにする。PET/CT の
+   検査で `phantom` を選ぶと、CT のシリーズだけが図形になる
+8. 冠状断・矢状断の画像の位置は、`phantom` のときだけ、Image Position (Patient) の
+   z を軸位の範囲の上端にする。今の冠状断は z が 0 以下の範囲を写し、軸位（z が
+   0 以上）とほとんど交わらないので、図形がほぼ写らないため（design.md の「図形の
+   置き方」）。既定の方式の位置は変えない
 
 ## Capabilities
 
 ### New Capabilities
 
-- `synthetic-images`: 図形の画素の方式（`phantom`）、焼き込みの決まり、CR・DX の画像
+- `synthetic-images`: 図形の画素の方式（`phantom`）、偽物の印と焼き込みの決まり、
+  CR・DX の画像
 
 ### Modified Capabilities
 
@@ -90,7 +97,8 @@ DTG が画像を作れるモダリティは CT・MR・PT だけで、CR と DX �
 
 ## Impact
 
-- core：`app/core/pixel_generator.py`（図形の評価と焼き込み）、`app/core/generator.py`
+- core：`app/core/pixel_generator.py`（図形の評価と、選んだときの焼き込み）、
+  `app/core/generator.py`
   （CR Image・DX Image の Dataset）、`app/core/series_layout.py`（CR・DX の向きと
   Patient Orientation）、`app/core/models.py`（`PixelSpecPhantom`・シリーズの
   モダリティに CR・DX）、`app/core/routine.py`
@@ -105,4 +113,6 @@ DTG が画像を作れるモダリティは CT・MR・PT だけで、CR と DX �
 - spec：02 の 3 章、03、06 の 4 章と 5 章（CR・DX の節を足す。5.2 の「CR・US など
   を断る」は CR・DX を外す）、07 の 3.6、12a の CLI、13 の 4.3。ADR-0033・0034
 - roadmap.md：「CT・MR・PT 以外のモダリティ」の行から CR・DX を外す
-- 既定は変わらない。`phantom` を選ばない撮影と Job の画像は、今と同じ値になる
+- 既定は変わらない。`phantom` を選ばない撮影と Job の画像は、今と同じ値になる。
+  Manufacturer と Manufacturer's Model Name を `DTG SYNTHETIC` にするのは `phantom`
+  の画像だけで、そのときは装置のプロファイルの値より優先する
