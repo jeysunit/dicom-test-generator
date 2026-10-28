@@ -16,3 +16,11 @@ from modality_peers import (  # noqa: E402, F401
     worklist_items,
     worklist_scp,
 )
+from web_helpers import TEST_VERSION  # noqa: E402
+
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def fixed_app_version(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APP_VERSION", TEST_VERSION)

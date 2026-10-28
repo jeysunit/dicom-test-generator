@@ -37,6 +37,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+          # 版を git のタグから作るので、履歴とタグを全部取る
+          fetch-depth: 0
+
+      # タグの上なので、版は v を除いた X.Y.Z になる
+      - id: version
+        name: Build the version from git
+        run: echo "value=$(sh scripts/app-version.sh)" >> "$GITHUB_OUTPUT"
 
       # docker/setup-buildx-action v4.4.1
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
@@ -68,4 +75,5 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           # 「バージョン情報」の画面に出す（commit は公開の値）
           build-args: |
+            APP_VERSION=${{ steps.version.outputs.value }}
             BUILD_COMMIT=${{ github.sha }}

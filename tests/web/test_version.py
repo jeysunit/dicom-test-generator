@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from web_helpers import make_client
+from web_helpers import TEST_VERSION, make_client
 
-from app.cli.commands import VERSION
+VERSION = TEST_VERSION
 
 
 def test_version_page_shows_name_and_version_without_commit(client, monkeypatch) -> None:

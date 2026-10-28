@@ -218,3 +218,27 @@ DTG_URL=http://127.0.0.1:8080 DTG_WEB_PASSWORD_FILE=/path/to/password.txt \
 
 認証の無い画面なら `DTG_WEB_PASSWORD_FILE` は不要。保存した画像に、架空の患者の
 値だけが写っていることを確認してからコミットする。
+
+## 10. 版の付け方
+
+- **版の正は git のタグ（`vX.Y.Z`、Semantic Versioning）。** コードの中に版の
+  定数は持たない。版を上げるのは、タグを付けることだけ
+- 画面「管理 → バージョン情報」と CLI の `version` は、イメージを作るときに
+  `scripts/app-version.sh` が git から作った版を出す
+  - タグの上：`1.2.0`（`v` を除く）
+  - タグより後：`1.2.0+37.g60970f9`（SemVer のビルドの印。直近のタグからの
+    commit の数と、短い commit）
+  - タグが 1 つも無い：`0.0.0+37.g60970f9`（commit の数と短い commit）
+  - git の情報が無い（`.git` の無い場所での build）：`0.0.0+unknown`。
+    何から作ったか分からない印
+- 作った値は `APP_VERSION` の build-arg でイメージに渡す。`.git` はイメージの
+  文脈に入らないので、イメージの中では作れない。publish.yml は
+  `fetch-depth: 0` でタグまで取ってから作る。履歴の浅い checkout ではタグが
+  取れず、「タグが 1 つも無い」の形になる
+- 手元で `python -m app.web` や `python -m app.cli` を起こすときは、
+  `APP_VERSION` が無ければ作業ツリーの git から同じ値を作る
+- 本番へは、タグの版（`1.2.0` の形）のイメージだけを置く。`+` の付いた版は、
+  タグより後の作りで、試す環境のためのもの
+- 版を出すとき：`main` の取り込み済みの commit に `git tag vX.Y.Z` を付けて
+  push する（publish.yml が `X.Y.Z` のイメージを作る）。付けたタグは動かさない・
+  消さない
