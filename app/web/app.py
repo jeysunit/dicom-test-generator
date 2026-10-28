@@ -17,7 +17,7 @@ from app.modality.service import ModalityService
 from .auth import basic_auth_ok, csrf_guard, host_header_is_loopback, is_loopback, new_csrf_token
 from .link_status import LinkStatus
 from .rendering import render
-from .routes import exam, pacs, settings, worklist
+from .routes import exam, pacs, settings, version, worklist
 from .settings import WebConfig
 from .templating import create_environment
 
@@ -120,6 +120,6 @@ def create_app(
         return RedirectResponse("/worklist")
 
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-    for module in (worklist, exam, pacs, settings):
+    for module in (worklist, exam, pacs, settings, version):
         app.include_router(module.router)
     return app

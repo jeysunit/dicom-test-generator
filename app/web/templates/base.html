@@ -35,7 +35,7 @@
       {% include "_band.html" %}
     </header>
     <nav id="sidenav" class="sidenav" aria-label="ページ">
-      {% set nav_icons = {"worklist": "list", "exam": "camera", "pacs": "server", "settings": "settings"} %}
+      {% set nav_icons = {"worklist": "list", "exam": "camera", "pacs": "server", "settings": "settings", "version": "info"} %}
       {% for group, items in nav_groups %}
       <p class="nav-g">{{ group }}</p>
       {% for key, href, label in items %}
