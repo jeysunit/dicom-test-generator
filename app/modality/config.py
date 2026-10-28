@@ -15,10 +15,12 @@ from app.core.patient_input import (
     DEFAULT_TIMEZONE,
     DEFAULT_UNKNOWN_NAME_IDEOGRAPHIC,
     DEFAULT_UNKNOWN_NAME_PHONETIC,
+    check_ideographic_group,
     validate_temporary_id_prefix,
     validate_unknown_name_group,
 )
 from app.core.validation_text import describe_validation_error
+from app.core.worklist_charset import resolve_image_character_set
 
 AE_TITLE_MAX_LENGTH = 16
 STATION_NAME_MAX_LENGTH = 16  # SH（PS3.5 6.2）
@@ -271,6 +273,18 @@ class ModalityConfig(BaseModel):
             f"Station not found: {wanted}",
             {"station": wanted, "known": ", ".join(s.name for s in self.stations)},
         )
+
+    @model_validator(mode="after")
+    def _check_unknown_name_charset(self) -> ModalityConfig:
+        """氏名が分からないときの漢字の氏名は、画像の文字コードで表せる字に限る（予約なしなので
+        `auto` は `character_set_fallback`。docs/spec/12a の 10.5）."""
+        character_set = resolve_image_character_set(
+            self.character_set, None, self.character_set_fallback
+        )
+        message = check_ideographic_group(self.unknown_name_ideographic, character_set)
+        if message:
+            raise ValueError(f"unknown_name_ideographic: {message}")
+        return self
 
     @model_validator(mode="after")
     def _check_destinations(self) -> ModalityConfig:

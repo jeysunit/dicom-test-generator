@@ -315,10 +315,9 @@ class ModalityService:
         self._auto_commitment = auto_commitment
         # 同時に走る撮影は1つ（画面のプロセスの中。docs/spec/12a の 10.5）
         self._exam_lock = threading.Lock()
-        # 仮の患者ID を渡した最後の秒と、その秒に渡した数（同じ秒に2回押しても重ねない）
+        # 仮の患者ID を渡した ID の集合（同じ秒に2回押しても、時計が戻っても重ねない）
         self._temporary_id_lock = threading.Lock()
-        self._temporary_id_second: datetime | None = None
-        self._temporary_id_count = 0
+        self._issued_temporary_ids: set[str] = set()
         # 送信ジョブの一覧に出す患者・検査の値（元のファイルから読み、ジョブの番号で覚える）
         self._job_summaries: dict[int, tuple[str, str, str, str, str]] = {}
 
@@ -620,18 +619,21 @@ class ModalityService:
     def new_temporary_patient_id(self) -> str:
         """身元不明の患者の仮の患者ID を作る（頭は設定、日時は設定のタイムゾーンの今。10.5）.
 
-        同じ秒に2回作っても重ならない（2つ目から `-2`）。この画面のプロセスの中だけで数える。
+        渡した ID を覚え、同じ秒に2回作っても重ならない（2つ目から `-2`）。時計が戻って
+        同じ秒を通り直しても、覚えた ID とは重ならない。この画面のプロセスの中だけで覚える。
         """
         moment = current_datetime(self.config.timezone).replace(microsecond=0)
         with self._temporary_id_lock:
-            if moment == self._temporary_id_second:
-                self._temporary_id_count += 1
-            else:
-                self._temporary_id_second = moment
-                self._temporary_id_count = 1
-            return temporary_patient_id(
-                self.config.temporary_patient_id_prefix, moment, self._temporary_id_count
-            )
+            sequence = 1
+            while True:
+                created = temporary_patient_id(
+                    self.config.temporary_patient_id_prefix, moment, sequence
+                )
+                if created not in self._issued_temporary_ids:
+                    break
+                sequence += 1
+            self._issued_temporary_ids.add(created)
+            return created
 
     def unknown_name(self) -> tuple[str, str]:
         """氏名が分からない患者の（漢字・かな）の氏名（設定。英字は空にする。10.5）."""
