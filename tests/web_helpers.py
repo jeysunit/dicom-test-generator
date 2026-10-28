@@ -12,6 +12,8 @@ from app.modality.config import ModalityConfig
 from app.web.app import create_app
 from app.web.settings import WebConfig
 
+# 画面と CLI に出す版。git の状態に左右されないよう、試験では環境変数 APP_VERSION で固定する（tests/conftest.py）
+TEST_VERSION = "0.2.0+37.g60970f9"
 OWN_AE = "DTG_CT01"
 BASE_URL = "http://127.0.0.1:8080"
 ORIGIN = BASE_URL

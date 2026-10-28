@@ -33,9 +33,9 @@ from app.services import (
     TemplateLoaderService,
 )
 from app.services.profile_loader import profile_transfer_syntax
+from app.version import app_version
 
 TOOL_NAME = "DICOMテストデータ生成ツール"
-VERSION = "1.1.0"
 
 
 def generate_command(args: argparse.Namespace) -> int:
@@ -191,7 +191,7 @@ def version_command(args: argparse.Namespace) -> int:
     """バージョン情報を表示する."""
     _ = args
     print(TOOL_NAME)
-    print(f"Version: {VERSION}")
+    print(f"Version: {app_version()}")
     print(f"Python: {platform.python_version()}")
     print(f"PyDicom: {pydicom.__version__}")
     return 0

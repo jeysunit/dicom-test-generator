@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 
+from web_helpers import TEST_VERSION
+
 from app.cli.commands import generate_command, validate_command, version_command
 from app.cli.main import _map_exception_to_exit_code
 
@@ -50,7 +52,7 @@ def test_version_command(capsys) -> None:
     captured = capsys.readouterr()
 
     assert exit_code == 0
-    assert "Version: 1.1.0" in captured.out
+    assert f"Version: {TEST_VERSION}" in captured.out
 
 
 def test_validate_command_success(tmp_path) -> None:

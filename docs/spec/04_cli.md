@@ -135,11 +135,14 @@ python -m app.cli version
 
 ```text
 DICOMテストデータ生成ツール
-Version: 1.1.0
+Version: 1.2.0
 Python: 3.12.3
 PyDicom: 3.0.2
 ```
 
+Version は git のタグから作った版で、タグの上は `1.2.0`、タグより後は
+`1.2.0+37.g60970f9`、不明は `0.0.0+unknown`
+（[development.md](../development.md) の 10 章）。
 Python と PyDicom の行は、実行した環境のバージョンになる。
 
 ## 6. 終了コード

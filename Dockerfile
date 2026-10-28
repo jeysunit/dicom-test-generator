@@ -44,9 +44,13 @@ RUN awk '/^web:/ { web = 1 } web && /bind_address:/ { sub(/"127\.0\.0\.1"/, "\"0
   && grep -A2 '^web:' /tmp/app_config.yaml | grep -q 'bind_address: "0.0.0.0"' \
   && cp /tmp/app_config.yaml config/app_config.yaml
 
-# 「バージョン情報」の画面に出すビルドの commit（イメージを作る側が渡す。渡さなければ画面は行ごと出さない）
+# 「バージョン情報」の画面に出す版とビルドの commit（イメージを作る側が渡す）。
+# 版は scripts/app-version.sh が git から作る（.git はこの文脈に入らないので、中では作れない）。
+# 渡さなければ、版は 0.0.0+unknown、commit は行ごと出さない
+ARG APP_VERSION=""
 ARG BUILD_COMMIT=""
-ENV BUILD_COMMIT=${BUILD_COMMIT}
+ENV APP_VERSION=${APP_VERSION} \
+    BUILD_COMMIT=${BUILD_COMMIT}
 
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin dtg \
   && mkdir -p logs modality_state output \
