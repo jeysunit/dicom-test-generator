@@ -167,6 +167,10 @@ def test_unknown_patient_with_empty_alphabetic_name_reaches_mpps_and_images(
     image = pydicom.dcmread(next(Path(result.output_dir).rglob("*.dcm")))
     assert image.PatientID == "TMP20261026083000"
     assert str(image.PatientName) == name
+    if character_set != "utf8":
+        # ISO 2022 では、空の英字の群の `=` の直後に文字集合の切り替えの ESC が続く
+        raw = next(Path(result.output_dir).rglob("*.dcm")).read_bytes()
+        assert b"=\x1b" in raw
 
 
 def test_mpps_goes_to_worklist_peer_when_no_mpps_section(tmp_path, worklist_items, mpps_scp) -> None:

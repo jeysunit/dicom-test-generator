@@ -178,6 +178,29 @@ def test_bad_unknown_settings_are_refused_by_the_config(tmp_path, worklist_scp, 
         ModalityConfig.model_validate(data)
 
 
+@pytest.mark.parametrize(
+    ("settings", "accepted"),
+    [
+        ({"character_set": "jis"}, False),
+        ({"character_set": "jis_kana"}, False),
+        ({"character_set": "auto", "character_set_fallback": "jis"}, False),
+        ({"character_set": "utf8"}, True),
+        ({"character_set": "auto", "character_set_fallback": "utf8"}, True),
+    ],
+)
+def test_unknown_name_must_fit_the_configured_image_charset(
+    tmp_path, worklist_scp, storage_scp, settings, accepted
+) -> None:
+    """「氏名が分からない」の漢字は、設定の画像の文字コードで表せる字に限る（10.5）."""
+    data = modality_config(tmp_path, worklist_scp.port, storage_scp.port).model_dump()
+    data.update(settings, unknown_name_ideographic="髙橋^不明")
+    if accepted:
+        ModalityConfig.model_validate(data)
+    else:
+        with pytest.raises(Exception, match="unknown_name_ideographic.*文字コード"):
+            ModalityConfig.model_validate(data)
+
+
 def test_temporary_id_has_prefix_and_time_and_passes_the_id_rules(client) -> None:
     token = csrf_token(client, "/exam")
     response = client.post("/exam/temporary-id", headers=post_headers(token))
@@ -204,6 +227,23 @@ def test_temporary_id_does_not_repeat_within_the_same_second(client, monkeypatch
     assert created == ["TMP20300102030405", "TMP20300102030405-2", "TMP20300102030405-3"]
     for value in created:
         validate_patient_id(value)
+
+
+def test_temporary_id_does_not_repeat_when_the_clock_goes_back(client, monkeypatch) -> None:
+    """時計が戻って同じ秒を通り直しても、渡した ID とは重ならない（ADR-0029）."""
+    seconds = iter([datetime(2030, 1, 2, 3, 4, 6), datetime(2030, 1, 2, 3, 4, 5)] * 2)
+    monkeypatch.setattr("app.modality.service.current_datetime", lambda timezone="": next(seconds))
+    token = csrf_token(client, "/exam")
+    created = [
+        client.post("/exam/temporary-id", headers=post_headers(token)).json()["patient_id"]
+        for _ in range(4)
+    ]
+    assert created == [
+        "TMP20300102030406",
+        "TMP20300102030405",
+        "TMP20300102030406-2",
+        "TMP20300102030405-2",
+    ]
 
 
 def test_temporary_id_is_made_in_the_configured_timezone(tmp_path, worklist_scp, storage_scp, monkeypatch) -> None:
