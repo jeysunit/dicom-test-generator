@@ -51,7 +51,13 @@ _NAV_ITEM = re.compile(
 
 @pytest.mark.parametrize(
     ("path", "current"),
-    [("/worklist", "ワークリスト"), ("/exam", "撮影"), ("/pacs", "PACS"), ("/settings", "設定")],
+    [
+        ("/worklist", "ワークリスト"),
+        ("/exam", "撮影"),
+        ("/pacs", "PACS"),
+        ("/settings", "設定"),
+        ("/version", "バージョン情報"),
+    ],
 )
 def test_left_nav_groups_items_and_current_page(client, path, current) -> None:
     html = client.get(path).text
@@ -67,6 +73,7 @@ def test_left_nav_groups_items_and_current_page(client, path, current) -> None:
         ("/exam", "撮影"),
         ("/pacs", "PACS"),
         ("/settings", "設定"),
+        ("/version", "バージョン情報"),
     ]
     # 現在のページだけに aria-current が付く
     assert [label for _, flag, label in items if flag] == [current]

@@ -42,7 +42,7 @@ NAV_GROUPS = (
         ),
     ),
     ("接続", (("pacs", "/pacs", "PACS"),)),
-    ("管理", (("settings", "/settings", "設定"),)),
+    ("管理", (("settings", "/settings", "設定"), ("version", "/version", "バージョン情報"))),
 )
 
 
