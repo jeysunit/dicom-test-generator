@@ -18,29 +18,31 @@
   {# 外枠は、上の帯（製品名・接続の状態・表示）と、その下の左のナビと本文。帯の下に別の帯は置かない（docs/design-system の menu.md・spec 10.3） #}
   <div class="shell">
     <header class="topbar">
-      {# ナビの開閉。閉じると絵だけになる。開閉は localStorage に覚える（app.js） #}
-      <button id="nav-toggle" type="button" class="iconbtn" aria-expanded="true" aria-controls="sidenav" aria-label="ナビを開閉する" title="ナビを開閉する">
-        <span class="icon icon-panel-left" aria-hidden="true"></span>
+      {# ナビの開閉。絵はハンバーガー固定で、開閉で替えない（状態は aria-expanded）。開閉は localStorage に覚える（app.js） #}
+      <button id="nav-toggle" type="button" class="iconbtn" aria-expanded="true" aria-controls="sidenav" aria-label="ナビを開閉する" title="ナビを閉じる">
+        <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-menu"/></svg>
       </button>
       <a href="/worklist" class="brand">dicom-test-generator</a>
       <span class="sp"></span>
       {# 接続の状態：閉じているときは全体の状態の札。押すと中身（#band）が popover で出る #}
-      <button type="button" class="connbtn" popovertarget="band" aria-label="接続の状態を開く">
-        <span>接続の状態</span>{% include "_conn_state.html" %}
-      </button>
+      <span class="connwrap">
+        <button type="button" class="connbtn" popovertarget="band">
+          <span class="cl">接続の状態</span>{% include "_conn_state.html" %}<svg class="ic chev" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-chevd"/></svg>
+        </button>
+        {% include "_band.html" %}
+      </span>
       <button id="theme-toggle" type="button" class="iconbtn" aria-label="明るい地と暗い地を切り替える" title="明るい地と暗い地を切り替える">
-        <span class="icon icon-sun show-light" aria-hidden="true"></span>
-        <span class="icon icon-moon show-dark" aria-hidden="true"></span>
+        <svg class="ic show-light" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-sun"/></svg>
+        <svg class="ic show-dark" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-moon"/></svg>
       </button>
-      {% include "_band.html" %}
     </header>
     <nav id="sidenav" class="sidenav" aria-label="ページ">
-      {% set nav_icons = {"worklist": "list", "exam": "camera", "pacs": "server", "settings": "settings", "version": "info"} %}
+      {% set nav_icons = {"worklist": "list", "exam": "camera", "pacs": "device", "settings": "sliders", "version": "info"} %}
       {% for group, items in nav_groups %}
       <p class="nav-g">{{ group }}</p>
       {% for key, href, label in items %}
       {# 閉じたナビでは名前（.t）を隠すので、title で名前を出す #}
-      <a href="{{ href }}" class="nav-i"{% if key == page %} aria-current="page"{% endif %} title="{{ label }}"><span class="icon icon-{{ nav_icons[key] }}" aria-hidden="true"></span><span class="t">{{ label }}</span></a>
+      <a href="{{ href }}" class="nav-i"{% if key == page %} aria-current="page"{% endif %} title="{{ label }}"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-{{ nav_icons[key] }}"/></svg><span class="t">{{ label }}</span></a>
       {% endfor %}
       {% endfor %}
     </nav>

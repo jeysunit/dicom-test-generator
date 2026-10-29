@@ -4,7 +4,7 @@
   <h2 class="hd">接続先
     <span class="acts">
       <button type="button" class="btn btn-sm" hx-post="/pacs/check-all" hx-target="#conn-sec" hx-swap="outerHTML" hx-disabled-elt="#conn-sec button">
-        <span class="icon icon-activity" aria-hidden="true"></span>すべて接続確認
+        <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-refresh"/></svg>すべて接続確認
       </button>
     </span>
   </h2>
@@ -31,7 +31,7 @@
           <td id="echo-{{ loop.index }}" class="res">{% with probe = link_probes.get(destination.name) %}{% include "_echo_cell.html" %}{% endwith %}</td>
           <td class="act">
             <button type="button" class="btn btn-sm row-open" hx-post="/pacs/echo/{{ destination.name|urlencode }}" hx-target="#echo-{{ loop.index }}" hx-disabled-elt="this" aria-label="{{ destination.name }} の接続確認">
-              <span class="icon icon-activity" aria-hidden="true"></span>接続確認
+              <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-refresh"/></svg>接続確認
             </button>
           </td>
         </tr>
@@ -44,7 +44,7 @@
           <td id="echo-worklist" class="res">{% with probe = worklist_probe %}{% include "_echo_cell.html" %}{% endwith %}</td>
           <td class="act">
             <button type="button" class="btn btn-sm row-open" hx-post="/pacs/echo-worklist" hx-target="#echo-worklist" hx-disabled-elt="this" aria-label="ワークリストの取得先の接続確認">
-              <span class="icon icon-activity" aria-hidden="true"></span>接続確認
+              <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-refresh"/></svg>接続確認
             </button>
           </td>
         </tr>

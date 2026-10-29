@@ -140,7 +140,7 @@ commit している。利用者がこれらを用意する必要は無い。
 | htmx（`app/web/static/htmx.min.js`） | v2.0.9 | GitHub の bigskysoftware/htmx の releases | `57d9191515339922bd1356d7b2d80b1ee3b29f1b3a2c65a078bb8b2e8fd9ae5f` |
 | Lucide のアイコン（`app/web/static/icons/`。ISC License、同じ場所に `LICENSE`） | 1.48.0 | GitHub の lucide-icons/lucide の releases（`lucide-icons-1.48.0.zip`） | `e27a6b58bebc563581f89668a5a652782075a85a07568e4fd8051a17ce81dba6`（zip） |
 | Tailwind CSS の standalone の実行ファイル（CSS を作成するときだけ） | v4.3.3 | GitHub の tailwindlabs/tailwindcss の releases | `scripts/build_css.sh` に OS ごとに固定 |
-| ui-kit の CSS（`app/web/static/ui-kit/`。3 製品で共通の写し） | `VERSION` に書く | 3 製品で共通の画面の決まり（[ADR-0028](decisions/0028-shared-ui-kit-css.md)） | — |
+| ui-kit の写し（`app/web/static/ui-kit/` の `tokens.css`・`components.css`・`icons.svg`・`VERSION`・`SHA256SUMS`。3 製品で共通） | `VERSION` に書く（1.2.0） | 3 製品で共通の画面の決まり（[ADR-0028](decisions/0028-shared-ui-kit-css.md)）。bcamp/design の部品集の `system/css/` | `SHA256SUMS`（`tests/web/test_static_assets.py` が写しと合うか確かめる） |
 
 バージョンを上げるときは、スクリプトのバージョンと sha256 を変更して実行する。
 どちらのスクリプトも、sha256 が一致しなければ停止する。

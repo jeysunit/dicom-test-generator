@@ -31,6 +31,33 @@ def test_closed_state_is_one_badge_in_the_top_band(client) -> None:
     assert html.index("</header>") < html.index('class="sidenav"')
 
 
+def test_top_band_follows_the_kit_parts(client) -> None:
+    """上の帯の構造は部品集の決まり（ui-kit 1.2.0）：ハンバーガー固定のナビの開閉・接続の状態の三つ組."""
+    html = client.get("/worklist").text
+    header = html[html.index("<header") : html.index("</header>")]
+
+    # ナビの開閉：絵は menu 固定、名前は「ナビを開閉する」固定、aria-expanded と aria-controls、CSS の mask の絵ではない
+    nav = re.search(r'<button id="nav-toggle"[^>]*>.*?</button>', header, re.DOTALL)
+    assert nav
+    assert 'class="iconbtn"' in nav.group(0)
+    assert 'aria-label="ナビを開閉する"' in nav.group(0)
+    assert 'aria-expanded="true"' in nav.group(0) and 'aria-controls="sidenav"' in nav.group(0)
+    assert "/static/ui-kit/icons.svg#i-menu" in nav.group(0)
+    assert "icon-panel-left" not in html
+
+    # 接続の状態：「接続の状態」(.cl)・全体の札(.st)・シェブロン(.chev) をこの順に。aria-label を付けない
+    conn = re.search(r'<span class="connwrap">\s*<button[^>]*class="connbtn"[^>]*>(.*?)</button>', header, re.DOTALL)
+    assert conn
+    assert "aria-label" not in conn.group(0)
+    inner = conn.group(1)
+    assert inner.index('class="cl"') < inner.index('id="conn-state"') < inner.index("ic chev")
+    assert 'id="band"' in header[conn.end() :]
+
+    # 表示の切り替え：絵は ui-kit の sun・moon
+    assert "icons.svg#i-sun" in header and "icons.svg#i-moon" in header
+    assert "icon-sun" not in html and "icon-moon" not in html
+
+
 def test_popover_lists_the_connections(client) -> None:
     html = client.get("/pacs").text
     band = html[html.index('<div id="band"') : html.index("</header>")]

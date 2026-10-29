@@ -13,6 +13,8 @@
     }
     shell.classList.toggle("collapsed", !open);
     button.setAttribute("aria-expanded", open ? "true" : "false");
+    // 絵と読み上げの名前は替えない。ホバーの title だけ次の操作にする
+    button.setAttribute("title", open ? "ナビを閉じる" : "ナビを開く");
   }
   try {
     if (window.localStorage.getItem("dtg-nav") === "closed") {

@@ -19,7 +19,7 @@ def test_root_redirects_to_worklist(client) -> None:
 @pytest.mark.parametrize(
     ("path", "text"),
     [
-        ("/worklist", "ワークリスト検索"),
+        ("/worklist", "条件をクリア"),
         ("/exam", "緊急の患者"),
         ("/pacs", "接続確認"),
         ("/settings", OWN_AE),
@@ -33,7 +33,7 @@ def test_pages_open_with_header_and_band(client, path, text) -> None:
     assert "dicom-test-generator" in html
     for name in ("ワークリスト", "撮影", "PACS", "設定"):
         assert name in html
-    assert f'<dt>自分</dt><dd class="font-mono">{OWN_AE}</dd>' in html
+    assert f'<dt>自分</dt><dd><b class="font-mono">{OWN_AE}</b></dd>' in html
     assert "接続の状態" in html
     assert 'id="theme-toggle"' in html
     assert "Not for Diagnostic Use" not in html
@@ -45,7 +45,8 @@ _NAV = re.compile(r'<nav id="sidenav" class="sidenav" aria-label="ページ">(.*
 # 項目は絵と名前。閉じたナビでも名前が分かるよう、title に同じ名前を持つ
 _NAV_ITEM = re.compile(
     r'<a href="([^"]+)" class="nav-i"( aria-current="page")? title="([^"]+)">'
-    r'<span class="icon icon-[a-z-]+" aria-hidden="true"></span><span class="t">\3</span></a>'
+    r'<svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-[a-z]+"/></svg>'
+    r'<span class="t">\3</span></a>'
 )
 
 
@@ -247,7 +248,7 @@ def test_unknown_worklist_key_on_exam_page(client) -> None:
     assert 'role="alert"' in html
     # 内部の予約の鍵は出さず、次の操作を日本語で知らせる（docs/spec/12a の 10.4）
     assert "0000000000" not in html
-    assert "「ワークリスト検索」からやり直してください" in html
+    assert "「検索」からやり直してください" in html
 
 
 def test_emergency_form_validation_error_is_shown(client) -> None:
@@ -356,7 +357,7 @@ def test_refresh_of_an_unknown_key_is_told_in_japanese(client) -> None:
     ).text
 
     assert (
-        "この予約は最後に取得した一覧にありません。「ワークリスト検索」からやり直してください"
+        "この予約は最後に取得した一覧にありません。「検索」からやり直してください"
         in html
     )
     assert "worklist_key" not in html and "worklist query" not in html
@@ -485,13 +486,18 @@ def test_pacs_echo(client) -> None:
 
 
 def test_screens_say_get_the_worklist_not_hiku(client) -> None:
-    """画面の言葉は「ワークリスト検索」「再検索」（2026-10-19。docs/spec/12a の 10.4）."""
+    """画面の言葉は「検索」「再検索」（2026-10-19。2026-10-29 に「ワークリスト検索」を「検索」へ。docs/spec/12a の 10.4）."""
     page = client.get("/worklist").text
     results = _query(client)
     exam = client.get(f"/exam?key={_key_for(results, 'A0001')}").text
     for html in (page, results, exam):
         assert "引" not in html
-    assert "ワークリスト検索" in page
+    form = page.split('id="query-form"', 1)[1].split("</form>", 1)[0]
+    assert re.search(
+        r'<button type="submit" class="btn btn-primary">.*?</svg>\s*検索\s*</button>', form, re.DOTALL
+    )
+    assert '<button type="reset" class="btn">条件をクリア</button>' in form
+    assert "ワークリスト検索" not in page
     assert "再検索" in results
 
 
