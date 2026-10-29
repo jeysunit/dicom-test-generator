@@ -5,6 +5,8 @@ label: "冠動脈 CTA"
 modality: "CT"
 protocol_name: "CORONARY CTA"
 keywords: ["CTA", "冠動脈", "心臓", "CORONARY", "CARDIAC", "HEART"]
+# 図形の方式（phantom）の部位の図形と、造影の相（docs/spec/06 の 4.6）
+phantom: "chest"
 series:
   - kind: "localizer"
     description: "Scout"
@@ -19,6 +21,7 @@ series:
     images: 280
     slice_thickness: 0.5
     contrast: true
+    phase: "arterial"
   - kind: "dose_report"
     description: "Dose Report"
     images: 1

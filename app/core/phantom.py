@@ -16,7 +16,16 @@ from dataclasses import astuple, dataclass
 import numpy as np
 
 from .exceptions import PixelGenerationError
-from .models import SeriesConfig, SpatialCoordinates
+from .models import PhantomRegion, SeriesConfig, SpatialCoordinates
+from .phantom_region import (
+    Segment,
+    ct_segment_values,
+    mr_segment_values,
+    mr_weighting_of,
+    region_solids,
+    render_solids,
+    xray_segment_values,
+)
 from .series_layout import MR_FIELD_OF_VIEW_MM
 
 # 図形で画素を作った画像に書く偽物の印。装置のプロファイルの後に書き、
@@ -252,6 +261,102 @@ def render_phantom(
     return pixels
 
 
+def _check_values_fit(values: Sequence[int], dtype: type[np.integer]) -> None:
+    limits = np.iinfo(dtype)
+    if min(values) < limits.min or max(values) > limits.max:
+        raise PixelGenerationError(
+            f"Phantom values {tuple(values)} do not fit {np.dtype(dtype).name}",
+            mode="phantom",
+        )
+
+
+def _draw_marker(pixels: np.ndarray, index: int, count: int, value: int) -> None:
+    rows, cols = pixels.shape
+    r0, r1, c0, c1 = marker_bounds(rows, cols, index, count)
+    pixels[max(r0, 0) : max(r1, 0), max(c0, 0) : max(c1, 0)] = value
+
+
+def render_region(
+    shape: PhantomShape,
+    region: PhantomRegion,
+    *,
+    position: Sequence[float],
+    orientation: Sequence[float],
+    pixel_spacing: tuple[float, float],
+    rows: int,
+    cols: int,
+    index: int,
+    count: int,
+    values: dict[Segment, int],
+    marker: int,
+    projection: bool = False,
+    dtype: type[np.integer] = np.int16,
+) -> np.ndarray:
+    """部位の図形の1枚の画像の画素（docs/spec/06 の 4.6）.
+
+    図形は撮影の回転楕円体（`shape`）の中心と半径から決める。`projection` は投影の
+    画像（CT の位置決め）で、画像の面に垂直な向きに見た図形の影を描く。
+    """
+    if count < 1 or not 0 <= index < count:
+        raise PixelGenerationError(
+            f"Image index {index} is outside the series of {count} images", mode="phantom"
+        )
+    _check_values_fit([*values.values(), marker], dtype)
+    coords = _pixel_coordinates(position, orientation, pixel_spacing, rows, cols)
+    drop_axis = None
+    if projection:
+        normal = np.cross(orientation[:3], orientation[3:])
+        drop_axis = int(np.argmax(np.abs(normal)))
+    solids = region_solids(region, shape.center, shape.radii)
+    pixels = render_solids(solids, coords, values, drop_axis=drop_axis, dtype=dtype)
+    _draw_marker(pixels, index, count, marker)
+    return pixels
+
+
+def projection_region_pixels(
+    rows: int,
+    cols: int,
+    index: int,
+    count: int,
+    *,
+    region: PhantomRegion,
+    lateral: bool,
+    bits_stored: int,
+    pixel_spacing_mm: float,
+) -> np.ndarray:
+    """CR・DX の部位の図形（符号なしの uint16。MONOCHROME2 の値）.
+
+    投影の画像は位置を持たないので、画像の中央に、半径が列・行の数の 0.4 倍の回転
+    楕円体を置き、そこから部位の図形を決めて影を描く。列は正面なら患者の左（x）、
+    側面なら背側（y）へ、行は足の向き（−z）へ進む（Patient Orientation の L\\F・P\\F）。
+    """
+    if count < 1 or not 0 <= index < count:
+        raise PixelGenerationError(
+            f"Image index {index} is outside the series of {count} images", mode="phantom"
+        )
+    width_mm, height_mm = cols * pixel_spacing_mm, rows * pixel_spacing_mm
+    center = (width_mm / 2, width_mm / 2, -height_mm / 2)
+    radii = (
+        width_mm * SHAPE_RADIUS_FRACTION,
+        width_mm * SHAPE_RADIUS_FRACTION,
+        height_mm * SHAPE_RADIUS_FRACTION,
+    )
+    across = (np.arange(cols, dtype=np.float64)[None, :] + 0.5) * pixel_spacing_mm
+    down = -(np.arange(rows, dtype=np.float64)[:, None] + 0.5) * pixel_spacing_mm
+    across, down = np.broadcast_arrays(across, down)
+    fixed = np.zeros_like(across)
+    coords = (fixed, across, down) if lateral else (across, fixed, down)
+    pixels = render_solids(
+        region_solids(region, center, radii),
+        coords,
+        xray_segment_values(bits_stored),
+        drop_axis=0 if lateral else 1,
+        dtype=np.uint16,
+    )
+    _draw_marker(pixels, index, count, xray_phantom_values(bits_stored).marker)
+    return pixels
+
+
 def study_phantom_shape(
     series_list: Sequence[SeriesConfig], rows: int, cols: int
 ) -> PhantomShape:
@@ -277,7 +382,8 @@ def series_phantom_pixels(
     """CT・MR のシリーズの1枚の図形の画素.
 
     MR の画素間隔は DICOMBuilder.build_mr_image と同じく 視野 ÷ 画素数。CT の
-    位置決めは投影の画像、MR の位置決めは断層の画像として評価する。
+    位置決めは投影の画像、MR の位置決めは断層の画像として評価する。`series.phantom`
+    があれば部位の図形、無ければ基本の図形（回転楕円体）にする。
     """
     mr_series = series.modality == "MR"
     if mr_series:
@@ -286,16 +392,24 @@ def series_phantom_pixels(
     else:
         pixel_spacing = (spatial.pixel_spacing[0], spatial.pixel_spacing[1])
         values = CT_PHANTOM_VALUES
-    return render_phantom(
-        shape,
-        position=spatial.image_position_patient,
-        orientation=spatial.image_orientation_patient,
-        pixel_spacing=pixel_spacing,
-        rows=rows,
-        cols=cols,
-        index=image_index,
-        count=series.num_images,
-        values=values,
-        projection=not mr_series and series.kind == "localizer",
-        dtype=np.uint16 if mr_series else np.int16,
-    )
+    geometry = {
+        "position": spatial.image_position_patient,
+        "orientation": spatial.image_orientation_patient,
+        "pixel_spacing": pixel_spacing,
+        "rows": rows,
+        "cols": cols,
+        "index": image_index,
+        "count": series.num_images,
+        "projection": not mr_series and series.kind == "localizer",
+        "dtype": np.uint16 if mr_series else np.int16,
+    }
+    if series.phantom is not None:
+        segment_values = (
+            mr_segment_values(mr_weighting_of(series), bits_stored)
+            if mr_series
+            else ct_segment_values(series)
+        )
+        return render_region(
+            shape, series.phantom, values=segment_values, marker=values.marker, **geometry
+        )
+    return render_phantom(shape, values=values, **geometry)

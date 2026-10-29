@@ -5,6 +5,8 @@ label: "胸腹部骨盤 造影"
 modality: "CT"
 protocol_name: "CHEST ABDOMEN PELVIS C+"
 keywords: ["胸腹部", "CHEST ABDOMEN"]
+# 図形の方式（phantom）の部位の図形（docs/spec/06 の 4.6）。造影の相は書かず門脈相の値
+phantom: "trunk"
 series:
   - kind: "localizer"
     description: "Scout"

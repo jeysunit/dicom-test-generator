@@ -48,12 +48,15 @@ from app.core.phantom import (
     PHANTOM_MARKS,
     PhantomShape,
     projection_phantom_pixels,
+    projection_region_pixels,
     series_phantom_pixels,
     study_phantom_shape,
     xray_phantom_values,
 )
 from app.core.projection import (
     DEFAULT_PHOTOMETRIC_INTERPRETATION,
+    IMAGER_PIXEL_SPACING_MM,
+    LATERAL_VIEWS,
     PHOTOMETRIC_INTERPRETATIONS,
     PROJECTION_BITS_STORED,
     PROJECTION_COLUMNS,
@@ -357,7 +360,15 @@ class StudyGeneratorService:
                             **common,
                         )
                     else:
-                        spatial = series_spatial(series_config, image_index, top_z)
+                        # 部位の図形のシリーズだけ、冠状断・矢状断の並びの中央を図形の中心に合わせる
+                        plane_center = (
+                            shape.center[:2]
+                            if shape is not None and series_config.phantom
+                            else None
+                        )
+                        spatial = series_spatial(
+                            series_config, image_index, top_z, plane_center
+                        )
                         if pt_series:
                             dataset = self._dicom_builder.build_pt_image(
                                 spatial=spatial,
@@ -688,9 +699,22 @@ class StudyGeneratorService:
     ) -> np.ndarray:
         """CR・DX の画素（MONOCHROME2 の値）。大きさは固定で、Job の幅と高さには従わない.
 
-        `phantom` は体の楕円と位置の目印、`ct_realistic` は 0〜上限（4095）の模様、
-        `simple_text` は文字（DICOMBuilder が 0〜上限に広げる）。
+        `phantom` は部位の図形（ルーチンの `phantom`）か、無ければ体の楕円と位置の目印、
+        `ct_realistic` は 0〜上限（4095）の模様、`simple_text` は文字（DICOMBuilder が
+        0〜上限に広げる）。
         """
+        if isinstance(config.pixel_spec, PixelSpecPhantom) and series_config.phantom:
+            views = series_config.view_positions
+            return projection_region_pixels(
+                PROJECTION_ROWS,
+                PROJECTION_COLUMNS,
+                image_index,
+                series_config.num_images,
+                region=series_config.phantom,
+                lateral=views[image_index % len(views)] in LATERAL_VIEWS,
+                bits_stored=PROJECTION_BITS_STORED,
+                pixel_spacing_mm=IMAGER_PIXEL_SPACING_MM,
+            )
         if isinstance(config.pixel_spec, PixelSpecPhantom):
             return projection_phantom_pixels(
                 PROJECTION_ROWS,

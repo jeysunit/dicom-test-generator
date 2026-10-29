@@ -7,6 +7,8 @@ protocol_name: "CHEST"
 default: true
 keywords: ["胸部", "CHEST"]
 body_part: "CHEST"
+# 図形の方式（phantom）の部位の図形（docs/spec/06 の 4.6）
+phantom: "chest"
 series:
   - description: "Chest PA"
     images: 1

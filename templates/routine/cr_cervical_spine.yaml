@@ -5,6 +5,8 @@ modality: "CR"
 protocol_name: "CERVICAL SPINE"
 keywords: ["頸椎", "頚椎", "C-SPINE", "CSPINE", "CERVICAL"]
 body_part: "CSPINE"
+# 図形の方式（phantom）の部位の図形（docs/spec/06 の 4.6）
+phantom: "spine"
 series:
   - description: "C-Spine AP"
     images: 1

@@ -138,12 +138,43 @@ def mr_plane(series: SeriesConfig, image_index: int) -> tuple[str, int]:
     return THREE_PLANE_ORDER[plane_index], image_index - plane_index * per_plane
 
 
+def _centered_offset(
+    series: SeriesConfig, position_index: int, count: int, center: float | None
+) -> float:
+    """冠状断・矢状断の画像の位置（y・x。mm）。
+
+    `center` を渡したとき（部位の図形）は、並びの中央（先頭と末尾の中間）を `center` に
+    置き、`start_z` はそこからのずれとして足す。渡さなければ `start_z` から進める。
+    """
+    if center is None:
+        return series.start_z + position_index * series.slice_spacing
+    return center + series.start_z + (position_index - (count - 1) / 2) * series.slice_spacing
+
+
+def _mr_plane_count(series: SeriesConfig, plane: str) -> int:
+    """MR の1つの断面の画像の数。三方向は等分で、余りは最後の断面に入れる."""
+    if series.plane != "three_plane":
+        return series.num_images
+    per_plane = max(1, series.num_images // len(THREE_PLANE_ORDER))
+    if plane == THREE_PLANE_ORDER[-1]:
+        return series.num_images - per_plane * (len(THREE_PLANE_ORDER) - 1)
+    return per_plane
+
+
 def _mr_spatial(
-    series: SeriesConfig, image_index: int, top_z: float | None
+    series: SeriesConfig,
+    image_index: int,
+    top_z: float | None,
+    plane_center: tuple[float, float] | None,
 ) -> SpatialCoordinates:
     """MR の画像の位置と向き。断面ごとに、CT の断面の画像と同じ軸へ間隔ずつ進める."""
     plane, position_index = mr_plane(series, image_index)
     offset = series.start_z + position_index * series.slice_spacing
+    count = _mr_plane_count(series, plane)
+    if plane == "coronal" and plane_center is not None:
+        offset = _centered_offset(series, position_index, count, plane_center[1])
+    elif plane == "sagittal" and plane_center is not None:
+        offset = _centered_offset(series, position_index, count, plane_center[0])
     z = 0.0 if top_z is None else top_z
     if plane == "coronal":
         position, orientation = [0.0, offset, z], CORONAL_ORIENTATION
@@ -165,7 +196,10 @@ def localizer_view(series: SeriesConfig, image_index: int) -> str:
 
 
 def series_spatial(
-    series: SeriesConfig, image_index: int, top_z: float | None = None
+    series: SeriesConfig,
+    image_index: int,
+    top_z: float | None = None,
+    plane_center: tuple[float, float] | None = None,
 ) -> SpatialCoordinates:
     """シリーズの種類ごとの画像の位置と向き.
 
@@ -175,19 +209,27 @@ def series_spatial(
     `top_z` は図形の方式（phantom）のときだけ渡す。冠状断・矢状断・位置決めの
     Image Position (Patient) の z をその値（軸位の範囲の上端）にし、軸位の範囲を
     覆う位置に置く（ADR-0033）。渡さなければ z は 0 のまま。
+
+    `plane_center`（x, y。mm）は部位の図形のときだけ渡す。冠状断の並びの中央を y、
+    矢状断の並びの中央を x の値に合わせる（docs/spec/06 の 4.6）。渡さなければ
+    `start_z` から進める。
     """
     if image_index < 0:
         raise ValueError(f"image_index must be >= 0, got {image_index}")
     if series.modality == "MR":
-        return _mr_spatial(series, image_index, top_z)
+        return _mr_spatial(series, image_index, top_z, plane_center)
     offset = series.start_z + image_index * series.slice_spacing
     z = 0.0 if top_z is None else top_z
     if series.kind == "localizer":
         position, location = [0.0, 0.0, z], 0.0
         orientation = VIEW_ORIENTATIONS[localizer_view(series, image_index)]
     elif series.kind == "coronal":
+        if plane_center is not None:
+            offset = _centered_offset(series, image_index, series.num_images, plane_center[1])
         position, location, orientation = [0.0, offset, z], offset, CORONAL_ORIENTATION
     elif series.kind == "sagittal":
+        if plane_center is not None:
+            offset = _centered_offset(series, image_index, series.num_images, plane_center[0])
         position, location, orientation = [offset, 0.0, z], offset, SAGITTAL_ORIENTATION
     else:
         position, location, orientation = [0.0, 0.0, offset], offset, AXIAL_ORIENTATION

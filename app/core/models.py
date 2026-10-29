@@ -138,6 +138,12 @@ MRSequence = Literal["SE", "IR", "GR", "EP"]
 # MR Acquisition Type (0018,0023) の値（PS3.3 C.8.3.1）
 MRAcquisitionType = Literal["2D", "3D"]
 LocalizerView = Literal["frontal", "lateral"]
+# 図形の方式（phantom）の部位の図形（docs/spec/06 の 4.6・ADR-0033）
+PhantomRegion = Literal["head", "chest", "trunk", "abdomen", "spine", "limb"]
+# MR の強調。図形の区分の値を選ぶ（docs/spec/06 の 4.6）
+MRWeighting = Literal["T1", "T2", "PD", "FLAIR", "T2STAR", "DWI", "ADC", "MRA"]
+# CT の造影の相。図形の区分の値を選ぶ（docs/spec/06 の 4.6）
+ContrastPhase = Literal["arterial", "portal", "delayed"]
 
 
 class SeriesConfig(BaseModel):
@@ -166,6 +172,21 @@ class SeriesConfig(BaseModel):
     # CR・DX の部位と左右（ルーチンの body_part・laterality）
     body_part: BodyPart | None = Field(None, description="CR・DX の部位")
     laterality: Laterality | None = Field(None, description="CR・DX の左右")
+    # 図形の方式の部位・MR の強調・CT の造影の相（ルーチンの phantom・weighting・phase）
+    phantom: PhantomRegion | None = Field(None, description="図形の部位")
+    weighting: MRWeighting | None = Field(None, description="MR の強調")
+    phase: ContrastPhase | None = Field(None, description="CT の造影の相")
+
+    @model_validator(mode="after")
+    def _weighting_and_phase(self) -> SeriesConfig:
+        if self.weighting is not None and self.modality != "MR":
+            raise ValueError("weighting is only for MR series")
+        if self.phase is not None:
+            if self.modality not in (None, "CT"):
+                raise ValueError("phase is only for CT series")
+            if not self.contrast:
+                raise ValueError("phase needs a contrast series (contrast: true)")
+        return self
 
     @model_validator(mode="after")
     def _kind_matches_modality(self) -> SeriesConfig:

@@ -7,6 +7,8 @@ keywords: ["膝", "KNEE"]
 # 対になる部位。左右は架空の R（予約の記述からは読み取らない。ADR-0034）
 body_part: "KNEE"
 laterality: "R"
+# 図形の方式（phantom）の部位の図形（docs/spec/06 の 4.6）
+phantom: "limb"
 series:
   - description: "Knee AP"
     images: 1

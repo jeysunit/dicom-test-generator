@@ -5,6 +5,8 @@ modality: "CR"
 protocol_name: "ABDOMEN"
 keywords: ["腹部", "ABDOMEN"]
 body_part: "ABDOMEN"
+# 図形の方式（phantom）の部位の図形（docs/spec/06 の 4.6）
+phantom: "abdomen"
 series:
   - description: "Abdomen AP supine"
     images: 1
