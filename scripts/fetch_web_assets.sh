@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 画面の静的な物（htmx・Lucide のアイコン）を、版を固定して取り、sha256 を確かめて置く
+# 画面の静的な物（htmx・Lucide の LICENSE）を、版を固定して取り、sha256 を確かめて置く
 # （docs/spec/12a_web_screens_and_cli.md 10.1）。置いた物は commit する。利用者はこれを流さなくてよい。
 #
 # 使い方: bash scripts/fetch_web_assets.sh
@@ -14,12 +14,9 @@ HTMX_URL="https://github.com/bigskysoftware/htmx/releases/download/$HTMX_VERSION
 HTMX_SHA256="57d9191515339922bd1356d7b2d80b1ee3b29f1b3a2c65a078bb8b2e8fd9ae5f"
 
 LUCIDE_VERSION="1.48.0"
-LUCIDE_URL="https://github.com/lucide-icons/lucide/releases/download/$LUCIDE_VERSION/lucide-icons-$LUCIDE_VERSION.zip"
-LUCIDE_SHA256="e27a6b58bebc563581f89668a5a652782075a85a07568e4fd8051a17ce81dba6"
 LUCIDE_LICENSE_URL="https://raw.githubusercontent.com/lucide-icons/lucide/$LUCIDE_VERSION/LICENSE"
 # LICENSE の git の blob の SHA-1（GitHub の contents API の sha）
 LUCIDE_LICENSE_BLOB="718bb3f0e44153809972abed31839375804bf652"
-ICONS=(check copy info refresh-cw search send triangle-alert)
 
 mkdir -p "$CACHE" "$STATIC/icons"
 
@@ -42,23 +39,7 @@ fetch "$HTMX_URL" "$CACHE/htmx.min.js"
 check_sha256 "$CACHE/htmx.min.js" "$HTMX_SHA256"
 cp "$CACHE/htmx.min.js" "$STATIC/htmx.min.js"
 
-fetch "$LUCIDE_URL" "$CACHE/lucide.zip"
-check_sha256 "$CACHE/lucide.zip" "$LUCIDE_SHA256"
-python3 - "$CACHE/lucide.zip" "$STATIC/icons" "${ICONS[@]}" <<'PY'
-import sys
-import zipfile
-from pathlib import Path
-
-archive, target, *names = sys.argv[1:]
-with zipfile.ZipFile(archive) as zf:
-    members = {Path(info.filename).name: info for info in zf.infolist() if not info.is_dir()}
-    for name in names:
-        info = members.get(f"{name}.svg")
-        if info is None:
-            sys.exit(f"icon not found in the archive: {name}.svg")
-        Path(target, f"{name}.svg").write_bytes(zf.read(info))
-PY
-
+# 絵そのものは ui-kit の icons.svg に入っている。ここに置くのは、その元の Lucide の LICENSE（ISC）だけ
 fetch "$LUCIDE_LICENSE_URL" "$CACHE/LICENSE"
 actual_blob="$(git hash-object "$CACHE/LICENSE")"
 if [[ "$actual_blob" != "$LUCIDE_LICENSE_BLOB" ]]; then
@@ -67,4 +48,4 @@ if [[ "$actual_blob" != "$LUCIDE_LICENSE_BLOB" ]]; then
 fi
 cp "$CACHE/LICENSE" "$STATIC/icons/LICENSE"
 
-echo "htmx $HTMX_VERSION and Lucide $LUCIDE_VERSION icons are in $STATIC"
+echo "htmx $HTMX_VERSION and the Lucide $LUCIDE_VERSION LICENSE are in $STATIC"

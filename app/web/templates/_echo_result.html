@@ -2,9 +2,9 @@
 {% include "_echo_cell.html" %}
 <div id="echo-notice" hx-swap-oob="true">
   {% if notice.ok %}
-  <div role="status" class="notice" data-k="ok"><span class="icon icon-check" aria-hidden="true"></span><span>{{ notice.text }}</span></div>
+  <div role="status" class="notice" data-k="ok"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-check"/></svg><span>{{ notice.text }}</span></div>
   {% else %}
-  <div role="alert" class="notice" data-k="err"><span class="icon icon-triangle-alert" aria-hidden="true"></span><span>{{ notice.text }}</span></div>
+  <div role="alert" class="notice" data-k="err"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-alert"/></svg><span>{{ notice.text }}</span></div>
   {% endif %}
 </div>
 {% if oob_band %}{% include "_band.html" %}{% endif %}

@@ -769,7 +769,7 @@ app/
 │   ├── auth.py               # 待ち受けのアドレスと認証
 │   ├── routes/               # worklist・exam・pacs・settings
 │   ├── templates/            # Jinja2
-│   └── static/               # 作成した CSS・htmx・Lucide の SVG
+│   └── static/               # 作成した CSS・htmx・ui-kit の写し・Lucide の LICENSE
 └── cli/
     ├── main.py               # サブコマンドの引数
     └── modality_commands.py  # worklist・exam・send・echo・queue・commit・mpps

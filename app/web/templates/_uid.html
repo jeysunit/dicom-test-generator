@@ -2,7 +2,7 @@
   <span class="uid">{{ uid or "—" }}</span>
   {% if uid %}
   <button type="button" class="btn-icon" data-copy="{{ uid }}" aria-label="コピー" title="コピー">
-    <span class="icon icon-copy" aria-hidden="true"></span>
+    <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-copy"/></svg>
   </button>
   {% endif %}
 </span>

@@ -2,7 +2,7 @@
 
 - 状態：採用
 - 作成日：2026-10-26
-- 最終更新日：2026-10-26
+- 最終更新日：2026-10-29
 
 ## 背景
 
@@ -29,7 +29,7 @@ DTG・ris-emulator・tsunagi-dicom の 3 製品は、同じ画面の決まり（
    `text-label` など）は、`@theme inline` で tokens.css の変数へつなぐだけにする。
    tokens.css の `--color-*` はすべてつなぐ
 5. `input.css` に書く部品は、ui-kit に無い DTG だけの物（撮影のルーチンの表・UID の
-   コピー・Lucide のアイコン・撮影の途中の表示など）だけにする。ui-kit と同じ名前の
+   コピー・撮影の途中の表示など）だけにする。ui-kit と同じ名前の
    定義は置かない
 6. テンプレートのクラスの名前は ui-kit の名前にする（`.nav-g`・`.nav-i`・`.sec > h2`・
    `.sec > .in`・`.field > .l`・`.tbl`・`.listhead`・`.kv`・`.notice[data-k]` など）

@@ -41,7 +41,7 @@ def _actions(html: str) -> str:
 
 
 def _enabled_buttons(actions: str) -> list[str]:
-    pattern = r"<button([^>]*)>\s*(?:<span[^>]*></span>)?\s*([^<]+?)\s*</button>"
+    pattern = r"<button([^>]*)>\s*(?:<svg[^>]*>.*?</svg>)?\s*([^<]+?)\s*</button>"
     return [label for attrs, label in re.findall(pattern, actions) if " disabled" not in attrs]
 
 

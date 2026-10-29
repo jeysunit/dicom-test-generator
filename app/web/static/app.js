@@ -145,7 +145,7 @@
   function showFieldError(input, message) {
     var line = document.getElementById(input.getAttribute("data-error-line") || "error-" + input.name);
     if (line) {
-      // 誤りの行は、印（.icon）と文（.t）。文の置き場が無い行は、行の全体を文にする
+      // 誤りの行は、印（.ic）と文（.t）。文の置き場が無い行は、行の全体を文にする
       var text = line.querySelector ? line.querySelector(".t") : null;
       (text || line).textContent = message;
       line.hidden = !message;
@@ -718,7 +718,55 @@
     if (band && reopen && typeof band.showPopover === "function" && !band.matches(":popover-open")) {
       band.showPopover();
     }
+    if (band && config.path === "/link/check") {
+      var result = band.querySelector("#conn-result");
+      announceConnResult(result ? result.getAttribute("data-result") : null);
+    }
   });
+  // 「条件をクリア」（部品集の「検索の帯」）：条件をページの初期の条件（サーバーが描いた
+  // 初めの値。予定の日は今日）に戻し、URL の条件の引数も消して、帯の最初の欄に焦点を置く。
+  // type="reset" のように、いま開いている URL の値に戻すのではない。取得した一覧は替えない
+  document.addEventListener("click", function (event) {
+    var clear = event.target.closest("[data-clear-conditions]");
+    var form = clear && document.getElementById(clear.getAttribute("data-clear-conditions"));
+    if (!form) {
+      return;
+    }
+    form.reset();
+    try {
+      window.history.replaceState(window.history.state, "", window.location.pathname);
+    } catch (error) {
+      // 住所を書き換えられなくても、条件は戻っている
+    }
+    var first = form.querySelector("input:not([type=hidden]), select");
+    if (first) {
+      first.focus();
+    }
+  });
+  // 手で押した「接続確認」の結果の読み上げ（部品集の 3 つの型）。結果の 1 文は読み上げの欄
+  // （#conn-result。popover の中）に入れる。先に空にして、同じ文が続いても読み直されるようにする。
+  // 欄は中身ごと差し替わるので、差し替えた後の欄に入れる
+  function announceConnResult(text) {
+    var result = document.querySelector("#band #conn-result");
+    if (!result || !text) {
+      return;
+    }
+    result.textContent = "";
+    window.setTimeout(function () {
+      result.textContent = text;
+    }, 50);
+  }
+  // 届かない・断られたときは、差し替わらない中身の欄に「確かめられなかった」の型を入れる
+  function connCheckFailed(event) {
+    var config = event.detail && event.detail.requestConfig;
+    if (!config || config.path !== "/link/check") {
+      return;
+    }
+    var result = document.querySelector("#band #conn-result");
+    announceConnResult(result ? result.getAttribute("data-unreadable") : null);
+  }
+  document.addEventListener("htmx:responseError", connCheckFailed);
+  document.addEventListener("htmx:sendError", connCheckFailed);
   document.addEventListener("htmx:beforeSwap", function (event) {
     var xhr = event.detail.xhr;
     if (xhr && xhr.status === 401) {

@@ -46,8 +46,8 @@
     <button type="submit" class="btn btn-primary">
       <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-search"/></svg>検索
     </button>
-    {# 条件を最初の値（予定の日 = 今日・既定のモダリティ）に戻す。取得した一覧は替えない #}
-    <button type="reset" class="btn">条件をクリア</button>
+    {# 条件をページの初期の条件（予定の日 = 今日・既定のモダリティ）に戻し、URL の条件の引数も消す。取得した一覧は替えない（app.js） #}
+    <button type="button" class="btn" data-clear-conditions="query-form">条件をクリア</button>
   </div>
 </form>
 <section id="results" aria-live="polite">

@@ -24,7 +24,7 @@
   {% else %}
   <button type="submit" name="action" value="exam" class="btn"{% if blocker %} disabled{% endif %}>撮影</button>
   <button type="submit" name="action" value="exam_send" class="btn btn-primary"{% if blocker %} disabled{% endif %}>
-    <span class="icon icon-send" aria-hidden="true"></span>撮影して送信
+    <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-send"/></svg>撮影して送信
   </button>
   {% endif %}
 </div>

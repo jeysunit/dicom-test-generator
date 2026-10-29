@@ -1,5 +1,5 @@
 <div role="alert" class="notice" data-k="err"{% if error_field is defined and error_field %} data-error-field="{{ error_field }}"{% endif %}>
-  <span class="icon icon-triangle-alert" aria-hidden="true"></span>
+  <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-alert"/></svg>
   <span>{{ error }}</span>
 </div>
 {% if oob_band %}{% include "_band.html" %}{% endif %}

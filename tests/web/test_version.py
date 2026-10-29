@@ -29,7 +29,7 @@ def test_build_commit_is_shown_only_when_it_has_a_valid_form(client, monkeypatch
     monkeypatch.setenv("BUILD_COMMIT", " A1B2C3D4E5F6 ")
     html = client.get("/version").text
     assert 'data-testid="build-commit">a1b2c3d4e5f6</dd>' in html
-    # commit は等幅 13px・行 20px（bcamp/design の tokens.md の mono）
+    # commit は等幅 13px・行 20px（部品集の tokens.md の mono）
     assert 'class="font-mono text-[13px] leading-5" data-testid="build-commit"' in html
     for bad in ("", "abc12", "g" * 12, "a" * 41, "a1b2c3d; echo"):
         monkeypatch.setenv("BUILD_COMMIT", bad)

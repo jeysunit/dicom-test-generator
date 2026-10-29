@@ -58,7 +58,7 @@ def test_column_shows_the_last_result_and_time(tmp_path, worklist_scp, storage_s
 
     cell = _cell(client.get("/pacs").text)
     assert '<span class="st" data-k="ok">成功</span>' in cell
-    assert re.search(r'<span class="when">\d{2}/\d{2} \d{2}:\d{2}</span>', cell)
+    assert re.search(r'<span class="when">\d{4}/\d{2}/\d{2} \d{2}:\d{2}</span>', cell)
     notice = _notice(echoed)
     assert 'role="status" class="notice" data-k="ok"' in notice
     assert re.search(r"PACS_TEST（127\.0\.0\.1:\d+）に接続できました（\d+ ms）。", notice)

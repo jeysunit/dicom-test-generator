@@ -3,7 +3,7 @@
 {% set done = send.status == "sent" %}
 {% set whose = send_patient ~ "の" if send_patient else "" %}
 <div class="notice" {% if done %}role="status" data-k="ok"{% else %}role="alert" data-k="err"{% endif %}>
-  <span class="icon {% if done %}icon-check{% else %}icon-triangle-alert{% endif %}" aria-hidden="true"></span>
+  <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-{% if done %}check{% else %}alert{% endif %}"/></svg>
   <span>
     <span class="font-semibold">{{ STATUS_LABELS.get(send.status, send.status) }}：
       {%- if done %}{{ whose ~ " " if whose }}{{ send_sent }}/{{ send_total }} 画像を {{ send.destination }} へ送信しました（ジョブ {{ send.job_id }}）

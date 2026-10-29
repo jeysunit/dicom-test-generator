@@ -16,6 +16,8 @@ KIND_UNKNOWN = "plan"
 LABEL_OK = "接続中"
 LABEL_NG = "一部が接続不可"
 LABEL_UNKNOWN = "未確認"
+# 接続確認の結果を読み上げる 3 つ目の型。状態を読めない・通信の失敗のとき（_band.html が app.js に渡す）
+CHECK_UNREADABLE = "接続を確かめられませんでした。"
 
 # 接続確認の失敗の理由の 1 句と、次にすること（10.6）。英語の原文は画面に出さず、記録に残す。
 # pynetdicom は、接続の拒否・時間切れ・ホスト名を引けないことを区別せずに返す
@@ -77,5 +79,18 @@ class LinkStatus:
         return KIND_OK, LABEL_OK
 
 
+def check_summary(results: list[bool]) -> str:
+    """手で押した「接続確認」の結果を読み上げる 1 文（部品集の 3 つの型の、確かめられた場合の 2 つ）.
+
+    N は確かめた件数、M は失敗の件数。DTG は状態を持たない相手を持たないので、全部を数える。
+    """
+    total = len(results)
+    failed = results.count(False)
+    if failed:
+        return f"{total} 件のうち {failed} 件に接続できませんでした。"
+    return f"{total} 件すべてに接続できました。"
+
+
 def _now() -> str:
-    return datetime.now().strftime("%m/%d %H:%M")
+    # 日時は yyyy/MM/dd HH:mm（部品集の「日付と時刻」）
+    return datetime.now().strftime("%Y/%m/%d %H:%M")

@@ -256,7 +256,7 @@
 .field-warn[hidden] {
   display: none;
 }
-.field-warn .icon {
+.field-warn .ic {
   color: var(--color-warning);
   margin-top: 2px;
 }
@@ -287,12 +287,6 @@
   display: none;
 }
 
-/* 知らせの印（Lucide のアイコン）は状態の色 */
-.notice .icon {
-  color: var(--n, var(--color-label));
-  margin-top: 3px;
-}
-
 /* 撮影・送信の途中の表示。htmx が要求の間、form に htmx-request を付ける。
    form の data-action（app.js が押したボタンから入れる）で文言を選ぶ */
 .busy {
@@ -309,24 +303,6 @@ form.htmx-request[data-action="exam_send"] .busy-exam-send,
 form.htmx-request .busy-send {
   display: flex;
 }
-
-/* 本文の中の Lucide のアイコン（app/web/static/icons/）。文字の色で塗る。
-   上の帯・左のナビ・検索の帯の絵は ui-kit の icons.svg（<svg class="ic">）を使い、ここには置かない */
-.icon {
-  display: inline-block;
-  flex: none;
-  width: 1rem;
-  height: 1rem;
-  background-color: currentColor;
-  mask: var(--icon) center / contain no-repeat;
-}
-.icon-check { --icon: url("/static/icons/check.svg"); }
-.icon-copy { --icon: url("/static/icons/copy.svg"); }
-.icon-info { --icon: url("/static/icons/info.svg"); }
-.icon-refresh-cw { --icon: url("/static/icons/refresh-cw.svg"); }
-.icon-search { --icon: url("/static/icons/search.svg"); }
-.icon-send { --icon: url("/static/icons/send.svg"); }
-.icon-triangle-alert { --icon: url("/static/icons/triangle-alert.svg"); }
 
 /* 地の切り替えのボタンは、いまの地のアイコンを出す */
 .show-dark {

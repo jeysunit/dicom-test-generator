@@ -55,5 +55,5 @@
   <p class="text-xs text-label sm:col-span-3">シリーズ数を変えると、画像数をシリーズごとに同じ数で自動入力します（画像数を手で直した後は上書きしません）。</p>
   {% endif %}
   {# 数の欄の誤りは、欄の外のこの 1 行に出す（ブラウザの吹き出しは使わない。ルーチンの描き直しで消える） #}
-  <p class="flex items-center gap-1 text-xs sm:col-span-3" id="error-routine-count" hidden><span class="icon icon-triangle-alert text-danger" aria-hidden="true"></span><span class="t"></span></p>
+  <p class="flex items-center gap-1 text-xs sm:col-span-3" id="error-routine-count" hidden><svg class="ic text-danger"aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-alert"/></svg><span class="t"></span></p>
 </div>
