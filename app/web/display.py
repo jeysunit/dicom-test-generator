@@ -120,8 +120,16 @@ def birth_label(item: WorklistItem, today: date | None = None) -> str:
     sex = SEX_LABELS.get(item.sex, item.sex)
     if not item.birth_date:
         return f"生年月日なし（{sex}）" if sex else "生年月日なし"
-    day, inside = birth_text(item.birth_date, today or current_date())
+    day, inside = birth_text(item.birth_date, age_day(item, today))
     return f"{day}{inside}{sex}" if inside else f"{day} {sex}".rstrip()
+
+
+def age_day(item: WorklistItem, today: date | None = None) -> date:
+    """年齢を数える日：予約の予定日（検査日）。読めない・無いときは今日（`today`、無ければ設定の今日）."""
+    try:
+        return datetime.strptime(item.scheduled_start_date, "%Y%m%d").date()
+    except (TypeError, ValueError):
+        return today or current_date()
 
 
 def birth_parts(item: WorklistItem, today: date | None = None) -> tuple[str, str]:
@@ -132,7 +140,7 @@ def birth_parts(item: WorklistItem, today: date | None = None) -> tuple[str, str
     label = birth_label(item, today)
     if not item.birth_date:
         return label, ""
-    day, inside = birth_text(item.birth_date, today or current_date())
+    day, inside = birth_text(item.birth_date, age_day(item, today))
     return (day, label[len(day) :]) if inside else (label, "")
 
 
@@ -140,7 +148,7 @@ def birth_cell_label(item: WorklistItem, today: date | None = None) -> str:
     """一覧の表の生年月日の列を `1980/01/15 (S55・45歳)` の形にする（性別は別の行に出す）."""
     if not item.birth_date:
         return "生年月日なし"
-    return birth_cell(item.birth_date, today or current_date())
+    return birth_cell(item.birth_date, age_day(item, today))
 
 
 def auto_charset_note(item: WorklistItem | None, fallback: str) -> str:
