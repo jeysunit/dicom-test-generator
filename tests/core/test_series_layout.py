@@ -183,3 +183,53 @@ def test_without_top_z_positions_are_the_same_as_before() -> None:
 
     assert coronal.image_position_patient == [0.0, 6.0, 0.0]
     assert localizer.image_position_patient == [0.0, 0.0, 0.0]
+
+
+def test_plane_center_puts_the_middle_of_the_coronal_and_sagittal_run_there() -> None:
+    coronal = [
+        series_spatial(_series("coronal", slice_spacing=3.0), index, plane_center=(128.0, 100.0))
+        for index in range(3)
+    ]
+    sagittal = [
+        series_spatial(_series("sagittal", slice_spacing=3.0), index, plane_center=(128.0, 100.0))
+        for index in range(3)
+    ]
+
+    assert [s.image_position_patient[1] for s in coronal] == [97.0, 100.0, 103.0]
+    assert [s.image_position_patient[0] for s in sagittal] == [125.0, 128.0, 131.0]
+    assert coronal[0].slice_location == 97.0
+
+
+def test_plane_center_with_an_even_count_straddles_the_center_and_adds_start_z() -> None:
+    series = SeriesConfig(
+        series_number=1, num_images=2, kind="sagittal", slice_spacing=4.0, start_z=10.0
+    )
+
+    xs = [series_spatial(series, i, plane_center=(128.0, 0.0)).image_position_patient[0]
+          for i in range(2)]
+
+    assert xs == [136.0, 140.0]
+
+
+def test_plane_center_leaves_axial_and_localizer_alone() -> None:
+    axial = series_spatial(_series("axial", slice_spacing=5.0), 2, plane_center=(128.0, 128.0))
+    localizer = series_spatial(_series("localizer"), 0, plane_center=(128.0, 128.0))
+
+    assert axial.image_position_patient == [0.0, 0.0, 10.0]
+    assert localizer.image_position_patient == [0.0, 0.0, 0.0]
+
+
+def test_plane_center_for_mr_planes_and_three_plane_counts() -> None:
+    sagittal = _mr(plane="sagittal", slice_spacing=6.0)  # 5 枚
+    three_plane = SeriesConfig(
+        series_number=1, num_images=7, kind="localizer", modality="MR", plane="three_plane"
+    )  # axial 2・coronal 2・sagittal 3（スライス間隔の既定は 5 mm）
+    center = (120.0, 110.0)
+
+    assert series_spatial(sagittal, 2, plane_center=center).image_position_patient[0] == 120.0
+    coronal = [series_spatial(three_plane, i, plane_center=center) for i in (2, 3)]
+    last = [series_spatial(three_plane, i, plane_center=center) for i in (4, 5, 6)]
+    assert [s.image_position_patient[1] for s in coronal] == [107.5, 112.5]
+    assert [s.image_position_patient[0] for s in last] == [115.0, 120.0, 125.0]
+    axial = series_spatial(three_plane, 1, plane_center=center)
+    assert axial.image_position_patient == [0.0, 0.0, 5.0]

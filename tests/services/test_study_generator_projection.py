@@ -133,7 +133,18 @@ def test_laterality_follows_the_routine(tmp_path, routine, template, keyword, va
 
 
 def test_phantom_projection_has_three_values_and_a_moving_marker(tmp_path) -> None:
-    datasets = _generate(_config(tmp_path, _routine_series("dx_chest"), "dx_generic"))
+    # ルーチンを使わず、部位の図形（phantom）を持たない DX のシリーズで撮る（基本の図形）
+    series = SeriesConfig(
+        series_number=1,
+        series_description="Chest",
+        num_images=2,
+        protocol_name="CHEST",
+        kind="projection",
+        modality="DX",
+        view_positions=["PA", "LL"],
+        body_part="CHEST",
+    )
+    datasets = _generate(_config(tmp_path, [series], "dx_generic"))
     values = xray_phantom_values(12)
 
     for index, ds in enumerate(datasets):

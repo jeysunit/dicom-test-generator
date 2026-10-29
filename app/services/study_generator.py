@@ -360,7 +360,15 @@ class StudyGeneratorService:
                             **common,
                         )
                     else:
-                        spatial = series_spatial(series_config, image_index, top_z)
+                        # 部位の図形のシリーズだけ、冠状断・矢状断の並びの中央を図形の中心に合わせる
+                        plane_center = (
+                            shape.center[:2]
+                            if shape is not None and series_config.phantom
+                            else None
+                        )
+                        spatial = series_spatial(
+                            series_config, image_index, top_z, plane_center
+                        )
                         if pt_series:
                             dataset = self._dicom_builder.build_pt_image(
                                 spatial=spatial,

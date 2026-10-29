@@ -158,3 +158,40 @@ def test_manual_series_in_a_region_study_keep_the_basic_shape(tmp_path) -> None:
     # 手で入れたシリーズは基本の図形（背景・図形・目印の 3 種類）
     for index, ds in enumerate(study[2]):
         assert _values(ds, index, 5) <= {-1000 + CT_OFFSET, 40 + CT_OFFSET}
+
+
+def _series_index(routine_name: str, description: str) -> int:
+    routine = RoutineLoaderService().get(routine_name)
+    return next(i for i, s in enumerate(routine.series) if s.description == description)
+
+
+def test_ct_lumbar_sagittal_run_is_centered_on_the_shape_and_shows_bone(tmp_path) -> None:
+    sag = _series_index("ct_lumbar_spine", "SAG BONE 2mm")
+    study = _generate(tmp_path, _routine_series("ct_lumbar_spine", [sag]), "ct_generic")
+    run = study[1]
+    xs = [float(ds.ImagePositionPatient[0]) for ds in run]
+    # 並びの中央が図形の中心（CT は 256 mm の視野の中央 128 mm）
+    assert (xs[0] + xs[-1]) / 2 == 128.0
+    bone = 1000 + CT_OFFSET
+    assert any(bone in _values(ds, i, len(run)) for i, ds in enumerate(run))
+
+
+def test_mr_knee_sagittal_and_coronal_runs_are_centered_and_show_bone(tmp_path) -> None:
+    sag = _series_index("mr_knee", "PD FS SAG")
+    cor = _series_index("mr_knee", "T2 FS COR")
+    study = _generate(tmp_path, _routine_series("mr_knee", [sag, cor]), "mr_generic")
+    bone = mr_segment_values("PD", int(study[1][0].BitsStored))["bone"]
+    bone_t2 = mr_segment_values("T2", int(study[2][0].BitsStored))["bone"]
+    xs = [float(ds.ImagePositionPatient[0]) for ds in study[1]]
+    ys = [float(ds.ImagePositionPatient[1]) for ds in study[2]]
+    # 並びの中央が図形の中心（MR は 240 mm の視野の中央 120 mm）
+    assert (xs[0] + xs[-1]) / 2 == 120.0
+    assert (ys[0] + ys[-1]) / 2 == 120.0
+    assert any(bone in _values(ds, i, len(study[1])) for i, ds in enumerate(study[1]))
+    assert any(bone_t2 in _values(ds, i, len(study[2])) for i, ds in enumerate(study[2]))
+
+
+def test_basic_shape_series_keep_the_run_starting_at_start_z(tmp_path) -> None:
+    series = [SeriesConfig(series_number=1, num_images=3, kind="sagittal", slice_spacing=5.0)]
+    study = _generate(tmp_path, series, "ct_generic")
+    assert [float(ds.ImagePositionPatient[0]) for ds in study[1]] == [0.0, 5.0, 10.0]
