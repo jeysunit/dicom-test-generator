@@ -890,6 +890,40 @@
 
   // 緊急の患者：入れた値を、操作の行の真上の「撮る患者と送信先」に写す（10.5）
   var SEX_TEXT = { M: "男", F: "女", O: "その他" };
+  // 生年月日の括弧の中身（元号の漢字 1 字と年・満年齢）。始まりの日で決め、年 ＝ 西暦の年 − 始まりの年 ＋ 1。
+  // 明治（1868/10/23）より前は元号を出さず、年齢だけ。画面を開いた日が基準（app/core/wareki.py と同じ規則）
+  var ERAS = [[2019, 5, 1, "令"], [1989, 1, 8, "平"], [1926, 12, 25, "昭"], [1912, 7, 30, "大"], [1868, 10, 23, "明"]];
+  function dateParts(iso) {
+    var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+    if (!match) {
+      return null;
+    }
+    var parts = [Number(match[1]), Number(match[2]), Number(match[3])];
+    var check = new Date(parts[0], parts[1] - 1, parts[2]);
+    var valid = check.getMonth() === parts[1] - 1 && check.getDate() === parts[2];
+    return valid ? parts : null;
+  }
+  function birthParen(iso, todayIso) {
+    var born = dateParts(iso);
+    var now = dateParts(todayIso);
+    if (!born || !now) {
+      return "";
+    }
+    var items = [];
+    for (var i = 0; i < ERAS.length; i += 1) {
+      var era = ERAS[i];
+      var after = born[0] !== era[0] ? born[0] > era[0] : born[1] !== era[1] ? born[1] > era[1] : born[2] >= era[2];
+      if (after) {
+        items.push(era[3] + (born[0] - era[0] + 1));
+        break;
+      }
+    }
+    var age = now[0] - born[0] - (now[1] < born[1] || (now[1] === born[1] && now[2] < born[2]) ? 1 : 0);
+    if (age >= 0) {
+      items.push(age + "歳");
+    }
+    return "（" + items.join("・") + "）";
+  }
   function mirrorPatient(form) {
     var target = document.getElementById("exam-target");
     if (!target || !form) {
@@ -904,9 +938,14 @@
     if (birth) {
       var date = form.elements.namedItem("birth_date");
       var sex = form.elements.namedItem("sex");
-      var day = date && date.value ? date.value.replace(/-/g, "/") : "生年月日なし";
-      var sexText = sex ? SEX_TEXT[sex.value] : "";
-      birth.textContent = sexText ? day + "（" + sexText + "）" : day;
+      var sexText = sex ? SEX_TEXT[sex.value] || "" : "";
+      if (!date || !date.value) {
+        birth.textContent = sexText ? "生年月日なし（" + sexText + "）" : "生年月日なし";
+        return;
+      }
+      var paren = birthParen(date.value, date.getAttribute("data-today") || today());
+      var day = date.value.replace(/-/g, "/");
+      birth.textContent = paren ? day + paren + sexText : sexText ? day + " " + sexText : day;
     }
   }
   ["input", "change", "focusout"].forEach(function (type) {

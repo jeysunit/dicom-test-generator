@@ -10,6 +10,7 @@ from datetime import date, datetime
 
 from app.core.models import WorklistItem
 from app.core.patient_input import current_date
+from app.core.wareki import birth_cell, birth_text
 
 DATE_LENGTH = 8
 TIME_MIN_LENGTH = 4
@@ -115,18 +116,19 @@ def date_label(value: str) -> str:
 
 
 def birth_label(item: WorklistItem, today: date | None = None) -> str:
-    """生年月日を `1980/01/15（45歳・男）` の形にする（和暦は出さない）."""
+    """患者バナー・詳細の生年月日と性別を `1980/01/15（昭55・45歳）男` の形にする."""
     sex = SEX_LABELS.get(item.sex, item.sex)
     if not item.birth_date:
         return f"生年月日なし（{sex}）" if sex else "生年月日なし"
-    parts = []
-    age = _age(item.birth_date, today or current_date())
-    if age is not None:
-        parts.append(f"{age}歳")
-    if sex:
-        parts.append(sex)
-    suffix = f"（{'・'.join(parts)}）" if parts else ""
-    return f"{date_label(item.birth_date)}{suffix}"
+    day, inside = birth_text(item.birth_date, today or current_date())
+    return f"{day}{inside}{sex}" if inside else f"{day} {sex}".rstrip()
+
+
+def birth_cell_label(item: WorklistItem, today: date | None = None) -> str:
+    """一覧の表の生年月日の列を `1980/01/15 (S55・45歳)` の形にする（性別は別の行に出す）."""
+    if not item.birth_date:
+        return "生年月日なし"
+    return birth_cell(item.birth_date, today or current_date())
 
 
 def auto_charset_note(item: WorklistItem | None, fallback: str) -> str:
@@ -184,11 +186,3 @@ def exam_notices(item: WorklistItem, own_ae_title: str) -> list[str]:
     if "漢字・かなが空" in item_marks(item, own_ae_title):
         notices.append("氏名の漢字・かなが空です")
     return notices
-
-
-def _age(birth_date: str, today: date) -> int | None:
-    try:
-        born = date(int(birth_date[:4]), int(birth_date[4:6]), int(birth_date[6:8]))
-    except ValueError:
-        return None
-    return today.year - born.year - ((today.month, today.day) < (born.month, born.day))

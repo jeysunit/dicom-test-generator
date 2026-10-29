@@ -55,7 +55,10 @@
             {% if phonetic or (ideographic and alphabetic) %}<div class="text-xs text-label">{{ phonetic or alphabetic }}</div>{% endif %}
             {% if marks %}<div>{% for mark in marks %}<span class="st" data-k="note">{{ mark }}</span>{% endfor %}</div>{% endif %}
           </td>
-          <td>{{ item|birth_label }}</td>
+          <td>
+            <div class="whitespace-nowrap">{{ item|birth_cell_label }}</div>
+            {% if item.sex %}<div class="text-xs text-label">{{ item.sex|sex_label }}</div>{% endif %}
+          </td>
           <td class="font-mono">{{ item.accession_number }}</td>
           <td>{{ item.requested_procedure_description }}</td>
         </tr>
