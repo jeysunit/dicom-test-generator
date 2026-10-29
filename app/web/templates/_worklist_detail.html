@@ -1,3 +1,4 @@
+{% from "_birth.html" import birth_value %}
 <div class="sec">
   <h2>予約の詳細</h2>
   <div class="in flex flex-col gap-3">
@@ -5,7 +6,7 @@
   <dl class="kv">
     <dt>氏名</dt><dd>{{ item.patient_name|name_display or "—" }}</dd>
     <dt>患者ID</dt><dd class="font-mono">{{ item.patient_id }}{% if item.issuer_of_patient_id %}（{{ item.issuer_of_patient_id }}）{% endif %}</dd>
-    <dt>生年月日・性別</dt><dd>{{ item|birth_label }}</dd>
+    <dt>生年月日・性別</dt><dd title="{{ item|birth_label }}">{{ birth_value(item|birth_parts) }}</dd>
     <dt>受付番号</dt><dd class="font-mono">{{ item.accession_number or "—" }}</dd>
     <dt>Requested Procedure</dt><dd>{{ item.requested_procedure_id }} {{ item.requested_procedure_description }}</dd>
     <dt>Scheduled Procedure Step</dt><dd>{{ item.scheduled_procedure_step_id }} {{ item.scheduled_procedure_step_description }}</dd>

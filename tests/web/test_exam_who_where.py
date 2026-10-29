@@ -63,6 +63,31 @@ def test_scheduled_target_shows_the_patient_and_the_destination(client) -> None:
     assert "data-mirror" not in target
 
 
+# 患者の帯の生年月日は、西暦と、括弧から後ろ（.unit）の 2 つに分け、全文を title に出す
+_BIRTH_VALUE = re.compile(
+    r'<(?:div class="v"|dd) title="1980/01/15（昭55・\d+歳）(?P<sex>[^"]+)">1980/01/15'
+    r'<span class="unit">（昭55・\d+歳）(?P=sex)</span></(?:div|dd)>'
+)
+
+
+def test_scheduled_target_wraps_the_birth_date_tail_in_unit(client) -> None:
+    key = key_for(query_worklist(client), "A0001")
+
+    target = _target(client.get(f"/exam?key={key}").text)
+
+    assert _BIRTH_VALUE.search(target)
+
+
+def test_worklist_item_banner_and_detail_wrap_the_birth_date_tail_in_unit(client) -> None:
+    key = key_for(query_worklist(client), "A0001")
+
+    html = client.get(f"/worklist/item/{key}").text
+
+    banner, detail = html.split('<section id="detail"', 1)
+    assert _BIRTH_VALUE.search(banner)
+    assert _BIRTH_VALUE.search(detail)
+
+
 def test_emergency_exam_replaces_the_buttons_with_next_patient(client) -> None:
     token = csrf_token(client, "/exam")
 

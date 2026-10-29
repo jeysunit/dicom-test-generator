@@ -36,6 +36,22 @@ def _birth_label(context: Context, item: Any) -> str:
     return display.birth_label(item, current_date(timezone))
 
 
+@pass_context
+def _birth_parts(context: Context, item: Any) -> tuple[str, str]:
+    """患者の帯の値を 西暦 と 括弧から後ろ に分ける（後ろを `_birth.html` が `.unit` で包む）."""
+    config = context.get("config")
+    timezone = getattr(config, "timezone", DEFAULT_TIMEZONE)
+    return display.birth_parts(item, current_date(timezone))
+
+
+@pass_context
+def _birth_cell_label(context: Context, item: Any) -> str:
+    """一覧の列の生年月日も、同じ時計の今日で年齢を数える."""
+    config = context.get("config")
+    timezone = getattr(config, "timezone", DEFAULT_TIMEZONE)
+    return display.birth_cell_label(item, current_date(timezone))
+
+
 def create_environment() -> Environment:
     env = Environment(
         loader=FileSystemLoader(TEMPLATES_DIR),
@@ -48,6 +64,9 @@ def create_environment() -> Environment:
     env.filters["name_parts"] = display.name_parts
     env.filters["name_display"] = display.name_display
     env.filters["birth_label"] = _birth_label
+    env.filters["birth_parts"] = _birth_parts
+    env.filters["birth_cell_label"] = _birth_cell_label
+    env.filters["sex_label"] = lambda value: display.SEX_LABELS.get(value, value)
     env.filters["time_label"] = display.time_label
     env.filters["date_label"] = display.date_label
     env.filters["charset_label"] = display.charset_label
