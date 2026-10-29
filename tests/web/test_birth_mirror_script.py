@@ -162,3 +162,12 @@ def test_mirrored_birth_date_without_a_date_or_a_sex() -> None:
         "生年月日なし",
         "1975/05/14（昭50・51歳）",
     ]
+
+
+def test_mirrored_birth_date_after_the_count_day_shows_the_era_without_an_age() -> None:
+    # 生年月日が数える日より後（年齢が負）：年齢は出さず、元号の括弧だけにする
+    [later_year, later_day] = _run_detail([["2027-06-15", TODAY, "M"], ["2026-10-30", TODAY, "F"]])
+    assert later_year["text"] == "2027/06/15（令9）男"
+    assert later_year["unit"] == "（令9）男"
+    assert later_day["text"] == "2026/10/30（令8）女"
+    assert "歳" not in later_year["text"] + later_day["text"]
