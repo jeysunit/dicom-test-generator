@@ -5,6 +5,8 @@ modality: "CR"
 protocol_name: "LUMBAR SPINE"
 keywords: ["腰椎", "L-SPINE", "LSPINE", "LUMBAR"]
 body_part: "LSPINE"
+# 図形の方式（phantom）の部位の図形（docs/spec/06 の 4.6）
+phantom: "spine"
 series:
   - description: "L-Spine AP"
     images: 1

@@ -5,6 +5,8 @@ label: "腹部骨盤 単純＋造影"
 modality: "CT"
 protocol_name: "ABDOMEN PELVIS"
 keywords: ["腹部", "ABDOMEN"]
+# 図形の方式（phantom）の部位の図形（docs/spec/06 の 4.6）。造影の相は書かず門脈相の値
+phantom: "abdomen"
 series:
   - kind: "localizer"
     description: "Scout"

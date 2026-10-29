@@ -6,6 +6,8 @@ modality: "MR"
 protocol_name: "BRAIN ROUTINE"
 default: true
 keywords: ["頭部", "HEAD", "BRAIN", "脳"]
+# 図形の方式（phantom）の部位の図形と、シリーズの強調（docs/spec/06 の 4.6）
+phantom: "head"
 series:
   - kind: "localizer"
     description: "Localizer"
@@ -20,6 +22,7 @@ series:
     slice_thickness: 5.0
     spacing: 1.0
     sequence: "EP"
+    weighting: "DWI"
   - kind: "derived"
     description: "ADC"
     images: 25
@@ -27,6 +30,7 @@ series:
     slice_thickness: 5.0
     spacing: 1.0
     sequence: "EP"
+    weighting: "ADC"
   - kind: "acquisition"
     description: "T2*"
     images: 25
@@ -34,18 +38,21 @@ series:
     slice_thickness: 5.0
     spacing: 1.0
     sequence: "GR"
+    weighting: "T2STAR"
   - kind: "acquisition"
     description: "T1 SAG"
     images: 25
     plane: "sagittal"
     slice_thickness: 5.0
     spacing: 1.0
+    weighting: "T1"
   - kind: "acquisition"
     description: "T2 AX"
     images: 25
     plane: "axial"
     slice_thickness: 5.0
     spacing: 1.0
+    weighting: "T2"
   - kind: "acquisition"
     description: "FLAIR"
     images: 25
@@ -53,6 +60,7 @@ series:
     slice_thickness: 5.0
     spacing: 1.0
     sequence: "IR"
+    weighting: "FLAIR"
   - kind: "acquisition"
     description: "TOF MRA"
     images: 116
@@ -60,3 +68,4 @@ series:
     slice_thickness: 1.3
     sequence: "GR"
     acquisition_type: "3D"
+    weighting: "MRA"

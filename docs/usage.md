@@ -283,4 +283,6 @@ dtg -v "$PWD/job.yaml:/app/job.yaml:ro" "$IMAGE" python -m app.cli generate /app
   `exam`）、Job の `pixel_spec.mode: phantom`、設定の `modality.default_pixel_mode:
   phantom`。スライスを送ると円の大きさが変わり、小さい四角の目印が画像ごとに回る。
   画素に文字は描かず、Manufacturer を `DTG SYNTHETIC`、Image Comments を
-  `SYNTHETIC TEST DATA` にする（[spec/06](spec/06_dicom_rules.md) の 4.6）
+  `SYNTHETIC TEST DATA` にする（[spec/06](spec/06_dicom_rules.md) の 4.6）。
+  ルーチンで撮ると、ルーチンの部位（頭部・胸部・腹部・脊椎・四肢など）の図形になり、
+  MR は強調、CT の造影は相で値が変わる（spec/06 の 4.7）

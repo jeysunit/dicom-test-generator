@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field, model_validator
 from .exceptions import ValidationError
 from .models import (
     BodyPart,
+    ContrastPhase,
     CTSeriesKind,
     Laterality,
     LocalizerView,
@@ -23,6 +24,8 @@ from .models import (
     MRPlane,
     MRSequence,
     MRSeriesKind,
+    MRWeighting,
+    PhantomRegion,
     ProjectionView,
     PTSeriesKind,
     SeriesConfig,
@@ -50,6 +53,8 @@ class CTRoutineSeries(_RoutineSeries):
     slice_thickness: float = Field(5.0, gt=0)
     views: list[LocalizerView] | None = None
     contrast: bool = False
+    # 造影の相（図形の血管・実質の値）。書かない造影のシリーズは門脈相の値で描く
+    phase: ContrastPhase | None = None
 
     @model_validator(mode="after")
     def _views_match_images(self) -> CTRoutineSeries:
@@ -60,6 +65,8 @@ class CTRoutineSeries(_RoutineSeries):
                 raise ValueError(
                     f"views has {len(self.views)} entries but images is {self.images}"
                 )
+        if self.phase is not None and not self.contrast:
+            raise ValueError("phase is only for a contrast series (contrast: true)")
         return self
 
 
@@ -72,6 +79,8 @@ class MRRoutineSeries(_RoutineSeries):
     # 撮像の種類（Scanning Sequence・MR Acquisition Type。ADR-0030）
     sequence: MRSequence = "SE"
     acquisition_type: MRAcquisitionType = "2D"
+    # 強調（図形の区分の値）。書かなければシーケンスから決める（docs/spec/06 の 4.6）
+    weighting: MRWeighting | None = None
 
 
 class PETCTRoutineSeries(_RoutineSeries):
@@ -162,6 +171,8 @@ class Routine(BaseModel):
     # CR・DX の部位と左右（Body Part Examined の語、R・L・B。ADR-0034）
     body_part: BodyPart | None = None
     laterality: Laterality | None = None
+    # 図形の方式（phantom）の部位の図形。書かなければ基本の図形（docs/spec/06 の 4.6）
+    phantom: PhantomRegion | None = None
     series: list[RoutineSeries] = Field(..., min_length=1)
 
     @model_validator(mode="before")
@@ -384,6 +395,8 @@ def routine_series_configs(
                     views=series.views or ["frontal"],
                     contrast=series.contrast,
                     modality="SR" if series.kind == "dose_sr" else None,
+                    phantom=routine.phantom,
+                    phase=series.phase,
                 )
             )
         elif isinstance(series, PETCTRoutineSeries):
@@ -403,6 +416,7 @@ def routine_series_configs(
                     modality=(
                         "PT" if is_pet else "SR" if series.kind == "dose_sr" else "CT"
                     ),
+                    phantom=routine.phantom,
                 )
             )
         elif isinstance(series, MRRoutineSeries):
@@ -419,6 +433,8 @@ def routine_series_configs(
                     plane=series.plane,
                     sequence=series.sequence,
                     acquisition_type=series.acquisition_type,
+                    phantom=routine.phantom,
+                    weighting=series.weighting,
                 )
             )
         elif isinstance(series, ProjectionRoutineSeries):
@@ -434,6 +450,7 @@ def routine_series_configs(
                     view_positions=list(series.views),
                     body_part=routine.body_part,
                     laterality=routine.laterality,
+                    phantom=routine.phantom,
                 )
             )
         else:

@@ -4,6 +4,8 @@ label: "頭部 単純"
 modality: "CT"
 protocol_name: "HEAD ROUTINE"
 keywords: ["頭部", "HEAD", "BRAIN"]
+# 図形の方式（phantom）の部位の図形（docs/spec/06 の 4.6）
+phantom: "head"
 series:
   - kind: "localizer"
     description: "Scout"

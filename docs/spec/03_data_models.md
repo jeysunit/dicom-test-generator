@@ -104,6 +104,9 @@ class SeriesConfig(BaseModel):
 | `view_positions` | `AP`・`PA`・`LL`・`RL`・`RLD`・`LLD`・`RLO`・`LLO` の並び | `["PA"]` | CR・DX の画像ごとの方向（View Position）。足りなければ繰り返す。CR は1種類だけ |
 | `body_part` | `CHEST`・`ABDOMEN`・`LSPINE`・`CSPINE`・`KNEE`・`HAND`・None | None | CR・DX の部位（Body Part Examined） |
 | `laterality` | `R`・`L`・`B`・None | None | CR・DX の左右。対になる部位（`KNEE`・`HAND`）だけに書き、必ず書く。CR は `R`・`L` だけ |
+| `phantom` | `head`・`chest`・`trunk`・`abdomen`・`spine`・`limb`・None | None | 図形の方式（`phantom`）の部位の図形（spec/06 の 4.7）。None は基本の図形 |
+| `weighting` | `T1`・`T2`・`PD`・`FLAIR`・`T2STAR`・`DWI`・`ADC`・`MRA`・None | None | MR の強調（図形の区分の値）。MR のシリーズだけに書ける。None は種類とシーケンスから決める |
+| `phase` | `arterial`・`portal`・`delayed`・None | None | CT の造影の相（図形の区分の値）。CT の造影のシリーズ（`contrast: true`）だけに書ける。None の造影のシリーズは門脈相の値 |
 
 `kind` が `acquisition`・`derived` のシリーズは `modality` を MR に、`pet_ac`・`pet_nac` は
 PT にする（CT のシリーズに MR・PET の種類を入れると検証で止まる）。MR のテンプレートで
@@ -126,6 +129,15 @@ CR・DX のルーチンは、ルーチンの欄に部位 `body_part` を必ず�
 `laterality` は CR では `R`・`L`、DX では `R`・`L`・`B` で、対にならない部位には
 書けない。CR・DX 以外のルーチンには、どちらも書けない。違えば読み込みで止まる。
 付けるルーチンの膝と手は、架空の `R` にしてある。
+
+ルーチンの欄には、図形の部位 `phantom`（`head`・`chest`・`trunk`・`abdomen`・`spine`・
+`limb`）を書ける。MR のシリーズには強調 `weighting`、CT のシリーズには造影の相 `phase`
+を書ける。`phase` は造影のシリーズ（`contrast: true`）だけに書け、造影でないシリーズに
+書くと読み込みで止まる。どれも省ける。ルーチンの `phantom` は、そのルーチンの全シリーズの
+`SeriesConfig` の `phantom` に入り、`weighting`・`phase` はシリーズごとに入る。図形の
+方式でない撮影では使わない（spec/06 の 4.7）。付けるルーチンは、CT・MR・CR・DX の
+全部に `phantom` を書き、MR の撮像のシリーズに `weighting`、肝臓 ダイナミックと冠動脈
+CTA の造影のシリーズに `phase` を書いてある。PET/CT と US のルーチンには書いていない。
 
 ### 3.3 InstanceConfig
 

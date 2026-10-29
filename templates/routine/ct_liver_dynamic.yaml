@@ -5,6 +5,8 @@ label: "肝臓 ダイナミック"
 modality: "CT"
 protocol_name: "LIVER DYNAMIC"
 keywords: ["ダイナミック", "肝臓", "肝", "LIVER"]
+# 図形の方式（phantom）の部位の図形と、造影の相（docs/spec/06 の 4.6）
+phantom: "abdomen"
 series:
   - kind: "localizer"
     description: "Scout"
@@ -19,21 +21,25 @@ series:
     images: 83
     slice_thickness: 3.0
     contrast: true
+    phase: "arterial"
   - kind: "axial"
     description: "Portal 3mm"
     images: 83
     slice_thickness: 3.0
     contrast: true
+    phase: "portal"
   - kind: "axial"
     description: "Delayed 3mm"
     images: 83
     slice_thickness: 3.0
     contrast: true
+    phase: "delayed"
   - kind: "coronal"
     description: "COR Portal 3mm"
     images: 83
     slice_thickness: 3.0
     contrast: true
+    phase: "portal"
   - kind: "dose_report"
     description: "Dose Report"
     images: 1

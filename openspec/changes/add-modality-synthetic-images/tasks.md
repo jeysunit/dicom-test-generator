@@ -46,9 +46,10 @@
 
 ## 3. 部位の図形（PR 3）
 
-- [ ] 3.1 ルーチンの `phantom`・`weighting`・`phase` を
+- [x] 3.1 ルーチンの `phantom`・`weighting`・`phase` を
       `app/core/routine.py` に足し、`templates/routine/` の付けるルーチンに書く
-- [ ] 3.2 部位ごとの図形と、MR の強調・CT の相の値の試験を先に書いて実装する
+- [x] 3.2 部位ごとの図形と、MR の強調・CT の相の値の試験を先に書いて実装する
+      （図形は `app/core/phantom_region.py` に分けた。spec/06 の 4.7）
 - [ ] 3.3 開発の環境で、`phantom` で CT 頭部・CT 胸部・MR 頭部・DX 胸部を撮り、試験用の
       PACS のビューアで、スライスを送ると図形が変わること、偽物の印のタグが見えることを
       確かめる

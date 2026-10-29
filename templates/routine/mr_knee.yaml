@@ -5,6 +5,8 @@ label: "膝"
 modality: "MR"
 protocol_name: "KNEE"
 keywords: ["膝", "KNEE"]
+# 図形の方式（phantom）の部位の図形と、シリーズの強調（docs/spec/06 の 4.6）
+phantom: "limb"
 series:
   - kind: "localizer"
     description: "Localizer"
@@ -18,21 +20,25 @@ series:
     plane: "sagittal"
     slice_thickness: 3.0
     spacing: 0.3
+    weighting: "PD"
   - kind: "acquisition"
     description: "T2 FS COR"
     images: 30
     plane: "coronal"
     slice_thickness: 3.0
     spacing: 0.3
+    weighting: "T2"
   - kind: "acquisition"
     description: "PD FS AX"
     images: 30
     plane: "axial"
     slice_thickness: 3.0
     spacing: 0.3
+    weighting: "PD"
   - kind: "acquisition"
     description: "T1 COR"
     images: 30
     plane: "coronal"
     slice_thickness: 3.0
     spacing: 0.3
+    weighting: "T1"

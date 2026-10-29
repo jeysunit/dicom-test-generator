@@ -5,6 +5,8 @@ label: "腰椎"
 modality: "MR"
 protocol_name: "LUMBAR SPINE"
 keywords: ["腰椎", "L-SPINE", "LSPINE", "LUMBAR"]
+# 図形の方式（phantom）の部位の図形と、シリーズの強調（docs/spec/06 の 4.6）
+phantom: "spine"
 series:
   - kind: "localizer"
     description: "Localizer"
@@ -18,15 +20,18 @@ series:
     plane: "sagittal"
     slice_thickness: 3.0
     spacing: 0.3
+    weighting: "T1"
   - kind: "acquisition"
     description: "T2 SAG"
     images: 18
     plane: "sagittal"
     slice_thickness: 3.0
     spacing: 0.3
+    weighting: "T2"
   - kind: "acquisition"
     description: "T2 AX"
     images: 45
     plane: "axial"
     slice_thickness: 3.0
     spacing: 0.3
+    weighting: "T2"
