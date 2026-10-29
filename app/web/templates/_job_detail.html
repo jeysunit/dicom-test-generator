@@ -2,11 +2,11 @@
 {% set alphabetic, ideographic, phonetic = job.patient_name|name_parts %}
 <section id="job-detail" class="job-pane" aria-label="ジョブ {{ job.id }} の詳細">
   {% if job.status == "sent" %}
-  <div role="status" class="notice" data-k="ok"><span class="icon icon-check" aria-hidden="true"></span><span>{{ job.destination }} へ {{ job.num_sent }} 枚を送信しました。{% if job.commitment == "confirmed" %}保管の確認も済んでいます。{% endif %}</span></div>
+  <div role="status" class="notice" data-k="ok"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-check"/></svg><span>{{ job.destination }} へ {{ job.num_sent }} 枚を送信しました。{% if job.commitment == "confirmed" %}保管の確認も済んでいます。{% endif %}</span></div>
   {% elif job.status == "failed" %}
-  <div role="alert" class="notice" data-k="err"><span class="icon icon-triangle-alert" aria-hidden="true"></span><span>{{ job.last_error|send_error_label }}</span></div>
+  <div role="alert" class="notice" data-k="err"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-alert"/></svg><span>{{ job.last_error|send_error_label }}</span></div>
   {% else %}
-  <div role="status" class="notice" data-k="warn"><span class="icon icon-info" aria-hidden="true"></span><span>{{ STATUS_LABELS.get(job.status, job.status) }}です（{{ job.num_sent }}/{{ job.num_files }} 枚）。</span></div>
+  <div role="status" class="notice" data-k="warn"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-info"/></svg><span>{{ STATUS_LABELS.get(job.status, job.status) }}です（{{ job.num_sent }}/{{ job.num_files }} 枚）。</span></div>
   {% endif %}
   <div class="grid gap-x-8 gap-y-2 lg:grid-cols-2">
     <dl class="kv">
@@ -33,7 +33,7 @@
   <div class="flex flex-wrap items-center gap-2">
     {% if job.status in ("failed", "sent") %}
     <button type="button" class="btn" data-resend hx-post="/pacs/retry/{{ job.id }}" hx-target="#queue" hx-include="#queue-filter" hx-disabled-elt="#queue [data-resend], #retry-failed">
-      <span class="icon icon-refresh-cw" aria-hidden="true"></span>もう一度送る
+      <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-refresh"/></svg>もう一度送る
     </button>
     {% endif %}
     <button type="button" class="btn" data-focus-key="detail-close" data-queue-action hx-sync="#queue:replace" hx-get="/pacs/queue" hx-target="#queue" hx-include="#queue-filter" hx-vals='{"selected": ""}'>閉じる</button>

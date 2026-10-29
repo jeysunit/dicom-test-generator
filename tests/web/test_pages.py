@@ -496,7 +496,9 @@ def test_screens_say_get_the_worklist_not_hiku(client) -> None:
     assert re.search(
         r'<button type="submit" class="btn btn-primary">.*?</svg>\s*検索\s*</button>', form, re.DOTALL
     )
-    assert '<button type="reset" class="btn">条件をクリア</button>' in form
+    # ページの初期の条件に戻し、URL の引数も消す（app.js）。type="reset" ではない
+    assert '<button type="button" class="btn" data-clear-conditions="query-form">条件をクリア</button>' in form
+    assert 'type="reset"' not in form
     assert "ワークリスト検索" not in page
     assert "再検索" in results
 

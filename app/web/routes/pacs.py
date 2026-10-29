@@ -16,7 +16,7 @@ from app.modality.queue import QueueJob
 from app.modality.service import SendResult
 
 from ..display import STATUS_LABELS
-from ..link_status import echo_reason
+from ..link_status import check_summary, echo_reason
 from ..rendering import error_text, render, service_of
 
 logger = logging.getLogger(__name__)
@@ -167,10 +167,11 @@ def pacs_check_all(request: Request) -> Response:
     return render(request, "_check_all_result.html", oob_band=True, **_conn_context(request))
 
 
-def _check_all(request: Request) -> None:
-    _probe(request, None)
+def _check_all(request: Request) -> list[EchoNotice]:
+    notices = [_probe(request, None)]
     for destination in service_of(request).config.destinations:
-        _probe(request, destination.name)
+        notices.append(_probe(request, destination.name))
+    return notices
 
 
 def _conn_context(request: Request) -> dict[str, Any]:
@@ -192,11 +193,17 @@ def link_check(request: Request) -> Response:
     if not CHECK_ALL_LOCK.acquire(blocking=False):
         return Response(status_code=HTTP_NO_CONTENT)
     try:
-        _check_all(request)
+        notices = _check_all(request)
     finally:
         CHECK_ALL_LOCK.release()
-    # 中身（#band）を結果で差し替え、全体の状態の札も同じ応答で差し替える
-    return render(request, "_link_check.html", oob_band=True)
+    # 中身（#band）を結果で差し替え、全体の状態の札も同じ応答で差し替える。
+    # 結果の 1 文は、中身の中の読み上げの欄（app.js が差し替えの後に入れる）に渡す
+    return render(
+        request,
+        "_link_check.html",
+        oob_band=True,
+        check_result=check_summary([notice.ok for notice in notices]),
+    )
 
 
 @router.post("/pacs/retry/{job_id}", response_class=HTMLResponse)

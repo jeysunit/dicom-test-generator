@@ -34,6 +34,8 @@
     <dt>文字コード</dt>
     <dd>{% if band.worklist_charset is none %}未取得{% else %}{{ band.worklist_charset|charset_label }}{% endif %} → {{ band.image_charset|charset_label }}</dd>
   </dl>
+  {# 手で押した「接続確認」の結果の読み上げ（部品集の型）。中身ごと差し替わるので、app.js が差し替えの後に空から文を入れる。1 分ごとの札は読み上げない #}
+  <p class="sr" id="conn-result" role="status" aria-live="polite" data-unreadable="{{ CHECK_UNREADABLE }}"{% if check_result is defined %} data-result="{{ check_result }}"{% endif %}></p>
   {# ワークリストの取得先とすべての送信先に C-ECHO を送り、この中身を結果で差し替える #}
   <div class="ft">
     <button type="button" class="btn btn-sm" hx-post="/link/check" hx-target="#band" hx-swap="outerHTML" hx-disabled-elt="this">

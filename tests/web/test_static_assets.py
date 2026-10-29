@@ -1,4 +1,4 @@
-"""画面の静的な物：版を固定した htmx・Lucide のアイコン・作った CSS が揃っている（docs/spec/12a の 10.1）."""
+"""画面の静的な物：版を固定した htmx・Lucide の LICENSE・作った CSS が揃っている（docs/spec/12a の 10.1）."""
 
 from __future__ import annotations
 
@@ -23,21 +23,18 @@ def test_htmx_is_the_pinned_file() -> None:
     assert hashlib.sha256(data).hexdigest() == _script_value("HTMX_SHA256")
 
 
-def test_every_icon_used_by_the_css_is_present_with_license() -> None:
-    used = set(re.findall(r"/static/icons/([a-z-]+)\.svg", INPUT_CSS.read_text(encoding="utf-8")))
-    icons_line = re.search(
-        r"^ICONS=\(([^)]*)\)", FETCH_SCRIPT.read_text(encoding="utf-8"), re.MULTILINE
-    )
-    assert icons_line
-    assert used == set(icons_line.group(1).split())
-    for name in used:
-        assert (
-            (STATIC / "icons" / f"{name}.svg")
-            .read_text(encoding="utf-8")
-            .lstrip()
-            .startswith("<svg")
-        ), name
+def test_icons_come_from_the_kit_and_the_lucide_license_stays() -> None:
+    # 絵は ui-kit の icons.svg の <svg class="ic"><use href="#i-…"/></svg> だけ。CSS の mask で描く絵は置かない
+    assert "mask" not in INPUT_CSS.read_text(encoding="utf-8")
+    assert sorted(path.name for path in (STATIC / "icons").iterdir()) == ["LICENSE"]
     assert "ISC" in (STATIC / "icons" / "LICENSE").read_text(encoding="utf-8")
+    kit_ids = set(re.findall(r'<symbol id="(i-[a-z0-9-]+)"', (STATIC / "ui-kit" / "icons.svg").read_text(encoding="utf-8")))
+    for template in (ROOT / "app" / "web" / "templates").glob("*.html"):
+        html = template.read_text(encoding="utf-8")
+        assert not re.search(r'class="[^"]*\bicon[ -]', html), template.name
+        assert "animate-spin" not in html, template.name
+        for name in re.findall(r'icons\.svg#(i-[a-z0-9-]+)', html):
+            assert name in kit_ids, (template.name, name)
 
 
 def test_built_css_is_committed_and_uses_the_kit_tokens() -> None:
@@ -45,7 +42,7 @@ def test_built_css_is_committed_and_uses_the_kit_tokens() -> None:
     css = (STATIC / "app.css").read_text(encoding="utf-8")
     assert ".text-label{color:var(--color-label)!important}" in css.replace(" ", "")
     kit = STATIC / "ui-kit"
-    assert (kit / "VERSION").read_text(encoding="utf-8").strip() == "1.2.0"
+    assert (kit / "VERSION").read_text(encoding="utf-8").strip() == "1.2.1"
     assert "--color-primary: #4B4FBF;" in (kit / "tokens.css").read_text(encoding="utf-8")
     assert ".btn-primary{" in (kit / "components.css").read_text(encoding="utf-8")
 

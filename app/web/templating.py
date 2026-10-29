@@ -17,6 +17,7 @@ from app.core.patient_input import DEFAULT_TIMEZONE, current_date
 from app.core.text_safety import make_visible
 
 from . import display
+from .link_status import CHECK_UNREADABLE
 
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 
@@ -54,6 +55,7 @@ def create_environment() -> Environment:
     env.globals["patient_label"] = display.patient_label
     env.globals["utc_offset"] = display.utc_offset_label
     env.globals["STATUS_LABELS"] = display.STATUS_LABELS
+    env.globals["CHECK_UNREADABLE"] = CHECK_UNREADABLE
     env.globals["COMMITMENT_LABELS"] = display.COMMITMENT_LABELS
     env.globals["STATUS_KINDS"] = display.STATUS_KINDS
     env.globals["COMMITMENT_KINDS"] = display.COMMITMENT_KINDS

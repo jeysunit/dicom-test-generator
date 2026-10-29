@@ -4,7 +4,7 @@
 <h2>結果</h2>
 <div class="in flex flex-col gap-3">
   <p role="status" class="notice font-semibold text-value" data-k="ok">
-    <span class="icon icon-check" aria-hidden="true"></span>
+    <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-check"/></svg>
     {# 誰を撮ったかを知らせに入れる（docs/spec/12a の 10.5。取り違えに気づけるように） #}
     <span>撮影完了：{% if exam_patient %}{{ exam_patient }}の {% endif %}{{ result.files|length }} 画像</span>
   </p>
@@ -15,7 +15,7 @@
   </dl>
   {% for notice in result.notices %}
   <p role="status" class="notice text-xs" data-k="warn">
-    <span class="icon icon-triangle-alert" aria-hidden="true"></span>
+    <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-alert"/></svg>
     <span>注意：{{ notice }}</span>
   </p>
   {% endfor %}
@@ -24,7 +24,7 @@
   <p class="text-xs">MPPS：{{ result.mpps.state }} を送信しました</p>
   {% else %}
   <p role="alert" class="notice text-xs" data-k="warn">
-    <span class="icon icon-triangle-alert" aria-hidden="true"></span>
+    <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-alert"/></svg>
     <span>注意：MPPS の送信に失敗しました（{{ result.mpps.error }}）。<code>python -m app.cli mpps retry</code> で再送信できます</span>
   </p>
   {% endif %}
@@ -38,8 +38,8 @@
     <form hx-post="/exam/send" hx-target="#send-result" hx-disabled-elt="find button" class="flex justify-end">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <input type="hidden" name="output_dir" value="{{ result.output_dir }}">
-      <p class="busy busy-send mr-auto" role="status"><span class="icon icon-refresh-cw animate-spin" aria-hidden="true"></span>送信しています</p>
-      <button type="submit" class="btn btn-primary"><span class="icon icon-send" aria-hidden="true"></span>送信</button>
+      <p class="busy busy-send mr-auto" role="status"><span class="spin" aria-hidden="true"></span>送信しています</p>
+      <button type="submit" class="btn btn-primary"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-send"/></svg>送信</button>
     </form>
     {% endif %}
   </div>

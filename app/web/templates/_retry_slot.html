@@ -2,11 +2,11 @@
 <span id="retry-slot"{% if oob_parts %} hx-swap-oob="true"{% endif %}>
   {% if failed_total %}
   <button type="button" class="btn" data-dialog-open="dlg-resend">
-    <span class="icon icon-refresh-cw" aria-hidden="true"></span>失敗 {{ failed_total }} 件を再送信
+    <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-refresh"/></svg>失敗 {{ failed_total }} 件を再送信
   </button>
   {% else %}
   <button type="button" class="btn" disabled>
-    <span class="icon icon-refresh-cw" aria-hidden="true"></span>失敗をすべて再送信
+    <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-refresh"/></svg>失敗をすべて再送信
   </button>
   {% endif %}
 </span>
