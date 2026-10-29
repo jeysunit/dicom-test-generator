@@ -33,7 +33,7 @@ def test_closed_state_is_one_badge_in_the_top_band(client) -> None:
 
 
 def test_top_band_follows_the_kit_parts(client) -> None:
-    """上の帯の構造は部品集の決まり（ui-kit 1.2.1）：ハンバーガー固定のナビの開閉・接続の状態の三つ組."""
+    """上の帯の構造は部品集の決まり（ui-kit 1.2.2）：ハンバーガー固定のナビの開閉・接続の状態の三つ組."""
     html = client.get("/worklist").text
     header = html[html.index("<header") : html.index("</header>")]
 
