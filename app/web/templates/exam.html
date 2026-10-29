@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}撮影{% endblock %}
 {% block content %}
+{% from "_birth.html" import birth_value %}
 {% if item %}
 {% set alphabetic, ideographic, phonetic = item.patient_name|name_parts %}
 <nav aria-label="いまの場所">
@@ -31,7 +32,7 @@
       {% if phonetic or (ideographic and alphabetic) %}<div class="k">{{ phonetic or alphabetic }}</div>{% endif %}
     </div>
     <div class="f"><div class="l">患者ID</div><div class="v font-mono">{{ item.patient_id }}</div></div>
-    <div class="f"><div class="l">生年月日・性別</div><div class="v">{{ item|birth_label }}</div></div>
+    <div class="f"><div class="l">生年月日・性別</div><div class="v" title="{{ item|birth_label }}">{{ birth_value(item|birth_parts) }}</div></div>
     <div class="f"><div class="l">受付番号</div><div class="v font-mono">{{ item.accession_number or "—" }}</div></div>
     <div class="f"><div class="l">検査名</div><div class="v">{{ item.requested_procedure_description or "—" }}</div></div>
     <div class="end"><span class="badge">予約の値（読むだけ）</span></div>
@@ -186,7 +187,7 @@
     </div>
     <div class="f"><div class="l">氏名（英字）</div><div class="v" {% if not item %}data-mirror="name_alphabetic" {% endif %}data-empty="—">{% if item %}{{ t_alpha or "—" }}{% else %}—{% endif %}</div></div>
     <div class="f"><div class="l">患者ID</div><div class="v font-mono" {% if not item %}data-mirror="patient_id" {% endif %}data-empty="—">{% if item %}{{ item.patient_id }}{% else %}—{% endif %}</div></div>
-    <div class="f"><div class="l">生年月日・性別</div><div class="v"{% if not item %} data-mirror-birth{% endif %}>{% if item %}{{ item|birth_label }}{% else %}生年月日なし{% endif %}</div></div>
+    <div class="f"><div class="l">生年月日・性別</div><div class="v"{% if item %} title="{{ item|birth_label }}"{% else %} data-mirror-birth{% endif %}>{% if item %}{{ birth_value(item|birth_parts) }}{% else %}生年月日なし{% endif %}</div></div>
     <div class="f"><div class="l">受付番号</div><div class="v font-mono">{% if item %}{{ item.accession_number or "—" }}{% else %}—（予約なし）{% endif %}</div></div>
     <div class="f"><div class="l">送信先</div><div class="v">{{ destination.name }} <span class="font-mono text-xs text-label">{{ destination.ae_title }}・{{ destination.host }}:{{ destination.port }}</span></div></div>
   </section>

@@ -41,5 +41,14 @@ def test_worklist_birth_date_uses_the_era_form_for_each_place(client) -> None:
     assert all(re.fullmatch(r"\d{4}/\d{2}/\d{2} \(([MTSHR]\d+・)?\d+歳\)", cell) for cell in dated), cells
     # 詳細・患者バナー：漢字 1 字・全角の括弧で、性別が続く
     detail = client.get(f"/worklist/item/{key_for(html, 'A0001')}").text
-    assert re.search(r"<dt>生年月日・性別</dt><dd>1980/01/15（昭55・\d+歳）(男|女|その他)</dd>", detail)
-    assert re.search(r'<div class="v">1980/01/15（昭55・\d+歳）(男|女|その他)</div>', detail)
+    # 西暦の後ろ（括弧から後ろ）は .unit で包み、全文は title に出す
+    assert re.search(
+        r'<dt>生年月日・性別</dt><dd title="1980/01/15（昭55・\d+歳）(男|女|その他)">'
+        r'1980/01/15<span class="unit">（昭55・\d+歳）(男|女|その他)</span></dd>',
+        detail,
+    )
+    assert re.search(
+        r'<div class="v" title="1980/01/15（昭55・\d+歳）(男|女|その他)">'
+        r'1980/01/15<span class="unit">（昭55・\d+歳）(男|女|その他)</span></div>',
+        detail,
+    )

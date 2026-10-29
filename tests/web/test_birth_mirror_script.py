@@ -19,14 +19,21 @@ const fs = require("fs");
 const listeners = {};
 class Element {
   constructor(props) {
-    Object.assign(this, { value: "", textContent: "" }, props);
+    Object.assign(this, { value: "", children: [] }, props);
     this.attrs = props.attrs || {};
+    let text = "";
+    // textContent に代入すると子の要素は捨てられる（実際の DOM と同じ）
+    Object.defineProperty(this, "textContent", {
+      get: () => text,
+      set: (value) => { text = value; this.children = []; },
+    });
   }
   hasAttribute(name) { return name in this.attrs; }
   getAttribute(name) { return name in this.attrs ? this.attrs[name] : null; }
   setAttribute(name, value) { this.attrs[name] = value; }
   removeAttribute(name) { delete this.attrs[name]; }
   closest(selector) { return selector === "#emergency-patient" ? this : null; }
+  appendChild(child) { this.children.push(child); }
 }
 class HTMLInputElement extends Element {}
 class HTMLSelectElement extends Element {}
@@ -44,6 +51,7 @@ const target = {
 global.document = {
   documentElement: { getAttribute() { return "light"; }, setAttribute() {} },
   body: {},
+  createElement() { return new Element({}); },
   addEventListener(type, fn) { (listeners[type] = listeners[type] || []).push(fn); },
   getElementById(id) { return id === "exam-target" ? target : null; },
   querySelector() { return null; },
@@ -63,7 +71,12 @@ function shown(value, today, sexValue) {
   birth.attrs["data-today"] = today;
   sex.value = sexValue;
   (listeners.input || []).forEach((fn) => fn({ target: birth }));
-  return cell.textContent;
+  const unit = cell.children.find((child) => child.className === "unit");
+  return {
+    text: cell.textContent + cell.children.map((child) => child.textContent).join(""),
+    unit: unit ? unit.textContent : null,
+    title: cell.getAttribute("title"),
+  };
 }
 const cases = JSON.parse(process.argv[2]);
 console.log(JSON.stringify(cases.map(([value, today, sexValue]) => shown(value, today, sexValue))));
@@ -99,6 +112,10 @@ AGES = [
 
 
 def _run(cases: list[list[str]]) -> list[str]:
+    return [shown["text"] for shown in _run_detail(cases)]
+
+
+def _run_detail(cases: list[list[str]]) -> list[dict[str, str | None]]:
     node = shutil.which("node")
     if node is None:
         pytest.skip("node が無いので、画面のスクリプトを動かせない")
@@ -123,6 +140,14 @@ def test_mirrored_birth_date_has_era_and_age_for_every_conversion_row() -> None:
         day = born.replace("-", "/")
         inside = (f"{era}・" if era else "") + f"{_age(born, TODAY)}歳"
         assert text == f"{day}（{inside}）男", born
+
+
+def test_mirrored_birth_date_wraps_the_part_after_the_date_in_unit_with_the_full_text_in_title() -> None:
+    [with_paren, without_date] = _run_detail([["1975-05-14", TODAY, "M"], ["", TODAY, "M"]])
+    assert with_paren["unit"] == "（昭50・51歳）男"
+    assert with_paren["title"] == "1975/05/14（昭50・51歳）男"
+    assert without_date["unit"] is None
+    assert without_date["title"] is None
 
 
 def test_mirrored_age_follows_the_birthday_boundaries() -> None:

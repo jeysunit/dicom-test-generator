@@ -124,6 +124,18 @@ def birth_label(item: WorklistItem, today: date | None = None) -> str:
     return f"{day}{inside}{sex}" if inside else f"{day} {sex}".rstrip()
 
 
+def birth_parts(item: WorklistItem, today: date | None = None) -> tuple[str, str]:
+    """`birth_label` を 西暦 と 括弧から後ろ に分ける（後ろは `.unit` で包んで折れ方を決める）.
+
+    括弧が無い値（生年月日なし・元号も年齢も出せない値）は後ろが空で、全文が前に入る。
+    """
+    label = birth_label(item, today)
+    if not item.birth_date:
+        return label, ""
+    day, inside = birth_text(item.birth_date, today or current_date())
+    return (day, label[len(day) :]) if inside else (label, "")
+
+
 def birth_cell_label(item: WorklistItem, today: date | None = None) -> str:
     """一覧の表の生年月日の列を `1980/01/15 (S55・45歳)` の形にする（性別は別の行に出す）."""
     if not item.birth_date:

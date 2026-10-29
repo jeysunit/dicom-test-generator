@@ -1,0 +1,2 @@
+{# 患者の帯の生年月日の値：西暦と、括弧から後ろ（.unit）の 2 つに分ける（ui-kit 1.2.3）。全文は呼ぶ側が title に出す #}
+{% macro birth_value(parts) %}{{ parts[0] }}{% if parts[1] %}<span class="unit">{{ parts[1] }}</span>{% endif %}{% endmacro %}

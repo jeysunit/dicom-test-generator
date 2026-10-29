@@ -941,11 +941,21 @@
       var sexText = sex ? SEX_TEXT[sex.value] || "" : "";
       if (!date || !date.value) {
         birth.textContent = sexText ? "生年月日なし（" + sexText + "）" : "生年月日なし";
+        birth.removeAttribute("title");
         return;
       }
       var paren = birthParen(date.value, date.getAttribute("data-today") || today());
       var day = date.value.replace(/-/g, "/");
-      birth.textContent = paren ? day + paren + sexText : sexText ? day + " " + sexText : day;
+      // 西暦と、括弧から後ろ（.unit）の 2 つに分ける。サーバーの描画と同じ形
+      var full = paren ? day + paren + sexText : sexText ? day + " " + sexText : day;
+      birth.textContent = paren ? day : full;
+      if (paren) {
+        var unit = document.createElement("span");
+        unit.className = "unit";
+        unit.textContent = paren + sexText;
+        birth.appendChild(unit);
+      }
+      birth.setAttribute("title", full);
     }
   }
   ["input", "change", "focusout"].forEach(function (type) {

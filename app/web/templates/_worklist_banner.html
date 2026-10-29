@@ -1,4 +1,5 @@
 {# 選んだ予約の患者バナー（docs/spec/12a の 10.4）。「選んで撮影へ」の真上に出し、誰を撮るかを確かめてから進む #}
+{% from "_birth.html" import birth_value %}
 {% set alphabetic, ideographic, phonetic = item.patient_name|name_parts %}
 <section class="banner" aria-label="選んだ予約の患者">
   <div class="nm">
@@ -6,7 +7,7 @@
     {% if phonetic or (ideographic and alphabetic) %}<div class="k">{{ phonetic or alphabetic }}</div>{% endif %}
   </div>
   <div class="f"><div class="l">患者ID</div><div class="v font-mono">{{ item.patient_id }}</div></div>
-  <div class="f"><div class="l">生年月日・性別</div><div class="v">{{ item|birth_label }}</div></div>
+  <div class="f"><div class="l">生年月日・性別</div><div class="v" title="{{ item|birth_label }}">{{ birth_value(item|birth_parts) }}</div></div>
   <div class="f"><div class="l">受付番号</div><div class="v font-mono">{{ item.accession_number or "—" }}</div></div>
   <div class="f"><div class="l">予定</div><div class="v">{{ item.scheduled_start_time|time_label }}・{{ item.modality or "—" }}</div></div>
   <div class="f"><div class="l">検査名</div><div class="v">{{ item.requested_procedure_description or "—" }}</div></div>
