@@ -130,18 +130,6 @@
   color: var(--color-link);
 }
 
-/* 「標準」などの小さな札（状態ではない印） */
-.badge {
-  display: inline-block;
-  margin-right: 4px;
-  padding: 0 6px;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  font-size: 12px;
-  white-space: nowrap;
-  color: var(--color-label);
-}
-
 /* 文の中のリンク */
 .link {
   text-decoration: underline;
@@ -322,7 +310,8 @@ form.htmx-request .busy-send {
   display: flex;
 }
 
-/* Lucide のアイコン（app/web/static/icons/）。文字の色で塗る */
+/* 本文の中の Lucide のアイコン（app/web/static/icons/）。文字の色で塗る。
+   上の帯・左のナビ・検索の帯の絵は ui-kit の icons.svg（<svg class="ic">）を使い、ここには置かない */
 .icon {
   display: inline-block;
   flex: none;
@@ -331,20 +320,12 @@ form.htmx-request .busy-send {
   background-color: currentColor;
   mask: var(--icon) center / contain no-repeat;
 }
-.icon-activity { --icon: url("/static/icons/activity.svg"); }
-.icon-camera { --icon: url("/static/icons/camera.svg"); }
 .icon-check { --icon: url("/static/icons/check.svg"); }
 .icon-copy { --icon: url("/static/icons/copy.svg"); }
 .icon-info { --icon: url("/static/icons/info.svg"); }
-.icon-list { --icon: url("/static/icons/list.svg"); }
-.icon-moon { --icon: url("/static/icons/moon.svg"); }
-.icon-panel-left { --icon: url("/static/icons/panel-left.svg"); }
 .icon-refresh-cw { --icon: url("/static/icons/refresh-cw.svg"); }
 .icon-search { --icon: url("/static/icons/search.svg"); }
 .icon-send { --icon: url("/static/icons/send.svg"); }
-.icon-server { --icon: url("/static/icons/server.svg"); }
-.icon-settings { --icon: url("/static/icons/settings.svg"); }
-.icon-sun { --icon: url("/static/icons/sun.svg"); }
 .icon-triangle-alert { --icon: url("/static/icons/triangle-alert.svg"); }
 
 /* 地の切り替えのボタンは、いまの地のアイコンを出す */

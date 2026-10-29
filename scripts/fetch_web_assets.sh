@@ -19,7 +19,7 @@ LUCIDE_SHA256="e27a6b58bebc563581f89668a5a652782075a85a07568e4fd8051a17ce81dba6"
 LUCIDE_LICENSE_URL="https://raw.githubusercontent.com/lucide-icons/lucide/$LUCIDE_VERSION/LICENSE"
 # LICENSE の git の blob の SHA-1（GitHub の contents API の sha）
 LUCIDE_LICENSE_BLOB="718bb3f0e44153809972abed31839375804bf652"
-ICONS=(activity camera check copy info list moon panel-left refresh-cw search send server settings sun triangle-alert)
+ICONS=(check copy info refresh-cw search send triangle-alert)
 
 mkdir -p "$CACHE" "$STATIC/icons"
 

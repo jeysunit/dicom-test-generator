@@ -45,9 +45,21 @@ def test_built_css_is_committed_and_uses_the_kit_tokens() -> None:
     css = (STATIC / "app.css").read_text(encoding="utf-8")
     assert ".text-label{color:var(--color-label)!important}" in css.replace(" ", "")
     kit = STATIC / "ui-kit"
-    assert (kit / "VERSION").read_text(encoding="utf-8").strip() == "1.0.1"
+    assert (kit / "VERSION").read_text(encoding="utf-8").strip() == "1.2.0"
     assert "--color-primary: #4B4FBF;" in (kit / "tokens.css").read_text(encoding="utf-8")
     assert ".btn-primary{" in (kit / "components.css").read_text(encoding="utf-8")
+
+
+def test_kit_copy_matches_its_fingerprints() -> None:
+    """ui-kit の写しは直さない：5 つのファイルが SHA256SUMS の指紋と合う（ADR-0028）."""
+    kit = STATIC / "ui-kit"
+    sums = {}
+    for line in (kit / "SHA256SUMS").read_text(encoding="utf-8").splitlines():
+        digest, name = line.split(maxsplit=1)
+        sums[name.strip()] = digest
+    assert set(sums) == {"tokens.css", "components.css", "icons.svg", "VERSION"}
+    for name, digest in sums.items():
+        assert hashlib.sha256((kit / name).read_bytes()).hexdigest() == digest, name
 
 
 def test_pages_read_the_kit_before_the_product_css() -> None:

@@ -9,7 +9,11 @@
 {% with error = results.error %}{% include "_notice.html" %}{% endwith %}
 {% endif %}
 {% if not results.queried %}
-<p class="text-label">まだ取得していません。条件を選んで「ワークリスト検索」を押してください。</p>
+{# 取得前の空の状態：1 行目に事実、2 行目に次の手 #}
+<div class="empty">
+  <b>まだ取得していません。</b>
+  <span>条件を選んで「検索」を押してください。</span>
+</div>
 {% elif not results.rows %}
 {# 空の状態：1 行目に事実、2 行目に次の手（操作は 1 つまで） #}
 <div class="empty">
@@ -73,7 +77,7 @@
       <a class="btn btn-ghost" href="/exam">緊急の患者で撮る</a>
       <div class="ml-auto flex flex-wrap gap-2">
         <button type="button" class="btn" data-needs-selection hx-post="/worklist/refresh" hx-include="#pick" hx-target="#results" hx-disabled-elt="this"{% if not results.has_selection %} disabled title="行を選ぶと押せます"{% endif %}>
-          <span class="icon icon-refresh-cw" aria-hidden="true"></span>再検索
+          <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-refresh"/></svg>再検索
         </button>
         <button type="submit" class="btn btn-primary" data-needs-selection{% if not results.has_selection %} disabled title="行を選ぶと押せます"{% endif %}>選んで撮影へ</button>
       </div>

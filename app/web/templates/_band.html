@@ -15,19 +15,19 @@
       </label>
     </dd>
     {% else %}
-    <dt>自分</dt><dd class="font-mono">{{ band.own_ae }}</dd>
+    <dt>自分</dt><dd><b class="font-mono">{{ band.own_ae }}</b></dd>
     {% endif %}
     <dt>ワークリスト</dt>
     <dd>
-      <span class="font-mono">{{ band.worklist_ae }}</span>
-      {% if band.link.worklist %}<span class="st" data-k="{{ band.link.worklist.kind }}">{{ "成功" if band.link.worklist.ok else "失敗" }}</span> <span class="text-xs text-label">{{ band.link.worklist.at }}</span>
+      <b class="font-mono">{{ band.worklist_ae }}</b>
+      {% if band.link.worklist %}<span class="st" data-k="{{ band.link.worklist.kind }}">{{ "成功" if band.link.worklist.ok else "失敗" }}</span> <span class="xs label">{{ band.link.worklist.at }}</span>
       {% else %}<span class="st" data-k="plan">未確認</span>{% endif %}
     </dd>
     {% for name, probe in band.link.destinations %}
     <dt>{% if loop.first %}送信先{% endif %}</dt>
     <dd>
-      <span class="font-mono">{{ name }}</span>{% if name == band.destination %} <span class="badge">標準</span>{% endif %}
-      {% if probe %}<span class="st" data-k="{{ probe.kind }}">{{ "成功" if probe.ok else "失敗" }}</span> <span class="text-xs text-label">{{ probe.at }}</span>
+      <b class="font-mono">{{ name }}</b>{% if name == band.destination %} <span class="badge">標準</span>{% endif %}
+      {% if probe %}<span class="st" data-k="{{ probe.kind }}">{{ "成功" if probe.ok else "失敗" }}</span> <span class="xs label">{{ probe.at }}</span>
       {% else %}<span class="st" data-k="plan">未確認</span>{% endif %}
     </dd>
     {% endfor %}
@@ -37,7 +37,7 @@
   {# ワークリストの取得先とすべての送信先に C-ECHO を送り、この中身を結果で差し替える #}
   <div class="ft">
     <button type="button" class="btn btn-sm" hx-post="/link/check" hx-target="#band" hx-swap="outerHTML" hx-disabled-elt="this">
-      <span class="icon icon-activity" aria-hidden="true"></span>接続確認
+      <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-refresh"/></svg>接続確認
     </button>
     <a class="btn btn-sm" href="/pacs">PACS を開く</a>
   </div>

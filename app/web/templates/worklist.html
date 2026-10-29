@@ -42,9 +42,13 @@
     <span class="l">受付番号</span>
     <input type="text" name="accession" class="input w-40" maxlength="16">
   </label>
-  <button type="submit" class="btn">
-    <span class="icon icon-search" aria-hidden="true"></span>ワークリスト検索
-  </button>
+  <div class="acts">
+    <button type="submit" class="btn btn-primary">
+      <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-search"/></svg>検索
+    </button>
+    {# 条件を最初の値（予定の日 = 今日・既定のモダリティ）に戻す。取得した一覧は替えない #}
+    <button type="reset" class="btn">条件をクリア</button>
+  </div>
 </form>
 <section id="results" aria-live="polite">
   {% if results %}{% include "_worklist_results.html" %}{% endif %}
