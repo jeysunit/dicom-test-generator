@@ -8,7 +8,7 @@ from web_helpers import csrf_token, make_client, post_headers
 from app.core.exceptions import FileReadError
 from app.core.models import ScheduledPatient
 from app.modality.service import ExamRequest, SendResult
-from app.web.display import send_error_label
+from app.web.display import mpps_error_label, send_error_label
 
 
 @pytest.fixture
@@ -36,6 +36,18 @@ def client(tmp_path):
     ("相手が AEタイトル DTG_CT01 を受け付けませんでした。登録してください",
      "相手が AEタイトル DTG_CT01 を受け付けませんでした。登録してください"),
     ("unexpected <error> " * 100, "送信に失敗しました"),
+    ("N-CREATE failed with status 0x0110 (peer=PACS_TEST, status=0x0110)",
+     "送信先が MPPS を受け付けませんでした（状態 0x0110）。送信先の記録を確かめてください"),
+    ("N-SET failed with status 0xC310",
+     "送信先が MPPS を受け付けませんでした（状態 0xC310）。送信先の記録を確かめてください"),
+    ("N-CREATE timed out or the association was aborted (peer=PACS_TEST, sop_instance_uid=1.2)",
+     "MPPS の送信先から応答がありませんでした。届いていたかもしれません。送信先の稼働状況を確かめてください"),
+    ("N-SET could not be sent: RuntimeError (peer=PACS_TEST, sop_instance_uid=1.2)",
+     "MPPS を送れませんでした。送信先が MPPS に対応しているか確かめてください"),
+    ("N-CREATE has not been sent yet",
+     "先に送る MPPS（N-CREATE）がまだ送れていません。再送信してください"),
+    ("being sent by another process",
+     "別のプロセスが MPPS を送信中です。少し待って、再送信の結果を確かめてください"),
 ])
 def test_send_error_label_and_detail(client, reason, expected) -> None:
     assert send_error_label(reason) == expected
@@ -55,6 +67,15 @@ def test_send_error_label_and_detail(client, reason, expected) -> None:
     assert f'class="font-mono">{escape(reason)}<' in detail
     if reason != expected:
         assert escape(reason) not in outside
+
+
+def test_mpps_error_label_points_to_the_next_step_when_nothing_matches() -> None:
+    assert mpps_error_label("N-CREATE failed with status 0x0110") == send_error_label(
+        "N-CREATE failed with status 0x0110"
+    )
+    assert mpps_error_label("something else") == (
+        "送信に失敗しました。python -m app.cli mpps list で記録を確かめてください"
+    )
 
 
 def test_queue_read_error_does_not_claim_empty(client, monkeypatch) -> None:
