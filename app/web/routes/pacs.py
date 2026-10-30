@@ -270,7 +270,8 @@ def _queue_context(
             "range_last": 0,
             "limited": False,
         }
-    # 条件に合う件が 1,000 件を超えたら、新しい 1,000 件だけを読む。状態の件数も、その 1,000 件の中で数える
+    # 条件に合う件が 1,000 件を超えたら、新しい 1,000 件だけを出す（キューの読みは全件。上限は表示の上限）。
+    # 状態の件数も、その 1,000 件の中で数える
     narrowed = [job for job in all_jobs if _matches(job, filters)]
     limited = len(narrowed) > LIST_LIMIT
     narrowed = narrowed[:LIST_LIMIT]

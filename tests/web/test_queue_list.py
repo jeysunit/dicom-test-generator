@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+import pytest
+
 from app.core.models import ScheduledPatient
 from app.modality.service import ExamRequest
 
@@ -112,6 +114,28 @@ def test_the_filter_and_the_summary_buttons_go_back_to_the_first_page(client) ->
     assert 'hx-vals=\'{"page": "1"}\'' in form_tag
     summary = page.split('id="queue-sum"', 1)[1].split("</div>", 1)[0]
     assert summary.count('"page": "1"') == 4  # すべて・送信中・送信完了・送信失敗
+
+
+@pytest.mark.parametrize(
+    ("count", "listed", "pages", "notice"),
+    [
+        (0, 0, None, False),  # 0 件は 1 ページ（ページ送りなし）
+        (50, 50, None, False),  # ちょうど 50 件は送りなし
+        (51, 51, 2, False),  # 51 件で 2 ページ
+        (1000, 1000, 20, False),  # ちょうど 1,000 件は上限の知らせなし
+        (1001, 1000, 20, True),  # 1,001 件で上限の知らせあり（表示だけが 1,000 件）
+    ],
+)
+def test_page_and_display_limit_boundaries(client, count, listed, pages, notice) -> None:
+    _add_jobs(client, count)
+
+    html = client.get("/pacs/queue").text
+
+    assert f"<b>{listed}</b> 件" in html
+    assert ("class=\"pager\"" in html) == (pages is not None)
+    if pages is not None:
+        assert f"1 / {pages}" in html
+    assert ("送信ジョブが 1,000 件を超えたため" in html) == notice
 
 
 def test_over_a_thousand_jobs_shows_only_the_newest_thousand_with_a_notice(client) -> None:
