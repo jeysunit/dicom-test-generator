@@ -87,8 +87,8 @@ def test_status_filter_selects_and_toggles(client) -> None:
 
     assert '<span class="cnt"><b>2</b>' in failed
     assert 'aria-pressed="true" data-focus-key="sum-failed"' in failed
-    # 押している状態をもう一度押すと、絞りを外す
-    assert re.search(r'data-focus-key="sum-failed"[^>]*hx-vals=\'\{"status": "all"\}\'', failed)
+    # 押している状態をもう一度押すと、絞りを外す（どちらも 1 ページ目に戻す）
+    assert re.search(r'data-focus-key="sum-failed"[^>]*hx-vals=\'\{"status": "all", "page": "1"\}\'', failed)
     assert '<input type="hidden" form="queue-filter" name="status" value="failed">' in failed
 
 

@@ -30,6 +30,11 @@
       <dt>名乗る AEタイトル</dt><dd class="font-mono">{{ job.calling_ae_title or "—" }}</dd>
     </dl>
   </div>
+  {# 受け手で探す鍵：Study UID の行（部品集の UID の行） #}
+  <div class="uidrow">
+    <span class="l">Study UID</span><span class="uid">{{ job.study_instance_uid or "—" }}</span>
+    {% if job.study_instance_uid %}<button type="button" class="btn btn-ghost btn-sm" data-copy="{{ job.study_instance_uid }}">コピー</button>{% endif %}
+  </div>
   <div class="flex flex-wrap items-center gap-2">
     {% if job.status in ("failed", "sent") %}
     <button type="button" class="btn" data-resend hx-post="/pacs/retry/{{ job.id }}" hx-target="#queue" hx-include="#queue-filter" hx-disabled-elt="#queue [data-resend], #retry-failed">
