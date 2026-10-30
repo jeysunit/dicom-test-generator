@@ -11,25 +11,32 @@
 {# 状態の絞り込みと選んだ行は、検索の帯（#queue-filter）の欄として、読み直しのたびに送る #}
 <input type="hidden" form="queue-filter" name="status" value="{{ filters.status }}">
 <input type="hidden" form="queue-filter" name="selected" value="{{ selected_job.id if selected_job else '' }}">
+<input type="hidden" form="queue-filter" name="page" value="{{ list_page }}">
 {% if queue_error %}{% with error = queue_error %}{% include "_notice.html" %}{% endwith %}
 {% else %}
+{# 条件に合う件が 1,000 件を超えたときの知らせ（新しい 1,000 件だけを出す） #}
+{% if limited %}
+<div class="notice" data-k="warn" role="status"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-info"/></svg><span>送信ジョブが 1,000 件を超えたため、新しい 1,000 件だけを出しています。期間を狭めてください。</span></div>
+{% endif %}
 {# 件数の行：件数と、自動更新の補足。空でも位置を変えない #}
 <div class="listhead">
-  <span class="cnt"><b>{{ jobs|length }}</b> 件</span>
+  <span class="cnt"><b>{{ listed }}</b> 件</span>
   <span class="xs label">新しい順・2 秒ごとに自動更新</span>
 </div>
 <div class="tbl-wrap">
   <table class="tbl">
     <thead>
       <tr>
-        {# 列は 7 つ（受付日時・患者ID・氏名・送信先・画像数・状態・操作）。ジョブの番号・検査日時・
-           受付番号・完了日時は、行の [詳細] の区画に出す（10.6）。保管の確認は状態の札の下に出す #}
+        {# 列は 9 つ。ジョブの番号・検査日時・受付番号・完了日時・Study UID は、
+           行の [詳細] の区画に出す（10.6） #}
         <th scope="col">受付日時<span class="block text-xs">{{ utc_offset() }}</span></th>
+        <th scope="col">送信先</th>
         <th scope="col">患者ID</th>
         <th scope="col">氏名</th>
-        <th scope="col">送信先</th>
+        <th scope="col">モダリティ・検査名</th>
         <th scope="col">画像数</th>
         <th scope="col">状態</th>
+        <th scope="col">保管の確認</th>
         <th scope="col" class="act">操作</th>
       </tr>
     </thead>
@@ -39,19 +46,22 @@
       {% set received_day, _, received_time = (job.created_at|datetime_label).partition(" ") %}
       <tr aria-selected="{{ 'true' if selected_job and selected_job.id == job.id else 'false' }}">
         <td class="whitespace-nowrap text-xs"><span class="block">{{ received_day }}</span><span class="block">{{ received_time }}</span></td>
+        <td>{{ job.destination }}</td>
         <td class="font-mono">{{ job.patient_id or "—" }}</td>
         <td class="whitespace-nowrap">{{ ideographic or alphabetic or "—" }}</td>
-        <td>{{ job.destination }}</td>
+        <td class="whitespace-nowrap">{% if job.modality or job.study_description %}<span title="{{ job.modality }} {{ job.study_description }}">{% if job.modality %}<span class="mod" data-m="{{ job.modality|modality_key }}">{{ job.modality }}</span>{% endif %}{% if job.study_description %} {{ job.study_description }}{% endif %}</span>{% else %}—{% endif %}</td>
         <td class="whitespace-nowrap">{{ job.num_sent }}/{{ job.num_files }}</td>
         <td>
           <span class="st" data-k="{{ STATUS_KINDS.get(job.status, 'ng') }}">{{ STATUS_LABELS.get(job.status, job.status) }}</span>{% if job.stale %} <span class="st" data-k="note">止まった</span>{% endif %}
-          {% if job.commitment %}
-          <span class="block"><span class="sr-only">保管の確認：</span><span class="st" data-k="{{ COMMITMENT_KINDS.get(job.commitment, 'ng') }}">{{ COMMITMENT_LABELS.get(job.commitment, job.commitment) }}</span></span>
-          {% if job.commitment_error %}<span class="block text-xs text-danger">{{ job.commitment_error }}</span>{% endif %}
-          {% endif %}
           {% if job.status == "failed" %}
           <span class="block"><span class="job-error-summary text-xs text-danger">{{ job.last_error|send_error_label }}</span></span>
           {% endif %}
+        </td>
+        <td>
+          {% if job.commitment %}
+          <span class="st" data-k="{{ COMMITMENT_KINDS.get(job.commitment, 'ng') }}">{{ COMMITMENT_LABELS.get(job.commitment, job.commitment) }}</span>
+          {% if job.commitment_error %}<span class="block text-xs text-danger">{{ job.commitment_error }}</span>{% endif %}
+          {% else %}—{% endif %}
         </td>
         <td class="act">
           <div class="flex items-center gap-2 whitespace-nowrap">
@@ -68,6 +78,17 @@
     </tbody>
   </table>
 </div>
+{# ページ送り：1 ページ 50 件。1 ページに収まるときは出さない。押すと条件と状態を保ったまま、そのページを読む #}
+{% if list_pages > 1 %}
+<div class="pager">
+  <span>{{ range_first }}〜{{ range_last }} 件目／全 {{ listed }} 件</span>
+  <div class="acts">
+    <button type="button" class="btn btn-sm"{% if list_page <= 1 %} disabled{% else %} data-focus-key="page-prev" data-queue-action hx-sync="#queue:replace" hx-get="/pacs/queue" hx-target="#queue" hx-include="#queue-filter" hx-vals='{"page": "{{ list_page - 1 }}"}'{% endif %}>前のページ</button>
+    <span>{{ list_page }} / {{ list_pages }}</span>
+    <button type="button" class="btn btn-sm"{% if list_page >= list_pages %} disabled{% else %} data-focus-key="page-next" data-queue-action hx-sync="#queue:replace" hx-get="/pacs/queue" hx-target="#queue" hx-include="#queue-filter" hx-vals='{"page": "{{ list_page + 1 }}"}'{% endif %}>次のページ</button>
+  </div>
+</div>
+{% endif %}
 {# 空の状態：1 行目に事実、2 行目に次の手。表の枠と見出しの行は出したままにする #}
 {% if not jobs %}
 {% if filters.period != "all" or filters.destination or filters.patient_id or filters.status != "all" %}

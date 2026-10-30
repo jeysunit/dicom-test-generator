@@ -88,10 +88,20 @@ def test_pacs_job_table_shows_patient_not_folder(client) -> None:
     queue = client.get("/pacs/queue").text
 
     head = queue.split("</thead>", 1)[0]
-    # 列は 7 つに絞る（1024 の幅で氏名が縦に並ばず、操作が見える。10.6）
+    # 列は 9 つ（部品集の送受信の一覧の送る側。操作の列は右端に固定し、狭い画面でも押せる。10.6）
     columns = re.findall(r'<th scope="col"[^>]*>([^<]+)', head)
-    assert columns == ["受付日時", "患者ID", "氏名", "送信先", "画像数", "状態", "操作"]
-    # 検査日時・完了・受付番号・ジョブの番号・保管の確認は、選んだ行の詳細に出す
+    assert columns == [
+        "受付日時",
+        "送信先",
+        "患者ID",
+        "氏名",
+        "モダリティ・検査名",
+        "画像数",
+        "状態",
+        "保管の確認",
+        "操作",
+    ]
+    # 検査日時・完了・受付番号・ジョブの番号・保管の確認は、選んだ行の詳細にも出す
     picked = client.get("/pacs/queue?selected=1").text.split('<section id="job-detail"', 1)[1]
     for label in ("検査日時", "完了", "受付番号", "ジョブ", "保管の確認"):
         assert f"<dt>{label}" in picked

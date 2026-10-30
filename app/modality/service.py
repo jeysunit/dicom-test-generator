@@ -14,6 +14,7 @@ import time
 from collections.abc import Callable
 from datetime import date, datetime
 from pathlib import Path
+from typing import NamedTuple
 
 from pydantic import BaseModel, Field
 from pydantic import ValidationError as PydanticValidationError
@@ -172,9 +173,21 @@ def _throttled(touch: Callable[[], None] | None) -> Callable[[int, int], None] |
     return progress
 
 
-def _read_job_summary(folder: Path) -> tuple[str, str, str, str, str]:
-    """フォルダの最初の画像から（患者ID・氏名・検査日時・受付番号・File Meta の Source
-    Application Entity Title）を読む。読めなければ空."""
+class _JobSummary(NamedTuple):
+    """送信ジョブの一覧に出す値（元のファイルの先頭から読む。読めなければすべて空）."""
+
+    patient_id: str = ""
+    patient_name: str = ""
+    study_datetime: str = ""
+    accession_number: str = ""
+    source_ae_title: str = ""  # File Meta の Source Application Entity Title
+    modality: str = ""
+    study_description: str = ""
+    study_instance_uid: str = ""
+
+
+def _read_job_summary(folder: Path) -> _JobSummary:
+    """フォルダの最初の画像から、送信ジョブの一覧に出す値を読む。読めなければ空."""
     try:
         first = next(
             path for path in sorted(folder.glob("*.dcm")) if path.is_file() and not path.is_symlink()
@@ -182,10 +195,19 @@ def _read_job_summary(folder: Path) -> tuple[str, str, str, str, str]:
         dataset = dcmread(
             first,
             stop_before_pixels=True,
-            specific_tags=["PatientID", "PatientName", "StudyDate", "StudyTime", "AccessionNumber"],
+            specific_tags=[
+                "PatientID",
+                "PatientName",
+                "StudyDate",
+                "StudyTime",
+                "AccessionNumber",
+                "Modality",
+                "StudyDescription",
+                "StudyInstanceUID",
+            ],
         )
     except (StopIteration, OSError, InvalidDicomError):
-        return "", "", "", "", ""
+        return _JobSummary()
     meta = getattr(dataset, "file_meta", None)
     source_ae_title = str(meta.get("SourceApplicationEntityTitle", "")).strip() if meta else ""
     study_date = str(dataset.get("StudyDate", ""))
@@ -195,12 +217,15 @@ def _read_job_summary(folder: Path) -> tuple[str, str, str, str, str]:
         study_datetime = f"{study_date[:4]}/{study_date[4:6]}/{study_date[6:]}"
         if len(study_time) >= DICOM_TIME_MIN_LENGTH:
             study_datetime += f" {study_time[:2]}:{study_time[2:4]}"
-    return (
-        str(dataset.get("PatientID", "")),
-        str(dataset.get("PatientName", "")),
-        study_datetime,
-        str(dataset.get("AccessionNumber", "")),
-        source_ae_title,
+    return _JobSummary(
+        patient_id=str(dataset.get("PatientID", "")),
+        patient_name=str(dataset.get("PatientName", "")),
+        study_datetime=study_datetime,
+        accession_number=str(dataset.get("AccessionNumber", "")),
+        source_ae_title=source_ae_title,
+        modality=str(dataset.get("Modality", "")),
+        study_description=str(dataset.get("StudyDescription", "")),
+        study_instance_uid=str(dataset.get("StudyInstanceUID", "")),
     )
 
 
@@ -319,7 +344,7 @@ class ModalityService:
         self._temporary_id_lock = threading.Lock()
         self._issued_temporary_ids: set[str] = set()
         # 送信ジョブの一覧に出す患者・検査の値（元のファイルから読み、ジョブの番号で覚える）
-        self._job_summaries: dict[int, tuple[str, str, str, str, str]] = {}
+        self._job_summaries: dict[int, _JobSummary] = {}
 
     @property
     def queue(self) -> SendQueue:
@@ -1139,10 +1164,10 @@ class ModalityService:
         # 待ち行列に入れる前に、送ってよいファイルかを確かめる（8.2）
         check_send_files(folder_path, files)
         # 件の受付番号は、送る画像の Accession Number（読めなければ空のまま送る）
-        _, _, _, accession_number, source_ae_title = _read_job_summary(folder_path)
-        calling = calling_ae_title or self._station_ae_title_of(source_ae_title)
+        summary = _read_job_summary(folder_path)
+        calling = calling_ae_title or self._station_ae_title_of(summary.source_ae_title)
         job_id = self.queue.add_job(
-            str(folder_path), node.name, files, accession_number, calling_ae_title=calling
+            str(folder_path), node.name, files, summary.accession_number, calling_ae_title=calling
         )
         return self._send_job(job_id, files)
 
@@ -1204,14 +1229,16 @@ class ModalityService:
             summary = _read_job_summary(Path(job.folder))
             if any(summary):
                 self._job_summaries[job.id] = summary
-        patient_id, patient_name, study_datetime, accession_number, _source = summary
         return job.model_copy(
             update={
-                "patient_id": patient_id,
-                "patient_name": patient_name,
-                "study_datetime": study_datetime,
+                "patient_id": summary.patient_id,
+                "patient_name": summary.patient_name,
+                "study_datetime": summary.study_datetime,
+                "modality": summary.modality,
+                "study_description": summary.study_description,
+                "study_instance_uid": summary.study_instance_uid,
                 # 受付番号を記録していない前の件は、画像の値で補う
-                "accession_number": job.accession_number or accession_number,
+                "accession_number": job.accession_number or summary.accession_number,
             }
         )
 

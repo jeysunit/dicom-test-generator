@@ -31,6 +31,9 @@ CHECK_ALL_LOCK = threading.Lock()
 PERIOD_CHOICES = (("all", "すべて"), ("today", "今日"), ("week", "1 週間"))
 # 状態の要約に並べる状態（送信待ちは画面から作った件には残らないので並べない。10.6）
 SUMMARY_STATUSES = ("sending", "sent", "failed")
+# 一覧は 1 ページ 50 件。条件に合う件が 1,000 件を超えたら、新しい 1,000 件だけを出す（部品集の送受信の一覧）
+PAGE_SIZE = 50
+LIST_LIMIT = 1000
 
 
 @dataclass(frozen=True)
@@ -42,10 +45,11 @@ class QueueFilter:
     patient_id: str = ""
     status: str = "all"
     selected: int | None = None
+    page: int = 1
 
 
 def _make_filter(
-    period: str, destination: str, patient_id: str, status: str, selected: str
+    period: str, destination: str, patient_id: str, status: str, selected: str, page: str
 ) -> QueueFilter:
     """知らない値は初期値に戻す（要求を書き換えられても、一覧が壊れないように）."""
     return QueueFilter(
@@ -54,6 +58,7 @@ def _make_filter(
         patient_id=patient_id.strip(),
         status=status if status in SUMMARY_STATUSES else "all",
         selected=int(selected) if selected.isascii() and selected.isdigit() else None,
+        page=int(page) if page.isascii() and page.isdigit() and int(page) > 0 else 1,
     )
 
 
@@ -63,8 +68,9 @@ def filter_from_query(
     patient_id: Annotated[str, Query()] = "",
     status: Annotated[str, Query()] = "all",
     selected: Annotated[str, Query()] = "",
+    page: Annotated[str, Query()] = "1",
 ) -> QueueFilter:
-    return _make_filter(period, destination, patient_id, status, selected)
+    return _make_filter(period, destination, patient_id, status, selected, page)
 
 
 def filter_from_form(
@@ -73,8 +79,9 @@ def filter_from_form(
     patient_id: Annotated[str, Form()] = "",
     status: Annotated[str, Form()] = "all",
     selected: Annotated[str, Form()] = "",
+    page: Annotated[str, Form()] = "1",
 ) -> QueueFilter:
-    return _make_filter(period, destination, patient_id, status, selected)
+    return _make_filter(period, destination, patient_id, status, selected, page)
 
 
 FromQuery = Annotated[QueueFilter, Depends(filter_from_query)]
@@ -256,18 +263,36 @@ def _queue_context(
             "counts": {},
             "failed_total": 0,
             "selected_job": None,
+            "list_page": 1,
+            "list_pages": 1,
+            "listed": 0,
+            "range_first": 0,
+            "range_last": 0,
+            "limited": False,
         }
-    # 状態の件数は、期間・送信先・患者IDで絞った件の中で数える（状態は件数の中から選ぶ）
+    # 条件に合う件が 1,000 件を超えたら、新しい 1,000 件だけを読む。状態の件数も、その 1,000 件の中で数える
     narrowed = [job for job in all_jobs if _matches(job, filters)]
+    limited = len(narrowed) > LIST_LIMIT
+    narrowed = narrowed[:LIST_LIMIT]
+    # 状態の件数は、期間・送信先・患者IDで絞った件の中で数える（状態は件数の中から選ぶ）
     jobs = [job for job in narrowed if filters.status == "all" or job.status == filters.status]
     counts = {status: sum(1 for job in narrowed if job.status == status) for status in SUMMARY_STATUSES}
     selected_job = next((job for job in jobs if job.id == filters.selected), None)
+    pages = max(1, -(-len(jobs) // PAGE_SIZE))
+    page = min(filters.page, pages)
+    first = (page - 1) * PAGE_SIZE
     return {
         **context,
-        "jobs": jobs,
+        "jobs": jobs[first : first + PAGE_SIZE],
         "queue_error": "",
         "total": len(narrowed),
         "counts": counts,
+        "list_page": page,
+        "list_pages": pages,
+        "listed": len(jobs),
+        "range_first": first + 1 if jobs else 0,
+        "range_last": min(first + PAGE_SIZE, len(jobs)),
+        "limited": limited,
         # [失敗をすべて再送信] は条件で絞らず、失敗のすべてに効く（12 の 8.2）
         "failed_total": sum(1 for job in all_jobs if job.status == "failed"),
         "selected_job": selected_job,

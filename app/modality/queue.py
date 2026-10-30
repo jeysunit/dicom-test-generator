@@ -166,6 +166,9 @@ class QueueJob(BaseModel):
     patient_id: str = ""
     patient_name: str = ""
     study_datetime: str = ""
+    modality: str = ""
+    study_description: str = ""
+    study_instance_uid: str = ""
 
 
 class EmergencyExamRecord(BaseModel):
