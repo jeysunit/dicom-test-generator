@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html as html_lib
 import re
+from datetime import date
 
 import pytest
 from birth_input_cases import FORMAT, FUTURE, HEISEI_AFTER_END
@@ -11,6 +12,7 @@ from pydicom import dcmread
 from web_helpers import csrf_token, post_headers
 
 from app.core.patient_input import BIRTH_DATE_FORMAT_MESSAGE, PATIENT_ID_MESSAGE
+from app.web.routes.exam import _birth_value
 
 
 def _post(client, **fields: str) -> str:
@@ -77,6 +79,26 @@ def test_fields_above_the_birth_date_are_reported_first(client) -> None:
     page = _post(client, patient_id="患者01", birth_date="S50.5.14")
     assert PATIENT_ID_MESSAGE in page
     assert FORMAT not in page
+
+
+def test_year_before_1000_is_converted_to_eight_digits() -> None:
+    """画面が受ける年（4 桁）は、1000 年より前でも 8 桁の YYYYMMDD にする（%Y は埋めない環境がある）.
+
+    この値の撮影は、年齢が DICOM の AS の範囲（999 歳まで）を超えるので画像の作成で断られる。
+    ここでは画面の値から YYYYMMDD への変換だけを見る。
+    """
+
+    class Service:
+        @staticmethod
+        def today() -> date:
+            return date(2026, 10, 29)
+
+    assert _birth_value("0999/01/02", Service(), strict=True) == ("09990102", None)
+    assert _birth_value("S50/05/14", Service(), strict=True) == ("19750514", None)
+    # 追加撮影は前の撮影の値を使うので、読めない値は空にして断らない
+    assert _birth_value("S50.5.14", Service(), strict=False) == ("", None)
+    value, error = _birth_value("S50.5.14", Service(), strict=True)
+    assert value == "" and error is not None and error.message == FORMAT
 
 
 def test_empty_birth_date_is_still_allowed(client, tmp_path) -> None:

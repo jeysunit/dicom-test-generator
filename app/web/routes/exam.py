@@ -463,7 +463,9 @@ def _birth_value(
     if not text.strip():
         return "", None
     try:
-        return parse_birth_input(text, service.today()).strftime("%Y%m%d"), None
+        born = parse_birth_input(text, service.today())
+        # 年は 4 桁に埋める（Linux の strftime の %Y は 1000 年より前を埋めない）
+        return f"{born.year:04d}{born.month:02d}{born.day:02d}", None
     except FieldValidationError as exc:
         return "", None if not strict else exc
 
