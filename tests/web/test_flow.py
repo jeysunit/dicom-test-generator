@@ -79,7 +79,7 @@ def test_exam_with_profile_then_send_from_result(client, storage_scp) -> None:
         "name_alphabetic": " KINKYU  TARO ",
         "name_ideographic": "緊急　太郎",
         "name_phonetic": "",
-        "birth_date": "1980-01-01",
+        "birth_date": "1980/01/01",
         "sex": "M",
         "study_description": "緊急 CT",
         "template": "ct_generic",

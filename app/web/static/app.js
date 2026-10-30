@@ -137,10 +137,25 @@
     if (kind === "phonetic") {
       return input.hasAttribute("data-test-mode") || PHONETIC_CHARS.test(text);
     }
-    if (kind === "birth-date") {
-      return !value || value <= latestBirthDate(input);
-    }
     return true;
+  }
+  // 生年月日：読み取った結果を欄の下（.hint）に出し、誤りの文を返す。読めなければ .hint を消す。
+  // 誤りは 3 種類で、確かめる順は形・元号の範囲・今日より後（サーバーの wareki.parse_birth_input と同じ）。
+  // 今日より後は data-message、形は data-format-message、範囲の外は元号の表から作る文
+  function checkBirth(input) {
+    var read = readBirth(input.value, dateParts(latestBirthDate(input)));
+    var hint = document.getElementById("hint-" + input.name);
+    if (hint) {
+      hint.textContent = read.day ? birthText(read.day, dateParts(input.getAttribute("data-today") || today())) : "";
+      hint.hidden = !read.day;
+    }
+    if (read.error === "format") {
+      return input.getAttribute("data-format-message") || "";
+    }
+    if (read.error === "future") {
+      return input.getAttribute("data-message") || "";
+    }
+    return read.error || "";
   }
   function showFieldError(input, message) {
     var line = document.getElementById(input.getAttribute("data-error-line") || "error-" + input.name);
@@ -177,6 +192,8 @@
     var message = "";
     if (input.required && input.value.trim() === "") {
       message = input.getAttribute("data-required-message") || "";
+    } else if (kind === "birth-date") {
+      message = checkBirth(input);
     } else if (!isAcceptable(input, kind, input.value)) {
       message = input.getAttribute("data-message") || "";
     }
@@ -279,6 +296,11 @@
     var field = notice && form && form.elements.namedItem(notice.getAttribute("data-error-field"));
     if (field && field.name) {
       showFieldError(field, notice.textContent.trim());
+      // 断った欄に読み取り結果（生年月日の .hint）があれば消す（誤りと結果を並べて出さない）
+      var hint = document.getElementById("hint-" + field.name);
+      if (hint) {
+        hint.hidden = true;
+      }
       field.focus();
     }
   });
@@ -892,7 +914,102 @@
   var SEX_TEXT = { M: "男", F: "女", O: "その他" };
   // 生年月日の括弧の中身（元号の漢字 1 字と年・満年齢）。始まりの日で決め、年 ＝ 西暦の年 − 始まりの年 ＋ 1。
   // 明治（1868/10/23）より前は元号を出さず、年齢だけ。緊急の撮影は検査日が今日なので、今日が基準（app/core/wareki.py と同じ規則）
-  var ERAS = [[2019, 5, 1, "令"], [1989, 1, 8, "平"], [1926, 12, 25, "昭"], [1912, 7, 30, "大"], [1868, 10, 23, "明"]];
+  // （始まりの年, 月, 日, 漢字 1 字, 正式名, 英字 1 字）。新しい元号から先に並べる
+  var ERAS = [
+    [2019, 5, 1, "令", "令和", "R"], [1989, 1, 8, "平", "平成", "H"], [1926, 12, 25, "昭", "昭和", "S"],
+    [1912, 7, 30, "大", "大正", "T"], [1868, 10, 23, "明", "明治", "M"],
+  ];
+  // 生年月日の入力の形（app/core/wareki.py と同じ）。区切りは / だけ、数字は半角だけ。英字は全角・小文字も受ける
+  var WESTERN_INPUT = /^([0-9]{4})\/([0-9]{1,2})\/([0-9]{1,2})$/;
+  var SHORT_ERA_INPUT = /^([MTSHR明大昭平令])([0-9]{1,2}|元)\/([0-9]{1,2})\/([0-9]{1,2})$/;
+  var FULL_ERA_INPUT = /^(明治|大正|昭和|平成|令和)([0-9]{1,2}|元)年([0-9]{1,2})月([0-9]{1,2})日$/;
+  var ERA_LETTERS = "MTSHRmtshrＭＴＳＨＲｍｔｓｈｒ";
+  function compareDays(a, b) {
+    return a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+  }
+  function daysInMonth(year, month) {
+    var leap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+    return [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+  }
+  // 暦にある日なら [年, 月, 日]、無ければ null（年は 1〜9999。Date は 2 桁の年を 1900 年代にするので使わない）
+  function calendarDay(year, month, day) {
+    return year >= 1 && month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth(year, month) ? [year, month, day] : null;
+  }
+  function dayBefore(day) {
+    if (day[2] > 1) {
+      return [day[0], day[1], day[2] - 1];
+    }
+    var month = day[1] > 1 ? day[1] - 1 : 12;
+    var year = day[1] > 1 ? day[0] : day[0] - 1;
+    return [year, month, daysInMonth(year, month)];
+  }
+  function slashDay(day) {
+    return ("000" + day[0]).slice(-4) + "/" + ("0" + day[1]).slice(-2) + "/" + ("0" + day[2]).slice(-2);
+  }
+  // 元号の範囲の外の誤りの文（app/core/wareki.py の era_range_message と同じ文）
+  function eraRangeMessage(index, afterEnd) {
+    var era = ERAS[index];
+    var head = "生年月日が" + era[4] + "の範囲にありません。";
+    if (afterEnd) {
+      var next = ERAS[index - 1];
+      return head + era[4] + "は " + slashDay(dayBefore(next)) + " までです。" + next[4] + "1年は " + slashDay(next) + " からです。";
+    }
+    var startText = head + era[4] + "は " + slashDay(era) + " からです。";
+    if (index + 1 === ERAS.length) {
+      return startText;
+    }
+    var prev = ERAS[index + 1];
+    var prevEnd = dayBefore(era);
+    return startText + prev[4] + (prevEnd[0] - prev[0] + 1) + "年は " + slashDay(prevEnd) + " までです。";
+  }
+  // 生年月日の入力を読む。{ day: [年, 月, 日] } か { error: "format" | "future" | 範囲の外の文 }。空は {}。
+  // limit（[年, 月, 日]）より後は "future"。limit が null なら今日より後を確かめない
+  function readBirth(value, limit) {
+    var text = value.trim();
+    if (!text) {
+      return {};
+    }
+    var day = null;
+    var western = WESTERN_INPUT.exec(text);
+    if (western) {
+      day = calendarDay(Number(western[1]), Number(western[2]), Number(western[3]));
+      if (!day) {
+        return { error: "format" };
+      }
+    } else {
+      var letter = ERA_LETTERS.indexOf(text.charAt(0));
+      var match = SHORT_ERA_INPUT.exec(letter >= 0 ? "MTSHR".charAt(letter % 5) + text.slice(1) : text) || FULL_ERA_INPUT.exec(text);
+      var index = -1;
+      for (var i = 0; match && i < ERAS.length; i += 1) {
+        if (match[1] === ERAS[i][3] || match[1] === ERAS[i][4] || match[1] === ERAS[i][5]) {
+          index = i;
+        }
+      }
+      var year = match ? (match[2] === "元" ? 1 : Number(match[2])) : 0;
+      if (index < 0 || year === 0) {
+        return { error: "format" };
+      }
+      var era = ERAS[index];
+      day = calendarDay(era[0] + year - 1, Number(match[3]), Number(match[4]));
+      if (!day) {
+        return { error: "format" };
+      }
+      if (compareDays(day, era) < 0) {
+        return { error: eraRangeMessage(index, false) };
+      }
+      if (index > 0 && compareDays(day, ERAS[index - 1]) >= 0) {
+        return { error: eraRangeMessage(index, true) };
+      }
+    }
+    if (limit && compareDays(day, limit) > 0) {
+      return { error: "future" };
+    }
+    return { day: day };
+  }
+  // 読み取り結果の 1 行：1975/05/14（昭50・51歳）。性別は付けない（.hint。患者の写しは後ろに性別を足す）
+  function birthText(day, now) {
+    return slashDay(day) + birthParen(day, now);
+  }
   function dateParts(iso) {
     var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
     if (!match) {
@@ -903,9 +1020,8 @@
     var valid = check.getMonth() === parts[1] - 1 && check.getDate() === parts[2];
     return valid ? parts : null;
   }
-  function birthParen(iso, todayIso) {
-    var born = dateParts(iso);
-    var now = dateParts(todayIso);
+  // born・now は [年, 月, 日]。now が無ければ括弧を出さない
+  function birthParen(born, now) {
     if (!born || !now) {
       return "";
     }
@@ -939,13 +1055,15 @@
       var date = form.elements.namedItem("birth_date");
       var sex = form.elements.namedItem("sex");
       var sexText = sex ? SEX_TEXT[sex.value] || "" : "";
-      if (!date || !date.value) {
+      if (!date || !date.value.trim()) {
         birth.textContent = sexText ? "生年月日なし（" + sexText + "）" : "生年月日なし";
         birth.removeAttribute("title");
         return;
       }
-      var paren = birthParen(date.value, date.getAttribute("data-today") || today());
-      var day = date.value.replace(/-/g, "/");
+      // 読めた値は西暦にして括弧を付ける。読めない値は入れたまま写す（誤りは欄の下の .msg に出る）
+      var read = readBirth(date.value, null);
+      var paren = read.day ? birthParen(read.day, dateParts(date.getAttribute("data-today") || today())) : "";
+      var day = read.day ? slashDay(read.day) : date.value.trim();
       // 西暦と、括弧から後ろ（.unit）の 2 つに分ける。サーバーの描画と同じ形
       var full = paren ? day + paren + sexText : sexText ? day + " " + sexText : day;
       birth.textContent = paren ? day : full;

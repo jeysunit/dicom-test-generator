@@ -59,7 +59,10 @@ IDEOGRAPHIC_MESSAGE = (
 PHONETIC_MESSAGE = "氏名（かな）は全角のカタカナで入力してください。"
 PHONETIC_CONVERTED_NOTE = "ひらがなをカタカナに直しました。"
 PATIENT_ID_MESSAGE = "患者ID は半角の英数字と記号で入力してください（\\ ^ ~ & | は使えません）。"
-BIRTH_DATE_FUTURE_MESSAGE = "生年月日は今日以前の日付を入力してください。"
+# 生年月日の画面の入力（西暦か元号。app/core/wareki.py の parse_birth_input）の誤り。元号の範囲の外の
+# 文は元号ごとに wareki.era_range_message が作る
+BIRTH_DATE_FORMAT_MESSAGE = "生年月日を読み取れません。1975/05/14 か S50/05/14 の形で入力してください。"
+BIRTH_DATE_FUTURE_MESSAGE = "生年月日が今日より後です。日付を確かめてください。"
 REQUIRED_MESSAGES = {
     "patient_id": "患者ID を入力してください。",
     "name": "氏名を入力してください。",
@@ -308,7 +311,11 @@ def current_date(timezone: str = DEFAULT_TIMEZONE) -> date:
 
 
 def validate_birth_date(value: str, today: date | None = None) -> None:
-    """生年月日：空か、暦にある YYYYMMDD で今日以前。`today` が無ければ既定のタイムゾーンの今日."""
+    """生年月日：空か、暦にある YYYYMMDD で今日以前。`today` が無ければ既定のタイムゾーンの今日.
+
+    YYYYMMDD の値（CLI の `--birth-date`・サービス）を確かめる。画面の入力（西暦か元号）は先に
+    wareki.parse_birth_input で YYYYMMDD にするので、形の誤りの文は CLI の YYYYMMDD 向けのまま。
+    """
     if not value:
         return
     parsed = None

@@ -591,7 +591,7 @@ def test_emergency_append_requires_study_uid(monkeypatch, capsys, tmp_path) -> N
         (["--patient-name", "YAMADA^TARO==Yamada"], "氏名（かな）は全角のカタカナ"),
         (["--patient-name", "YAMADA^TARO", "--patient-id", "患者01"], "患者ID は半角の英数字"),
         (["--patient-name", "YAMADA^TARO", "--birth-date", "20230229"], "暦にある日付"),
-        (["--patient-name", "YAMADA^TARO", "--birth-date", "20991231"], "今日以前"),
+        (["--patient-name", "YAMADA^TARO", "--birth-date", "20991231"], "生年月日が今日より後です"),
         (["--patient-name", "A" * 65], "64 字以内"),
         (["--patient-name", "YAMADA^TARO", "--study-description", "あ" * 65], "検査名は 64 字以内"),
     ],
