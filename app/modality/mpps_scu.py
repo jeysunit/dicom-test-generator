@@ -387,10 +387,11 @@ class MppsManager:
                     self._queue.mark_no_response(record_id, operation)
                 self._queue.record_error(record_id, str(exc))
                 logger.warning(
-                    "MPPS message not sent: mpps_id=%s attempt=%s reason=%s",
+                    "MPPS message not sent: mpps_id=%s attempt=%s reason=%s: %s",
                     record_id,
                     attempt + 1,
                     type(exc).__name__,
+                    exc,
                 )
         return False
 

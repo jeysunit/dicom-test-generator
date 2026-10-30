@@ -39,6 +39,10 @@ def test_datetime_label_is_year_slash_month_slash_day_and_hour_minute() -> None:
     assert datetime_label("読めない値") == "読めない値"
 
 
+def test_datetime_label_keeps_a_date_only_value_without_a_made_up_time() -> None:
+    assert datetime_label("2026-10-25") == "2026/10/25"
+
+
 def test_worklist_banner_has_the_fixed_slots_and_the_modality_mark(client) -> None:
     key = key_for(query_worklist(client), "A0001")
 
