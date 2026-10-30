@@ -75,6 +75,10 @@ def test_send_failure_is_a_red_notice(tmp_path, worklist_scp) -> None:
         "（2 画像のうち 0 画像を送信。ジョブ 1）" in html
     )
     assert 'class="notice" role="alert" data-k="err"' in html
+    # 英語の誤りの原文は知らせに出さず、日本語の理由にする（原文は送信ジョブの詳細に残る）
+    notice = html.split('class="notice" role="alert" data-k="err"', 1)[1].split("</div>", 1)[0]
+    assert "Association failed" not in notice
+    assert "接続できませんでした" in notice
 
 
 def test_pacs_job_table_shows_patient_not_folder(client) -> None:

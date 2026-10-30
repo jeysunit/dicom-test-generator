@@ -1,15 +1,16 @@
-{# 選んだ予約の患者バナー（docs/spec/12a の 10.4）。「選んで撮影へ」の真上に出し、誰を撮るかを確かめてから進む #}
+{# 選んだ予約の患者バナー（docs/spec/12a の 10.4）。「選んで撮影へ」の真上に出し、誰を撮るかを確かめてから進む。
+   部品集の患者バナー `.fb.r1`：項目と順は決まっていて、値の無い項目も項目名を残して「—」にする。
+   かなと検査名は 1 行で切り、全文は title に出す #}
 {% from "_birth.html" import birth_value %}
 {% set alphabetic, ideographic, phonetic = item.patient_name|name_parts %}
-<section class="banner" aria-label="選んだ予約の患者">
-  <div class="nm">
-    <div class="n">{{ ideographic or alphabetic or "氏名なし" }}</div>
-    {% if phonetic or (ideographic and alphabetic) %}<div class="k">{{ phonetic or alphabetic }}</div>{% endif %}
-  </div>
-  <div class="f"><div class="l">患者ID</div><div class="v font-mono">{{ item.patient_id }}</div></div>
-  <div class="f"><div class="l">生年月日・性別</div><div class="v" title="{{ item|birth_label }}">{{ birth_value(item|birth_parts) }}</div></div>
-  <div class="f"><div class="l">受付番号</div><div class="v font-mono">{{ item.accession_number or "—" }}</div></div>
-  <div class="f"><div class="l">予定</div><div class="v">{{ item.scheduled_start_time|time_label }}・{{ item.modality or "—" }}</div></div>
-  <div class="f"><div class="l">検査名</div><div class="v">{{ item.requested_procedure_description or "—" }}</div></div>
-  {% if item_taken %}<div class="end"><span class="st" data-k="note">撮影済み</span></div>{% endif %}
+{% set kana = (phonetic or alphabetic) if (phonetic or (ideographic and alphabetic)) else "" %}
+{% set procedure = item.requested_procedure_description %}
+<section class="fb r1" aria-label="選んだ予約の患者">
+  <div class="nm"><div class="n">{{ ideographic or alphabetic or "氏名なし" }}</div>{% if kana %}<div class="k" title="{{ kana }}">{{ kana }}</div>{% endif %}</div>
+  <div class="f pid"><div class="l">患者ID</div><div class="v mono keep">{{ item.patient_id }}</div></div>
+  <div class="f birth"><div class="l">生年月日・性別</div><div class="v" title="{{ item|birth_label }}">{{ birth_value(item|birth_parts) }}</div></div>
+  <div class="f acc"><div class="l">受付番号</div>{% if item.accession_number %}<div class="v mono keep">{{ item.accession_number }}</div>{% else %}<div class="v none">—</div>{% endif %}</div>
+  <div class="f dt"><div class="l">予定日時</div>{% if item.scheduled_start_date or item.scheduled_start_time %}<div class="v">{{ (item.scheduled_start_date|date_label ~ " " ~ item.scheduled_start_time|time_label)|trim }}</div>{% else %}<div class="v none">—</div>{% endif %}</div>
+  <div class="f md"><div class="l">モダリティ・検査名</div>{% if item.modality or procedure %}<div class="v" title="{{ item.modality }} {{ procedure }}">{% if item.modality %}<span class="mod" data-m="{{ item.modality|modality_key }}">{{ item.modality }}</span>{% endif %}{% if procedure %} {{ procedure }}{% endif %}</div>{% else %}<div class="v none">—</div>{% endif %}</div>
+  {% if item_taken %}<div class="f end"><span class="st" data-k="note">撮影済み</span></div>{% endif %}
 </section>

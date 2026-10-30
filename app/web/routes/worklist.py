@@ -14,7 +14,7 @@ from app.core.patient_input import current_date
 from app.modality.service import WorklistState
 from app.modality.worklist_scu import WorklistQuery, parse_date_option
 
-from ..display import item_marks
+from ..display import datetime_label, item_marks
 from ..rendering import render, render_error, service_of, worklist_error_text
 
 router = APIRouter()
@@ -168,7 +168,7 @@ def _results(
     ]
     return {
         "queried": bool(state.queried_at),
-        "queried_at": state.queried_at.replace("T", " "),
+        "queried_at": datetime_label(state.queried_at),
         "rows": rows,
         "partial_message": PARTIAL_MESSAGE if partial else "",
         "zero_fact": ZERO_ITEMS_FACT,

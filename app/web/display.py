@@ -13,9 +13,23 @@ from app.core.patient_input import current_date
 from app.core.wareki import birth_cell, birth_text
 
 DATE_LENGTH = 8
+ISO_DATE_LENGTH = 10
 TIME_MIN_LENGTH = 4
 PN_GROUPS = 3
 SEX_LABELS = {"M": "男", "F": "女", "O": "その他"}
+SEX_UNKNOWN_LABEL = "不明"
+GENERIC_SEND_ERROR = "送信に失敗しました"
+# モダリティの印（`.mod`）の色の名前：ui-kit の tokens.css の `--color-mod-*` の後ろの部分
+MODALITY_COLORS = {
+    "CT": "ct",
+    "MR": "mr",
+    "CR": "crdx",
+    "DX": "crdx",
+    "US": "us",
+    "ES": "es",
+    "MG": "mg",
+    "SR": "sr",
+}
 STATUS_LABELS = {"pending": "送信待ち", "sending": "送信中", "sent": "送信完了", "failed": "送信失敗"}
 # 状態の札の種類（`.st` の `data-k`。枠と印は画面の決まりの状態の札と同じ）
 STATUS_KINDS = {"pending": "plan", "sending": "wait", "sent": "ok", "failed": "ng"}
@@ -87,10 +101,37 @@ def send_error_label(reason: str) -> str:
         return f"送信先が画像を受け付けませんでした（状態 {status[1]}）。送信先の記録を確かめてください"
     if reason.startswith("unreadable file:"):
         return "送信する画像のファイルを読めませんでした。元のファイルを確かめてください"
+    mpps = _mpps_error_label(reason)
+    if mpps:
+        return mpps
     if re.search(r"[ぁ-んァ-ヶ一-龯]", reason):
         # 相手の AEタイトルを受け付けなかった知らせなど、すでに日本語の文
         return reason
-    return "送信に失敗しました"
+    return GENERIC_SEND_ERROR
+
+
+def _mpps_error_label(reason: str) -> str:
+    """MPPS の送信失敗の原文（`app/modality/mpps_scu.py`・`mpps_queue.py`）を日本語にする。当たらなければ空."""
+    failed = re.match(r"N-(?:CREATE|SET) failed with status (0x[0-9A-Fa-f]{4})", reason)
+    if failed:
+        return f"送信先が MPPS を受け付けませんでした（状態 {failed[1]}）。送信先の記録を確かめてください"
+    if re.match(r"N-(?:CREATE|SET) timed out or the association was aborted", reason):
+        return "MPPS の送信先から応答がありませんでした。届いていたかもしれません。送信先の稼働状況を確かめてください"
+    if re.match(r"N-(?:CREATE|SET) could not be sent:", reason):
+        return "MPPS を送れませんでした。送信先が MPPS に対応しているか確かめてください"
+    if reason.startswith("N-CREATE has not been sent yet"):
+        return "先に送る MPPS（N-CREATE）がまだ送れていません。再送信してください"
+    if reason.startswith("being sent by another process"):
+        return "別のプロセスが MPPS を送信中です。少し待って、再送信の結果を確かめてください"
+    return ""
+
+
+def mpps_error_label(reason: str) -> str:
+    """MPPS の注意に出す理由。どの形にも当たらないときは、次にすることを示す."""
+    label = send_error_label(reason)
+    if label == GENERIC_SEND_ERROR:
+        return f"{GENERIC_SEND_ERROR}。python -m app.cli mpps list で記録を確かめてください"
+    return label
 
 
 def name_parts(patient_name: str) -> tuple[str, str, str]:
@@ -115,11 +156,24 @@ def date_label(value: str) -> str:
     return value
 
 
+def sex_label(value: str) -> str:
+    """性別を 男・女・その他・不明 にする（DICOM の値 M・F・O 以外は、空も不明）."""
+    return SEX_LABELS.get(value, SEX_UNKNOWN_LABEL)
+
+
+def modality_key(modality: str) -> str:
+    """モダリティの印（`.mod`）の色の名前：`ct`・`crdx` など。表に無いモダリティは `doc`.
+
+    CSP が style 属性を許さないので、色は `data-m` の値で選ぶ（app.css の `.mod[data-m=…]`）。
+    """
+    return MODALITY_COLORS.get(modality.upper(), "doc")
+
+
 def birth_label(item: WorklistItem, today: date | None = None) -> str:
     """患者バナー・詳細の生年月日と性別を `1980/01/15（昭55・45歳）男` の形にする."""
-    sex = SEX_LABELS.get(item.sex, item.sex)
+    sex = sex_label(item.sex)
     if not item.birth_date:
-        return f"生年月日なし（{sex}）" if sex else "生年月日なし"
+        return f"生年月日なし（{sex}）"
     day, inside = birth_text(item.birth_date, age_day(item, today))
     return f"{day}{inside}{sex}" if inside else f"{day} {sex}".rstrip()
 
@@ -167,6 +221,20 @@ def patient_label(patient_name: str, patient_id: str) -> str:
     alphabetic, ideographic, phonetic = name_parts(patient_name)
     name = ideographic or alphabetic or phonetic or "氏名なし"
     return f"{name}（{patient_id}）" if patient_id else name
+
+
+def datetime_label(value: str) -> str:
+    """記録の時刻（`2026-10-25T10:00:00`）を `2026/10/25 10:00` にする（画面の日時は yyyy/MM/dd HH:mm）.
+
+    時刻の無い値（`2026-10-25`）は日付だけ（`2026/10/25`）にする。読めない値と空の値は、そのまま返す。
+    """
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return value
+    if len(value) <= ISO_DATE_LENGTH:
+        return parsed.strftime("%Y/%m/%d")
+    return parsed.strftime("%Y/%m/%d %H:%M")
 
 
 def time_label(value: str) -> str:
