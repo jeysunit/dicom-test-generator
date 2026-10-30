@@ -63,7 +63,14 @@ def test_era_and_western_forms_are_saved_as_yyyymmdd(client, tmp_path, value) ->
 
 @pytest.mark.parametrize(
     ("value", "message"),
-    [("1975-05-14", FORMAT), ("19750514", FORMAT), ("H31/05/01", HEISEI_AFTER_END), ("R99/01/01", FUTURE)],
+    [
+        ("1975-5-14", FORMAT),
+        ("S50-05-14", FORMAT),
+        ("2023-02-29", FORMAT),
+        ("197505141", FORMAT),
+        ("H31/05/01", HEISEI_AFTER_END),
+        ("R99/01/01", FUTURE),
+    ],
 )
 def test_unreadable_birth_date_is_refused_with_the_same_message(client, tmp_path, value, message) -> None:
     page = _post(client, birth_date=value)
@@ -72,6 +79,27 @@ def test_unreadable_birth_date_is_refused_with_the_same_message(client, tmp_path
     # 誤りは生年月日の欄の下に結ぶ（スクリプトが error_field を読む）
     assert 'data-error-field="birth_date"' in page
     assert not list((tmp_path / "output").rglob("*.dcm"))
+
+
+@pytest.mark.parametrize("value", ["1975-05-14", "19750514"])
+def test_post_exam_still_accepts_the_old_forms(client, tmp_path, value) -> None:
+    """POST /exam は画面の外から呼ばれうるので、旧い形（日付ピッカーの形と YYYYMMDD）も受ける（後方互換）."""
+    token = csrf_token(client, "/exam")
+    form = {
+        "mode": "emergency", "patient_id": "E0001", "name_alphabetic": "KINKYU TARO",
+        "name_ideographic": "緊急 太郎", "sex": "M", "template": "ct_generic",
+        "series": "1", "images": "1", "action": "exam", "birth_date": value,
+    }
+    response = client.post("/exam", data=form, headers=post_headers(token))
+    assert response.status_code == 200
+    assert 'role="alert"' not in response.text
+    file = next((tmp_path / "output").rglob("*.dcm"))
+    assert dcmread(file).PatientBirthDate == "19750514"
+
+
+def test_old_forms_are_still_checked_for_the_future(client) -> None:
+    assert FUTURE in _post(client, birth_date="2999-01-01")
+    assert FUTURE in _post(client, birth_date="29990101")
 
 
 def test_fields_above_the_birth_date_are_reported_first(client) -> None:

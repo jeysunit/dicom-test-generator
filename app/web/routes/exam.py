@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 import threading
 from collections import deque
@@ -66,6 +67,8 @@ INPUT_MESSAGES = {
     "birth-date-format": BIRTH_DATE_FORMAT_MESSAGE,
     "phonetic": PHONETIC_MESSAGE,
 }
+# POST /exam が後方互換で受ける生年月日の旧い形（日付ピッカーの YYYY-MM-DD と DICOM の YYYYMMDD）
+_LEGACY_BIRTH_DATE = re.compile(r"([0-9]{4})-([0-9]{2})-([0-9]{2})|([0-9]{4})([0-9]{2})([0-9]{2})")
 ACTION_EXAM = "exam"
 ACTION_EXAM_SEND = "exam_send"
 MODE_EMERGENCY = "emergency"
@@ -459,9 +462,14 @@ def _birth_value(
 
     読めなければ（空, 誤り）。追加撮影（`strict=False`）は前の撮影の生年月日を使うので、
     読めない値は空にして断らない（患者の値を確かめない。10.5）。
+    受け口は、画面の外から呼ばれるときのために、旧い形（`1975-05-14`・`19750514`）も
+    受ける（後方互換。画面の欄と誤りの文は `/` の形を勧めたまま）。
     """
     if not text.strip():
         return "", None
+    legacy = _LEGACY_BIRTH_DATE.fullmatch(text.strip())
+    if legacy:
+        text = "/".join(legacy.group(1, 2, 3) if legacy.group(1) else legacy.group(4, 5, 6))
     try:
         born = parse_birth_input(text, service.today())
         # 年は 4 桁に埋める（Linux の strftime の %Y は 1000 年より前を埋めない）
