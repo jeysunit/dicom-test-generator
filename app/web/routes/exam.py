@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 import threading
 from collections import deque
@@ -15,16 +16,19 @@ from app.core.exceptions import ConfigurationError, DICOMGeneratorError
 from app.core.models import WorklistItem
 from app.core.patient_input import (
     ALPHABETIC_MESSAGE,
+    BIRTH_DATE_FORMAT_MESSAGE,
     BIRTH_DATE_FUTURE_MESSAGE,
     IDEOGRAPHIC_MESSAGE,
     PATIENT_ID_MESSAGE,
     PHONETIC_CONVERTED_NOTE,
     PHONETIC_MESSAGE,
     REQUIRED_MESSAGES,
+    FieldValidationError,
     build_emergency_patient,
     require_screen_fields,
 )
 from app.core.routine import DEFAULT_DOSE_REPORT_MODE
+from app.core.wareki import parse_birth_input
 from app.modality.service import ExamRequest, ExamResult, ModalityService, SendResult
 
 from ..display import (
@@ -57,9 +61,14 @@ INPUT_MESSAGES = {
     "patient-id": PATIENT_ID_MESSAGE,
     "alphabetic": ALPHABETIC_MESSAGE,
     "ideographic": IDEOGRAPHIC_MESSAGE,
+    # 生年月日は誤りが 3 種類。今日より後（data-message）と形が合わない（data-format-message）。
+    # 元号の範囲の外の文は、スクリプトが元号の表から作る（wareki.era_range_message と同じ文）
     "birth-date": BIRTH_DATE_FUTURE_MESSAGE,
+    "birth-date-format": BIRTH_DATE_FORMAT_MESSAGE,
     "phonetic": PHONETIC_MESSAGE,
 }
+# POST /exam が後方互換で受ける生年月日の旧い形（日付ピッカーの YYYY-MM-DD と DICOM の YYYYMMDD）
+_LEGACY_BIRTH_DATE = re.compile(r"([0-9]{4})-([0-9]{2})-([0-9]{2})|([0-9]{4})([0-9]{2})([0-9]{2})")
 ACTION_EXAM = "exam"
 ACTION_EXAM_SEND = "exam_send"
 MODE_EMERGENCY = "emergency"
@@ -333,19 +342,24 @@ def exam_run(
                 name_ideographic, name_phonetic = service.unknown_name()
             if not append:
                 require_screen_fields(patient_id.strip(), name_ideographic, sex)
+            # 生年月日は西暦か元号で入れる。YYYYMMDD にしてから、ほかの欄と一緒に確かめる。
+            # 読めない誤りは、上の欄（患者ID・氏名）の誤りの後に返す（上の欄から順に 1 件）
+            birth_value, birth_error = _birth_value(birth_date, service, strict=not append)
             emergency_patient = build_emergency_patient(
                 patient_id=patient_id.strip(),
                 # 空白を ^ にする置き換えはサーバーの側で必ず行う（スクリプトは補助。10.5）
                 patient_name=service.emergency_person_name(
                     name_alphabetic, name_ideographic, name_phonetic
                 ),
-                birth_date=birth_date.replace("-", "").strip(),
-                sex=sex,
+                birth_date=birth_value,
+                sex="" if birth_error else sex,
                 strict=not append,
                 character_set=service.image_character_set(None, charset or None),
                 test_mode=service.config.patient_input_test_mode,
                 today=service.today(),
             )
+            if birth_error is not None:
+                raise birth_error
         exam_request = ExamRequest(
             worklist_key=None if emergency_patient else key,
             emergency_patient=emergency_patient,
@@ -439,6 +453,29 @@ def _exam_result(
         retake_mode=service.config.retake_mode,
         **(_send_context(service, send) if send else {}),
     )
+
+
+def _birth_value(
+    text: str, service: ModalityService, *, strict: bool
+) -> tuple[str, FieldValidationError | None]:
+    """画面で入れた生年月日（西暦か元号）を YYYYMMDD にする。空は空.
+
+    読めなければ（空, 誤り）。追加撮影（`strict=False`）は前の撮影の生年月日を使うので、
+    読めない値は空にして断らない（患者の値を確かめない。10.5）。
+    受け口は、画面の外から呼ばれるときのために、旧い形（`1975-05-14`・`19750514`）も
+    受ける（後方互換。画面の欄と誤りの文は `/` の形を勧めたまま）。
+    """
+    if not text.strip():
+        return "", None
+    legacy = _LEGACY_BIRTH_DATE.fullmatch(text.strip())
+    if legacy:
+        text = "/".join(legacy.group(1, 2, 3) if legacy.group(1) else legacy.group(4, 5, 6))
+    try:
+        born = parse_birth_input(text, service.today())
+        # 年は 4 桁に埋める（Linux の strftime の %Y は 1000 年より前を埋めない）
+        return f"{born.year:04d}{born.month:02d}{born.day:02d}", None
+    except FieldValidationError as exc:
+        return "", None if not strict else exc
 
 
 def _scheduled_patient(service: ModalityService, result: ExamResult) -> str:

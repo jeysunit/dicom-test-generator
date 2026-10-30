@@ -107,7 +107,9 @@
         <div>
           <label class="field">
             <span class="l">生年月日</span>
-            <input type="date" name="birth_date" class="input" data-check="birth-date" data-today="{{ server_today }}" data-message="{{ input_messages['birth-date'] }}" aria-describedby="error-birth_date">
+            {# 西暦か元号で入れ、読み取った結果を入力のたびに欄の下（.hint）に出す。読めなければ .hint を消して .msg に誤り（10.5） #}
+            <input type="text" inputmode="text" autocomplete="off" name="birth_date" class="input" data-check="birth-date" data-today="{{ server_today }}" data-message="{{ input_messages['birth-date'] }}" data-format-message="{{ input_messages['birth-date-format'] }}" aria-describedby="error-birth_date hint-birth_date">
+            <span class="hint" id="hint-birth_date" hidden></span>
             {{ error_line("birth_date") }}
           </label>
         </div>

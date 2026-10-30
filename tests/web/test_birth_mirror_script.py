@@ -119,8 +119,11 @@ def _run_detail(cases: list[list[str]]) -> list[dict[str, str | None]]:
     node = shutil.which("node")
     if node is None:
         pytest.skip("node が無いので、画面のスクリプトを動かせない")
+    # 欄は文字の欄で、西暦は 1975/05/14 の形で入れる（組の生年月日は 1975-05-14 の形で書いてある）。
+    # 基準日（data-today）はサーバーが渡す ISO 8601 の形のまま
+    typed = [[born.replace("-", "/"), today, sex] for born, today, sex in cases]
     result = subprocess.run(
-        [node, "-e", PROGRAM, str(STATIC_DIR / "app.js"), json.dumps(cases)],
+        [node, "-e", PROGRAM, str(STATIC_DIR / "app.js"), json.dumps(typed)],
         capture_output=True,
         text=True,
         check=True,
@@ -171,3 +174,13 @@ def test_mirrored_birth_date_after_the_count_day_shows_the_era_without_an_age() 
     assert later_year["unit"] == "（令9）男"
     assert later_day["text"] == "2026/10/30（令8）女"
     assert "歳" not in later_year["text"] + later_day["text"]
+
+
+def test_mirrored_birth_date_reads_the_era_forms_and_keeps_an_unreadable_value_as_typed() -> None:
+    # 元号で入れても西暦にして写す。読めない値は入れたまま写し、括弧を付けない（誤りは欄の下）
+    [era, formal, unreadable] = _run_detail(
+        [["S50/05/14", TODAY, "M"], ["平成元年1月8日", TODAY, "F"], ["S50.5.14", TODAY, "M"]]
+    )
+    assert era["text"] == "1975/05/14（昭50・51歳）男"
+    assert formal["text"] == "1989/01/08（平1・37歳）女"
+    assert unreadable == {"text": "S50.5.14 男", "unit": None, "title": "S50.5.14 男"}

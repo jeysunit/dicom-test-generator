@@ -113,10 +113,11 @@ const birth = new HTMLInputElement({
   attrs: { "data-check": "birth-date", "data-message": "今日以前です", "data-today": "2999-01-02" },
 });
 const birthLine = line("birth_date", "");
-birth.value = "2999-01-02";
+// 欄は文字の欄で、西暦は 2999/01/02 の形で入れる（data-today はサーバーが渡す ISO 8601 の形）
+birth.value = "2999/01/02";
 dispatch("input", { target: birth });
 const serverToday = birthLine.hidden;
-birth.value = "2999-01-03";
+birth.value = "2999/01/03";
 dispatch("input", { target: birth });
 out.birth = { serverToday, nextDay: birthLine.hidden, text: birthLine.textContent };
 console.log(JSON.stringify(out));

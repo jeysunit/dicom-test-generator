@@ -15,6 +15,7 @@ from web_helpers import BASE_URL, csrf_token, modality_config, post_headers
 
 from app.core.patient_input import (
     ALPHABETIC_MESSAGE,
+    BIRTH_DATE_FORMAT_MESSAGE,
     BIRTH_DATE_FUTURE_MESSAGE,
     IDEOGRAPHIC_MESSAGE,
     PATIENT_ID_MESSAGE,
@@ -52,7 +53,7 @@ def test_valid_emergency_patient_is_accepted(client) -> None:
         client,
         name_ideographic="緊急 太郎",
         name_phonetic="きんきゅう たろう",
-        birth_date="1975-05-10",
+        birth_date="1975/05/10",
         sex="M",
     )
     assert 'role="alert"' not in page
@@ -75,8 +76,8 @@ def test_valid_emergency_patient_is_accepted(client) -> None:
         ({"patient_id": "A" * 65}, "64 字以内"),
         ({"name_alphabetic": "A" * 65}, "64 字以内"),
         ({"name_phonetic": "ア" * 65}, "氏名（かな）は 64 字以内"),
-        ({"birth_date": "2999-01-01"}, BIRTH_DATE_FUTURE_MESSAGE),
-        ({"birth_date": "2023-02-29"}, "暦にある日付"),
+        ({"birth_date": "2999/01/01"}, BIRTH_DATE_FUTURE_MESSAGE),
+        ({"birth_date": "2023/02/29"}, BIRTH_DATE_FORMAT_MESSAGE),
         ({"sex": "X"}, "性別"),
         ({"study_description": "あ" * 65}, "検査名は 64 字以内"),
     ],
@@ -208,10 +209,10 @@ def test_birth_date_today_is_decided_in_the_configured_timezone(client, monkeypa
 
     # 画面は、サーバーの今日を欄に持たせる（ブラウザの現地の日付が先に行かなくても通すため）
     assert 'data-today="2030-01-02"' in client.get("/exam").text
-    page = _post(client, birth_date="2030-01-02")
+    page = _post(client, birth_date="2030/01/02")
     assert 'role="alert"' not in page
     # 日本の明日は、断る
-    assert BIRTH_DATE_FUTURE_MESSAGE in _post(client, birth_date="2030-01-03")
+    assert BIRTH_DATE_FUTURE_MESSAGE in _post(client, birth_date="2030/01/03")
 
 
 def test_birth_date_follows_the_timezone_setting(tmp_path, worklist_scp, storage_scp, monkeypatch) -> None:
@@ -227,8 +228,8 @@ def test_birth_date_follows_the_timezone_setting(tmp_path, worklist_scp, storage
     utc_client = TestClient(app, base_url=BASE_URL)
 
     # UTC の今日は 2030-01-01。日本の今日（01-02）は、UTC の設定では明日
-    assert BIRTH_DATE_FUTURE_MESSAGE in _post(utc_client, birth_date="2030-01-02")
-    assert 'role="alert"' not in _post(utc_client, birth_date="2030-01-01")
+    assert BIRTH_DATE_FUTURE_MESSAGE in _post(utc_client, birth_date="2030/01/02")
+    assert 'role="alert"' not in _post(utc_client, birth_date="2030/01/01")
 
 
 def test_unknown_timezone_is_refused_by_the_config(tmp_path, worklist_scp, storage_scp) -> None:
