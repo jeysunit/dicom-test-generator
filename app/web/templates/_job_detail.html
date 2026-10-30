@@ -15,8 +15,8 @@
       <dt>検査日時<span class="text-xs">（{{ utc_offset() }}）</span></dt><dd>{{ job.study_datetime or "—" }}</dd>
       <dt>受付番号</dt><dd class="font-mono">{{ job.accession_number or "—" }}</dd>
       <dt>送信先</dt><dd>{{ job.destination }}</dd>
-      <dt>受付<span class="text-xs">（{{ utc_offset() }}）</span></dt><dd>{{ job.created_at|replace("T", " ") }}</dd>
-      <dt>完了<span class="text-xs">（{{ utc_offset() }}）</span></dt><dd>{% if job.status == "sent" %}{{ job.updated_at|replace("T", " ") }}{% else %}—{% endif %}</dd>
+      <dt>受付<span class="text-xs">（{{ utc_offset() }}）</span></dt><dd>{{ job.created_at|datetime_label }}</dd>
+      <dt>完了<span class="text-xs">（{{ utc_offset() }}）</span></dt><dd>{% if job.status == "sent" %}{{ job.updated_at|datetime_label }}{% else %}—{% endif %}</dd>
     </dl>
     <dl class="kv">
       {% if job.status == "failed" %}

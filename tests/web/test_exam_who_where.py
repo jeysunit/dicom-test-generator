@@ -194,7 +194,7 @@ def test_worklist_item_returns_banner_and_detail(client) -> None:
     html = client.get(f"/worklist/item/{key}").text
 
     banner = html.split('<section id="detail"', 1)[0]
-    assert 'class="banner" aria-label="選んだ予約の患者"' in banner
+    assert 'class="fb r1" aria-label="選んだ予約の患者"' in banner
     for value in ("山田 太郎", "P000001", "A0001"):
         assert value in banner
     assert '<section id="detail" hx-swap-oob="true">' in html

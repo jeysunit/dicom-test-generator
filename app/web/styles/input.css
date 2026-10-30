@@ -215,15 +215,14 @@
   padding-top: 12px;
 }
 
-/* ワークリストの一覧：行のどこを押しても選べる。選んだ行は地と左の線と太字で示す（丸の印
-   だけにしない。10.4）。丸は 18px にする */
+/* ワークリストの一覧：行のどこを押しても選べる。選んだ行は地と左の線で示す（丸の印だけに
+   しない。太字にすると幅が変わるので使わない。10.4）。丸は 18px にする */
 #pick tbody tr {
   cursor: pointer;
 }
 #pick tbody tr:has(input[name="key"]:checked) {
   background: var(--color-selected-strong);
   box-shadow: inset 3px 0 0 var(--color-primary);
-  font-weight: 600;
 }
 #pick input[name="key"] {
   width: 18px;
@@ -313,4 +312,31 @@ form.htmx-request .busy-send {
 }
 :root[data-theme="dark"] .show-dark {
   display: inline-block;
+}
+
+/*
+ * モダリティの印（.mod）の色。ui-kit の見本は style="--m:var(--color-mod-ct)" と書くが、この画面の
+ * CSP（style-src 'self'）は style 属性を許さない。data-m の値で同じ変数を選ぶ。値は tokens.css のもの。
+ * data-m が無い印は、ui-kit の .mod の初期（DOC の色）になる。
+ */
+.mod[data-m="ct"] {
+  --m: var(--color-mod-ct);
+}
+.mod[data-m="mr"] {
+  --m: var(--color-mod-mr);
+}
+.mod[data-m="crdx"] {
+  --m: var(--color-mod-crdx);
+}
+.mod[data-m="us"] {
+  --m: var(--color-mod-us);
+}
+.mod[data-m="es"] {
+  --m: var(--color-mod-es);
+}
+.mod[data-m="mg"] {
+  --m: var(--color-mod-mg);
+}
+.mod[data-m="sr"] {
+  --m: var(--color-mod-sr);
 }

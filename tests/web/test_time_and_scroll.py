@@ -20,7 +20,8 @@ def test_utc_offset_label_has_the_sign_hours_and_minutes() -> None:
 def test_worklist_fetch_time_carries_the_utc_offset(client) -> None:
     html = query_worklist(client)
 
-    assert re.search(r"件（\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC[+-]\d{2}:\d{2} に取得）", html)
+    # 画面の日時は yyyy/MM/dd HH:mm（秒と T は出さない）
+    assert re.search(r"件（\d{4}/\d{2}/\d{2} \d{2}:\d{2} UTC[+-]\d{2}:\d{2} に取得）", html)
 
 
 def test_queue_time_headers_carry_the_utc_offset(client) -> None:
@@ -37,9 +38,12 @@ def test_queue_time_headers_carry_the_utc_offset(client) -> None:
 
     # 一覧の時刻の列は受付日時だけ（10.6）。検査日時・完了は選んだ行の詳細に、UTC からの差を添えて出す
     assert re.search(r'<th scope="col">受付日時<span class="block text-xs">UTC[+-]\d{2}:\d{2}</span></th>', html)
+    # 受付日時は日付と時刻の 2 行で、yyyy/MM/dd と HH:mm（秒と T は出さない）
+    assert re.search(r'<span class="block">\d{4}/\d{2}/\d{2}</span><span class="block">\d{2}:\d{2}</span>', html)
     detail = client.get("/pacs/queue?selected=1").text
     for label in ("検査日時", "受付", "完了"):
         assert re.search(rf'<dt>{label}<span class="text-xs">（UTC[+-]\d{{2}}:\d{{2}}）</span></dt>', detail)
+    assert re.search(r"<dt>受付<[^>]*>（[^<]*）</span></dt><dd>\d{4}/\d{2}/\d{2} \d{2}:\d{2}</dd>", detail)
 
 
 def test_queue_scroll_position_is_kept_across_swaps(client) -> None:

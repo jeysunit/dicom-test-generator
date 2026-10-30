@@ -11,6 +11,6 @@
       {%- else %}{{ whose ~ " " if whose }}{{ send_sent }}/{{ send_total }} 画像（{{ send.destination }}。ジョブ {{ send.job_id }}）{% endif -%}
     </span>
     {% if send_address %}<span class="block text-xs">送信先：{{ send.destination }}（{{ send_address }}）</span>{% endif %}
-    {% if send.error %}<span class="block text-xs">{{ send.error }}</span>{% endif %}
+    {% if send.error %}<span class="block text-xs">{{ send.error|send_error_label }}</span>{% endif %}
   </span>
 </div>

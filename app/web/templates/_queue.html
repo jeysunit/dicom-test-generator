@@ -36,7 +36,7 @@
     <tbody>
       {% for job in jobs %}
       {% set alphabetic, ideographic, phonetic = job.patient_name|name_parts %}
-      {% set received_day, _, received_time = job.created_at.partition("T") %}
+      {% set received_day, _, received_time = (job.created_at|datetime_label).partition(" ") %}
       <tr aria-selected="{{ 'true' if selected_job and selected_job.id == job.id else 'false' }}">
         <td class="whitespace-nowrap text-xs"><span class="block">{{ received_day }}</span><span class="block">{{ received_time }}</span></td>
         <td class="font-mono">{{ job.patient_id or "—" }}</td>

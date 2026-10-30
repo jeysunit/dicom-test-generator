@@ -66,8 +66,10 @@ def create_environment() -> Environment:
     env.filters["birth_label"] = _birth_label
     env.filters["birth_parts"] = _birth_parts
     env.filters["birth_cell_label"] = _birth_cell_label
-    env.filters["sex_label"] = lambda value: display.SEX_LABELS.get(value, value)
+    env.filters["sex_label"] = display.sex_label
+    env.filters["modality_key"] = display.modality_key
     env.filters["time_label"] = display.time_label
+    env.filters["datetime_label"] = display.datetime_label
     env.filters["date_label"] = display.date_label
     env.filters["charset_label"] = display.charset_label
     env.filters["send_error_label"] = display.send_error_label

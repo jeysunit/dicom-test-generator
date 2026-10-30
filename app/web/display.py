@@ -16,6 +16,18 @@ DATE_LENGTH = 8
 TIME_MIN_LENGTH = 4
 PN_GROUPS = 3
 SEX_LABELS = {"M": "男", "F": "女", "O": "その他"}
+SEX_UNKNOWN_LABEL = "不明"
+# モダリティの印（`.mod`）の色の名前：ui-kit の tokens.css の `--color-mod-*` の後ろの部分
+MODALITY_COLORS = {
+    "CT": "ct",
+    "MR": "mr",
+    "CR": "crdx",
+    "DX": "crdx",
+    "US": "us",
+    "ES": "es",
+    "MG": "mg",
+    "SR": "sr",
+}
 STATUS_LABELS = {"pending": "送信待ち", "sending": "送信中", "sent": "送信完了", "failed": "送信失敗"}
 # 状態の札の種類（`.st` の `data-k`。枠と印は画面の決まりの状態の札と同じ）
 STATUS_KINDS = {"pending": "plan", "sending": "wait", "sent": "ok", "failed": "ng"}
@@ -115,9 +127,22 @@ def date_label(value: str) -> str:
     return value
 
 
+def sex_label(value: str) -> str:
+    """性別を 男・女・その他・不明 にする（DICOM の値 M・F・O 以外は、空も不明）."""
+    return SEX_LABELS.get(value, SEX_UNKNOWN_LABEL)
+
+
+def modality_key(modality: str) -> str:
+    """モダリティの印（`.mod`）の色の名前：`ct`・`crdx` など。表に無いモダリティは `doc`.
+
+    CSP が style 属性を許さないので、色は `data-m` の値で選ぶ（app.css の `.mod[data-m=…]`）。
+    """
+    return MODALITY_COLORS.get(modality.upper(), "doc")
+
+
 def birth_label(item: WorklistItem, today: date | None = None) -> str:
     """患者バナー・詳細の生年月日と性別を `1980/01/15（昭55・45歳）男` の形にする."""
-    sex = SEX_LABELS.get(item.sex, item.sex)
+    sex = sex_label(item.sex)
     if not item.birth_date:
         return f"生年月日なし（{sex}）" if sex else "生年月日なし"
     day, inside = birth_text(item.birth_date, age_day(item, today))
@@ -167,6 +192,17 @@ def patient_label(patient_name: str, patient_id: str) -> str:
     alphabetic, ideographic, phonetic = name_parts(patient_name)
     name = ideographic or alphabetic or phonetic or "氏名なし"
     return f"{name}（{patient_id}）" if patient_id else name
+
+
+def datetime_label(value: str) -> str:
+    """記録の時刻（`2026-10-25T10:00:00`）を `2026/10/25 10:00` にする（画面の日時は yyyy/MM/dd HH:mm）.
+
+    読めない値と空の値は、そのまま返す。
+    """
+    try:
+        return datetime.fromisoformat(value).strftime("%Y/%m/%d %H:%M")
+    except ValueError:
+        return value
 
 
 def time_label(value: str) -> str:

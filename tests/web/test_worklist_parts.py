@@ -16,7 +16,7 @@ def test_worklist_has_heading_search_band_and_count_row(client) -> None:
 
     html = query_worklist(client)
     count_row = html.split('<div class="listhead">', 1)[1].split("</div>", 1)[0]
-    assert re.search(r'<span class="cnt"><b>\d+</b> 件（\d{4}-\d{2}-\d{2} ', count_row)
+    assert re.search(r'<span class="cnt"><b>\d+</b> 件（\d{4}/\d{2}/\d{2} \d{2}:\d{2} ', count_row)
     # 件数の行は一覧の上にある
     assert html.index('<div class="listhead">') < html.index("<table")
 

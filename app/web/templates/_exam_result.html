@@ -25,7 +25,7 @@
   {% else %}
   <p role="alert" class="notice text-xs" data-k="warn">
     <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-alert"/></svg>
-    <span>注意：MPPS の送信に失敗しました（{{ result.mpps.error }}）。<code>python -m app.cli mpps retry</code> で再送信できます</span>
+    <span>注意：MPPS の送信に失敗しました（{{ result.mpps.error|send_error_label }}）。<code>python -m app.cli mpps retry</code> で再送信できます</span>
   </p>
   {% endif %}
   {% endif %}
