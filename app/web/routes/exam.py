@@ -55,7 +55,7 @@ DOSE_REPORT_CHOICES = (
     ("sr", "SR"),
     ("both", "画面（画像）と SR"),
 )
-SEX_CHOICES = (("", "選んでください"), ("M", "男"), ("F", "女"), ("O", "その他"))
+SEX_CHOICES = (("", "選んでください"), ("M", "男"), ("F", "女"), ("O", "その他"), ("U", "不明"))
 # 緊急の患者の欄の下に出す誤りの文（スクリプトが入力のたびに確かめる。サーバーも同じ文で断る）
 INPUT_MESSAGES = {
     "patient-id": PATIENT_ID_MESSAGE,

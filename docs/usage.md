@@ -90,7 +90,7 @@ docker build -t dicom-test-generator .
 
 身元が分からない患者は、[仮の ID を作る] で患者ID（既定は `TMP` と日時の番号）を作り、
 「氏名が分からない」を選ぶ（氏名は漢字「不明 不明」・かな「フメイ フメイ」、英字は空）。
-性別が分からなければ「その他」を選ぶ。頭と氏名は設定の `temporary_patient_id_prefix`・
+性別が分からなければ「不明」を選ぶ。頭と氏名は設定の `temporary_patient_id_prefix`・
 `unknown_name_ideographic`・`unknown_name_phonetic` で変えられる
 （[spec/12](spec/12_modality_emulator.md) の 12 章）。撮った後に RIS が MPPS の仮の患者を
 正式な患者に統合する流れ（IHE PIR の Case 6）の試験に使える。

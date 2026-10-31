@@ -27,8 +27,16 @@ HTTP_NO_CONTENT = 204
 # すべての相手への接続確認は、同時に 1 つだけ（重ねて押されても C-ECHO を重ねて送らない）
 CHECK_ALL_LOCK = threading.Lock()
 
-# 検索の帯の「期間」。値は画面と要求の取り決め
-PERIOD_CHOICES = (("all", "すべて"), ("today", "今日"), ("week", "1 週間"))
+# 検索の帯の「期間」。値は画面と要求の取り決め。部品集の送受信の一覧の 4 つ（初期は今日）
+PERIOD_TODAY = "today"
+PERIOD_CUSTOM = "custom"
+PERIOD_CHOICES = (
+    (PERIOD_TODAY, "今日"),
+    ("yesterday", "昨日"),
+    ("week", "過去7日"),
+    (PERIOD_CUSTOM, "期間を指定"),
+)
+WEEK_BACK_DAYS = 6
 # 状態の要約に並べる状態（送信待ちは画面から作った件には残らないので並べない。10.6）
 SUMMARY_STATUSES = ("sending", "sent", "failed")
 # 一覧は 1 ページ 50 件。条件に合う件が 1,000 件を超えたら、新しい 1,000 件だけを出す（部品集の送受信の一覧）
@@ -40,7 +48,10 @@ LIST_LIMIT = 1000
 class QueueFilter:
     """送信ジョブの一覧の条件。画面の検索の帯・状態の要約・選んだ行から来る."""
 
-    period: str = "all"
+    period: str = PERIOD_TODAY
+    # 「期間を指定」のときの開始日・終了日（YYYY-MM-DD。空は片側を決めない）
+    date_from: str = ""
+    date_to: str = ""
     destination: str = ""
     patient_id: str = ""
     status: str = "all"
@@ -48,12 +59,29 @@ class QueueFilter:
     page: int = 1
 
 
+def _iso_day(value: str) -> str:
+    """`YYYY-MM-DD` の日付なら、その形にして返す。読めなければ空."""
+    try:
+        return date.fromisoformat(value.strip()).isoformat()
+    except ValueError:
+        return ""
+
+
 def _make_filter(
-    period: str, destination: str, patient_id: str, status: str, selected: str, page: str
+    period: str,
+    date_from: str,
+    date_to: str,
+    destination: str,
+    patient_id: str,
+    status: str,
+    selected: str,
+    page: str,
 ) -> QueueFilter:
     """知らない値は初期値に戻す（要求を書き換えられても、一覧が壊れないように）."""
     return QueueFilter(
-        period=period if period in dict(PERIOD_CHOICES) else "all",
+        period=period if period in dict(PERIOD_CHOICES) else PERIOD_TODAY,
+        date_from=_iso_day(date_from),
+        date_to=_iso_day(date_to),
         destination=destination.strip(),
         patient_id=patient_id.strip(),
         status=status if status in SUMMARY_STATUSES else "all",
@@ -63,25 +91,29 @@ def _make_filter(
 
 
 def filter_from_query(
-    period: Annotated[str, Query()] = "all",
+    period: Annotated[str, Query()] = PERIOD_TODAY,
+    date_from: Annotated[str, Query()] = "",
+    date_to: Annotated[str, Query()] = "",
     destination: Annotated[str, Query()] = "",
     patient_id: Annotated[str, Query()] = "",
     status: Annotated[str, Query()] = "all",
     selected: Annotated[str, Query()] = "",
     page: Annotated[str, Query()] = "1",
 ) -> QueueFilter:
-    return _make_filter(period, destination, patient_id, status, selected, page)
+    return _make_filter(period, date_from, date_to, destination, patient_id, status, selected, page)
 
 
 def filter_from_form(
-    period: Annotated[str, Form()] = "all",
+    period: Annotated[str, Form()] = PERIOD_TODAY,
+    date_from: Annotated[str, Form()] = "",
+    date_to: Annotated[str, Form()] = "",
     destination: Annotated[str, Form()] = "",
     patient_id: Annotated[str, Form()] = "",
     status: Annotated[str, Form()] = "all",
     selected: Annotated[str, Form()] = "",
     page: Annotated[str, Form()] = "1",
 ) -> QueueFilter:
-    return _make_filter(period, destination, patient_id, status, selected, page)
+    return _make_filter(period, date_from, date_to, destination, patient_id, status, selected, page)
 
 
 FromQuery = Annotated[QueueFilter, Depends(filter_from_query)]
@@ -286,6 +318,8 @@ def _queue_context(
         **context,
         "jobs": jobs[first : first + PAGE_SIZE],
         "queue_error": "",
+        # 期間の初期が今日なので、送信ジョブがあるのに 0 件のときは「条件に合う…」と知らせる
+        "any_jobs": bool(all_jobs),
         "total": len(narrowed),
         "counts": counts,
         "list_page": page,
@@ -305,12 +339,23 @@ def _matches(job: QueueJob, filters: QueueFilter) -> bool:
         return False
     if filters.patient_id and filters.patient_id.casefold() not in job.patient_id.casefold():
         return False
-    if filters.period != "all":
-        days = 0 if filters.period == "today" else 6
-        # created_at は「2026-10-25T10:00:00」の形（この機械の時刻）。日付の部分だけを比べる
-        if job.created_at[:10] < (date.today() - timedelta(days=days)).isoformat():
-            return False
-    return True
+    # created_at は「2026-10-25T10:00:00」の形（この機械の時刻）。日付の部分だけを比べる
+    day = job.created_at[:10]
+    first, last = _period_days(filters)
+    return (not first or day >= first) and (not last or day <= last)
+
+
+def _period_days(filters: QueueFilter) -> tuple[str, str]:
+    """期間の最初の日と最後の日（YYYY-MM-DD。空は決めない）."""
+    today = date.today()
+    if filters.period == "yesterday":
+        yesterday = (today - timedelta(days=1)).isoformat()
+        return yesterday, yesterday
+    if filters.period == "week":
+        return (today - timedelta(days=WEEK_BACK_DAYS)).isoformat(), today.isoformat()
+    if filters.period == PERIOD_CUSTOM:
+        return filters.date_from, filters.date_to
+    return today.isoformat(), today.isoformat()
 
 
 def _retry_notice(results: list[SendResult], job_id: int | None = None) -> tuple[str, bool]:

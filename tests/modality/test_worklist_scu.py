@@ -160,7 +160,8 @@ def test_query_reads_values_and_empty_type2(worklist_scp) -> None:
 
     assert item.patient_name == "SUZUKI^HANAKO=鈴木^花子=すずき^はなこ"
     assert item.birth_date == ""
-    assert item.sex == ""
+    # 空の性別は、製品の中では U と読む（画像に写すときは空に戻す）
+    assert item.sex == "U"
     assert item.study_instance_uid == ""
 
 

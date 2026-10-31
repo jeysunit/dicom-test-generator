@@ -15,16 +15,20 @@ def test_scheduled_exam_has_crumbs_banner_sections_and_action_row(client) -> Non
     # パンくず（患者の下の画面）→ 見出しの行 → 患者バナー → 区画 → 操作の行の順
     order = [
         html.index('<ol class="crumbs">'),
-        html.index('<div class="pagehead"><h1>撮影</h1></div>'),
-        html.index('<section class="banner" aria-label="患者">'),
+        html.index('<div class="pagehead"><h1>撮影</h1>'),
+        html.index('<section class="fb r2" aria-label="患者">'),
         html.index("<h2>撮影の設定</h2>"),
         html.index('<div class="formbar">'),
     ]
     assert order == sorted(order)
-    banner = html.split('<section class="banner"', 1)[1].split("</section>", 1)[0]
-    for label in ("患者ID", "生年月日・性別", "受付番号", "検査名"):
+    banner = html.split('<section class="fb r2"', 1)[1].split("</section>", 1)[0]
+    for label in ("患者ID", "生年月日・性別", "受付番号", "予定日時", "モダリティ・検査名"):
         assert f'<div class="l">{label}</div>' in banner
-    assert "P000001" in banner and "予約の値（読むだけ）" in banner
+    assert "P000001" in banner
+    # 「予約の値（読むだけ）」の札は、バナーの外の見出しの行に出す
+    head = html.split('<div class="pagehead">', 1)[1].split("</div>", 1)[0]
+    assert '<span class="badge">予約の値（読むだけ）</span>' in head
+    assert "予約の値（読むだけ）" not in banner
     # 予約の値の項目の表は、バナーに入らない値（UID・文字コード）だけを持つ
     assert 'class="panel"' not in html
     assert html.count('class="sec"') >= 2
@@ -35,8 +39,10 @@ def test_emergency_exam_has_no_crumbs_and_only_the_target_banner(client) -> None
 
     assert '<ol class="crumbs">' not in html
     # 患者バナーは、操作の行の真上の「撮る患者と送信先」の 1 つだけ（入れた値を写す。10.5）
-    assert html.count('class="banner"') == 1
-    assert 'id="exam-target" class="banner" aria-label="撮る患者と送信先"' in html
+    assert 'class="banner"' not in html
+    assert html.count('class="fb r2"') == 1
+    assert 'id="exam-target" class="fb r2" aria-label="撮る患者"' in html
+    assert "予約の値（読むだけ）" not in html
     assert "<h2>緊急の患者（予約なし）</h2>" in html
     # 必須は項目名の横の文字で示す（バッジの色に頼らない）
     required = re.findall(r'<span class="l">([^<]+)<span class="req">必須</span>', html)

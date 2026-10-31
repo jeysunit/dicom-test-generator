@@ -10,13 +10,14 @@ from datetime import date, datetime
 
 from app.core.models import WorklistItem
 from app.core.patient_input import current_date
+from app.core.patient_sex import SEX_UNKNOWN
 from app.core.wareki import birth_cell, birth_text
 
 DATE_LENGTH = 8
 ISO_DATE_LENGTH = 10
 TIME_MIN_LENGTH = 4
 PN_GROUPS = 3
-SEX_LABELS = {"M": "男", "F": "女", "O": "その他"}
+SEX_LABELS = {"M": "男", "F": "女", "O": "その他", "U": "不明"}
 SEX_UNKNOWN_LABEL = "不明"
 GENERIC_SEND_ERROR = "送信に失敗しました"
 # モダリティの印（`.mod`）の色の名前：ui-kit の tokens.css の `--color-mod-*` の後ろの部分
@@ -157,7 +158,7 @@ def date_label(value: str) -> str:
 
 
 def sex_label(value: str) -> str:
-    """性別を 男・女・その他・不明 にする（DICOM の値 M・F・O 以外は、空も不明）."""
+    """性別を 男・女・その他・不明 にする（M・F・O・U 以外の値と空も不明。値の文字は画面に出さない）."""
     return SEX_LABELS.get(value, SEX_UNKNOWN_LABEL)
 
 
@@ -269,8 +270,8 @@ def exam_notices(item: WorklistItem, own_ae_title: str) -> list[str]:
         notices.append("予約に Study Instance UID が無いため、このツールが生成します")
     if not item.birth_date:
         notices.append("生年月日が空です")
-    if not item.sex:
-        notices.append("性別が空です")
+    if item.sex in ("", SEX_UNKNOWN):
+        notices.append("性別が不明です")
     if "漢字・かなが空" in item_marks(item, own_ae_title):
         notices.append("氏名の漢字・かなが空です")
     return notices

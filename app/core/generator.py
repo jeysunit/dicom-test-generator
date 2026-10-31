@@ -11,6 +11,7 @@ from pydicom.valuerep import format_number_as_ds
 
 from .dose_sr import XRAY_RADIATION_DOSE_SR_STORAGE, DoseEvent, dose_sr_content
 from .exceptions import DICOMBuildError
+from .patient_sex import to_dicom_sex
 from .projection import (
     DEFAULT_PHOTOMETRIC_INTERPRETATION,
     PROJECTION_SOP_CLASSES,
@@ -723,7 +724,7 @@ class DICOMBuilder:
         ds.PatientName = patient_name
         ds.PatientID = patient.patient_id
         ds.PatientBirthDate = patient.birth_date
-        ds.PatientSex = patient.sex
+        ds.PatientSex = to_dicom_sex(patient.sex)
         ds.PatientAge = self._calculate_patient_age(
             patient.birth_date,
             study_config.study_date,

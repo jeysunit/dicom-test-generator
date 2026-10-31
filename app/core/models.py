@@ -42,7 +42,7 @@ class Patient(BaseModel):
     patient_id: str = Field(..., max_length=16, description="患者ID")
     patient_name: PatientName
     birth_date: str = Field(..., pattern=r"^\d{8}$", description="生年月日（YYYYMMDD）")
-    sex: str = Field(..., pattern=r"^(M|F|O)$", description="性別")
+    sex: str = Field(..., pattern=r"^(M|F|O|U)$", description="性別（M・F・O・U。U は DICOM に空で書く）")
     age: str | None = Field(None, pattern=r"^\d{3}Y$",
         description="年齢入力（互換用。DICOM出力は birth_date/study_date から日本法基準で算出）")
     weight: float | None = Field(None, ge=0, le=500, description="体重（kg）")
@@ -415,7 +415,7 @@ class ScheduledPatient(BaseModel):
     patient_name: str = Field(..., description="PN の文字列（=・^ 区切り）")
     issuer_of_patient_id: str = ""
     birth_date: str = Field("", pattern=r"^(\d{8})?$")
-    sex: str = Field("", pattern=r"^(M|F|O)?$")
+    sex: str = Field("", pattern=r"^(M|F|O|U)?$")
     weight: str = ""
     size: str = ""
 

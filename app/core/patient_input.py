@@ -9,7 +9,8 @@
 - 患者 ID：PS3.5 6.2 の LO。64 字まで、`\\` と制御文字は使えない。HL7 v2 の PID-3 に
   そのまま入れるため、基本の文字集合の表示できる字に限り、前後の空白も断る
 - 生年月日：PS3.5 6.2 の DA（YYYYMMDD）。暦にある日で、今日より後は断る
-- 性別：PS3.3 C.7.1.1 の Patient's Sex（M・F・O。空は許す）
+- 性別：M・F・O・U（空は許す）。PS3.3 C.7.1.1 の Patient's Sex の列挙値は M・F・O だけなので、
+  U は DICOM に書くときに空にする（`patient_sex.py`）
 
 漢字の氏名は、画像の文字コードで表せる字だけを受ける。UTF-8 なら制限しない。かなの氏名は
 全角カタカナだけを受け、ひらがなはカタカナに直す。半角カナは断る。試験の形（設定の
@@ -25,6 +26,7 @@ from zoneinfo import ZoneInfo
 
 from .exceptions import ValidationError
 from .models import PATIENT_ID_MAX_LENGTH, ScheduledPatient
+from .patient_sex import SEX_VALUES
 from .person_name import COMPONENT_SEPARATOR, GROUP_SEPARATOR
 from .text_safety import is_unsafe_char
 from .worklist_charset import find_unrepresentable_chars
@@ -35,7 +37,6 @@ LO_MAX_LENGTH = 64
 # 生年月日の「今日」を決めるタイムゾーンの既定（サーバーの OS の時計の地域に頼らない。
 # UTC のコンテナでも日本の日付で確かめる。docs/spec/12a の 10.5）
 DEFAULT_TIMEZONE = "Asia/Tokyo"
-SEX_VALUES = ("M", "F", "O")
 _ASCII_PRINTABLE_MIN = 0x20
 _ASCII_PRINTABLE_MAX = 0x7E
 _ALPHABETIC_COMPONENT = re.compile(r"[A-Za-z' -]*")
@@ -332,7 +333,7 @@ def validate_birth_date(value: str, today: date | None = None) -> None:
 
 def validate_sex(value: str) -> None:
     if value and value not in SEX_VALUES:
-        raise FieldValidationError("性別は、男・女・その他から選んでください。", "sex")
+        raise FieldValidationError("性別は、男・女・その他・不明から選んでください。", "sex")
 
 
 def validate_study_description(value: str) -> None:

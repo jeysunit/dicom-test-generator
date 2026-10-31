@@ -16,6 +16,7 @@ from pydicom.multival import MultiValue
 from pydicom.sequence import Sequence
 
 from .exceptions import WorklistMappingError
+from .patient_sex import SEX_VALUES, from_dicom_sex, to_dicom_sex
 from .uid_format import is_valid_uid
 from .worklist_charset import TEXT_VRS
 from .models import (
@@ -40,7 +41,7 @@ CARRIER_PATIENT_ID_LENGTH = 16
 _REPLACEMENT_CHAR = "�"
 _UID_VR = "UI"
 _BIRTH_DATE_LENGTH = 8
-_VALID_SEXES = frozenset({"", "M", "F", "O"})
+_VALID_SEXES = frozenset({"", *SEX_VALUES})
 DS_MAX_LENGTH = 16
 _DECIMAL_STRING = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?")
 
@@ -111,7 +112,8 @@ def worklist_item_from_identifier(identifier: Dataset) -> WorklistItem:
         "patient_id": text(identifier, "PatientID"),
         "issuer_of_patient_id": text(identifier, "IssuerOfPatientID"),
         "birth_date": text(identifier, "PatientBirthDate"),
-        "sex": text(identifier, "PatientSex"),
+        # 製品の中の値は M・F・O・U。空と M・F・O 以外は U と読む（画像に写すときは空に戻す）
+        "sex": from_dicom_sex(text(identifier, "PatientSex")),
         "weight": text(identifier, "PatientWeight"),
         "size": text(identifier, "PatientSize"),
         "study_instance_uid": text(identifier, "StudyInstanceUID"),
@@ -395,7 +397,7 @@ def _apply_patient(ds: Dataset, ctx: ScheduledContext) -> None:
     if not ctx.scheduled or patient.issuer_of_patient_id:
         ds.IssuerOfPatientID = patient.issuer_of_patient_id
     ds.PatientBirthDate = patient.birth_date
-    ds.PatientSex = patient.sex
+    ds.PatientSex = to_dicom_sex(patient.sex)
     if not patient.birth_date and "PatientAge" in ds:
         del ds.PatientAge
     for keyword, value in (("PatientWeight", patient.weight), ("PatientSize", patient.size)):
@@ -421,7 +423,7 @@ def _check_patient_values(birth_date: str, sex: str, worklist_key: str) -> None:
         )
     if sex not in _VALID_SEXES:
         raise WorklistMappingError(
-            "予約の性別が M・F・O・空のどれでもありません",
+            "予約の性別が M・F・O・U・空のどれでもありません",
             {"attribute": "PatientSex", "worklist_key": worklist_key},
         )
 

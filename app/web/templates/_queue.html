@@ -91,7 +91,7 @@
 {% endif %}
 {# 空の状態：1 行目に事実、2 行目に次の手。表の枠と見出しの行は出したままにする #}
 {% if not jobs %}
-{% if filters.period != "all" or filters.destination or filters.patient_id or filters.status != "all" %}
+{% if any_jobs or filters.destination or filters.patient_id or filters.status != "all" %}
 <div class="empty">
   <b>条件に合う送信ジョブはありません。</b>
   <span>条件を変えて、もう一度検索してください。</span>

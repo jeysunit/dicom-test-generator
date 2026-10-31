@@ -22,6 +22,7 @@ from pynetdicom.sop_class import ModalityPerformedProcedureStep
 from app.core.dose_sr import XRAY_RADIATION_DOSE_SR_STORAGE
 from app.core.exceptions import AssociationError, MPPSError
 from app.core.models import ScheduledContext
+from app.core.patient_sex import to_dicom_sex
 from app.core.uid_generator import UIDGenerator
 
 from .association import association_error, make_ae
@@ -81,7 +82,7 @@ def build_n_create(
     ds.PatientID = patient.patient_id
     ds.IssuerOfPatientID = patient.issuer_of_patient_id
     ds.PatientBirthDate = patient.birth_date
-    ds.PatientSex = patient.sex
+    ds.PatientSex = to_dicom_sex(patient.sex)
     ds.ReferencedPatientSequence = []
     ds.PerformedProcedureStepID = ctx.performed_procedure_step_id
     ds.PerformedStationAETitle = station_ae_title

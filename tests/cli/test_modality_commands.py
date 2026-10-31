@@ -210,6 +210,20 @@ def test_exam_emergency_json(monkeypatch, capsys, tmp_path, config) -> None:
     assert data["send"] is None
 
 
+@pytest.mark.parametrize(("sex", "written"), [("M", "M"), ("O", "O"), ("U", "")])
+def test_exam_emergency_sex_u_writes_an_empty_patient_sex(
+    monkeypatch, capsys, tmp_path, config, sex, written
+) -> None:
+    code, out, _ = run_cli(
+        monkeypatch, capsys, tmp_path, config, "exam", "--emergency", "--patient-id", "E0001",
+        "--patient-name", "KINKYU^TARO", "--birth-date", "19800101", "--sex", sex, "-s", "1",
+        "--pixel-mode", "simple_text", "--json",
+    )
+
+    assert code == 0
+    assert pydicom.dcmread(json.loads(out)["files"][0]).PatientSex == written
+
+
 def test_exam_with_profile(monkeypatch, capsys, tmp_path, config) -> None:
     """exam --profile：装置のプロファイルを重ねる。無い名前は終了コード 2（docs/spec/13 の 8・9）."""
     code, out, _ = run_cli(

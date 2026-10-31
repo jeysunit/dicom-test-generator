@@ -12,7 +12,9 @@
   </ol>
 </nav>
 {% endif %}
-<div class="pagehead"><h1>撮影</h1></div>
+{# 「予約の値（読むだけ）」の札は、バナーの外の見出しの行に出す（部品集の入力の画面の患者バナー）。
+   札がバナーの右端にそろうように、見出しの行も本文と同じ幅（.w-form）に収める #}
+<div class="w-form"><div class="pagehead"><h1>撮影</h1>{% if item %}<span class="badge">予約の値（読むだけ）</span>{% endif %}</div></div>
 {% if load_error %}
 {% with error = load_error %}{% include "_notice.html" %}{% endwith %}
 {% endif %}
@@ -26,16 +28,19 @@
   {% if item %}
   <input type="hidden" name="mode" value="scheduled">
   <input type="hidden" name="key" value="{{ key }}">
-  <section class="banner" aria-label="患者">
+  {% set procedure = item.requested_procedure_description %}
+  {# 部品集の患者バナー `.fb.r2`（入力の画面は 2 行の形）。英字氏名は氏名の下の補足（.sub）に置く #}
+  <section class="fb r2" aria-label="患者">
     <div class="nm">
       <div class="n">{{ ideographic or alphabetic }}</div>
-      {% if phonetic or (ideographic and alphabetic) %}<div class="k">{{ phonetic or alphabetic }}</div>{% endif %}
+      {% if phonetic %}<div class="k" title="{{ phonetic }}">{{ phonetic }}</div>{% endif %}
+      {% if ideographic and alphabetic %}<div class="k sub" title="{{ alphabetic }}">{{ alphabetic }}</div>{% endif %}
     </div>
-    <div class="f"><div class="l">患者ID</div><div class="v font-mono">{{ item.patient_id }}</div></div>
-    <div class="f"><div class="l">生年月日・性別</div><div class="v" title="{{ item|birth_label }}">{{ birth_value(item|birth_parts) }}</div></div>
-    <div class="f"><div class="l">受付番号</div><div class="v font-mono">{{ item.accession_number or "—" }}</div></div>
-    <div class="f"><div class="l">検査名</div><div class="v">{{ item.requested_procedure_description or "—" }}</div></div>
-    <div class="end"><span class="badge">予約の値（読むだけ）</span></div>
+    <div class="f pid"><div class="l">患者ID</div><div class="v mono keep">{{ item.patient_id }}</div></div>
+    <div class="f birth"><div class="l">生年月日・性別</div><div class="v" title="{{ item|birth_label }}">{{ birth_value(item|birth_parts) }}</div></div>
+    <div class="f acc"><div class="l">受付番号</div>{% if item.accession_number %}<div class="v mono keep">{{ item.accession_number }}</div>{% else %}<div class="v none">—</div>{% endif %}</div>
+    <div class="f dt"><div class="l">予定日時</div>{% if item.scheduled_start_date or item.scheduled_start_time %}<div class="v">{{ (item.scheduled_start_date|date_label ~ " " ~ item.scheduled_start_time|time_label)|trim }}</div>{% else %}<div class="v none">—</div>{% endif %}</div>
+    <div class="f md"><div class="l">モダリティ・検査名</div>{% if item.modality or procedure %}<div class="v" title="{{ item.modality }} {{ procedure }}">{% if item.modality %}<span class="mod" data-m="{{ item.modality|modality_key }}">{{ item.modality }}</span>{% endif %}{% if procedure %} {{ procedure }}{% endif %}</div>{% else %}<div class="v none">—</div>{% endif %}</div>
   </section>
   <section class="sec">
     <h2>予約の情報</h2>
@@ -182,17 +187,18 @@
   {# 撮る前に「誰を・どこへ」を操作の行の真上に出す（docs/spec/12a の 10.5）。緊急の患者は、
      入れた値を入力のたびに写す（app.js の data-mirror） #}
   {% if item %}{% set t_alpha, t_ideo, t_phon = item.patient_name|name_parts %}{% endif %}
-  <section id="exam-target" class="banner" aria-label="撮る患者と送信先">
+  {# 部品集の患者バナー `.fb.r2`。英字氏名は氏名の下の補足（.sub）、送信先はバナーの外の 1 行（バナーの下） #}
+  <section id="exam-target" class="fb r2" aria-label="撮る患者">
     <div class="nm">
       <div class="n" {% if not item %}data-mirror="name_ideographic" {% endif %}data-empty="漢字の氏名なし">{% if item %}{{ t_ideo or "漢字の氏名なし" }}{% else %}漢字の氏名なし{% endif %}</div>
       <div class="k" {% if not item %}data-mirror="name_phonetic" {% endif %}data-empty="カナなし">{% if item %}{{ t_phon or "カナなし" }}{% else %}カナなし{% endif %}</div>
+      <div class="k sub" {% if not item %}data-mirror="name_alphabetic" {% endif %}data-empty="英字の氏名なし">{% if item %}{{ t_alpha or "英字の氏名なし" }}{% else %}英字の氏名なし{% endif %}</div>
     </div>
-    <div class="f"><div class="l">氏名（英字）</div><div class="v" {% if not item %}data-mirror="name_alphabetic" {% endif %}data-empty="—">{% if item %}{{ t_alpha or "—" }}{% else %}—{% endif %}</div></div>
-    <div class="f"><div class="l">患者ID</div><div class="v font-mono" {% if not item %}data-mirror="patient_id" {% endif %}data-empty="—">{% if item %}{{ item.patient_id }}{% else %}—{% endif %}</div></div>
-    <div class="f"><div class="l">生年月日・性別</div><div class="v"{% if item %} title="{{ item|birth_label }}"{% else %} data-mirror-birth{% endif %}>{% if item %}{{ birth_value(item|birth_parts) }}{% else %}生年月日なし{% endif %}</div></div>
-    <div class="f"><div class="l">受付番号</div><div class="v font-mono">{% if item %}{{ item.accession_number or "—" }}{% else %}—（予約なし）{% endif %}</div></div>
-    <div class="f"><div class="l">送信先</div><div class="v">{{ destination.name }} <span class="font-mono text-xs text-label">{{ destination.ae_title }}・{{ destination.host }}:{{ destination.port }}</span></div></div>
+    <div class="f pid"><div class="l">患者ID</div><div class="v mono keep" {% if not item %}data-mirror="patient_id" {% endif %}data-empty="—">{% if item %}{{ item.patient_id }}{% else %}—{% endif %}</div></div>
+    <div class="f birth"><div class="l">生年月日・性別</div><div class="v"{% if item %} title="{{ item|birth_label }}"{% else %} data-mirror-birth{% endif %}>{% if item %}{{ birth_value(item|birth_parts) }}{% else %}生年月日なし{% endif %}</div></div>
+    <div class="f acc"><div class="l">受付番号</div><div class="v {% if item and item.accession_number %}mono keep{% else %}none{% endif %}">{% if item %}{{ item.accession_number or "—" }}{% else %}—（予約なし）{% endif %}</div></div>
   </section>
+  <p id="exam-destination" class="text-xs"><span class="text-label">送信先</span> <b>{{ destination.name }}</b> <span class="font-mono text-label">{{ destination.ae_title }}・{{ destination.host }}:{{ destination.port }}</span></p>
   <div id="actions">{% include "_exam_actions.html" %}</div>
   <p class="busy busy-exam" role="status"><span class="spin" aria-hidden="true"></span>撮影しています。終わるまでボタンは押せません</p>
   <p class="busy busy-exam-send" role="status"><span class="spin" aria-hidden="true"></span>撮影して送信しています。終わるまでボタンは押せません</p>

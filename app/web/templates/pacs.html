@@ -23,6 +23,15 @@
           {% endfor %}
         </select>
       </label>
+      {# 「期間を指定」を選んだときだけ出す開始日・終了日（app.js）。空の側は決めない #}
+      <label class="field" data-custom-period{% if filters.period != "custom" %} hidden{% endif %}>
+        <span class="l">開始日</span>
+        <input type="date" name="date_from" value="{{ filters.date_from }}" class="input w-40">
+      </label>
+      <label class="field" data-custom-period{% if filters.period != "custom" %} hidden{% endif %}>
+        <span class="l">終了日</span>
+        <input type="date" name="date_to" value="{{ filters.date_to }}" class="input w-40">
+      </label>
       <label class="field">
         <span class="l">送信先</span>
         <select name="destination" class="select w-44">

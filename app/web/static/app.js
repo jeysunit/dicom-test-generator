@@ -899,6 +899,26 @@
     focusedRole = null;
   });
 
+  // PACS の画面の「期間」：「期間を指定」を選んだときだけ、開始日と終了日の欄を出す（10.6）
+  function showCustomPeriod(select) {
+    document.querySelectorAll("[data-custom-period]").forEach(function (field) {
+      field.hidden = select.value !== "custom";
+    });
+  }
+  document.addEventListener("change", function (event) {
+    var select = event.target;
+    if (select instanceof HTMLSelectElement && select.name === "period") {
+      showCustomPeriod(select);
+    }
+  });
+  // 読み込み直しでブラウザーが選択を戻したときも、欄の出し入れを合わせる
+  document.addEventListener("DOMContentLoaded", function () {
+    var select = document.querySelector("#queue-filter select[name=period]");
+    if (select) {
+      showCustomPeriod(select);
+    }
+  });
+
   // 撮影の画面の「文字コード（画像）」：JIS（半角カナと漢字）を選んだときだけ注意を出す（10.5）
   document.addEventListener("change", function (event) {
     var select = event.target;
@@ -911,7 +931,7 @@
   });
 
   // 緊急の患者：入れた値を、操作の行の真上の「撮る患者と送信先」に写す（10.5）
-  var SEX_TEXT = { M: "男", F: "女", O: "その他" };
+  var SEX_TEXT = { M: "男", F: "女", O: "その他", U: "不明" };
   // 生年月日の括弧の中身（元号の漢字 1 字と年・満年齢）。始まりの日で決め、年 ＝ 西暦の年 − 始まりの年 ＋ 1。
   // 明治（1868/10/23）より前は元号を出さず、年齢だけ。緊急の撮影は検査日が今日なので、今日が基準（app/core/wareki.py と同じ規則）
   // （始まりの年, 月, 日, 漢字 1 字, 正式名, 英字 1 字）。新しい元号から先に並べる

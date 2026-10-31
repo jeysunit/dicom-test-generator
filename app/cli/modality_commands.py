@@ -20,6 +20,7 @@ from app.core.exceptions import (
 )
 from app.core.models import WorklistItem
 from app.core.patient_input import build_emergency_patient, current_date
+from app.core.patient_sex import SEX_VALUES
 from app.core.routine import DEFAULT_DOSE_REPORT_MODE
 from app.modality.config import load_modality_config
 from app.modality.service import AUTO_ROUTINE, ExamRequest, ModalityService, SendResult
@@ -101,7 +102,7 @@ def register_modality_commands(
     exam_parser.add_argument("--patient-id", help="緊急の患者の ID")
     exam_parser.add_argument("--patient-name", help="緊急の患者の氏名（PN）")
     exam_parser.add_argument("--birth-date", help="緊急の患者の生年月日（YYYYMMDD）")
-    exam_parser.add_argument("--sex", choices=("M", "F", "O"), help="緊急の患者の性別")
+    exam_parser.add_argument("--sex", choices=SEX_VALUES, help="緊急の患者の性別")
     exam_parser.add_argument("--study-description", help="検査名（--emergency のとき）")
     exam_parser.add_argument("-m", "--modality", help="モダリティテンプレート")
     exam_parser.add_argument(
