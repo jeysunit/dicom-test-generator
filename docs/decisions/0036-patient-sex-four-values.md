@@ -42,4 +42,5 @@ DTG の性別は M・F・O の 3 値で、DICOM の Patient's Sex（0010,0040）
 ## 関連
 
 - [ADR-0028](0028-shared-ui-kit-css.md)：ui-kit の写し
-- [spec/12](../spec/12_modality_emulator.md) の 6 章、[spec/12a](../spec/12a_web_screens_and_cli.md) の 10.4・10.5
+- [spec/12](../spec/12_modality_emulator.md) の 6 章
+- [spec/12a](../spec/12a_web_screens_and_cli.md) の 10.4・10.5
