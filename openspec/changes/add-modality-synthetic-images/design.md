@@ -97,8 +97,8 @@ Burned In Annotation `NO` を足す（E.3.1。出典 13）。患者 ID を画素
 
 Table E.1-1 では、Image Comments (0020,4000) は Basic Profile で消す（`X`）属性で、
 Manufacturer (0008,0070) と Manufacturer's Model Name (0008,1090) は表に無く、
-Basic Profile では消す対象に入っていない（出典 14）。匿名化の道具は消す属性を
-足せる（E.1.1）ので、必ず残るとは言えないが、Basic Profile どおりの道具なら
+Basic Profile では消す対象に入っていない（出典 14）。匿名化ツールは消す属性を
+足せる（E.1.1）ので、必ず残るとは言えないが、Basic Profile どおりのツールなら
 匿名化した後の画像にも Manufacturer の偽物の印が残る。
 
 ### コード（PS3.16）
@@ -236,7 +236,7 @@ Rescale・Window の値は、今の CT・MR の値のままにする（spec/06 �
 
 ### 焼き込み（選んだときだけ。PR 4）
 
-匿名化の道具が画素の焼き込みを見つけられるかを試すための変種である。`phantom` で
+匿名化ツールが画素の焼き込みを見つけられるかを試すための変種である。`phantom` で
 焼き込みを選んだときだけ、画像の上端に最小の値の帯を敷き、最大の値で次の3行を描く。
 Burned In Annotation は `YES` にし、ほかの属性は上の表のままにする。
 
