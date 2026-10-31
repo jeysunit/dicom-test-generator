@@ -67,8 +67,12 @@ def test_banner_keeps_every_slot_when_a_value_is_missing(client) -> None:
     assert "生年月日なし（不明）" in banner
 
 
-def test_app_css_selects_the_modality_color_without_a_style_attribute(client) -> None:
+def test_kit_selects_the_modality_color_and_the_product_css_adds_no_copy(client) -> None:
+    # CSP が style 属性を許さないので、色は data-m で選ぶ。その 7 行は ui-kit 1.2.5 が持つ
+    kit = client.get("/static/ui-kit/components.css").text
     css = client.get("/static/app.css").text
 
     for name in ("ct", "mr", "crdx", "us", "es", "mg", "sr"):
-        assert f".mod[data-m={name}]{{--m:var(--color-mod-{name})}}" in css
+        rule = f'.mod[data-m="{name}"]{{--m:var(--color-mod-{name})}}'
+        assert rule in kit
+        assert f".mod[data-m={name}]" not in css
