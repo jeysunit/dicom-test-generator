@@ -130,7 +130,9 @@ PACS の画面の下の段（送信ジョブ）に、ジョブごとの状態（
 
 ### 4.2 Orthanc で保管確認をテストする
 
-この手順は、まだ Orthanc を相手に実行して確認していない（[roadmap.md](roadmap.md)）。
+この手順は、2026-10-31 に Orthanc（イメージ `orthancteam/orthanc:26.9.1`）を相手に
+実行し、ワークリストの取得・撮影・C-STORE・保管確認・MPPS が通ることを確認した。
+送信した 4 件の検査（92・505・281・2 画像）とも、保管確認が「確認済」になった。
 Orthanc（1.6.0 以降）は保管確認を受け付け、結果を別の Association で返す。
 
 1. Orthanc の設定の `DicomModalities` に、DTG の AEタイトル・IP アドレス・待ち受けの
