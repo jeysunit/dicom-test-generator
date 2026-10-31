@@ -164,7 +164,7 @@ character_set:
 | `patient_id` | string | ○ | 患者ID（16 文字以内） | `"P000001"` |
 | `patient_name` | object | ○ | 患者名（3.3） | - |
 | `birth_date` | string | ○ | 生年月日（YYYYMMDD。実在する日付） | `"19800115"` |
-| `sex` | string | ○ | 性別（`M` / `F` / `O`） | `"M"` |
+| `sex` | string | ○ | 性別（`M` / `F` / `O` / `U`）。`U` は不明で、DICOM の Patient's Sex には空で書く（列挙値は M・F・O だけ） | `"M"` |
 | `age` | string | - | 年齢（`nnnY` の形式）。受け付けるが使わない。Patient's Age は `birth_date` と `study_date` から算出する（spec/06 の 8 章） | `"044Y"` |
 | `weight` | float | - | 体重（kg、0〜500） | 65.5 |
 | `size` | float | - | 身長（cm、0〜300。Patient's Size にはメートルで書く） | 170.0 |

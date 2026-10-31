@@ -36,30 +36,38 @@ def _target(html: str) -> str:
 def test_target_banner_sits_right_above_the_action_row(client) -> None:
     html = client.get("/exam").text
 
-    # 「撮る患者と送信先」の直後に操作の行（間に区画を挟まない）
+    # 患者バナー、その下の送信先の 1 行、操作の行の順（間に区画を挟まない）
     after = html.split('id="exam-target"', 1)[1].split("</section>", 1)[1]
-    assert after.lstrip().startswith('<div id="actions">')
+    assert after.lstrip().startswith('<p id="exam-destination"')
+    assert after.split("</p>", 1)[1].lstrip().startswith('<div id="actions">')
 
 
 def test_emergency_target_mirrors_the_inputs_and_names_the_destination(client) -> None:
-    target = _target(client.get("/exam").text)
+    html = client.get("/exam").text
+    target = _target(html)
 
     for name in ("name_ideographic", "name_phonetic", "name_alphabetic", "patient_id"):
         assert f'data-mirror="{name}"' in target
     assert "data-mirror-birth" in target
     assert "—（予約なし）" in target
-    # 送信先は名前・AEタイトル・ホストとポート
-    assert re.search(r"PACS_TEST <span[^>]*>PACS_TEST・127\.0\.0\.1:\d+</span>", target)
+    # 英字氏名は氏名の下の補足（.sub）。バナーに英字氏名の升は足さない
+    assert re.search(r'<div class="k sub"[^>]*data-mirror="name_alphabetic"', target)
+    assert "氏名（英字）</div>" not in target
+    # 送信先はバナーの外の 1 行で、名前・AEタイトル・ホストとポート
+    assert "送信先" not in target
+    line = html.split('id="exam-destination"', 1)[1].split("</p>", 1)[0]
+    assert re.search(r"<b>PACS_TEST</b> <span[^>]*>PACS_TEST・127\.0\.0\.1:\d+</span>", line)
 
 
 def test_scheduled_target_shows_the_patient_and_the_destination(client) -> None:
     key = key_for(query_worklist(client), "A0001")
-
-    target = _target(client.get(f"/exam?key={key}").text)
+    html = client.get(f"/exam?key={key}").text
+    target = _target(html)
 
     for value in ("山田 太郎", "やまだ たろう", "YAMADA TARO", "P000001", "A0001", "1980/01/15"):
         assert value in target, value
-    assert "PACS_TEST" in target
+    assert "送信先" not in target
+    assert "PACS_TEST" in html.split('id="exam-destination"', 1)[1].split("</p>", 1)[0]
     assert "data-mirror" not in target
 
 

@@ -66,6 +66,18 @@ def test_generate_minimal(tmp_path) -> None:
     assert files[0].name.endswith("_0001.dcm")
 
 
+@pytest.mark.parametrize(("sex", "written"), [("M", "M"), ("F", "F"), ("O", "O"), ("U", "")])
+def test_patient_sex_u_is_written_as_an_empty_value(tmp_path, sex, written) -> None:
+    # 製品の中の値は M・F・O・U。DICOM の列挙値は M・F・O だけなので、U は空にして書く
+    config = _make_config(tmp_path=tmp_path)
+    config = config.model_copy(update={"patient": config.patient.model_copy(update={"sex": sex})})
+
+    output_dir = StudyGeneratorService().generate(config=config)
+
+    (path,) = output_dir.glob("*.dcm")
+    assert pydicom.dcmread(path).PatientSex == written
+
+
 def test_generate_multiple_series(tmp_path) -> None:
     service = StudyGeneratorService()
     config = _make_config(tmp_path=tmp_path, num_series=2, images_per_series=[2, 2])

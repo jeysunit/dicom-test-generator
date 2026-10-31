@@ -104,16 +104,70 @@ def test_destination_and_patient_id_conditions(client) -> None:
     assert "送信ジョブはまだありません" not in other
 
 
-def test_period_condition_uses_the_created_date(client) -> None:
-    job_id = _job(client, "E0001", failed=True)
-    old = (datetime.now() - timedelta(days=10)).isoformat(timespec="seconds")
-    with client.app.state.service.queue._connect() as conn:
-        conn.execute("UPDATE jobs SET created_at = ? WHERE id = ?", (old, job_id))
-    _job(client, "E0002", failed=True)
+def _jobs_created(client, days_ago: tuple[int, ...]) -> None:
+    """E0001、E0002… の失敗の件を、それぞれ指定の日数だけ前の日に作った形にする."""
+    for number, days in enumerate(days_ago, start=1):
+        job_id = _job(client, f"E000{number}", failed=True)
+        created = (datetime.now() - timedelta(days=days)).isoformat(timespec="seconds")
+        with client.app.state.service.queue._connect() as conn:
+            conn.execute("UPDATE jobs SET created_at = ? WHERE id = ?", (created, job_id))
 
-    assert '<span class="cnt"><b>2</b>' in client.get("/pacs/queue?period=all").text
-    assert '<span class="cnt"><b>1</b>' in client.get("/pacs/queue?period=today").text
-    assert '<span class="cnt"><b>1</b>' in client.get("/pacs/queue?period=week").text
+
+def _count(client, query: str) -> str:
+    html = client.get(f"/pacs/queue?{query}").text
+    return re.search(r'<span class="cnt"><b>(\d+)</b>', html).group(1)
+
+
+def test_period_choices_are_the_four_of_the_kit_and_start_at_today(client) -> None:
+    html = client.get("/pacs").text
+    band = html.split('id="queue-filter"', 1)[1].split("</form>", 1)[0]
+    select = band.split('<select name="period"', 1)[1].split("</select>", 1)[0]
+
+    options = re.findall(r'<option value="([^"]+)"( selected)?>([^<]+)</option>', select)
+    assert [(value, label) for value, _, label in options] == [
+        ("today", "今日"), ("yesterday", "昨日"), ("week", "過去7日"), ("custom", "期間を指定"),
+    ]
+    assert [value for value, selected, _ in options if selected] == ["today"]
+    # 開始日・終了日の欄は「期間を指定」のときだけ出す
+    assert len(re.findall(r"<label class=\"field\" data-custom-period hidden>", band)) == 2
+
+
+def test_period_condition_uses_the_created_date(client) -> None:
+    # 今日・昨日・3 日前・10 日前
+    _jobs_created(client, (0, 1, 3, 10))
+
+    assert _count(client, "period=today") == "1"
+    assert _count(client, "period=yesterday") == "1"
+    assert _count(client, "period=week") == "3"
+    # 初期（期間なし）と知らない値は今日
+    assert _count(client, "") == "1"
+    assert _count(client, "period=all") == "1"
+
+
+def test_custom_period_reads_the_start_and_end_dates(client) -> None:
+    _jobs_created(client, (0, 1, 3, 10))
+
+    def day(days: int) -> str:
+        return (datetime.now() - timedelta(days=days)).date().isoformat()
+
+    assert _count(client, f"period=custom&date_from={day(10)}&date_to={day(3)}") == "2"
+    assert _count(client, f"period=custom&date_from={day(1)}") == "2"
+    assert _count(client, f"period=custom&date_to={day(3)}") == "2"
+    assert _count(client, "period=custom") == "4"
+    # 開始日と終了日を入れた日を含む
+    assert _count(client, f"period=custom&date_from={day(3)}&date_to={day(3)}") == "1"
+    # 読めない日付は決めない側として扱う。「期間を指定」でなければ日付は見ない
+    assert _count(client, "period=custom&date_from=2026-13-40&date_to=bogus") == "4"
+    assert _count(client, f"period=today&date_from={day(10)}") == "1"
+
+
+def test_empty_today_with_older_jobs_says_no_job_matches(client) -> None:
+    _jobs_created(client, (3,))
+
+    html = client.get("/pacs/queue").text
+
+    assert "条件に合う送信ジョブはありません" in html
+    assert "送信ジョブはまだありません" not in html
 
 
 def test_unknown_condition_values_fall_back(client) -> None:
@@ -175,7 +229,7 @@ def test_retry_keeps_the_conditions_and_selected_row(client) -> None:
 
     response = client.post(
         f"/pacs/retry/{job_id}",
-        data={"period": "all", "destination": "PACS_TEST", "patient_id": "E0001",
+        data={"period": "today", "destination": "PACS_TEST", "patient_id": "E0001",
               "status": "failed", "selected": str(job_id)},
         headers=post_headers(token),
     )

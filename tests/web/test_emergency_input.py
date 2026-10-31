@@ -115,6 +115,30 @@ def test_hiragana_in_the_phonetic_name_is_written_as_katakana(client, tmp_path) 
     assert dcmread(file).PatientName.phonetic == "キンキュウ^タロウ"
 
 
+def test_sex_choices_are_the_four_values_with_the_unknown_last(client) -> None:
+    select = client.get("/exam").text.split('<select name="sex"', 1)[1].split("</select>", 1)[0]
+
+    assert re.findall(r'<option value="([^"]*)">([^<]+)</option>', select) == [
+        ("", "選んでください"), ("M", "男"), ("F", "女"), ("O", "その他"), ("U", "不明"),
+    ]
+
+
+@pytest.mark.parametrize(("sex", "written"), [("M", "M"), ("O", "O"), ("U", "")])
+def test_sex_u_is_accepted_and_the_image_gets_an_empty_patient_sex(client, tmp_path, sex, written) -> None:
+    from pydicom import dcmread
+
+    page = _post(client, sex=sex, birth_date="1975/05/10")
+    assert 'role="alert"' not in page
+    file = next((tmp_path / "output").rglob("*.dcm"))
+    assert dcmread(file).PatientSex == written
+
+
+def test_sex_outside_the_four_values_is_refused(client) -> None:
+    page = _post(client, sex="X")
+    assert 'data-error-field="sex"' in page
+    assert "男・女・その他・不明" in page
+
+
 def test_server_error_names_the_field_for_the_script(client) -> None:
     """サーバーで断った誤りは、欄の名前を持たせて返す（スクリプトが同じ欄の下に結ぶ）."""
     page = _post(client, name_phonetic="ﾔﾏﾀﾞ")

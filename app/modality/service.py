@@ -59,6 +59,7 @@ from app.core.patient_input import (
     validate_emergency_patient,
     validate_study_description,
 )
+from app.core.patient_sex import SEX_UNKNOWN
 from app.core.person_name import compose_person_name
 from app.core.uid_generator import UIDGenerator
 from app.core.validation_text import describe_validation_error
@@ -1323,8 +1324,8 @@ class ModalityService:
             notices.append("予約に Study Instance UID が無いため、このツールが生成しました")
         if not item.birth_date:
             notices.append("生年月日が空です")
-        if not item.sex:
-            notices.append("性別が空です")
+        if item.sex in ("", SEX_UNKNOWN):
+            notices.append("性別が不明です")
         return notices
 
     def _exam_output_dir(self, request: ExamRequest, ctx: ScheduledContext, now: datetime) -> Path:

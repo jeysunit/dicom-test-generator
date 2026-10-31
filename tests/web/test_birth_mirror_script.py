@@ -184,3 +184,9 @@ def test_mirrored_birth_date_reads_the_era_forms_and_keeps_an_unreadable_value_a
     assert era["text"] == "1975/05/14（昭50・51歳）男"
     assert formal["text"] == "1989/01/08（平1・37歳）女"
     assert unreadable == {"text": "S50.5.14 男", "unit": None, "title": "S50.5.14 男"}
+
+
+def test_mirrored_sex_shows_all_four_words() -> None:
+    shown = _run([["1975-05-14", TODAY, sex] for sex in ("M", "F", "O", "U")])
+    assert [text.rsplit("）", 1)[1] for text in shown] == ["男", "女", "その他", "不明"]
+    assert _run([["", TODAY, "U"]]) == ["生年月日なし（不明）"]
