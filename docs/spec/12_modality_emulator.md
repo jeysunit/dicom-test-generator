@@ -533,7 +533,7 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID (0008,1155)
   同じ送信先へ、新しい件として送信する（元の件と、その保管確認の結果は変えない）。
   画像は作り直さないので、SOP Instance UID・Series Instance UID・Study Instance UID は
   最初の送信と同じ（PS3.5 9 の UID は1つの物を指す）。相手が同じ SOP Instance UID の
-  2回目をどう扱うか（上書き・受け流し・Warning・Failure）は相手の実装による。DTG は
+  2回目をどう扱うか（上書き・無視・Warning・Failure）は相手の実装による。DTG は
   応答の Status をそのまま記録する。送信中・送信待ちの件は再送信しない
 - 送信キューと送信の履歴は、状態の保存先の SQLite（標準ライブラリの `sqlite3`）に
   記録する。新しい外部パッケージは追加しない
