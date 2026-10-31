@@ -123,15 +123,21 @@ PACS の画面の下の段（送信ジョブ）に、ジョブごとの状態（
 1. 送信先の `storage_commitment` を `true` にする。結果は相手が別の Association で
    返すことを前提にしている。同じ Association でしか返さない相手のときだけ、
    `commitment_wait_seconds` に秒数を設定する
-2. 送信に成功した画像の保管確認が自動で要求される。PACS の画面の「保管の確認」の
-   列に、確認待ち・確認済・確認の失敗・確認の時間切れのどれかが表示される
+2. 送信に成功した画像の保管確認は、CLI では `commit` で要求する（6 章）。結果は
+   PACS の画面の「保管の確認」の列に、確認待ち・確認済・確認の失敗・確認の時間切れの
+   どれかで表示される。Web 画面の [撮影して送信] から保管確認が自動で要求されるかは、
+   未確認
 3. Docker で動かすときは、設定の `modality.listen.bind_address` を `"0.0.0.0"` にし、
    待ち受けのポート（初期設定 11113）も公開する
 
 ### 4.2 Orthanc で保管確認をテストする
 
-この手順は、まだ Orthanc を相手に実行して確認していない（[roadmap.md](roadmap.md)）。
+この手順は、2026-10-31 に Orthanc（イメージ `orthancteam/orthanc:26.9.1`）を相手に
+実行し、ワークリストの取得・撮影・C-STORE が通ることを確認した。CLI で送信し、
+`commit` で保管確認を要求した。送信した 4 件の検査（CT 頭部 92・CT 胸部 505・
+MR 頭部 281・DX 胸部 2 画像）とも、Orthanc から保管確認の結果「確認済」を受けた。
 Orthanc（1.6.0 以降）は保管確認を受け付け、結果を別の Association で返す。
+MPPS は ris-emulator を相手に確かめた（Orthanc は MPPS を受け付けない。4.3 を参照）。
 
 1. Orthanc の設定の `DicomModalities` に、DTG の AEタイトル・IP アドレス・待ち受けの
    ポートを追加する（例：`"DicomModalities": { "dtg": [ "DTG_CT01",
@@ -140,9 +146,12 @@ Orthanc（1.6.0 以降）は保管確認を受け付け、結果を別の Associ
    ようにする（初期設定の 127.0.0.1 にはコンテナから到達できない）
 2. DTG の送信先を Orthanc の AEタイトル・IP アドレス・DICOM のポートにし、
    `storage_commitment: true` にする
-3. 撮影の画面で [撮影して送信] を押す
+3. CLI で `python -m app.cli exam --from-worklist <キー> --send` を実行して送信し、続けて
+   `python -m app.cli commit --job <ジョブ番号> --wait 60` で保管確認を要求する（6 章）
 4. PACS の画面の送信キューで、そのジョブの「保管の確認」が「確認済」になることを
    確認する
+
+Web 画面の [撮影して送信] から保管確認が自動で要求されるかは、未確認。
 
 ### 4.3 MPPS
 
