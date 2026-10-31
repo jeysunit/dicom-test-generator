@@ -1,4 +1,4 @@
-"""モダリティのダミーの設定（config/app_config.yaml の `modality:` の節。docs/spec/12 の 12 章）."""
+"""モダリティエミュレーターの設定（config/app_config.yaml の `modality:` の節。docs/spec/12 の 12 章）."""
 
 from __future__ import annotations
 

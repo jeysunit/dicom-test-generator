@@ -1,4 +1,4 @@
-"""モダリティのダミーの試験の道具：手元に MWL と Storage の SCP を立てる（docs/development.md の 4 章）.
+"""モダリティエミュレーターのテストの道具：手元に MWL と Storage の SCP を立てる（docs/development.md の 4 章）.
 
 実の PACS・RIS にはつながない。どの SCP も 127.0.0.1 の空いているポートで立てる。
 """

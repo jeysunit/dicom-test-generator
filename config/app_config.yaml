@@ -4,7 +4,7 @@
 profiles:
   search_paths: []
 
-# モダリティのダミー（docs/spec/12_modality_emulator.md の 12 章）。
+# モダリティエミュレーター（docs/spec/12_modality_emulator.md の 12 章）。
 # 例は手元の住所と例の名前だけ。試験用の PACS・RIS にだけつなぐ。
 modality:
   # 名乗る装置の一覧（AEタイトル・Station Name）。画面の情報バーで切り替える。

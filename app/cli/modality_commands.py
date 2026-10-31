@@ -1,4 +1,4 @@
-"""モダリティのダミーの CLI（docs/spec/12a_web_screens_and_cli.md 11 章）.
+"""モダリティエミュレーターの CLI（docs/spec/12a_web_screens_and_cli.md 11 章）.
 
 結果は標準出力、エラーは標準エラー。`--json` のときは標準出力に JSON だけを出す。
 """
