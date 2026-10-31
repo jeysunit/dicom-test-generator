@@ -1,4 +1,4 @@
-"""モダリティのダミーの CLI の試験：終了コードと --json の形（docs/spec/12a の 11 章、docs/development.md の 4 章）."""
+"""モダリティエミュレーターの CLI のテスト：終了コードと --json の形（docs/spec/12a の 11 章、docs/development.md の 4 章）."""
 
 from __future__ import annotations
 

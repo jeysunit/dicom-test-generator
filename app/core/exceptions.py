@@ -170,7 +170,7 @@ class DICOMValidationError(ValidationError):
 
 
 class ModalityError(DICOMGeneratorError):
-    """モダリティのダミーの例外の基底（docs/spec/12_modality_emulator.md 9.5）."""
+    """モダリティエミュレーターの例外の基底（docs/spec/12_modality_emulator.md 9.5）."""
 
 
 class ModalityConfigError(ModalityError):

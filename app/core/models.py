@@ -364,7 +364,7 @@ class GenerationConfig(BaseModel):
         return self
 
 
-# --- モダリティのダミー（docs/spec/12_modality_emulator.md・docs/spec/03_data_models.md）---
+# --- モダリティエミュレーター（docs/spec/12_modality_emulator.md・docs/spec/03_data_models.md）---
 
 PATIENT_ID_MAX_LENGTH = 64
 DicomJsonSequences = dict[str, list[dict]]

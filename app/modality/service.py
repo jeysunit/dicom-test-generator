@@ -1,4 +1,4 @@
-"""モダリティのダミーの手順をまとめる（docs/spec/12_modality_emulator.md 3・5・6・8 章）.
+"""モダリティエミュレーターの手順をまとめる（docs/spec/12_modality_emulator.md 3・5・6・8 章）.
 
 CLI（Phase 3a）とウェブの画面（Phase 3b）は、ここだけを呼ぶ。
 """
