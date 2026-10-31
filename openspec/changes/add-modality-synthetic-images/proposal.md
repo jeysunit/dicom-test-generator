@@ -31,7 +31,7 @@ DTG が画像を作れるモダリティは CT・MR・PT だけで、CR と DX �
   する（基本の図形。PR 1）
 - 文字の焼き込みは、選んだときだけ使う変種として足す。上端の帯に `TEST / SYNTHETIC`・
   患者 ID・検査日・何枚目か・位置を英字で描き、そのときだけ Burned In Annotation を
-  `YES` にする。匿名化の道具が焼き込みを見つけられるかの試験に使う（焼き込み。PR 4）
+  `YES` にする。匿名化ツールが焼き込みを見つけられるかの試験に使う（焼き込み。PR 4）
 - CR の画像を CR Image Storage、DX の画像を Digital X-Ray Image Storage - For
   Presentation で作る。テンプレート `cr_generic`・`dx_generic` と、例の装置の
   プロファイルを足す。CR・DX の予約と緊急の患者を、画面と CLI で撮れるようにする
@@ -61,7 +61,7 @@ DTG が画像を作れるモダリティは CT・MR・PT だけで、CR と DX �
    匿名化にならない（PS3.15 の Clean Pixel Data のオプションが要る）。文字の
    焼き込みは、選んだときだけ使う変種として残す。描く文字は英字だけ（`TEST /
    SYNTHETIC`・患者 ID・検査日・何枚目か・位置）で、そのときだけ Burned In
-   Annotation を `YES` にする。匿名化の道具が焼き込みを見つけられるかの試験に使う
+   Annotation を `YES` にする。匿名化ツールが焼き込みを見つけられるかの試験に使う
 3. CR・DX の画素は 1024 列 × 1248 行に固定し、検出器の大きさを架空の約
    350 × 427 mm（Imager Pixel Spacing 0.342 mm）にする。PET が行列を 128 に固定して
    いるのと同じく、Job の `pixel_spec` の幅と高さには従わない。1枚は約 2.5 MB
