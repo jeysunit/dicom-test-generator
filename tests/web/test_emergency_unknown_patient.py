@@ -11,7 +11,12 @@ from fastapi.testclient import TestClient
 from pydicom import dcmread
 from web_helpers import BASE_URL, csrf_token, modality_config, post_headers
 
-from app.core.patient_input import REQUIRED_MESSAGES, validate_patient_id
+from app.core.patient_input import (
+    IDEOGRAPHIC_MESSAGE,
+    PHONETIC_MESSAGE,
+    REQUIRED_MESSAGES,
+    validate_patient_id,
+)
 from app.modality.config import ModalityConfig
 from app.web.app import create_app
 from app.web.settings import WebConfig
@@ -159,22 +164,25 @@ def test_unknown_name_and_temporary_id_follow_the_settings(tmp_path, worklist_sc
 
 
 @pytest.mark.parametrize(
-    "settings",
+    ("settings", "expected"),
     [
-        {"temporary_patient_id_prefix": ""},
-        {"temporary_patient_id_prefix": "T M"},
-        {"temporary_patient_id_prefix": "T^P"},
-        {"temporary_patient_id_prefix": "A" * 21},
-        {"unknown_name_ideographic": ""},
-        {"unknown_name_ideographic": "A=B"},
-        {"unknown_name_phonetic": "ふめい"},
-        {"unknown_name_phonetic": ""},
+        ({"temporary_patient_id_prefix": ""}, "仮の患者ID の頭は 1〜20 字にしてください"),
+        ({"temporary_patient_id_prefix": "T M"}, "仮の患者ID の頭は、空白を除く半角の英数字と記号にしてください"),
+        ({"temporary_patient_id_prefix": "T^P"}, "仮の患者ID の頭は、空白を除く半角の英数字と記号にしてください"),
+        ({"temporary_patient_id_prefix": "A" * 21}, "仮の患者ID の頭は 1〜20 字にしてください"),
+        ({"unknown_name_ideographic": ""}, "氏名が分からないときの値（漢字）は空にできません"),
+        ({"unknown_name_ideographic": "A=B"}, "氏名が分からないときの値（漢字）に「=」は使えません"),
+        ({"unknown_name_phonetic": "ふめい"}, PHONETIC_MESSAGE),
+        ({"unknown_name_phonetic": ""}, "氏名が分からないときの値（かな）は空にできません"),
     ],
 )
-def test_bad_unknown_settings_are_refused_by_the_config(tmp_path, worklist_scp, storage_scp, settings) -> None:
+def test_bad_unknown_settings_are_refused_by_the_config(
+    tmp_path, worklist_scp, storage_scp, settings, expected
+) -> None:
+    """断る理由まで確かめる（別の理由で断られても通る緩い match にしない）."""
     data = modality_config(tmp_path, worklist_scp.port, storage_scp.port).model_dump()
     data.update(settings)
-    with pytest.raises(Exception, match="仮の患者ID|氏名|漢字|かな"):
+    with pytest.raises(Exception, match=re.escape(expected)):
         ModalityConfig.model_validate(data)
 
 
@@ -197,7 +205,29 @@ def test_unknown_name_must_fit_the_configured_image_charset(
     if accepted:
         ModalityConfig.model_validate(data)
     else:
-        with pytest.raises(Exception, match="unknown_name_ideographic.*文字コード"):
+        with pytest.raises(Exception, match=f"unknown_name_ideographic: {re.escape(IDEOGRAPHIC_MESSAGE)}"):
+            ModalityConfig.model_validate(data)
+
+
+@pytest.mark.parametrize(
+    ("settings", "accepted"),
+    [
+        ({"character_set": "jis"}, False),
+        ({"character_set": "jis_kana"}, False),
+        ({"character_set": "auto", "character_set_fallback": "jis"}, False),
+        ({"character_set": "utf8"}, True),
+    ],
+)
+def test_unknown_name_with_halfwidth_kana_follows_the_image_charset(
+    tmp_path, worklist_scp, storage_scp, settings, accepted
+) -> None:
+    """半角カナの漢字の氏名は、JIS 系の画像の文字コードでは設定の読み込みで断る（UTF-8 なら通す）."""
+    data = modality_config(tmp_path, worklist_scp.port, storage_scp.port).model_dump()
+    data.update(settings, unknown_name_ideographic="ﾌﾒｲ^ﾌﾒｲ")
+    if accepted:
+        ModalityConfig.model_validate(data)
+    else:
+        with pytest.raises(Exception, match=f"unknown_name_ideographic: {re.escape(IDEOGRAPHIC_MESSAGE)}"):
             ModalityConfig.model_validate(data)
 
 
@@ -271,3 +301,14 @@ def test_temporary_id_goes_into_the_image_unchanged(client, tmp_path) -> None:
     image = dcmread(next((tmp_path / "output").rglob("*.dcm")))
     assert image.PatientID == created
     assert str(image.PatientName) == "=不明^不明=フメイ^フメイ"
+
+
+def test_unknown_name_is_checked_again_when_the_screen_picks_another_charset(
+    tmp_path, worklist_scp, storage_scp
+) -> None:
+    """設定は UTF-8 で通っても、画面で JIS を選び直すと、撮るときに断る（10.5）."""
+    client = _client_with(tmp_path, worklist_scp, storage_scp, unknown_name_ideographic="髙橋^不明")
+    page = _post(client, name_unknown="1", charset="jis")
+    assert 'data-error-field="name_ideographic"' in page
+    assert IDEOGRAPHIC_MESSAGE in page
+    assert not list((tmp_path / "output").rglob("*.dcm"))
