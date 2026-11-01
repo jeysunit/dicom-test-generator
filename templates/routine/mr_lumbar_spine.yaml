@@ -5,6 +5,8 @@ label: "腰椎"
 modality: "MR"
 protocol_name: "LUMBAR SPINE"
 keywords: ["腰椎", "L-SPINE", "LSPINE", "LUMBAR"]
+# Body Part Examined（PS3.16 Annex L。対にならない部位。ADR-0037）
+body_part: "LSPINE"
 # 図形の方式（phantom）の部位の図形と、シリーズの強調（docs/spec/06 の 4.6）
 phantom: "spine"
 series:

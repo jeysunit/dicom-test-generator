@@ -6,6 +6,8 @@ modality: "CT"
 protocol_name: "CHEST ROUTINE"
 default: true
 keywords: ["胸部", "CHEST"]
+# Body Part Examined（PS3.16 Annex L。対にならない部位。ADR-0037）
+body_part: "CHEST"
 # 図形の方式（phantom）の部位の図形（docs/spec/06 の 4.6）
 phantom: "chest"
 series:

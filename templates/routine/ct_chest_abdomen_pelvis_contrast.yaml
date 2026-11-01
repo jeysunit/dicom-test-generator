@@ -5,6 +5,8 @@ label: "胸腹部骨盤 造影"
 modality: "CT"
 protocol_name: "CHEST ABDOMEN PELVIS C+"
 keywords: ["胸腹部", "CHEST ABDOMEN"]
+# Body Part Examined（PS3.16 Annex L。対にならない部位。ADR-0037）
+body_part: "CHESTABDPELVIS"
 # 図形の方式（phantom）の部位の図形（docs/spec/06 の 4.6）。造影の相は書かず門脈相の値
 phantom: "trunk"
 series:

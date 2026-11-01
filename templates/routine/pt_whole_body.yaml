@@ -8,6 +8,8 @@ modality: "PT"
 protocol_name: "WB PETCT"
 default: true
 keywords: ["PET", "FDG", "全身", "WHOLE BODY"]
+# Body Part Examined（PS3.16 Annex L。対にならない部位。CT・PT のシリーズに同じ値。ADR-0037）
+body_part: "WHOLEBODY"
 series:
   - modality: "CT"
     kind: "localizer"

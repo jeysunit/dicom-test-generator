@@ -65,16 +65,16 @@ def test_invalid_body_part_and_laterality(modality: str, fields: dict, message: 
         _routine(modality, **fields)
 
 
-def test_body_part_is_only_for_cr_and_dx() -> None:
-    with pytest.raises(PydanticValidationError, match="only for CR and DX"):
+def test_body_part_is_not_for_us() -> None:
+    with pytest.raises(PydanticValidationError, match="only for CT, MR, PT, CR and DX"):
         Routine.model_validate(
             {
-                "name": "ct_x",
+                "name": "us_x",
                 "label": "x",
-                "modality": "CT",
+                "modality": "US",
                 "protocol_name": "X",
-                "body_part": "CHEST",
-                "series": [{"kind": "axial", "description": "AX", "images": 3}],
+                "body_part": "ABDOMEN",
+                "series": [{"description": "US", "still_images": 4}],
             }
         )
 

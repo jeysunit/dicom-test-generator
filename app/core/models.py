@@ -98,13 +98,34 @@ KIND_MODALITY: dict[str, str] = {
 }
 # View Position (0018,5101) の定義の語（PS3.3 C.8.1.1 の Table C.8-1。人の検査の語）
 ProjectionView = Literal["AP", "PA", "LL", "RL", "RLD", "LLD", "RLO", "LLO"]
-# CR・DX の部位（Body Part Examined の語。PS3.16 Annex L）と、対になる部位（ADR-0034）
-BodyPart = Literal["CHEST", "ABDOMEN", "LSPINE", "CSPINE", "KNEE", "HAND"]
-PAIRED_BODY_PARTS = frozenset({"KNEE", "HAND"})
-# 左右。CR の Laterality (0020,0060) は R・L だけ（PS3.3 C.7.3.1）、DX の Image
-# Laterality (0020,0062) は B も書ける（C.8.11.2。U は対にならない部位に DTG が入れる）
+# 部位（Body Part Examined の語。PS3.16 Annex L の Table L-1）と、対になる部位
+# （Table L-5。ADR-0034・ADR-0037）。CR・DX が書けるのは PROJECTION_BODY_PARTS だけ
+BodyPart = Literal[
+    "CHEST",
+    "ABDOMEN",
+    "LSPINE",
+    "CSPINE",
+    "KNEE",
+    "HAND",
+    "HEAD",
+    "HEART",
+    "SHOULDER",
+    "ABDOMENPELVIS",
+    "CHESTABDPELVIS",
+    "WHOLEBODY",
+]
+PROJECTION_BODY_PARTS = frozenset({"CHEST", "ABDOMEN", "LSPINE", "CSPINE", "KNEE", "HAND"})
+PAIRED_BODY_PARTS = frozenset({"KNEE", "HAND", "SHOULDER"})
+# 部位を書くシリーズのモダリティの既定の部位。ルーチンを使わず手で入れたシリーズに
+# 入れる（CR・DX の手で入れたシリーズと同じ胸部。ADR-0037）
+DEFAULT_BODY_PART: BodyPart = "CHEST"
+# 左右。General Series の Laterality (0020,0060) は R・L だけ（PS3.3 C.7.3.1）、DX の
+# Image Laterality (0020,0062) は B も書ける（C.8.11.2。U は対にならない部位に DTG が入れる）
 Laterality = Literal["R", "L", "B"]
 LATERALITIES_BY_MODALITY: dict[str, frozenset[str]] = {
+    "CT": frozenset({"R", "L"}),
+    "MR": frozenset({"R", "L"}),
+    "PT": frozenset({"R", "L"}),
     "CR": frozenset({"R", "L"}),
     "DX": frozenset({"R", "L", "B"}),
 }
@@ -113,10 +134,16 @@ LATERALITIES_BY_MODALITY: dict[str, frozenset[str]] = {
 def check_body_part_laterality(
     modality: str, body_part: str | None, laterality: str | None
 ) -> None:
-    """CR・DX の部位と左右の組を確かめる。合わなければ ValueError（ADR-0034）.
+    """シリーズの部位と左右の組を確かめる。合わなければ ValueError（ADR-0034・ADR-0037）.
 
-    対になる部位は左右が要り、対にならない部位には左右を書けない。CR の左右は R・L だけ。
+    対になる部位は左右が要り、対にならない部位には左右を書けない。DX 以外の左右は R・L
+    だけ。CR・DX は PROJECTION_BODY_PARTS の部位だけを書ける。
     """
+    if modality in ("CR", "DX") and body_part not in (None, *PROJECTION_BODY_PARTS):
+        raise ValueError(
+            f"body_part {body_part} is not allowed for {modality} "
+            f"(allowed: {', '.join(sorted(PROJECTION_BODY_PARTS))})"
+        )
     if body_part is None:
         if laterality is not None:
             raise ValueError("laterality needs body_part")
@@ -169,9 +196,9 @@ class SeriesConfig(BaseModel):
     acquisition_type: MRAcquisitionType = Field("2D", description="MR Acquisition Type")
     # CR・DX の画像ごとの撮影の方向。足りなければ先頭から繰り返す（ADR-0034）
     view_positions: list[ProjectionView] = Field(default_factory=lambda: ["PA"], min_length=1)
-    # CR・DX の部位と左右（ルーチンの body_part・laterality）
-    body_part: BodyPart | None = Field(None, description="CR・DX の部位")
-    laterality: Laterality | None = Field(None, description="CR・DX の左右")
+    # 部位と左右（ルーチンの body_part・laterality）。CT・MR・PT・CR・DX が書ける
+    body_part: BodyPart | None = Field(None, description="部位（Body Part Examined）")
+    laterality: Laterality | None = Field(None, description="対になる部位の左右")
     # 図形の方式の部位・MR の強調・CT の造影の相（ルーチンの phantom・weighting・phase）
     phantom: PhantomRegion | None = Field(None, description="図形の部位")
     weighting: MRWeighting | None = Field(None, description="MR の強調")
@@ -209,7 +236,10 @@ class SeriesConfig(BaseModel):
                 raise ValueError(
                     "a CR series has exactly one view (View Position is a series value)"
                 )
+        if self.modality in ("CR", "DX", "CT", "MR", "PT"):
             check_body_part_laterality(self.modality, self.body_part, self.laterality)
+        elif self.body_part is not None or self.laterality is not None:
+            raise ValueError(f"body_part and laterality are not for {self.modality} series")
         return self
 
 

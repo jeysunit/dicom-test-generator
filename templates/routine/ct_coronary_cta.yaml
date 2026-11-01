@@ -5,6 +5,8 @@ label: "冠動脈 CTA"
 modality: "CT"
 protocol_name: "CORONARY CTA"
 keywords: ["CTA", "冠動脈", "心臓", "CORONARY", "CARDIAC", "HEART"]
+# Body Part Examined（PS3.16 Annex L。対にならない部位。ADR-0037）
+body_part: "HEART"
 # 図形の方式（phantom）の部位の図形と、造影の相（docs/spec/06 の 4.6）
 phantom: "chest"
 series:
