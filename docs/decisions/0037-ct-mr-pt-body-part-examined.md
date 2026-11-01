@@ -46,7 +46,9 @@ DTG は CR・DX だけ、ルーチンの `body_part` と `laterality` を持っ�
 
 - CT・MR・PT の全画像に Body Part Examined が入り、dciodvfy の Laterality の Error が消える
 - MR 膝・MR 肩の画像には Laterality `R` が入る
-- 手で入れた CT・MR・PT のシリーズには `CHEST` が入る
+- 手で入れた CT・MR・PT のシリーズには `CHEST` が入る。ルーチンの部位は引き継がないので、
+  たとえば MR 膝のルーチンに手で足したシリーズは、同じ検査の中で `KNEE` と `CHEST` が
+  混ざる。許容する（ルーチンの部位を手のシリーズへ渡すのは、必要になってから決める）
 - 既存のジョブの YAML・ルーチンは、書き換えずに動く
 
 ## 関連
