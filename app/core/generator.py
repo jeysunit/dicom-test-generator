@@ -28,6 +28,7 @@ from .series_layout import (
     image_type,
 )
 from .models import (
+    DEFAULT_BODY_PART,
     InstanceConfig,
     Patient,
     SeriesConfig,
@@ -36,6 +37,9 @@ from .models import (
     UIDContext,
 )
 
+# General Series に Body Part Examined を入れるモダリティ。CR・DX は投影の属性
+# （projection_attributes）が入れ、線量の報告（SR）は持たない
+BODY_PART_SERIES_MODALITIES = frozenset({"CT", "MR", "PT"})
 # CT Image Storage SOP Class UID
 CT_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.2"
 # MR Image Storage SOP Class UID（PS3.4 B.5）
@@ -754,6 +758,13 @@ class DICOMBuilder:
             ds.SeriesDescription = series_config.series_description
         if series_config.protocol_name is not None:
             ds.ProtocolName = series_config.protocol_name
+        if ds.Modality in BODY_PART_SERIES_MODALITIES:
+            # Body Part Examined は Type 3 だが、無いと Laterality (Type 2C) が要るか判定
+            # できない。対にならない部位なら Laterality は要らない（PS3.3 C.7.3.1、
+            # PS3.16 Annex L Table L-5。ADR-0037）。手で入れたシリーズは既定の部位
+            ds.BodyPartExamined = series_config.body_part or DEFAULT_BODY_PART
+            if series_config.laterality is not None:
+                ds.Laterality = series_config.laterality
         return ds
 
     def _set_pixel_data(

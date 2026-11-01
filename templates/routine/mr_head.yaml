@@ -6,6 +6,8 @@ modality: "MR"
 protocol_name: "BRAIN ROUTINE"
 default: true
 keywords: ["頭部", "HEAD", "BRAIN", "脳"]
+# Body Part Examined（PS3.16 Annex L。対にならない部位。ADR-0037）
+body_part: "HEAD"
 # 図形の方式（phantom）の部位の図形と、シリーズの強調（docs/spec/06 の 4.6）
 phantom: "head"
 series:

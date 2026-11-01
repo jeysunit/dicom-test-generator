@@ -102,8 +102,8 @@ class SeriesConfig(BaseModel):
 | `sequence` | `SE`・`IR`・`GR`・`EP` | `SE` | MR の Scanning Sequence |
 | `acquisition_type` | `2D`・`3D` | `2D` | MR Acquisition Type |
 | `view_positions` | `AP`・`PA`・`LL`・`RL`・`RLD`・`LLD`・`RLO`・`LLO` の並び | `["PA"]` | CR・DX の画像ごとの方向（View Position）。足りなければ繰り返す。CR は1種類だけ |
-| `body_part` | `CHEST`・`ABDOMEN`・`LSPINE`・`CSPINE`・`KNEE`・`HAND`・None | None | CR・DX の部位（Body Part Examined） |
-| `laterality` | `R`・`L`・`B`・None | None | CR・DX の左右。対になる部位（`KNEE`・`HAND`）だけに書き、必ず書く。CR は `R`・`L` だけ |
+| `body_part` | `CHEST`・`ABDOMEN`・`LSPINE`・`CSPINE`・`KNEE`・`HAND`・`HEAD`・`HEART`・`SHOULDER`・`ABDOMENPELVIS`・`CHESTABDPELVIS`・`WHOLEBODY`・None | None | 部位（Body Part Examined）。CR・DX が書けるのは先頭の 6 つ。CT・MR・PT は None なら `CHEST`（spec/06 の 5.6）。SR・US のシリーズには書けない |
+| `laterality` | `R`・`L`・`B`・None | None | 対になる部位（`KNEE`・`HAND`・`SHOULDER`）の左右。対になる部位だけに書き、必ず書く。DX 以外は `R`・`L` だけ |
 | `phantom` | `head`・`chest`・`trunk`・`abdomen`・`spine`・`limb`・None | None | 図形の方式（`phantom`）の部位の図形（spec/06 の 4.7）。None は基本の図形 |
 | `weighting` | `T1`・`T2`・`PD`・`FLAIR`・`T2STAR`・`DWI`・`ADC`・`MRA`・None | None | MR の強調（図形の区分の値）。MR のシリーズだけに書ける。None は種類とシーケンスから決める |
 | `phase` | `arterial`・`portal`・`delayed`・None | None | CT の造影の相（図形の区分の値）。CT の造影のシリーズ（`contrast: true`）だけに書ける。None の造影のシリーズは門脈相の値 |
@@ -127,8 +127,14 @@ PT にする（CT のシリーズに MR・PET の種類を入れると検証で�
 CR・DX のルーチンは、ルーチンの欄に部位 `body_part` を必ず書き、対になる部位
 （`KNEE`・`HAND`）には左右 `laterality` も必ず書く（[ADR-0034](../decisions/0034-cr-dx-images.md)）。
 `laterality` は CR では `R`・`L`、DX では `R`・`L`・`B` で、対にならない部位には
-書けない。CR・DX 以外のルーチンには、どちらも書けない。違えば読み込みで止まる。
+書けない。CR・DX の `body_part` は先頭の 6 つ（`CHEST`・`ABDOMEN`・`LSPINE`・`CSPINE`・
+`KNEE`・`HAND`）だけ。違えば読み込みで止まる。
 付けるルーチンの膝と手は、架空の `R` にしてある。
+
+CT・MR・PT のルーチンも `body_part` を書ける（任意。書かなければ `CHEST`。
+[ADR-0037](../decisions/0037-ct-mr-pt-body-part-examined.md)）。対になる部位
+（`KNEE`・`HAND`・`SHOULDER`）には `laterality`（`R`・`L`）も必ず書く。値は spec/06 の 5.6 の
+表で決める。US のルーチンには、どちらも書けない。
 
 ルーチンの欄には、図形の部位 `phantom`（`head`・`chest`・`trunk`・`abdomen`・`spine`・
 `limb`）を書ける。MR のシリーズには強調 `weighting`、CT のシリーズには造影の相 `phase`

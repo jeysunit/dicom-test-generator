@@ -35,8 +35,9 @@ from .models import (
 RoutineModality = Literal["CT", "MR", "PT", "CR", "DX", "US"]
 # 画面と CLI の1シリーズの画像数の上限（docs/spec/12a の 10.5）と同じ
 MAX_ROUTINE_IMAGES_PER_SERIES = 1000
-# 部位と左右を持つモダリティ（一般撮影。ADR-0034）
-PROJECTION_MODALITIES = ("CR", "DX")
+# 部位と左右を書けるモダリティ（CR・DX は ADR-0034 で body_part が必須、CT・MR・PT は
+# ADR-0037 で任意。US は画像をまだ作らないので書けない）
+BODY_PART_MODALITIES = ("CT", "MR", "PT", "CR", "DX")
 
 
 class _RoutineSeries(BaseModel):
@@ -168,7 +169,7 @@ class Routine(BaseModel):
     protocol_name: str = Field(..., min_length=1, max_length=64)
     default: bool = False
     keywords: list[str] = Field(default_factory=list)
-    # CR・DX の部位と左右（Body Part Examined の語、R・L・B。ADR-0034）
+    # 部位と左右（Body Part Examined の語、R・L・B。ADR-0034・ADR-0037）
     body_part: BodyPart | None = None
     laterality: Laterality | None = None
     # 図形の方式（phantom）の部位の図形。書かなければ基本の図形（docs/spec/06 の 4.6）
@@ -199,15 +200,23 @@ class Routine(BaseModel):
 
     @model_validator(mode="after")
     def _body_part_and_laterality(self) -> Routine:
-        """CR・DX は部位が要り、対になる部位は左右が要る。ほかのモダリティには書けない."""
-        if self.modality not in PROJECTION_MODALITIES:
+        """CR・DX は部位が要る。CT・MR・PT は書かなければ既定の部位（DEFAULT_BODY_PART）.
+
+        対になる部位は左右が要る。US には書けない。同梱のルーチンは全部書く（試験が見る）。
+        """
+        if self.modality not in BODY_PART_MODALITIES:
             if self.body_part is not None or self.laterality is not None:
                 raise ValueError(
-                    f"body_part and laterality are only for CR and DX, not {self.modality}"
+                    "body_part and laterality are only for CT, MR, PT, CR and DX, "
+                    f"not {self.modality}"
                 )
             return self
         if self.body_part is None:
-            raise ValueError(f"a {self.modality} routine needs body_part")
+            if self.modality in ("CR", "DX"):
+                raise ValueError(f"a {self.modality} routine needs body_part")
+            if self.laterality is not None:
+                raise ValueError("laterality needs body_part")
+            return self
         check_body_part_laterality(self.modality, self.body_part, self.laterality)
         return self
 
@@ -372,6 +381,14 @@ def apply_dose_report_mode(
     )
 
 
+def _body_part_fields(routine: Routine, is_sr: bool) -> dict[str, str | None]:
+    """シリーズの body_part・laterality（線量の報告の SR は General Series の Laterality
+    も Body Part Examined も持たないので書かない）."""
+    if is_sr:
+        return {}
+    return {"body_part": routine.body_part, "laterality": routine.laterality}
+
+
 def routine_series_configs(
     routine: Routine, numbers: list[int], keep: list[int], images: list[int]
 ) -> list[SeriesConfig]:
@@ -397,6 +414,7 @@ def routine_series_configs(
                     modality="SR" if series.kind == "dose_sr" else None,
                     phantom=routine.phantom,
                     phase=series.phase,
+                    **_body_part_fields(routine, series.kind == "dose_sr"),
                 )
             )
         elif isinstance(series, PETCTRoutineSeries):
@@ -417,6 +435,7 @@ def routine_series_configs(
                         "PT" if is_pet else "SR" if series.kind == "dose_sr" else "CT"
                     ),
                     phantom=routine.phantom,
+                    **_body_part_fields(routine, series.kind == "dose_sr"),
                 )
             )
         elif isinstance(series, MRRoutineSeries):
@@ -435,6 +454,7 @@ def routine_series_configs(
                     acquisition_type=series.acquisition_type,
                     phantom=routine.phantom,
                     weighting=series.weighting,
+                    **_body_part_fields(routine, False),
                 )
             )
         elif isinstance(series, ProjectionRoutineSeries):

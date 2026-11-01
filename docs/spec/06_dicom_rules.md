@@ -605,6 +605,44 @@ Frame of Reference と Image Plane のモジュールは持たない。シリー
   Body Part Examined・View Position
 - テンプレートの `general_equipment` を重ねる。KVP などの撮影の条件の属性は書かない
 
+### 5.6 CT・MR・PT の部位（Body Part Examined）と左右
+
+CT・MR・PT のシリーズ（CT の線量の画面の SC を含む。線量の報告の SR は除く）の
+General Series Module に、Body Part Examined (0018,0015) を入れる
+（[ADR-0037](../decisions/0037-ct-mr-pt-body-part-examined.md)）。
+Body Part Examined は Type 3 だが、無いと Laterality (0020,0060)（Type 2C。「検査した部位が対になる構造で、
+Image Laterality などが無いとき」に必須。PS3.3 C.7.3.1）が要るかどうかを決められず、
+dciodvfy が Laterality の欠落を Error にする。値は PS3.16 Annex L の Table L-1 の定義語で、
+対になるかどうかは Table L-5 で決まる。
+
+値はルーチンの `body_part` が決める。同梱のルーチンの値は次のとおり。
+
+| ルーチン | `body_part` | 対になる部位（Table L-5） | Laterality |
+|----------|-------------|---------------------------|------------|
+| `ct_chest_plain` | `CHEST` | N | 無い |
+| `ct_chest_abdomen_pelvis_contrast` | `CHESTABDPELVIS` | N | 無い |
+| `ct_abdomen_pelvis` | `ABDOMENPELVIS` | N | 無い |
+| `ct_liver_dynamic` | `ABDOMEN` | N | 無い |
+| `ct_coronary_cta` | `HEART` | N | 無い |
+| `ct_head_plain`・`mr_head` | `HEAD` | N | 無い |
+| `ct_lumbar_spine`・`mr_lumbar_spine` | `LSPINE` | N | 無い |
+| `mr_knee` | `KNEE` | Y | `R`（架空） |
+| `mr_shoulder` | `SHOULDER` | Y | `R`（架空） |
+| `pt_whole_body`・`pt_whole_body_pet_first` | `WHOLEBODY` | N | 無い |
+
+- 値の出どころ：Table L-1 の定義語（`CHESTABDPELVIS`＝Chest, Abdomen and Pelvis、
+  `ABDOMENPELVIS`＝Abdomen and Pelvis、`WHOLEBODY`＝Entire body など）。どの値も
+  CID 4031 のコードに対応する。肝臓ダイナミックは、Table L-1 に `LIVER` もあるが、
+  CID 4031 に無く、撮影の範囲も腹部全体なので `ABDOMEN` にする
+- PET/CT は、CT のシリーズと PT のシリーズに同じ値（`WHOLEBODY`）を入れる
+- `body_part` は CT・MR・PT のルーチンで任意。書かない（と、ルーチンを使わず手で入れた
+  シリーズ）は `CHEST`（CR・DX の手で入れたシリーズと同じ）。同梱のルーチンは全部書く
+- 対になる部位（`KNEE`・`HAND`・`SHOULDER`）の `laterality` は、General Series の
+  Laterality に `R`・`L` で入れる。CT・MR・PT には Image Laterality (0020,0062) が無い。
+  左右は、ルーチンの架空の値で、予約の記述からは読み取らない
+- CR・DX が書ける部位は、5.5 の 6 つ（`CHEST`・`ABDOMEN`・`LSPINE`・`CSPINE`・`KNEE`・
+  `HAND`）だけ
+
 ## 6. マルチスライスの空間座標
 
 ### 6.1 計算の規則

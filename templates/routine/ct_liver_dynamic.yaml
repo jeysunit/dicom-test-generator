@@ -5,6 +5,9 @@ label: "肝臓 ダイナミック"
 modality: "CT"
 protocol_name: "LIVER DYNAMIC"
 keywords: ["ダイナミック", "肝臓", "肝", "LIVER"]
+# Body Part Examined（PS3.16 Annex L。対にならない部位。ADR-0037）。肝臓の語（LIVER）もある
+# が、撮影の範囲が腹部全体なので ABDOMEN にする
+body_part: "ABDOMEN"
 # 図形の方式（phantom）の部位の図形と、造影の相（docs/spec/06 の 4.6）
 phantom: "abdomen"
 series:
