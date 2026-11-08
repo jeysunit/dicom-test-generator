@@ -23,7 +23,7 @@ def _send_one(client, patient_id: str = "E0001") -> None:
 
 
 def _add_jobs(client, count: int) -> None:
-    """画像の無い件を直接足す（ページ送りと上限の試験用。元のファイルが無くても一覧は出る）."""
+    """画像の無い件を直接追加する（ページ送りと上限の試験用。元のファイルが無くても一覧は出る）."""
     queue = client.app.state.service.queue
     for index in range(count):
         queue.add_job(f"/nonexistent/job-{index}", "PACS_TEST", [f"/nonexistent/job-{index}/a.dcm"])

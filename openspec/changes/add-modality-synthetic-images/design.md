@@ -2,7 +2,7 @@
 
 ## 今の姿
 
-2026-10-27 の `main`（6f8cbfb）で確かめた。
+2026-10-27 の `main`（6f8cbfb）で確認した。
 
 | 項目 | 今の姿 | 場所 |
 |------|--------|------|
@@ -15,7 +15,7 @@
 | 画素の方式 | `simple_text`（SOP Instance UID の文字）と `ct_realistic`（`gradient`・`circle`・`noise`）。撮影の既定は `ct_realistic` の `gradient` | `app/core/pixel_generator.py`、`app/modality/config.py` |
 | 画素と位置の関係 | 無い。1つのシリーズの全画像が同じ絵になる（`noise` は画像ごとに違うが、位置とは関係しない） | `app/services/study_generator.py` の `_generate_pixel_data` |
 | 焼き込みの属性 | Burned In Annotation (0028,0301) と Recognizable Visual Features (0028,0302) を書かない | `app/core/generator.py` |
-| 規格の確かめ | pytest で属性の Type と値を確かめる（`tests/core/test_ct_image_conformance.py` など）。dciodvfy などの外部の検査器は使っていない | `tests/` |
+| 規格の確認 | pytest で属性の Type と値を確認する（`tests/core/test_ct_image_conformance.py` など）。dciodvfy などの外部の検査器は使っていない | `tests/` |
 
 足りないものは次の4つである。
 
@@ -91,14 +91,14 @@ Type 3（出典 4）。DX Image Module では Burned In Annotation が Type 1 �
 
 Basic Application Level Confidentiality Profile は、タグの値を消すか置き換える。
 画素に焼き込まれた情報を消すのは Clean Pixel Data Option で、指定したときだけ
-求められ、「人の確かめが要ることがある」と書く。この Option で処理した画像には
-Burned In Annotation `NO` を足す（E.3.1。出典 13）。患者 ID を画素に描くと、タグを
+求められ、「人の確認が要ることがある」と書く。この Option で処理した画像には
+Burned In Annotation `NO` を追加する（E.3.1。出典 13）。患者 ID を画素に描くと、タグを
 消すだけでは匿名化にならない。
 
 Table E.1-1 では、Image Comments (0020,4000) は Basic Profile で消す（`X`）属性で、
 Manufacturer (0008,0070) と Manufacturer's Model Name (0008,1090) は表に無く、
 Basic Profile では消す対象に入っていない（出典 14）。匿名化ツールは消す属性を
-足せる（E.1.1）ので、必ず残るとは言えないが、Basic Profile どおりのツールなら
+追加できる（E.1.1）ので、必ず残るとは言えないが、Basic Profile どおりのツールなら
 匿名化した後の画像にも Manufacturer の偽物の印が残る。
 
 ### コード（PS3.16）
@@ -116,7 +116,7 @@ Body Part Examined の語は PS3.16 Annex L（前の change の出典 40）、�
 （出典 11）。View Code Sequence は CID 4010 の PA 272479007、AP 399348003、
 左側面 399173006、右側面 399198007 を使う（出典 12）。斜位（`RLO`・`LLO`）と
 側臥位（`RLD`・`LLD`）は View Position だけを書き、View Code Sequence は入れない
-（コードを確かめていないため）。
+（コードを確認していないため）。
 
 ## 検査ごとのシリーズの構成
 
@@ -124,8 +124,8 @@ Body Part Examined の語は PS3.16 Annex L（前の change の出典 40）、�
 PA と側面、DX の四肢）は、どれも今のルーチンにある。シリーズの並びと枚数は
 前の change（`archive/2026-10-24-add-exam-routine-templates/design.md`）で公開の
 資料から決めたもので、どれも代表例である。施設で違う部分は、施設のルーチンの
-YAML を足して変える。この change ではルーチンを足さず、各ルーチンに図形の部位
-（`phantom`）を書き足す。
+YAML を追加して変える。この change ではルーチンを追加せず、各ルーチンに図形の部位
+（`phantom`）を追記する。
 
 | モダリティ | 検査（ルーチン） | シリーズの並び（枚数） | 図形 |
 |------------|------------------|------------------------|------|
@@ -142,14 +142,14 @@ YAML を足して変える。この change ではルーチンを足さず、各�
 | MR | 肩 | ローカライザー(15)／T2 FS AX(24)／T2 FS COR(24)／T1 COR(24)／T1 SAG(24) | `limb` |
 | CR | 胸部（既定） | PA(1)／側面(1)。方向ごとに1シリーズ | `chest` |
 | CR | 腹部 | 臥位 AP(1)／立位 PA(1) | `abdomen` |
-| CR | 腰椎・頸椎 | AP と側面（頸椎は開口位の AP を足す） | `spine` |
+| CR | 腰椎・頸椎 | AP と側面（頸椎は開口位の AP を追加する） | `spine` |
 | CR | 膝・手 | 膝は AP と側面、手は PA・斜位・側面 | `limb` |
 | DX | 胸部（既定） | 1シリーズに PA と側面(2) | `chest` |
 | DX | 腹部・腰椎・頸椎・膝・手 | CR と同じ方向を1シリーズにまとめる | CR と同じ |
 
-MR の各シリーズには強調（`weighting`）を書き足す。頭部は DWI・ADC・T2STAR・T1・
+MR の各シリーズには強調（`weighting`）を追記する。頭部は DWI・ADC・T2STAR・T1・
 T2・FLAIR・MRA、腰椎は T1・T2、膝は PD・T2・PD・T1、肩は T2・T2・T1・T1 にする。
-CT の造影のシリーズには相（`phase`）を書き足す。肝臓 ダイナミックは動脈相・門脈相・
+CT の造影のシリーズには相（`phase`）を追記する。肝臓 ダイナミックは動脈相・門脈相・
 平衡相、冠動脈 CTA の CTA は動脈相にする。`phase` の無い造影のシリーズは門脈相の
 値で描く。
 
@@ -169,7 +169,7 @@ Pixel Spacing から計算する、各画素の中心の x・y・z）で評価�
 
 - 回転楕円体の中心の x・y は、軸位の視野（列・行の数 × 画素間隔）の中央に置く。
   z は、その撮影の軸位のシリーズのうち位置の範囲がいちばん長いものの範囲の中央に
-  置く。軸位が無い撮影（MR の矢状断だけなど）は、今の冠状断・矢状断が写す範囲
+  置く。軸位が無い撮影（MR の矢状断だけなど）は、今の冠状断・矢状断が表す範囲
   （z が 0 から視野の高さだけ下）の中央と、視野の高さの 0.55 倍で決める
 - x・y の半径は視野の 0.4 倍、z の半径はその範囲の 0.55 倍にする。範囲の中央の
   画像で円がいちばん大きく、両端に向かって小さくなる。両端の画像でも円は消えない
@@ -181,7 +181,7 @@ Pixel Spacing から計算する、各画素の中心の x・y・z）で評価�
 
 今の冠状断・矢状断の画像の位置（spec/06 の 5.1）は、軸位と同じ範囲を覆わない。
 冠状断の Image Position (Patient) は `[0, y, 0]` で、列は −z の向きに進むので、
-画像は z が 0 以下の範囲を写す。軸位は z が `start_z`（既定 0）から +z に進むので、
+画像は z が 0 以下の範囲を表す。軸位は z が `start_z`（既定 0）から +z に進むので、
 冠状断と軸位はほとんど交わらず、冠状断に図形がほぼ写らない。そこで、`phantom` の
 ときだけ、冠状断と矢状断の Image Position (Patient) の z を、その撮影の軸位の範囲の
 上端にする（proposal の「決めたこと」の 8）。CT の位置決めと、MR のローカライザー
@@ -222,7 +222,7 @@ Rescale・Window の値は、今の CT・MR の値のままにする（spec/06 �
 - 書くのは、画素を `phantom` で作った画像（CT・MR の断層と位置決め、PR 2 からは
   CR・DX）だけである。線量の画面（Secondary Capture）・線量の報告の SR・PET/CT の
   PT のシリーズは、画素が図形でないので今の値のままにする
-- この5つは装置のプロファイル（spec/13）を当てた後に書き、プロファイルの device と
+- この5つは装置のプロファイル（spec/13）を適用した後に書き、プロファイルの device と
   `attributes.set` の値より優先する。Software Versions・Device Serial Number・
   Station Name・プライベートタグは、プロファイルの値のままにする
 - Manufacturer と Manufacturer's Model Name の今の値（例の装置のプロファイルと
@@ -258,7 +258,7 @@ Z +55.0 mm
   `YES` のままにする
 - 帯は Window の幅を変えても読めるように、画素の値の最小と最大だけで描く
 - 文字は英字・数字・記号だけで、日本語は描かない。Docker のイメージには日本語の
-  フォントが無く、フォントを同梱するとライセンスとイメージの大きさの確かめが要る
+  フォントが無く、フォントを同梱するとライセンスとイメージの大きさの確認が要る
   ため
 - 患者は架空なので、患者 ID と検査日を描いても実の個人の情報は出ない
 
@@ -331,12 +331,12 @@ Z +55.0 mm
 
 ## 明らかに偽物と分かる決まり
 
-`phantom` の画像は、次の4つを守る。どれも試験で確かめる。
+`phantom` の画像は、次の4つを守る。どれも試験で確認する。
 
 1. 図形は楕円体・楕円柱・円柱・直方体と、その殻の組み合わせだけで描き、区分ごとに
-   一定の値にする。ノイズ・ぼかし・縁の滑らかな変化・質感を足さない。画素の値の
+   一定の値にする。ノイズ・ぼかし・縁の滑らかな変化・質感を追加しない。画素の値の
    種類は、その図形の区分の数以下になる（焼き込みを選んだときは帯の外で数える）
-2. 臓器・骨の輪郭を写した形を描かない。部位は、位置と大きさの違う図形の組で表す
+2. 臓器・骨の輪郭をなぞった形を描かない。部位は、位置と大きさの違う図形の組で表す
 3. どの画像にも、Manufacturer・Manufacturer's Model Name `DTG SYNTHETIC` と
    Image Comments `SYNTHETIC TEST DATA` を書く（位置決め・CR・DX も含む）
 4. 既定では画素に文字を描かず、Burned In Annotation `NO` を書く。焼き込みを選んだ
@@ -371,11 +371,11 @@ Z +55.0 mm
 | Manufacturer・Model Name・Image Comments | `phantom` は「属性（偽物の印）」の値、ほかはプロファイルの値 | 同じ |
 | Detector Type | 無い | 空（Type 2） |
 | Acquisition Context Sequence | 無い | 空（Type 2） |
-| Frame of Reference・Image Plane | 持たない（装置のプロファイルが足しても外す） | 持たない |
+| Frame of Reference・Image Plane | 持たない（装置のプロファイルが追加しても外す） | 持たない |
 
 - Patient Orientation は、正面の画像を患者に向き合って見る向きで描くとした値で、
   代表例である。PS3.3 C.7.6.1.1.1 の定義（行は左から右、列は上から下の向き）に
-  合わせて、実装の PR で図と照らして確かめる
+  合わせて、実装の PR で図と照らして確認する
 - `simple_text` と `ct_realistic` でも CR・DX を作れる。`ct_realistic` の画素は、MR と
   同じく符号なしの範囲に収める
 - 予約と緊急の患者は、ADR-0030 の決まり（予約のモダリティに合うテンプレートで撮る）
@@ -385,15 +385,15 @@ Z +55.0 mm
 
 - 設定・CLI・Job の画素の方式の既定は `ct_realistic`（`gradient`）のまま。`phantom`
   を選ばない画像は、画素も属性も今と同じになる。PR 1 の最初に、今の既定の撮影の
-  画素と属性のハッシュを固定する試験を足し、変更の後も同じことを確かめる
+  画素と属性のハッシュを固定する試験を追加し、変更の後も同じことを確認する
 - 冠状断・矢状断の位置を直すのは `phantom` のときだけで、ほかの方式の位置は今と同じ
 - Manufacturer・Manufacturer's Model Name を `DTG SYNTHETIC` にするのは `phantom` の
   画像だけで、例の装置のプロファイルとテンプレートの値は変えない
 - 今の CT・MR・PT の試験は、書き換えずに通す
 - CR・DX のテンプレートは今は無いので、CR・DX の画像は新しく作れるようになるだけで、
   今の撮影の結果は変わらない。ただし、spec/06 の 5.2 は「CR・US などのテンプレートは
-  画像を作る前に断る」と定める。CR・DX でこれを確かめる試験があれば、PR 2 で直す前に
-  承認を得る（試験の書き換えに当たる）。US は今のまま断る
+  画像を作る前に断る」と定める。CR・DX でこれを確認する試験があれば、PR 2 で直す前に
+  承認を得る（試験の書き換えに該当する）。US は今のまま断る
 
 ## 残る制約（PR 1 の独立レビューで見つかったもの。PR 3 で見る）
 
@@ -414,7 +414,7 @@ PR 1 は実装を変えない。次の3つは今の動作で、PR 3 で部位の
 | PR 1 | 位置で変わる | 軸位 30 枚で、図形の画素の数（目印を除く）が 15 枚目まで増え続け、15 枚目と 16 枚目でいちばん多く、その先は 30 枚目まで減り続ける（隣どうしで同じ数はよいが、逆向きには変わらない）。中心から同じ距離の2枚（1枚目と 30 枚目、15 枚目と 16 枚目）は、目印の位置が違う |
 | PR 1 | 断面の間で同じ図形 | スライス厚と枚数の違う軸位2つと冠状断・矢状断が交わる線の上で、図形の内側・境界の近く・外側の点の区分がすべての画像で同じ。胸部 単純の COR の中央の画像に図形が写る。ほかの方式では冠状断の位置が今と同じ |
 | PR 1 | 偽物の決まり | 画素の値の種類が区分の数以下（文字が無い）。Frame of Reference ごとに図形が1つ |
-| PR 1 | 属性 | `phantom` の全画像（位置決めを含む）で Manufacturer・Manufacturer's Model Name `DTG SYNTHETIC`、Image Comments `SYNTHETIC TEST DATA`、Burned In Annotation `NO`、Recognizable Visual Features `NO`。装置のプロファイルを当てても同じ。線量の画面・SR は今の値。ほかの方式では今と同じ（Burned In Annotation などは無い） |
+| PR 1 | 属性 | `phantom` の全画像（位置決めを含む）で Manufacturer・Manufacturer's Model Name `DTG SYNTHETIC`、Image Comments `SYNTHETIC TEST DATA`、Burned In Annotation `NO`、Recognizable Visual Features `NO`。装置のプロファイルを適用しても同じ。線量の画面・SR は今の値。ほかの方式では今と同じ（Burned In Annotation などは無い） |
 | PR 1 | 選び方 | Job・`quick --pixel-mode phantom`・`exam --pixel-mode phantom`・設定の既定で選べる。不正な方式は今と同じく断る |
 | PR 2 | CR の IOD | Table A.2-1 の必須のモジュールの Type 1・2 の属性がある。Frame of Reference UID と Image Position (Patient) が無い。方向ごとに1シリーズ |
 | PR 2 | DX の IOD | Table A.26-1 の必須のモジュールと上の表の値。Image Type の Value 3 が長さ 0、Modality LUT Sequence が無い |
@@ -422,7 +422,7 @@ PR 1 は実装を変えない。次の3つは今の動作で、PR 3 で部位の
 | PR 2 | 撮影 | CR・DX の予約で `cr_generic`・`dx_generic` が選ばれ、ルーチンの並びで撮れる。Storage SCP のスタブが受け取る（`tests/integration/`） |
 | PR 2 | 部位と左右 | CR・DX × `R`・`L`・`B`・省略で、CR の `B`、対になる部位の省略、対にならない部位の `R` を読み込みで断る。DX の胸部は Image Laterality `U`、CR の膝は Laterality `R` |
 | PR 3 | 部位の図形 | `head` の軸位で、骨の輪の内と外の値。`spine` で z が進むと骨とすきまが交互になる。`chest` の側面の投影は肺の楕円が1つ |
-| PR 3 | MR の強調 | T1 と T2 で液の値の大小が入れ替わる。MRA で血管が最大 |
+| PR 3 | MR の強調 | T1 と T2 で液の値の大小が逆転する。MRA で血管が最大 |
 | PR 3 | CT の相 | 動脈相の血管の値が 300 HU、単純が 40 HU |
 | PR 4 | 焼き込み | 焼き込みを選んだ、図形で画素を作った全画像（位置決めを含む。PR 2 の後なら CR・DX も）の帯に最大の値の画素があり、帯の外の値の種類が区分の数以下。Burned In Annotation `YES`。描く文字列に `TEST / SYNTHETIC`・患者 ID・検査日が入り、既定の大きさ（512 × 512）では各行が帯の幅に収まる。ASCII 以外の字は `?` になり撮影は止まらない。CLI と設定の優先の順、`phantom` 以外と一緒に明示すると断ること |
 
@@ -443,12 +443,12 @@ PR 2 は PR 1 に依存する（図形と偽物の印のタグを使う）。PR 
 入れる。PR 4 は PR 1 の後ならいつ入れてもよい。PR 4 を PR 2 より先に入れたときは、
 CR・DX の焼き込みとその試験を PR 2 が受け持つ。最後にこの change を archive する。
 
-## 確かめること（実装の PR で）
+## 確認すること（実装の PR で）
 
-- 斜位と側臥位の View Code Sequence のコード（CID 4010 の中で確かめる）
+- 斜位と側臥位の View Code Sequence のコード（CID 4010 の中で確認する）
 - Patient Orientation の値と、ビューアの表示の向き
 - Pillow の既定のフォントの大きさは版で違う（10.1 から FreeType のフォント）。
-  PR 4 の試験では文字の形を比べず、帯の範囲に最大の値があることだけを確かめる
+  PR 4 の試験では文字の形を比べず、帯の範囲に最大の値があることだけを確認する
 
 ## 出典
 

@@ -1,4 +1,4 @@
-"""ModalityService の守り：送る前のファイルの確かめ・誤りの文に値を出さない・撮影の量と同時の数.
+"""ModalityService の守り：送る前のファイルの確認・誤りの文に値を出さない・撮影の量と同時の数.
 
 docs/spec/12 の 8.2・12 章、docs/spec/12a の 10.5。
 """
@@ -84,7 +84,7 @@ def test_send_refuses_symlink_inside_the_folder_too(tmp_path, storage_scp) -> No
 
 
 def test_retry_rechecks_files(tmp_path, storage_scp) -> None:
-    """再送信でも確かめる：失敗の後にファイルを外を指す link に替えても送らない."""
+    """再送信でも確認する：失敗の後にファイルを外を指す link に替えても送らない."""
     unreachable = _service(tmp_path, free_port())
     folder = Path(_exam(unreachable))
     failed = unreachable.send(str(folder))

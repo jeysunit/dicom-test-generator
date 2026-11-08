@@ -28,7 +28,7 @@ def safe_path_component(value: str, fallback: str) -> str:
     - `[A-Za-z0-9._-]` 以外の字は `_` に置き換える（区切り・NUL・空白を含む）
     - 長さは SAFE_COMPONENT_MAX_LENGTH まで
     - 空・`.` だけの名前（`.`・`..` など）は `fallback` にする
-    - Windows の予約名（CON・NUL・COM1 など）は先頭に `_` を足す
+    - Windows の予約名（CON・NUL・COM1 など）は先頭に `_` を追加する
     """
     if _UNSAFE_CHARS.search(fallback) or not fallback.strip("."):
         raise ValueError(f"fallback must be a safe path component: {fallback!r}")
@@ -42,7 +42,7 @@ def safe_path_component(value: str, fallback: str) -> str:
 
 
 def ensure_within(root: Path, path: Path) -> Path:
-    """`path` を resolve() し、`root` の中にあることを確かめて返す。外なら止める."""
+    """`path` を resolve() し、`root` の中にあることを確認して返す。外なら止める."""
     resolved_root = root.resolve()
     resolved = path.resolve()
     if resolved != resolved_root and not resolved.is_relative_to(resolved_root):

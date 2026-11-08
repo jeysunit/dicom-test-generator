@@ -2,18 +2,18 @@
 
 - 状態：採用
 - 作成日：2026-10-31
-- 最終更新日：2026-11-01
+- 最終更新日：2026-11-08
 
 ## 背景
 
 DTG は、最初はデスクトップの GUI で動く、DICOM ファイルの生成ツールだった。主な機能は
-ファイルの出力で、DICOM 通信は付け足しだった。その後、tsunagi の開発を始めると、使われ方が
+ファイルの出力で、DICOM 通信は後から追加されたものだった。その後、tsunagi の開発を始めると、使われ方が
 変わった。今の DTG は、モダリティとして RIS からワークリストを取得し、撮影し、PACS へ
 送信し、保管確認と MPPS を扱う。テストの価値は、この通信の流れにある。
 
 文書には、ファイルの出力を主な機能、モダリティの動作を補助の機能とする古い位置づけが
 残っていた（README・project_charter・architecture・openspec/config.yaml）。
-[ADR-0011](0011-modality-emulator.md) は通信を足した判断で、位置づけの逆転までは
+[ADR-0011](0011-modality-emulator.md) は通信を追加した判断で、位置づけの逆転までは
 決めていない。
 
 ## 決定
@@ -41,6 +41,6 @@ DTG は、最初はデスクトップの GUI で動く、DICOM ファイルの�
 
 ## 関連
 
-- [ADR-0011](0011-modality-emulator.md)：通信を足した判断
+- [ADR-0011](0011-modality-emulator.md)：通信を追加した判断
 - [ADR-0022](0022-remove-desktop-gui.md)：ファイルの作成を CLI に任せた判断
 - [project_charter.md](../project_charter.md)

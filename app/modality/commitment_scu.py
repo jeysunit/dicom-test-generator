@@ -3,8 +3,8 @@
 - N-ACTION（Action Type 1）で、送れた画像の組を送信先に問う
 - 結果（N-EVENT-REPORT）は、同じ Association（送信先の `commitment_wait_seconds` を
   入れたときだけ待つ）か、待ち受け（別の Association）で受ける（8.3.1）
-- 結果の値は相手から来る信用できない値として読む（8.3.2）。ここでは形を確かめて
-  読むだけにし、どの要求の結果かを確かめて書くのは呼ぶ側（ModalityService）
+- 結果の値は相手から来る信用できない値として読む（8.3.2）。ここでは形を確認して
+  読むだけにし、どの要求の結果かを確認して書くのは呼ぶ側（ModalityService）
 """
 
 from __future__ import annotations
@@ -210,7 +210,7 @@ class CommitmentListener:
         self._ae_titles = {title.strip() for title in ae_titles}
         self._server: Any = None
         ae = AE(ae_title=ae_titles[0])
-        # 呼ばれる AEタイトルが装置の AEタイトルのどれかかは、EVT_REQUESTED で確かめる
+        # 呼ばれる AEタイトルが装置の AEタイトルのどれかかは、EVT_REQUESTED で確認する
         # （require_called_aet は1つの AEタイトルにしか効かない）
         ae.maximum_associations = LISTENER_MAX_ASSOCIATIONS
         # 相手が SCP の役を求める役の交渉を受ける（別の道。PS3.4 J.3.3）
@@ -263,7 +263,7 @@ class CommitmentListener:
             # pynetdicom が自分で断るときと同じく、送った後に Association を閉じる
             assoc.kill()
             return
-        # 受けた側の AEタイトルを、呼ばれた AEタイトルにする（結果の宛先を確かめるため）
+        # 受けた側の AEタイトルを、呼ばれた AEタイトルにする（結果の宛先を確認するため）
         assoc.acceptor.ae_title = called
 
     def _handle(self, event: Any) -> tuple[int, None]:
@@ -312,12 +312,12 @@ class CommitmentManager:
     def receive(
         self, peer_ae_title: str, own_ae_title: str, event_type: int | None, info: Dataset
     ) -> int:
-        """結果を確かめて書く。返す値は相手に返す Status（8.3.2）.
+        """結果を確認して書く。返す値は相手に返す Status（8.3.2）.
 
         `own_ae_title` は結果が届いた自分の側の AEタイトル。要求を送った装置の AE
         タイトルと違えば、その要求の結果にしない。
         """
-        # 先に Event Type・Transaction UID・相手の AE だけを確かめ、合ったときだけ参照を読む
+        # 先に Event Type・Transaction UID・相手の AE だけを確認し、合ったときだけ参照を読む
         try:
             transaction_uid = read_transaction_uid(event_type, info)
         except CommitmentReportRefused as exc:
@@ -357,7 +357,7 @@ class CommitmentManager:
         if not self._queue.record_commitment_report(
             transaction_uid, set(references.confirmed), references.failed
         ):
-            # 確かめた後に、別の道の結果か N-ACTION の失敗が先に書いた
+            # 確認した後に、別の道の結果か N-ACTION の失敗が先に書いた
             logger.warning("Storage commitment report came after another: %r", transaction_uid)
             return STATUS_PROCESSING_FAILURE
         if status == "timed_out":

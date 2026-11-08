@@ -44,7 +44,7 @@ STALE_MARK = "  [STALE]"
 def register_modality_commands(
     subparsers: argparse._SubParsersAction, default_log_file: str
 ) -> None:
-    """echo・worklist・exam・send・queue・commit・mpps のサブコマンドを足す（11.1）."""
+    """echo・worklist・exam・send・queue・commit・mpps のサブコマンドを追加する（11.1）."""
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument(
         "--config", default=DEFAULT_CONFIG, help=f"設定ファイル（default: {DEFAULT_CONFIG}）"
@@ -257,7 +257,7 @@ def _exam_series_options(
 ) -> tuple[list[int], str | None, list[int] | None]:
     """撮るシリーズの指定を（手で入れる画像数, ルーチン, ルーチンの画像数）にする.
 
-    -s・-i を指定すれば今の手入力。-s・-i・--routine を省けば予約に当てたルーチン
+    -s・-i を指定すれば今の手入力。-s・-i・--routine を省けば予約に適用したルーチン
     （ADR-0025）。--routine と -s・-i を一緒に指定したら入力の誤り（終了コード 4）。
     """
     manual = args.series is not None or args.images is not None
@@ -368,7 +368,7 @@ def queue_list_command(args: argparse.Namespace) -> int:
     if args.json:
         _print_json([job.model_dump() for job in jobs])
         return 0
-    # 元のファイルのフォルダは既定では出さない。-v で最後の列に足す
+    # 元のファイルのフォルダは既定では出さない。-v で最後の列に追加する
     folder_header = "  FOLDER" if args.verbose else ""
     _emit(
         f"{'ID':>4}  {'STATUS':8s} {'PATIENT_ID':12s} {'ACCESSION':12s} {'DEST':12s} "

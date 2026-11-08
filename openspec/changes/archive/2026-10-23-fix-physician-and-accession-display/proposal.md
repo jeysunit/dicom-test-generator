@@ -20,7 +20,7 @@
 ## What Changes
 
 - ワークリストの応答から Requesting Physician (0032,1032) を読み込み、予約の詳細に
-  「依頼医」の行を足す。「紹介医」の行は Referring Physician's Name (0008,0090) の
+  「依頼医」の行を追加する。「紹介医」の行は Referring Physician's Name (0008,0090) の
   まま残す。氏名の `^` は、ほかの氏名と同じく空白にして表示する
 - 送信キューの件を作るとき、フォルダの最初の画像の Accession Number (0008,0050) を
   読んで記録する。画面からの送信・CLI の `send` の両方に効く

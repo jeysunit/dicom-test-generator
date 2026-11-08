@@ -56,7 +56,7 @@ _TOP_LEVEL_RETURN_KEYS = (
     "RequestedProcedureDescription",
     "ReasonForTheRequestedProcedure",
     "InstitutionName",
-    # 標準の MWL の返却の値ではない。返す RIS ならルーチンを当てるのに使う（ADR-0025）
+    # 標準の MWL の返却の値ではない。返す RIS ならルーチンを適用するのに使う（ADR-0025）
     "BodyPartExamined",
 )
 _TOP_LEVEL_RETURN_SEQUENCES = (
@@ -125,7 +125,7 @@ def _is_calendar_date(value: str) -> bool:
 
 
 def add_name_wildcards(name: str) -> str:
-    """氏名の各成分の末尾に `*` を足す。利用者が `*` を入れていれば足さない（5.1）."""
+    """氏名の各成分の末尾に `*` を追加する。利用者が `*` を入れていれば追加しない（5.1）."""
     if not name or "*" in name:
         return name
     groups = name.split("=")
@@ -257,7 +257,7 @@ def query_worklist(
 def _check_limits(
     assoc: Any, peer: WorklistPeerConfig, response: Dataset, received: int, total_bytes: int
 ) -> int:
-    """応答の1件を数える前に上限を確かめ、その件の大きさを返す（5.5）.
+    """応答の1件を数える前に上限を確認し、その件の大きさを返す（5.5）.
 
     超えたら C-CANCEL を送り、Association を切って WorklistQueryError で止める。
     """

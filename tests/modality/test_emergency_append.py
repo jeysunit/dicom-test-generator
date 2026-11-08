@@ -42,7 +42,7 @@ def test_emergency_append_preserves_study_and_patient(tmp_path, description) -> 
         conn.execute(
             "UPDATE exam_records SET study_date = '20200101', study_time = '101112'"
         )
-    # 別のプロセスでも読み直せ、生年月日と性別の訂正では最初の値を変えない
+    # 別のプロセスでも再取得でき、生年月日と性別の訂正では最初の値を変えない
     service = ModalityService(service.config)
     patient = PATIENT.model_copy(update={"birth_date": "19990101", "sex": "M"})
     added = _exam(service, append=True, emergency_study_instance_uid=uid,
@@ -141,7 +141,7 @@ def test_emergency_append_creates_new_mpps(tmp_path, mpps_scp) -> None:
 
 
 def test_emergency_append_mpps_without_connection(tmp_path, monkeypatch) -> None:
-    """通信を置き換えて、開始と完了へ渡す値も確かめる."""
+    """通信を置き換えて、開始と完了へ渡す値も確認する."""
     from app.modality import mpps_scu
 
     events = []

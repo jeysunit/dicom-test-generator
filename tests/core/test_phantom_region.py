@@ -58,7 +58,7 @@ def _runs(line: np.ndarray, value: int) -> int:
 
 
 def _without_marker(pixels: np.ndarray, value: int) -> np.ndarray:
-    """目印（骨と同じ値）を `value` で塗りつぶした写し."""
+    """目印（骨と同じ値）を `value` で塗りつぶしたコピー."""
     pixels = pixels.copy()
     r0, r1, c0, c1 = marker_bounds(*pixels.shape, 0, 1)
     pixels[r0:r1, c0:c1] = value

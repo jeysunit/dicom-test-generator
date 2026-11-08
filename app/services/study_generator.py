@@ -87,7 +87,7 @@ from .template_loader import TemplateLoaderService
 
 logger = logging.getLogger(__name__)
 DEFAULT_IMPLEMENTATION_VERSION_NAME = "DICOM_GEN_1.1"
-# この道具（DTG）の実装を表す固定の UID。同じ実装は同じ Implementation Class UID
+# このツール（DTG）の実装を表す固定の UID。同じ実装は同じ Implementation Class UID
 # を使う（PS3.7 D.3.3.2、PS3.10 7.1）。版の違いは Implementation Version Name で表す
 IMPLEMENTATION_CLASS_UID = "2.25.209401092321175805341347975050777963523"
 # Instance Creator UID (0008,0014) も、作った画像すべてで共通の固定の値にする（docs/spec/06）
@@ -114,7 +114,7 @@ MR_IMAGE_TAG_MAP = {
     "receive_coil_name": "ReceiveCoilName",
 }
 
-# この道具が画像を作れるモダリティ（シリーズの Modality。ADR-0030・ADR-0032・ADR-0034）
+# このツールが画像を作れるモダリティ（シリーズの Modality。ADR-0030・ADR-0032・ADR-0034）
 GENERATABLE_MODALITIES = ("CT", "MR", "PT", "CR", "DX")
 # 一般撮影（投影の画像）のモダリティ。手で入れたシリーズは胸部の PA にする
 PROJECTION_MODALITIES = ("CR", "DX")
@@ -144,7 +144,7 @@ SR_EQUIPMENT_DEFAULTS = {
 SIMPLE_TEXT_BITS_STORED = 12
 
 # 線量の画面（Secondary Capture）から外す、CT の画像だけの属性（装置のプロファイルが
-# 足したものも外す。ADR-0025）
+# 追加したものも外す。ADR-0025）
 CT_ONLY_KEYWORDS = (
     "KVP",
     "ExposureTime",
@@ -189,9 +189,9 @@ class StudyGeneratorService:
     ) -> Path:
         """設定に基づいてDICOMファイルを生成する.
 
-        `scheduled` を渡すと、予約の値（docs/spec/12 の 6 章）を画像に写す。
+        `scheduled` を渡すと、予約の値（docs/spec/12 の 6 章）を画像にコピーする。
         予約に Study Instance UID があればそれを使う。各画像は書き出す前に
-        文字コードで表せるかを確かめ、表せなければ WorklistMappingError で止める。
+        文字コードで表せるかを確認し、表せなければ WorklistMappingError で止める。
         渡さなければいまと同じ動き。
         """
         total_images = sum(series.num_images for series in config.series_list)
@@ -398,13 +398,13 @@ class StudyGeneratorService:
                         dataset,
                         template,
                         # テンプレートのモダリティが PET/CT の PT でも、CT のシリーズには
-                        # テンプレートの CT の撮影の値を当てる
+                        # テンプレートの CT の撮影の値を適用する
                         ct_image=series_config.modality == "CT" and not dose_report,
                         mr_image=mr_series,
                     )
                     if scheduled is not None:
                         apply_scheduled_context(dataset, scheduled)
-                    # 装置のプロファイルの attributes とプライベートタグは最後に当てる
+                    # 装置のプロファイルの attributes とプライベートタグは最後に適用する
                     # （docs/spec/13 の 4.2）
                     if profile is not None:
                         apply_device_profile(
@@ -426,7 +426,7 @@ class StudyGeneratorService:
                             dataset.CurrentRequestedProcedureEvidenceSequence = (
                                 evidence_sequence(evidence)
                             )
-                    # 異常のデータは最後に当てる（予約・プロファイルの値にも効く。
+                    # 異常のデータは最後に適用する（予約・プロファイルの値にも効く。
                     # docs/spec/02 の AbnormalGenerator）。none では何も変えない
                     apply_abnormal_to_dataset(dataset, abnormal_generator)
                     # 表せない字は黙って `?` にせず止める（PS3.3 C.12.1・PS3.5 6.1）
@@ -495,7 +495,7 @@ class StudyGeneratorService:
 
         CT の画像だけの属性は外し、SC の必須の属性（Conversion Type は Type 1、Patient
         Orientation は Type 2C。PS3.3 C.8.6.1・C.7.6.1）は、プロファイルが外しても戻す。
-        異常のデータはこの後に当てる。
+        異常のデータはこの後に適用する。
         """
         for keyword in CT_ONLY_KEYWORDS:
             if keyword in dataset:
@@ -517,7 +517,7 @@ class StudyGeneratorService:
         """線量の報告（SR）に装置のプロファイルを重ねた後、画像の属性を外す.
 
         SR Document は画素も Frame of Reference も持たない（PS3.3 A.35.8）。装置の
-        プロファイルが足した画像の属性も外す。異常のデータはこの後に当てる。
+        プロファイルが追加した画像の属性も外す。異常のデータはこの後に適用する。
         """
         for keyword in (*CT_ONLY_KEYWORDS, "PatientOrientation", "ConversionType"):
             if keyword in dataset:
@@ -567,7 +567,7 @@ class StudyGeneratorService:
         transfer_syntax_uid: str,
         specific_character_set: str | None,
     ) -> str:
-        """プロファイルとテンプレート・Job が合うかを確かめる（docs/spec/13 の 4.3）.
+        """プロファイルとテンプレート・Job が合うかを確認する（docs/spec/13 の 4.3）.
 
         合えば、作る SOP Class UID を返す。
         """
@@ -790,7 +790,7 @@ class StudyGeneratorService:
 
     @staticmethod
     def _ensure_encodable(dataset: Dataset, scheduled: bool) -> None:
-        """文字の属性が Specific Character Set で表せるかを確かめる.
+        """文字の属性が Specific Character Set で表せるかを確認する.
 
         予約の撮影は WorklistMappingError（docs/spec/12 の 7.2）、Job の生成は
         DICOMValidationError で止める（どちらも CLI の終了コード 4。docs/spec/04）。
@@ -862,7 +862,7 @@ class StudyGeneratorService:
         ct_image: bool = True,
         mr_image: bool = False,
     ) -> None:
-        """テンプレートの装置の値と、`ct_image`・`mr_image` なら撮影の値を当てる."""
+        """テンプレートの装置の値と、`ct_image`・`mr_image` なら撮影の値を適用する."""
         general_equipment = template.get("general_equipment", {})
         if isinstance(general_equipment, dict):
             self._apply_attributes(dataset, general_equipment, GENERAL_EQUIPMENT_TAG_MAP)

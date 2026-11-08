@@ -33,7 +33,7 @@ def association_error(assoc: Any, ae_title: str, host: str, port: int) -> Associ
         ):
             # 相手に登録されていない AEタイトルで名乗った（理由 3。docs/spec/12 の 4 章）
             calling = str(assoc.requestor.ae_title).strip()
-            # 利用者が読む知らせなので、相手の住所などの付け足し（details）は付けない
+            # 利用者が読む知らせなので、相手の住所などの付随情報（details）は付けない
             return AssociationError(
                 f"相手が AEタイトル {calling} を受け付けませんでした。"
                 "相手の側に、この装置の AEタイトルを登録してください"

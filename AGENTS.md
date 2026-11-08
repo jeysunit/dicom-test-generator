@@ -15,7 +15,7 @@
 
 - `requirements.txt` を断りなく変更しない
 - 既存のコードを断りなく削除しない
-- 画面は ui-kit の部品と絵で組む（`app/web/static/ui-kit/`）。写しは直さない。無い部品は
+- 画面は ui-kit の部品と絵で組む（`app/web/static/ui-kit/`）。コピーは直さない。無い部品は
   作らず、先に部品集を直す。[ADR-0028](docs/decisions/0028-shared-ui-kit-css.md)
   に従う
 - 不明な点は推測せず、質問する

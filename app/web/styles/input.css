@@ -1,10 +1,10 @@
 /*
  * Tailwind CSS v4 の入力（scripts/build_css.sh で app/web/static/app.css を作る）。
- * 色・文字の値と部品の CSS は ui-kit の写し（app/web/static/ui-kit/。base.html で
+ * 色・文字の値と部品の CSS は ui-kit のコピー（app/web/static/ui-kit/。base.html で
  * tokens.css → components.css → app.css の順に読む）。ここには値を書かない。
  * 下の @theme inline は、テンプレートの Tailwind の色の名前（bg-surface・text-label など）を
  * tokens.css の変数へつなぐ。tokens.css の --color-* はすべてつなぐ
- * （tests/web/test_theme_tokens.py が確かめる）。
+ * （tests/web/test_theme_tokens.py が確認する）。
  * ここに書く部品は、ui-kit に無い DTG だけの差分。ui-kit と同じ名前の定義は置かない。
  * ui-kit は層（@layer）の外にあり、Tailwind の層の中の utility より強い。テンプレートに書いた
  * utility（mt-2 など）が ui-kit の初期化（p の margin:0 など）に負けないよう、important にする。
@@ -231,7 +231,7 @@
   vertical-align: middle;
 }
 /* ワークリストの操作の行：選んだ予約の患者バナーと「選んで撮影へ」。画面の下に留め、長い
-   一覧でも選んだ後に確かめて進める（10.4） */
+   一覧でも選んだ後に確認して進める（10.4） */
 .pickbar {
   position: sticky;
   bottom: 0;
@@ -281,7 +281,7 @@
 .conn td.res .none {
   color: var(--color-label);
 }
-/* 中身の無い知らせの置き場は、区画の間をあけない */
+/* 中身の無い知らせの表示領域は、区画の間をあけない */
 #echo-notice:empty {
   display: none;
 }

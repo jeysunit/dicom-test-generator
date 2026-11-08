@@ -1,6 +1,6 @@
 """既定の画素の方式の画素と属性が変わらないことの試験.
 
-図形の方式（phantom）を足す前の `ct_realistic` と `simple_text` の値を固定する
+図形の方式（phantom）を追加する前の `ct_realistic` と `simple_text` の値を固定する
 （openspec の change add-modality-synthetic-images の design.md「既定を変えないこと」）。
 UID（VR が UI）は生成のたびに変わるので比べない。`simple_text` の画素は
 SOP Instance UID の文字なので、属性だけを比べる。

@@ -17,9 +17,9 @@ TEMPLATE_NAME_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}")
 
 # 装置ごとだった古いモダリティテンプレート：古い名前の SHA-256 → 土台のテンプレート。
 # 古い名前は商用の製品の名前を含むため、名前そのものを書かない
-# （docs/decisions/0016-generic-template-names.md）。装置ごとの写しは装置のプロファイルに
+# （docs/decisions/0016-generic-template-names.md）。装置ごとのコピーは装置のプロファイルに
 # なった（docs/spec/13_device_profiles.md の 7.3）。別名として黙って読まず、
-# プロファイルの置き場へ案内する TemplateNotFoundError にする。
+# プロファイルの保存先へ案内する TemplateNotFoundError にする。
 DEVICE_SPECIFIC_TEMPLATES: dict[str, str] = {
     "ece4615a3432602c091b9c7abcc6e0578ee7cc1762e1360414e3c3b516859422": "ct_generic",
 }
@@ -76,7 +76,7 @@ class TemplateLoaderService:
 
     @staticmethod
     def _template_path(directory: Path, name: str) -> Path:
-        """名前は1つのファイルの名前だけを受ける（画面・Job から来る名前で置き場の外を読まない）."""
+        """名前は1つのファイルの名前だけを受ける（画面・Job から来る名前で保存先の外を読まない）."""
         if not TEMPLATE_NAME_PATTERN.fullmatch(name):
             raise TemplateNotFoundError(name)
         return directory / f"{name}.yaml"

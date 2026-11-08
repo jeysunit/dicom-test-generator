@@ -185,7 +185,7 @@
     </div>
   </section>
   {# 撮る前に「誰を・どこへ」を操作の行の真上に出す（docs/spec/12a の 10.5）。緊急の患者は、
-     入れた値を入力のたびに写す（app.js の data-mirror） #}
+     入れた値を入力のたびに反映する（app.js の data-mirror） #}
   {% if item %}{% set t_alpha, t_ideo, t_phon = item.patient_name|name_parts %}{% endif %}
   {# 部品集の患者バナー `.fb.r2`。英字氏名は氏名の下の補足（.sub）、送信先はバナーの外の 1 行（バナーの下） #}
   <section id="exam-target" class="fb r2" aria-label="撮る患者">

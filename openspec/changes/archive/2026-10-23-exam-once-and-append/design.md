@@ -7,7 +7,7 @@
 - 同じ予約で何度でも「撮影」できる。2回目以降は同じ Study Instance UID で新しい
   シリーズを作る（spec 12 の 6.3）。MPPS を使うときは、撮影ごとに新しい MPPS の
   SOP Instance を作る
-- 2回目以降の Study Date・Study Time は撮影の時刻で作り直し、Series Number は 1 から
+- 2回目以降の Study Date・Study Time は撮影の時刻で再作成し、Series Number は 1 から
   振り直す
 - 予約に Study Instance UID が無いときに DTG が作った UID は、予約の鍵ごとに SQLite に
   記録し、2回目も使う（`generated_study_uids`）
@@ -19,16 +19,16 @@
    SOP Instance を作ってはならない。続けて作るときは新しい MPPS を作ってよい
    （PS3.4 F.7.2.2.2 と Note）。SCP は、IN PROGRESS 以外の MPPS への N-SET を
    `0110H` で断る（PS3.4 F.7.2.2.3）
-2. **終わった手順にシリーズを足さない。** 1つのシリーズは複数の PPS の出力を
-   持てないので、手順を終えた後に画像を足すときは新しいシリーズを作る（IHE RAD TF-2
+2. **終わった手順にシリーズを追加しない。** 1つのシリーズは複数の PPS の出力を
+   持てないので、手順を終えた後に画像を追加するときは新しいシリーズを作る（IHE RAD TF-2
    4.8.4.1.1.1）
-3. **Append Case。** 予約で1つ目の PPS を作った後、予約に無い PPS を続けて足す形を
+3. **Append Case。** 予約で1つ目の PPS を作った後、予約に無い PPS を続けて追加する形を
    IHE は Append Case と呼ぶ。例は「画質が悪い画像の撮り直し（redo）」と「追加の
-   部位の撮影（add）」。足した PPS はすべて同じ Requested Procedure と元の SPS を
-   指し、予約の値を MPPS と画像の Request Attributes Sequence に写す（IHE RAD TF-2
+   部位の撮影（add）」。追加した PPS はすべて同じ Requested Procedure と元の SPS を
+   指し、予約の値を MPPS と画像の Request Attributes Sequence にコピーする（IHE RAD TF-2
    4.6.4.1.2.3.3）
 4. **Append Case の値。** 追加の画像と MPPS の Study Instance UID・受付番号・予約の値は
-   元と同じ（MWL から写す）。PPS ID・PPS の開始日時は新しく作る。追加の画像の
+   元と同じ（MWL からコピーする）。PPS ID・PPS の開始日時は新しく作る。追加の画像の
    Study Date・Study Time・Study Description は元の画像の値を使い回す（IHE RAD
    TF-2x Table A.1-3 と IHE-A.3.3）
 5. **別の検査にする場合。** IHE は、追加の撮影を RIS で予約し直せば「2つの Simple
@@ -39,7 +39,7 @@
    場合だけで、それ以外は RIS が出した UID を使う（IHE RAD TF-2 4.8.4.1.1.1）
 
 依頼者の考え「再撮影すると、現実の運用では別スタディ扱いでは」について：規格と
-IHE が定めているのは、上の 3〜6 の2つの道である。同じ予約のまま撮り直す・足す
+IHE が定めているのは、上の 3〜6 の2つの道である。同じ予約のまま撮り直す・追加する
 なら Append Case（同じ Study）、RIS で予約し直すなら新しい Study になる。どちらを
 使うかは施設の運用で決まり、規格と IHE はどちらかを求めていない。ただし、同じ
 予約のままモダリティが新しい Study Instance UID を作ることは、6 により認められて

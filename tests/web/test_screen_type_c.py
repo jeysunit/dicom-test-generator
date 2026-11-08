@@ -38,7 +38,7 @@ def test_emergency_exam_has_no_crumbs_and_only_the_target_banner(client) -> None
     html = client.get("/exam").text
 
     assert '<ol class="crumbs">' not in html
-    # 患者バナーは、操作の行の真上の「撮る患者と送信先」の 1 つだけ（入れた値を写す。10.5）
+    # 患者バナーは、操作の行の真上の「撮る患者と送信先」の 1 つだけ（入れた値を反映する。10.5）
     assert 'class="banner"' not in html
     assert html.count('class="fb r2"') == 1
     assert 'id="exam-target" class="fb r2" aria-label="撮る患者"' in html

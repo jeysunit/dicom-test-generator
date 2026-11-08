@@ -78,7 +78,7 @@ MR_BITS_STORED_MIN = 12
 MR_BITS_STORED_MAX = 16
 # Secondary Capture Image Storage（線量の画面。PS3.4 B.5・PS3.3 A.8.1）
 SECONDARY_CAPTURE_IMAGE_STORAGE = "1.2.840.10008.5.1.4.1.1.7"
-# SC Equipment Module の Conversion Type（PS3.3 C.8.6.1）。装置の画面を写した画像
+# SC Equipment Module の Conversion Type（PS3.3 C.8.6.1）。装置の画面をキャプチャーした画像
 DOSE_REPORT_CONVERSION_TYPE = "WSD"
 
 # CT Image IOD の必須の属性の既定値（docs/spec/06 の「CT Image の必須の属性」）。
@@ -815,7 +815,7 @@ class DICOMBuilder:
 
     @staticmethod
     def _check_signed_range(pixel_data: np.ndarray, bits_stored: int) -> None:
-        """符号ありの画素が Bits Stored で表せるかを確かめる（PS3.5 8）.
+        """符号ありの画素が Bits Stored で表せるかを確認する（PS3.5 8）.
 
         Bits Stored を超える値は、読む側が High Bit で符号を広げるため
         別の値に化ける（12 ビットの 2048 は -2048 になる）。

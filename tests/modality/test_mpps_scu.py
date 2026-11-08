@@ -32,7 +32,7 @@ from app.services.profile_loader import PROFILE_DIRS_ENV
 OWN_AE = "DTG_CT01"
 STATUS_PROCESSING_FAILURE = 0x0110
 STATUS_DUPLICATE_INSTANCE = 0x0111
-# 偽の相手が応答を遅らせ、この道具の時間切れ（SHORT_TIMEOUT）より後にする＝応答が失われる形
+# 偽の相手が応答を遅らせ、このツールの時間切れ（SHORT_TIMEOUT）より後にする＝応答が失われる形
 SHORT_TIMEOUT = 1.0
 LOST_RESPONSE_DELAY = 1.5
 
@@ -496,7 +496,7 @@ def test_profile_without_mpps_service_does_not_send(
 
 
 def test_untrusted_values_do_not_escape(tmp_path, worklist_scp, worklist_items, mpps_scp) -> None:
-    """予約の値（相手から来る値）は MPPS の値に写すだけで、パスにもログの書式にも使わない."""
+    """予約の値（相手から来る値）は MPPS の値にコピーするだけで、パスにもログの書式にも使わない."""
     evil = dict(worklist_items[0])
     evil["accession_number"] = "../../x"
     evil["patient_id"] = "<script>"

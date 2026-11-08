@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 画面の静的な物（htmx・Lucide の LICENSE）を、版を固定して取り、sha256 を確かめて置く
-# （docs/spec/12a_web_screens_and_cli.md 10.1）。置いた物は commit する。利用者はこれを流さなくてよい。
+# 画面の静的な物（htmx・Lucide の LICENSE）を、版を固定して取り、sha256 を確認して置く
+# （docs/spec/12a_web_screens_and_cli.md 10.1）。置いた物は commit する。利用者はこれを実行しなくてよい。
 #
 # 使い方: bash scripts/fetch_web_assets.sh
 set -euo pipefail

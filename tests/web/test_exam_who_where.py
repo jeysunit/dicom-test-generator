@@ -50,7 +50,7 @@ def test_emergency_target_mirrors_the_inputs_and_names_the_destination(client) -
         assert f'data-mirror="{name}"' in target
     assert "data-mirror-birth" in target
     assert "—（予約なし）" in target
-    # 英字氏名は氏名の下の補足（.sub）。バナーに英字氏名の升は足さない
+    # 英字氏名は氏名の下の補足（.sub）。バナーに英字氏名の升は追加しない
     assert re.search(r'<div class="k sub"[^>]*data-mirror="name_alphabetic"', target)
     assert "氏名（英字）</div>" not in target
     # 送信先はバナーの外の 1 行で、名前・AEタイトル・ホストとポート

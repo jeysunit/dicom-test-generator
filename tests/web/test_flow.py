@@ -1,4 +1,4 @@
-"""画面から「取得→選ぶ→撮る→送る→確かめる」の一巡り（docs/development.md の 4 章）.
+"""画面から「取得→選ぶ→撮る→送る→確認する」の一巡り（docs/development.md の 4 章）.
 
 手元の MWL の SCP と Storage の SCP（tests/modality_peers.py）を相手にする。
 """

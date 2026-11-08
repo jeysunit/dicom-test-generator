@@ -28,7 +28,7 @@ Reference UID の画像の組）で一度だけ患者座標で決め、全シリ
 - **WHEN** 同じ撮影で、スライス厚と枚数の違う軸位2つと冠状断・矢状断を `phantom` で作り、それらの画像が交わる線の上で、図形の内側・境界の近く・外側の点を選ぶ
 - **THEN** どの点も、交わるすべての画像で区分が同じ（目印の画素は比べない。焼き込みを選んだときは帯の画素も比べない）
 
-#### Scenario: 冠状断に図形が写る
+#### Scenario: 冠状断に図形が描画される
 
 - **WHEN** 胸部 単純のルーチンを `phantom` で撮る
 - **THEN** COR 3mm の中央の画像に、図形の区分の画素がある
@@ -42,7 +42,7 @@ DTG は、`phantom` の画像を、楕円体・楕円柱・円柱・直方体と
 (0008,0070) と Manufacturer's Model Name (0008,1090) を `DTG SYNTHETIC`、Image
 Comments (0020,4000) を `SYNTHETIC TEST DATA`、Burned In Annotation (0028,0301) を
 `NO`、Recognizable Visual Features (0028,0302) を `NO` にする（PS3.3 C.7.6.1）。
-これらは装置のプロファイルを当てた後に書き、プロファイルの値より優先する。線量の
+これらは装置のプロファイルを適用した後に書き、プロファイルの値より優先する。線量の
 画面・線量の報告の SR・PT のシリーズには書かない。
 
 #### Scenario: 画素の値の種類
@@ -55,9 +55,9 @@ Comments (0020,4000) を `SYNTHETIC TEST DATA`、Burned In Annotation (0028,0301
 - **WHEN** `phantom` で、CT の胸部 単純のルーチンを撮る
 - **THEN** 位置決めを含め、図形で画素を作った全画像で Manufacturer と Manufacturer's Model Name は `DTG SYNTHETIC`、Image Comments は `SYNTHETIC TEST DATA`、Burned In Annotation は `NO`、Recognizable Visual Features は `NO` になる。線量の画面の Manufacturer は今の値のまま
 
-#### Scenario: 装置のプロファイルを当てた撮影
+#### Scenario: 装置のプロファイルを適用した撮影
 
-- **WHEN** Manufacturer が `DTG Synthetic` の装置のプロファイルを当てて、`phantom` で撮る
+- **WHEN** Manufacturer が `DTG Synthetic` の装置のプロファイルを適用して、`phantom` で撮る
 - **THEN** 画像の Manufacturer は `DTG SYNTHETIC` になり、Software Versions などのほかの装置の値はプロファイルのままになる
 
 ### Requirement: 焼き込みは選んだときだけ描く

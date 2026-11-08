@@ -51,7 +51,7 @@ class ProfileEntry:
 def profile_transfer_syntax(profile: DeviceProfile) -> TransferSyntaxConfig:
     """プロファイルの最初の転送の形（装置の好み）を使う（docs/spec/13 の 4.3）.
 
-    最初の形をこの道具が作れなければ止める（黙って次の形に替えない）。
+    最初の形をこのツールが作れなければ止める（黙って次の形に替えない）。
     """
     uid = profile.storage.transfer_syntaxes[0]
     if uid not in GENERATABLE_TRANSFER_SYNTAXES:

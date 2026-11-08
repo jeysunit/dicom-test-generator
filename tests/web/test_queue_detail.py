@@ -45,7 +45,7 @@ def test_selected_row_shows_its_detail_below_the_table(client) -> None:
     detail = html.split('<section id="job-detail"', 1)[1]
     for label in ("元のファイル", "試行回数", "名乗る AEタイトル"):
         assert f"<dt>{label}</dt>" in detail
-    # 選んだ行は、読み直しでも保つ（隠した欄で送り返す）
+    # 選んだ行は、再読み込みでも保つ（隠した欄で送り返す）
     assert '<input type="hidden" form="queue-filter" name="selected" value="2">' in html
 
 

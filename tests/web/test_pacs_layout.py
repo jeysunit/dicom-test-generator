@@ -38,7 +38,7 @@ def test_page_puts_the_destination_section_above_the_job_list(client) -> None:
     destinations = html.index('<h2 class="hd">接続先')
     jobs = html.index('<h2 class="hd">送信ジョブ')
     assert destinations < jobs
-    # 下段は、状態の要約 → 検索の帯 → 件数の行 → 一覧の順
+    # 下部は、状態の要約 → 検索の帯 → 件数の行 → 一覧の順
     order = [
         html.index('id="queue-sum"'),
         html.index('id="queue-filter"'),
@@ -69,7 +69,7 @@ def test_summary_counts_states_and_failed_total_ignores_conditions(client) -> No
     html = client.get("/pacs/queue").text
     assert _counts(html)["all"] == "3"
     assert _counts(html)["failed"] == "2"
-    # 状態の要約と再送信の件数は、読み直しの応答に同梱して差し替える
+    # 状態の要約と再送信の件数は、再読み込みの応答に同梱して差し替える
     assert 'id="queue-sum"' in html and 'hx-swap-oob="true"' in html
     assert "失敗 2 件を再送信" in html
 

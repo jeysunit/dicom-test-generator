@@ -134,7 +134,7 @@ LATERALITIES_BY_MODALITY: dict[str, frozenset[str]] = {
 def check_body_part_laterality(
     modality: str, body_part: str | None, laterality: str | None
 ) -> None:
-    """シリーズの部位と左右の組を確かめる。合わなければ ValueError（ADR-0034・ADR-0037）.
+    """シリーズの部位と左右の組を確認する。合わなければ ValueError（ADR-0034・ADR-0037）.
 
     対になる部位は左右が要り、対にならない部位には左右を書けない。DX 以外の左右は R・L
     だけ。CR・DX は PROJECTION_BODY_PARTS の部位だけを書ける。
@@ -416,7 +416,7 @@ class WorklistItem(BaseModel):
     study_instance_uid: str = ""
     accession_number: str = ""
     referring_physician_name: str = ""
-    # 依頼医 (0032,1032)。画面に出すだけで、画像には写さない（docs/spec/12 の 5.2）
+    # 依頼医 (0032,1032)。画面に出すだけで、画像には設定しない（docs/spec/12 の 5.2）
     requesting_physician: str = ""
     requested_procedure_id: str = ""
     requested_procedure_description: str = ""
@@ -429,7 +429,7 @@ class WorklistItem(BaseModel):
     scheduled_station_ae_title: str = ""
     institution_name: str = ""
     # 部位 (0018,0015)。MWL の標準の返却の値ではなく、RIS が返したときだけ入る。ルーチンを
-    # 当てるのに使う（docs/spec/12 の 5.2・ADR-0025）
+    # 適用するのに使う（docs/spec/12 の 5.2・ADR-0025）
     body_part_examined: str = ""
     specific_character_set: list[str] = Field(default_factory=list)
     sequences: DicomJsonSequences = Field(default_factory=dict)
@@ -437,7 +437,7 @@ class WorklistItem(BaseModel):
 
 
 class ScheduledPatient(BaseModel):
-    """予約から写す患者の値。生年月日・性別の空を許す（Patient とは別）."""
+    """予約からコピーする患者の値。生年月日・性別の空を許す（Patient とは別）."""
 
     model_config = {"frozen": True}
 
@@ -451,7 +451,7 @@ class ScheduledPatient(BaseModel):
 
 
 class ScheduledContext(BaseModel):
-    """画像に写す予約の値（予約あり・予約なしの両方）."""
+    """画像にコピーする予約の値（予約あり・予約なしの両方）."""
 
     model_config = {"frozen": True}
 
@@ -464,7 +464,7 @@ class ScheduledContext(BaseModel):
     study_description: str = ""
     performed_procedure_step_id: str
     # MPPS を使うときの MPPS の SOP Instance UID。画像の Referenced Performed
-    # Procedure Step Sequence に写す（IHE RAD TF-2x A.1.3・A.2.2）
+    # Procedure Step Sequence にコピーする（IHE RAD TF-2x A.1.3・A.2.2）
     performed_procedure_step_sop_instance_uid: str = ""
     institution_name: str = ""
     request_attributes: dict | None = None
@@ -477,6 +477,6 @@ class ScheduledContext(BaseModel):
     # Study の日時は最初の撮影の値で、PPS はその撮影の日時になる（IHE RAD TF-2x Table A.1-3）
     performed_procedure_step_start_date: str = ""
     performed_procedure_step_start_time: str = ""
-    # True なら study_description が空でも写す（テンプレートの説明を消す）。追加撮影で、
+    # True なら study_description が空でもコピーする（テンプレートの説明を消す）。追加撮影で、
     # 最初の撮影の説明（空を含む）に揃える（IHE RAD TF-2x の IHE-A.3.3）
     study_description_fixed: bool = False

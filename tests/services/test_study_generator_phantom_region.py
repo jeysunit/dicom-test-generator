@@ -66,7 +66,7 @@ def _generate(tmp_path: Path, series_list, template: str) -> dict[int, list[pydi
 
 
 def _stored(ds: pydicom.Dataset) -> np.ndarray:
-    """画素の格納値（Rescale を当てない）."""
+    """画素の格納値（Rescale を適用しない）."""
     raw = np.frombuffer(ds.PixelData, dtype=np.int16 if ds.PixelRepresentation else np.uint16)
     return raw.reshape(int(ds.Rows), int(ds.Columns))
 

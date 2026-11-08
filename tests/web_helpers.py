@@ -1,4 +1,4 @@
-"""ウェブの画面の試験の道具（docs/development.md の 4 章）."""
+"""ウェブの画面の試験のツール（docs/development.md の 4 章）."""
 
 from __future__ import annotations
 

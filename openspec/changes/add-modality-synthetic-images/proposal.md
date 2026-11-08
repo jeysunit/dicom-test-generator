@@ -23,18 +23,18 @@ DTG が画像を作れるモダリティは CT・MR・PT だけで、CR と DX �
 
 この change は4つの PR に分けて入れる（design.md の「PR の分け方」）。
 
-- 画素の方式に `phantom`（図形）を足す。画素の患者座標で3次元の図形を評価するので、
+- 画素の方式に `phantom`（図形）を追加する。画素の患者座標で3次元の図形を評価するので、
   スライスの位置が変われば図形の断面の大きさが変わる。位置の目印（小さい四角）が
   画像の番号に合わせて円の上を回る。画素に文字は描かない。偽物の印はタグに書き、
   Manufacturer と Manufacturer's Model Name を `DTG SYNTHETIC`、Image Comments
   (0020,4000) を `SYNTHETIC TEST DATA`、Burned In Annotation (0028,0301) を `NO` に
   する（基本の図形。PR 1）
-- 文字の焼き込みは、選んだときだけ使う変種として足す。上端の帯に `TEST / SYNTHETIC`・
+- 文字の焼き込みは、選んだときだけ使う変種として追加する。上端の帯に `TEST / SYNTHETIC`・
   患者 ID・検査日・何枚目か・位置を英字で描き、そのときだけ Burned In Annotation を
   `YES` にする。匿名化ツールが焼き込みを見つけられるかの試験に使う（焼き込み。PR 4）
 - CR の画像を CR Image Storage、DX の画像を Digital X-Ray Image Storage - For
   Presentation で作る。テンプレート `cr_generic`・`dx_generic` と、例の装置の
-  プロファイルを足す。CR・DX の予約と緊急の患者を、画面と CLI で撮れるようにする
+  プロファイルを追加する。CR・DX の予約と緊急の患者を、画面と CLI で撮れるようにする
   （PR 2）
 - `phantom` の図形を、ルーチンの部位ごとに変える（部位の図形。PR 3）。頭部は楕円の骨の輪と
   その中、胸部は暗い肺の楕円2つ、腹部は大きさの違う楕円と血管の円、脊椎は骨の
@@ -77,7 +77,7 @@ DTG が画像を作れるモダリティは CT・MR・PT だけで、CR と DX �
 7. PET はこの change の範囲に入れず、PT のシリーズは今の画素のままにする。PET/CT の
    検査で `phantom` を選ぶと、CT のシリーズだけが図形になる
 8. 冠状断・矢状断の画像の位置は、`phantom` のときだけ、Image Position (Patient) の
-   z を軸位の範囲の上端にする。今の冠状断は z が 0 以下の範囲を写し、軸位（z が
+   z を軸位の範囲の上端にする。今の冠状断は z が 0 以下の範囲を表し、軸位（z が
    0 以上）とほとんど交わらないので、図形がほぼ写らないため（design.md の「図形の
    置き方」）。CT の位置決めと、MR のローカライザー（三方向）の冠状断・矢状断の断面も
    同じにする。既定の方式の位置は変えない
@@ -110,8 +110,8 @@ DTG が画像を作れるモダリティは CT・MR・PT だけで、CR と DX �
   `templates/routine/` の各ルーチンに `phantom`・`body_part`・`laterality`・
   `weighting`・`phase`
 - 装置のプロファイル：`profiles/examples/dtg_synthetic_cr.yaml`・`dtg_synthetic_dx.yaml`
-  （新しい）、作れる SOP Class に CR・DX を足す
-- spec：02 の 3 章、03、06 の 4 章と 5 章（CR・DX の節を足す。5.2 の「CR・US など
+  （新しい）、作れる SOP Class に CR・DX を追加する
+- spec：02 の 3 章、03、06 の 4 章と 5 章（CR・DX の節を追加する。5.2 の「CR・US など
   を断る」は CR・DX を外す）、07 の 3.6、12a の CLI、13 の 4.3。ADR-0033・0034
 - roadmap.md：「CT・MR・PT 以外のモダリティ」の行から CR・DX を外す
 - 既定は変わらない。`phantom` を選ばない撮影と Job の画像は、今と同じ値になる。

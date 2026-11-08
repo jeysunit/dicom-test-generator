@@ -228,11 +228,11 @@ class SendQueue:
                     conn.execute(statement)
                 columns = {row[1] for row in conn.execute("PRAGMA table_info(jobs)")}
                 if "send_token" not in columns:
-                    # 札の列が無い前の版の待ち行列に足す
+                    # 札の列が無い前の版の待ち行列に追加する
                     conn.execute(
                         "ALTER TABLE jobs ADD COLUMN send_token TEXT NOT NULL DEFAULT ''"
                     )
-                # 装置を切り替えられる前の版の待ち行列に足す。前の行は今の装置の AEタイトル
+                # 装置を切り替えられる前の版の待ち行列に追加する。前の行は今の装置の AEタイトル
                 _add_ae_title_column(conn, "jobs", "calling_ae_title", legacy_ae_title)
                 _add_ae_title_column(conn, "commitments", "own_ae_title", legacy_ae_title)
                 # 撮影の記録が無かった前の版で撮った予約も、撮影済みとして移す（UID だけ）
@@ -242,7 +242,7 @@ class SendQueue:
                 )
                 file_columns = {row[1] for row in conn.execute("PRAGMA table_info(job_files)")}
                 if "sop_class_uid" not in file_columns:
-                    # 保管の確認の前の版の待ち行列に足す（Phase 3c）
+                    # 保管の確認の前の版の待ち行列に追加する（Phase 3c）
                     conn.execute(
                         "ALTER TABLE job_files ADD COLUMN sop_class_uid TEXT NOT NULL DEFAULT ''"
                     )
@@ -452,7 +452,7 @@ class SendQueue:
         """予約の撮影の札を取り、札を返す。ほかが持っていれば None.
 
         札の時刻は撮影の間 `touch_exam` で進める。進まないまま古くなった札（撮影の処理が
-        落ちた）は取り直せる。
+        落ちた）は再取得できる。
         """
         token = secrets.token_hex(SEND_TOKEN_BYTES)
         with self._connect() as conn:
@@ -476,7 +476,7 @@ class SendQueue:
             )
 
     def release_exam(self, worklist_key: str, token: str) -> None:
-        """自分の札だけを戻す（取り直されていたら、ほかの札は消さない）."""
+        """自分の札だけを戻す（再取得されていたら、ほかの札は消さない）."""
         with self._connect() as conn:
             conn.execute(
                 "DELETE FROM exam_locks WHERE worklist_key = ? AND token = ?",
@@ -518,11 +518,11 @@ class SendQueue:
         series_numbers: list[tuple[int, bool]] | None = None,
         emergency: EmergencyExamRecord | None = None,
     ) -> None:
-        """撮影を終えた予約を記録する。2回目以降（追加撮影）はシリーズの数だけ足す.
+        """撮影を終えた予約を記録する。2回目以降（追加撮影）はシリーズの数だけ加える.
 
         前の版から移した記録（日時が空）は、移した後の最初の撮影の日時・説明で埋め、
         その後の追加撮影をそろえる。`series_numbers`（使った番号と、書いた番号か）は
-        前の記録の後ろに足す。無ければ、続きの自動の番号を使ったとみなす。
+        前の記録の後ろに追加する。無ければ、続きの自動の番号を使ったとみなす。
         `emergency` があれば、緊急の患者の値も同じトランザクションで残す。
         """
         with self._connect() as conn:
@@ -544,7 +544,7 @@ class SendQueue:
             if series_numbers is None:
                 start = 1 + max((number for number, _ in before), default=0)
                 series_numbers = [(start + index, False) for index in range(series_count)]
-            # 前の版の記録（行が無い）は、自動で使った番号の行を先に作ってから足す
+            # 前の版の記録（行が無い）は、自動で使った番号の行を先に作ってから追加する
             conn.executemany(
                 "INSERT OR IGNORE INTO exam_series_numbers (worklist_key, series_number, explicit)"
                 " VALUES (?, ?, ?)",
@@ -681,7 +681,7 @@ class SendQueue:
 
         要求に無い組は捨てる。要求したのに結果のどちらにも無い組は失敗にする（理由「結果に無い」）。
         失敗の側に書いてある組は、成功の側にもあっても失敗にする（書いてある方を信じる）。
-        状態の確かめと書き込みは1つの取引で行い、待っている（か時間切れの）要求だけに書く
+        状態の確認と書き込みは1つの取引で行い、待っている（か時間切れの）要求だけに書く
         （同じ Association と待ち受けから同時に来ても、受けるのは1つ）。
         """
         with self._connect() as conn:
@@ -841,7 +841,7 @@ def _now() -> str:
 def _add_ae_title_column(
     conn: sqlite3.Connection, table: str, column: str, legacy_ae_title: str
 ) -> None:
-    """AEタイトルの列が無ければ足し、前の行を `legacy_ae_title` で埋める（表と列は定数）."""
+    """AEタイトルの列が無ければ追加し、前の行を `legacy_ae_title` で埋める（表と列は定数）."""
     columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
     if column in columns:
         return

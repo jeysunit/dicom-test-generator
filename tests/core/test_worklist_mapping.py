@@ -1,4 +1,4 @@
-"""予約から画像への値の写し方（docs/spec/12 の 5.4・6 章）の試験."""
+"""予約から画像への値のコピー方法（docs/spec/12 の 5.4・6 章）の試験."""
 
 from __future__ import annotations
 
@@ -404,7 +404,7 @@ def _scheduled(item):
 
 
 def test_item_from_identifier_marks_unreadable_value_in_sequences() -> None:
-    """写す Sequence の中（入れ子を含む）の読めない値も確かめる（docs/spec/12 の 5.4）."""
+    """コピーする Sequence の中（入れ子を含む）の読めない値も確認する（docs/spec/12 の 5.4）."""
     ds = _identifier()
     code = ds.RequestedProcedureCodeSequence[0]
     code.CodeMeaning = "ZZZZ"
@@ -491,7 +491,7 @@ def test_scheduled_context_accepts_ds_forms(value: str) -> None:
     ["1..2", "../x", "01.2", "1.02.3", "1.2.a", "1.2.", ".1.2", "1.2\x00", "1" * 65, "/1.2"],
 )
 def test_scheduled_context_rejects_bad_study_instance_uid(uid: str) -> None:
-    """予約の Study Instance UID の形を確かめ、外れたら 4 で止める（docs/spec/12 の 6.5）."""
+    """予約の Study Instance UID の形を確認し、外れたら 4 で止める（docs/spec/12 の 6.5）."""
     item = worklist_item_from_identifier(_identifier()).model_copy(
         update={"study_instance_uid": uid}
     )

@@ -265,7 +265,7 @@ def test_same_order_is_not_shot_by_two_processes_at_once(tmp_path, worklist_scp)
 
 
 def test_exam_claim_is_owned_and_renewed(tmp_path) -> None:
-    """札は持ち主だけが戻せ、時刻を進めた札は古くならない。落ちたまま古い札は取り直せる."""
+    """札は持ち主だけが戻せ、時刻を進めた札は古くならない。落ちたまま古い札は再取得できる."""
     queue = SendQueue(tmp_path / QUEUE_DB_NAME)
     first = queue.claim_exam("abc")
     assert first is not None and queue.claim_exam("abc") is None
@@ -279,16 +279,16 @@ def test_exam_claim_is_owned_and_renewed(tmp_path) -> None:
     assert queue.claim_exam("abc") is None
 
     age()
-    second = queue.claim_exam("abc")  # 進まないまま古くなった札は取り直せる
+    second = queue.claim_exam("abc")  # 進まないまま古くなった札は再取得できる
     assert second is not None
-    queue.release_exam("abc", first)  # 前の持ち主は、取り直された札を消せない
+    queue.release_exam("abc", first)  # 前の持ち主は、再取得された札を消せない
     assert queue.claim_exam("abc") is None
     queue.release_exam("abc", second)
     assert queue.claim_exam("abc") is not None
 
 
 def test_append_keeps_an_empty_first_description(tmp_path, worklist_scp) -> None:
-    """最初の撮影の説明が空なら、あとで RIS が説明を足しても追加撮影は空のまま（IHE-A.3.3）."""
+    """最初の撮影の説明が空なら、あとで RIS が説明を追加しても追加撮影は空のまま（IHE-A.3.3）."""
     service = _service(tmp_path, worklist_scp.port)
     key = _key(service)
     assert service.queue  # 待ち行列の表を作っておく

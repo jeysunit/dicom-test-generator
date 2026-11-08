@@ -38,7 +38,7 @@ DTG は、送信失敗の件の再送で、その件の送れていない画像�
 - **WHEN** 画像 3 枚のうち 1 枚が送れずに送信失敗になった件の「再送」を押す
 - **THEN** 送れなかった 1 枚だけが送られ、送れればその件が送信完了になる
 
-### Requirement: 送り直しでは画像を作り直さない
+### Requirement: 送り直しでは画像を再作成しない
 
 DTG は、送り直しで、撮影のときに書き出したファイルをそのまま送らなければならない
 （SHALL）。SOP Instance UID・Series Instance UID・Study Instance UID は、最初の

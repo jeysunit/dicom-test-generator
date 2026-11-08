@@ -1,4 +1,4 @@
-"""画像の文字コードの決め方と、表せない字の確かめ（docs/spec/12_modality_emulator.md 7 章）.
+"""画像の文字コードの決め方と、表せない字の確認（docs/spec/12_modality_emulator.md 7 章）.
 
 Core Engine の Pure な処理。ファイル・通信・ログを使わない。
 """
@@ -77,7 +77,7 @@ def find_unrepresentable_chars(value: str, character_set: Sequence[str]) -> list
 
 
 def ensure_dataset_encodable(ds: Dataset) -> None:
-    """データセットの文字の属性が、その Specific Character Set で表せるかを確かめる.
+    """データセットの文字の属性が、その Specific Character Set で表せるかを確認する.
 
     表せない字があれば、黙って消さずに WorklistMappingError で止める（7.2）。
     """
@@ -130,7 +130,7 @@ def _ir13_accepts(term: str, char: str) -> bool:
     """IR 13 で受けるのは半角カナ（0xA1〜0xDF）だけ（7.2）.
 
     `¥`・`‾` は shift_jis で 0x5C・0x7E になり、読み戻すと `\\`（値の区切り）・
-    `~` に化ける。pydicom.charset で書いて読み戻し、元の字に戻るかも確かめる。
+    `~` に化ける。pydicom.charset で書いて読み戻し、元の字に戻るかも確認する。
     """
     codec = python_encoding.get(term)
     if codec is None:

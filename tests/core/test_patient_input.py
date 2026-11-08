@@ -1,4 +1,4 @@
-"""緊急の患者の入力の確かめ（docs/spec/12a の 10.5）."""
+"""緊急の患者の入力の確認（docs/spec/12a の 10.5）."""
 
 from __future__ import annotations
 
@@ -258,7 +258,7 @@ def test_build_emergency_patient_refuses_before_pydantic() -> None:
 
 
 def test_validate_emergency_patient_checks_a_patient_made_directly() -> None:
-    """画面・CLI を通らずに作った ScheduledPatient も、サービスの手前の確かめで断る."""
+    """画面・CLI を通らずに作った ScheduledPatient も、サービスの手前の確認で断る."""
     good = ScheduledPatient(patient_id="E0001", patient_name="KINKYU^TARO")
     validate_emergency_patient(good, "胸部")
     bad = ScheduledPatient(patient_id="E0001", patient_name="山田^太郎")

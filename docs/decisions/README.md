@@ -31,10 +31,10 @@ ADR の一覧と、ADR に固有の書き方です。ドキュメントに共通
 | [0022](0022-remove-desktop-gui.md) | PySide6 のデスクトップ画面を削除し、ファイルの作成は CLI に任せる | 採用 |
 | [0023](0023-switch-own-station.md) | 名乗る装置を設定に複数書き、画面と CLI で切り替える | 採用 |
 | [0024](0024-exam-once-and-retake.md) | 予約での撮影は1回で撮影済みにし、撮り直しの形は設定で選ぶ | 採用 |
-| [0025](0025-exam-routines.md) | 撮影は既定で予約に当てたルーチンの並びと枚数で行う | 採用 |
+| [0025](0025-exam-routines.md) | 撮影は既定で予約に適用したルーチンの並びと枚数で行う | 採用 |
 | [0026](0026-container-image-distribution.md) | Docker のイメージを主な配布の形にし、タグの push と手動のときに GHCR に公開する | 採用 |
 | [0027](0027-emergency-append.md) | 緊急の患者の追加撮影は、前の撮影の Study Instance UID と同じ患者を CLI で指定したときだけ受ける | 採用 |
-| [0028](0028-shared-ui-kit-css.md) | 画面の CSS は 3 製品で共通の ui-kit の写しを読み、DTG の CSS には差分だけを書く | 採用 |
+| [0028](0028-shared-ui-kit-css.md) | 画面の CSS は 3 製品で共通の ui-kit のコピーを読み、DTG の CSS には差分だけを書く | 採用 |
 | [0029](0029-unknown-patient-emergency-input.md) | 身元不明の患者は、仮の ID と空の英字の氏名で撮れるようにする | 採用 |
 | [0030](0030-mr-images.md) | MR の画像は、シリーズのモダリティで MR Image Storage として作る | 採用 |
 | [0031](0031-dose-report-sr.md) | CT の線量の報告は、線量の画面のほかに X-Ray Radiation Dose SR のシリーズでも作れる | 採用 |

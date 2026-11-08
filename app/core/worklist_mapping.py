@@ -1,4 +1,4 @@
-"""予約（ワークリストの1件）から画像への値の写し方（docs/spec/12_modality_emulator.md 5.4・6 章）.
+"""予約（ワークリストの1件）から画像への値のコピー方法（docs/spec/12_modality_emulator.md 5.4・6 章）.
 
 Core Engine の Pure な処理。通信・ファイル・ログを使わない。
 出典は IHE RAD TF-2x Appendix A の Table A.1-1（予約どおり）と
@@ -45,13 +45,13 @@ _VALID_SEXES = frozenset({"", *SEX_VALUES})
 DS_MAX_LENGTH = 16
 _DECIMAL_STRING = re.compile(r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?")
 
-# 応答の一番上から写す Sequence
+# 応答の一番上からコピーする Sequence
 _TOP_LEVEL_SEQUENCES = (
     "IssuerOfAccessionNumberSequence",
     "RequestedProcedureCodeSequence",
     "ReferencedStudySequence",
 )
-# 画像には写すが、SR Document（PS3.3 A.35.8）の IOD に無い属性（General Series Module）
+# 画像にはコピーするが、SR Document（PS3.3 A.35.8）の IOD に無い属性（General Series Module）
 _SR_ABSENT_ATTRIBUTES = (
     "RequestAttributesSequence",
     "PerformedProcedureStepID",
@@ -112,7 +112,7 @@ def worklist_item_from_identifier(identifier: Dataset) -> WorklistItem:
         "patient_id": text(identifier, "PatientID"),
         "issuer_of_patient_id": text(identifier, "IssuerOfPatientID"),
         "birth_date": text(identifier, "PatientBirthDate"),
-        # 製品の中の値は M・F・O・U。空と M・F・O 以外は U と読む（画像に写すときは空に戻す）
+        # 製品の中の値は M・F・O・U。空と M・F・O 以外は U と読む（画像にコピーするときは空に戻す）
         "sex": from_dicom_sex(text(identifier, "PatientSex")),
         "weight": text(identifier, "PatientWeight"),
         "size": text(identifier, "PatientSize"),
@@ -260,7 +260,7 @@ def emergency_context(
 
 
 def apply_scheduled_context(ds: Dataset, ctx: ScheduledContext) -> None:
-    """生成した画像のデータセットに、予約の値を写す（6.2 の表）.
+    """生成した画像のデータセットに、予約の値をコピーする（6.2 の表）.
 
     Study Instance UID・Study Date・Time・Modality・Series は生成の側で決める。
     この関数はそれ以外の予約の値を上書きする。
@@ -374,8 +374,8 @@ def build_carrier_patient(patient: ScheduledPatient, study_date: str) -> Patient
     """
     return Patient(
         patient_id=patient.patient_id[:CARRIER_PATIENT_ID_LENGTH],
-        # 氏名は apply_scheduled_context で写す。ここは ASCII の仮の名前にして、
-        # 生成の側の文字コードの確かめに掛からないようにする
+        # 氏名は apply_scheduled_context でコピーする。ここは ASCII の仮の名前にして、
+        # 生成の側の文字コードの確認に掛からないようにする
         patient_name=PatientName(alphabetic=CARRIER_PATIENT_NAME),
         birth_date=patient.birth_date or study_date,
         sex=patient.sex or CARRIER_SEX,
@@ -429,7 +429,7 @@ def _check_patient_values(birth_date: str, sex: str, worklist_key: str) -> None:
 
 
 def _check_decimal_string(attribute: str, value: str, worklist_key: str) -> None:
-    """空か DS（PS3.5 の Decimal String。16 字まで）であることを確かめる（6.5）."""
+    """空か DS（PS3.5 の Decimal String。16 字まで）であることを確認する（6.5）."""
     if not value:
         return
     if len(value) > DS_MAX_LENGTH or not _DECIMAL_STRING.fullmatch(value.strip(" ")):
@@ -449,7 +449,7 @@ def _first_item(ds: Dataset, keyword: str) -> Dataset:
 def _collect_sequence(
     ds: Dataset, keyword: str, sequences: dict[str, list[dict]], unreadable: list[str]
 ) -> None:
-    """写す Sequence を DICOM JSON にし、中の読めない値を `Seq>Attr` の形で足す（5.4）."""
+    """コピーする Sequence を DICOM JSON にし、中の読めない値を `Seq>Attr` の形で追加する（5.4）."""
     sequence = ds.get(keyword)
     if not sequence:
         return

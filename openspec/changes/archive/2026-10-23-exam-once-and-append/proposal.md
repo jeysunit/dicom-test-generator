@@ -3,12 +3,12 @@
 ## Why
 
 今の DTG は、同じ予約（Scheduled Procedure Step）から何度でも「撮影」でき、2回目
-以降は同じ Study に新しいシリーズを足す（spec 12 の 6.3）。実機のモダリティでは、
+以降は同じ Study に新しいシリーズを追加する（spec 12 の 6.3）。実機のモダリティでは、
 予約で撮影を終えたら（MPPS を COMPLETED にしたら）その予約は終わり、同じ予約で
-もう一度撮るのは「追加撮影」として別に扱う。テストの道具としても、1回目の撮影と
-追加の撮影を区別して作れるほうが、RIS・PACS の扱いを確かめやすい。
+もう一度撮るのは「追加撮影」として別に扱う。テストのツールとしても、1回目の撮影と
+追加の撮影を区別して作れるほうが、RIS・PACS の扱いを確認やすい。
 
-あわせて、今の2回目の撮影は Study Date・Study Time を撮影の時刻で作り直している。
+あわせて、今の2回目の撮影は Study Date・Study Time を撮影の時刻で再作成している。
 IHE の Append Case では、追加の画像の Study Date・Study Time・Study Description は
 元の画像の値を使い回す（IHE RAD TF-2x Appendix A の IHE-A.3.3）ので、これに
 合わせる。

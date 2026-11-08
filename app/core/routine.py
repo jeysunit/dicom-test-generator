@@ -1,4 +1,4 @@
-"""撮影のルーチン（部位ごとのシリーズの並びと画像数）と、予約への当て方（ADR-0025）.
+"""撮影のルーチン（部位ごとのシリーズの並びと画像数）と、予約への割り当て方（ADR-0025）.
 
 ルーチンの形はモダリティごとに違う（docs/spec/03）。CT はシリーズの種類と再構成、
 MR はシーケンス、CR・DX は撮影の方向、US は静止画と動画の数を持つ。どのシリーズも
@@ -231,9 +231,9 @@ def normalize(text: str) -> str:
 
 
 def check_routine_set(routines: Iterable[Routine]) -> None:
-    """モダリティごとに既定が1つで、同じ語が2つのルーチンに無いことを確かめる.
+    """モダリティごとに既定が1つで、同じ語が2つのルーチンに無いことを確認する.
 
-    違えば ValueError（読む側が置き場のファイルの名前を足して知らせる）。
+    違えば ValueError（読む側が保存先のファイルの名前を追加して知らせる）。
     """
     by_modality: dict[str, list[Routine]] = {}
     for routine in routines:
@@ -260,12 +260,12 @@ def check_routine_set(routines: Iterable[Routine]) -> None:
 def match_routine(
     routines: Iterable[Routine], modality: str, fields: Iterable[str]
 ) -> Routine:
-    """予約の欄に見出しの言葉（`keywords`）が含まれるルーチンを当てる.
+    """予約の欄に見出しの言葉（`keywords`）が含まれるルーチンを適用する.
 
     `fields` は先の欄から順に（Requested Procedure Description、Scheduled Procedure
-    Step Description、Body Part Examined）。先の欄で当たれば後の欄は見ない。1つの欄で
-    いくつかの語が当たれば長い語、同じ長さなら欄の中で前に出てくる語のルーチン。
-    どの欄でも当たらなければ、そのモダリティの標準のルーチン。
+    Step Description、Body Part Examined）。先の欄で一致すれば後の欄は見ない。1つの欄で
+    いくつかの語が一致すれば長い語、同じ長さなら欄の中で前に出てくる語のルーチン。
+    どの欄でも一致しなければ、そのモダリティの標準のルーチン。
     """
     candidates = [routine for routine in routines if routine.modality == modality]
     if not candidates:
@@ -295,7 +295,7 @@ def assign_series_numbers(
     """シリーズ番号を決める。`wanted` は各シリーズの書いた番号（無ければ None）.
 
     `used` は予約で使った番号と、書いた番号か（True）自動か（False）。自動の番号は
-    自動で付けた番号の最大の次で、使った番号に当たれば空いている番号まで進める。書いた
+    自動で付けた番号の最大の次で、使った番号に一致すれば空いている番号まで進める。書いた
     番号が使った番号か、同じ撮影のほかのシリーズの番号と同じなら ValidationError。
     """
     taken = {number for number, _explicit in used}
@@ -345,11 +345,11 @@ def _dose_sr_row(
 def apply_dose_report_mode(
     routine: Routine, keep: list[int], images: list[int], mode: DoseReportMode
 ) -> tuple[Routine, list[int], list[int]]:
-    """撮る線量の画面の行を、`mode` に合わせて SR に替える・SR を足す.
+    """撮る線量の画面の行を、`mode` に合わせて SR に替える・SR を追加する.
 
     `keep` は撮る行の位置、`images` はその画像数（`routine.series` の位置と並び）。
     返すルーチンの行の並びに合わせた `keep` と `images` も返す。`sr` は線量の画面の行を
-    SR（1 枚）に替え、`both` は線量の画面の次に SR（1 枚）の行を足す。線量の画面の行を
+    SR（1 枚）に替え、`both` は線量の画面の次に SR（1 枚）の行を追加する。線量の画面の行を
     撮らない（`keep` に無い）ときと、`screen` は何も変えない。
     """
     if mode == "screen" or routine.modality not in ("CT", "PT"):

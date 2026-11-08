@@ -15,7 +15,7 @@ from app.core.projection import CR_IMAGE_STORAGE, DX_IMAGE_STORAGE_FOR_PRESENTAT
 
 OWN_AE = "DTG_CR01"
 PEER_AE = "PACS_TEST"
-# 合成の患者の CR の予約（試験の中だけで MWL の SCP に足す）
+# 合成の患者の CR の予約（試験の中だけで MWL の SCP に追加する）
 CR_ITEM = {
     "patient_name": "XRAY^HANAKO",
     "patient_id": "P000077",

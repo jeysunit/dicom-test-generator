@@ -152,7 +152,7 @@ def test_quick_uses_first_transfer_syntax_and_does_not_fall_back(
 
 
 def test_old_device_template_name_points_to_profiles(monkeypatch) -> None:
-    """装置ごとの古いテンプレートの名前は、プロファイルの置き場へ案内する."""
+    """装置ごとの古いテンプレートの名前は、プロファイルの保存先へ案内する."""
     import hashlib
 
     import app.services.template_loader as template_loader_module

@@ -96,7 +96,7 @@ PS3.4 F.7.2.2.2）。続けて画像を作るときは、新しい MPPS の SOP 
 - **WHEN** MPPS を使う設定で、撮影済みの予約で「追加撮影」を押す
 - **THEN** 1回目と異なる MPPS の SOP Instance UID で N-CREATE（IN PROGRESS）と N-SET（COMPLETED）が送られ、1回目の MPPS には何も送られない
 
-### Requirement: 追加撮影は同じ Study に新しいシリーズを足す
+### Requirement: 追加撮影は同じ Study に新しいシリーズを追加する
 
 撮り直しの形が `append` のとき、追加撮影は IHE の Append Case（IHE RAD TF-2 4.6.4.1.2.3.3、RAD TF-2x Table
 A.1-3）に従わなければならない（SHALL）。Study Instance UID・受付番号・Request

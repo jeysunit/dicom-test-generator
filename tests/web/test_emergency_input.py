@@ -1,4 +1,4 @@
-"""緊急の患者の入力の確かめ：画面（POST /exam）の誤りの文と、欄の印（docs/spec/12a の 10.5）."""
+"""緊急の患者の入力の確認：画面（POST /exam）の誤りの文と、欄の印（docs/spec/12a の 10.5）."""
 
 from __future__ import annotations
 
@@ -185,7 +185,7 @@ def test_page_shows_the_normal_form_by_default(client) -> None:
 
 
 def test_exam_page_marks_each_field_for_the_script(client) -> None:
-    """入力した時に分かるよう、欄に確かめの種類・文・誤りの行を結ぶ。誤りの行は label の中の下（.msg）."""
+    """入力した時に分かるよう、欄に確認の種類・文・誤りの行を結ぶ。誤りの行は label の中の下（.msg）."""
     page = html_lib.unescape(client.get("/exam").text)
     assert re.search(r'<form id="exam-form"[^>]* novalidate', page)
     for name, kind, message in (
@@ -264,7 +264,7 @@ def test_unknown_timezone_is_refused_by_the_config(tmp_path, worklist_scp, stora
 
 
 def test_script_range_covers_every_jis_x_0208_character() -> None:
-    """画面の漢字の確かめは、サーバーが許す字（JIS X 0208）を 1 字も止めない（含みすぎはよい）."""
+    """画面の漢字の確認は、サーバーが許す字（JIS X 0208）を 1 字も止めない（含みすぎはよい）."""
     node = shutil.which("node")
     if node is None:
         pytest.skip("node が無いので、画面のスクリプトを動かせない")
@@ -308,14 +308,14 @@ def test_script_uses_inline_errors_not_browser_bubbles() -> None:
 
 
 def test_script_rechecks_a_field_after_the_blur_correction() -> None:
-    """空白を ^ に補正した後（値の代入では input が起きない）に、欄の確かめを直す."""
+    """空白を ^ に補正した後（値の代入では input が起きない）に、欄の確認を直す."""
     script = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
     focusout = script.split('addEventListener("focusout"', 1)[1].split("});", 1)[0]
     assert focusout.index('replace(/\\s+/g, "^")') < focusout.index("checkField(input)")
 
 
 def test_script_phonetic_rules_match_the_server(tmp_path) -> None:
-    """画面のかなの確かめと、ひらがなの直しは、サーバーと同じ字を通し、同じ字に直す."""
+    """画面のかなの確認と、ひらがなの直しは、サーバーと同じ字を通し、同じ字に直す."""
     node = shutil.which("node")
     if node is None:
         pytest.skip("node が無いので、画面のスクリプトを動かせない")
@@ -345,7 +345,7 @@ def test_script_phonetic_rules_match_the_server(tmp_path) -> None:
         [node, "-e", program, str(chars_file)], capture_output=True, text=True, check=True
     )
     data = json.loads(result.stdout)
-    # 画面は成分の区切り ^ も通す。サーバーは群を ^ で分けてから確かめる
+    # 画面は成分の区切り ^ も通す。サーバーは群を ^ で分けてから確認する
     assert sorted(data["accepted"]) == sorted(
         c for c in chars if c == "^" or not check_phonetic_group(c)
     )

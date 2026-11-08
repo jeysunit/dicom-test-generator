@@ -2,7 +2,7 @@
 
 - 状態：採用
 - 作成日：2026-11-01
-- 最終更新日：2026-11-01
+- 最終更新日：2026-11-08
 
 ## 背景
 
@@ -27,7 +27,7 @@ DTG は CR・DX だけ、ルーチンの `body_part` と `laterality` を持っ�
 3. **対になる部位（膝・手・肩）は `laterality`（`R`・`L`）を General Series の Laterality に書く。**
    同梱の MR 膝・MR 肩は、CR・DX の膝・手と同じ架空の `R`
 4. **部位の値は spec/06 の 5.6 の表で決める。** CR・DX が書ける部位は従来の 6 つのまま
-5. 部位の語を足すのは、Table L-1 の語に限る。US のルーチンは画像をまだ作らないので書かない
+5. 部位の語を追加するのは、Table L-1 の語に限る。US のルーチンは画像をまだ作らないので書かない
 
 ## 検討した選択肢
 
@@ -37,7 +37,7 @@ DTG は CR・DX だけ、ルーチンの `body_part` と `laterality` を持っ�
 - **既定の部位を `PHANTOM`（Table L-1 の定義語。対にならない）にする。** 合成のデータである
   ことは正直に出せるが、ビューアや PACS の部位の絞り込みで人の検査として扱われにくい。
   CR・DX の既定が `CHEST` なので、そろえて採用しない
-- **Laterality だけを足す（Body Part Examined は入れない）。** Laterality は対になる部位だけ
+- **Laterality だけを追加する（Body Part Examined は入れない）。** Laterality は対になる部位だけ
   に書く値で、部位が分からないまま書くと規格に反する。採用しない
 - **肝臓ダイナミックを `LIVER` にする。** Table L-1 に語はあるが、CID 4031 に無く、撮影の範囲も
   腹部全体なので `ABDOMEN` にする
@@ -47,7 +47,7 @@ DTG は CR・DX だけ、ルーチンの `body_part` と `laterality` を持っ�
 - CT・MR・PT の全画像に Body Part Examined が入り、dciodvfy の Laterality の Error が消える
 - MR 膝・MR 肩の画像には Laterality `R` が入る
 - 手で入れた CT・MR・PT のシリーズには `CHEST` が入る。ルーチンの部位は引き継がないので、
-  たとえば MR 膝のルーチンに手で足したシリーズは、同じ検査の中で `KNEE` と `CHEST` が
+  たとえば MR 膝のルーチンに手で追加したシリーズは、同じ検査の中で `KNEE` と `CHEST` が
   混ざる。許容する（ルーチンの部位を手のシリーズへ渡すのは、必要になってから決める）
 - 既存のジョブの YAML・ルーチンは、書き換えずに動く
 

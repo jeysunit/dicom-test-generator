@@ -102,7 +102,7 @@ UNIT_MM: Code = ("mm", CODE_UCUM, "mm")
 
 @dataclass(frozen=True)
 class DoseEvent:
-    """線量の報告に載せる撮影1回（位置決めか軸位のシリーズ1つ）."""
+    """線量の報告に含める撮影1回（位置決めか軸位のシリーズ1つ）."""
 
     series: SeriesConfig
     uid: str
@@ -321,7 +321,7 @@ def dose_sr_content(
     """SR Document Content Module（PS3.3 C.17.3）の根の項目と、TID 10011 の木を作る.
 
     返す Dataset の属性（ValueType・ConceptNameCodeSequence・ContinuityOfContent・
-    ContentTemplateSequence・ContentSequence）を、SR の Dataset にそのまま写す。
+    ContentTemplateSequence・ContentSequence）を、SR の Dataset にそのままコピーする。
     """
     try:
         start = datetime.strptime(study_date + study_time, DATETIME_FORMAT)

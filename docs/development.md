@@ -111,7 +111,7 @@ DTG の機能ではない。スタブは `tests/modality_peers.py` にある。
   で決める。アプリと同じく設定の既定のタイムゾーン（Asia/Tokyo）の今日で、
   `date.today()`（OS のタイムゾーン。CI では UTC）は使わない。使うと JST の 0〜9 時に
   1日ずれて落ちる（`tests/modality/test_today_in_the_jst_morning.py` が時刻を固定して
-  確かめる）
+  確認する）
 - 保管確認の SCP と MPPS の SCP のスタブは、結果を返す経路（同じ・別の
   Association）、返す Status、返す値をテストごとに変えられる
   （[ADR-0021](decisions/0021-test-only-commitment-and-mpps-peers.md)）
@@ -140,7 +140,7 @@ commit している。利用者がこれらを用意する必要は無い。
 | htmx（`app/web/static/htmx.min.js`） | v2.0.9 | GitHub の bigskysoftware/htmx の releases | `57d9191515339922bd1356d7b2d80b1ee3b29f1b3a2c65a078bb8b2e8fd9ae5f` |
 | Lucide の LICENSE（`app/web/static/icons/LICENSE`。ISC License。ui-kit の `icons.svg` の絵の元） | 1.48.0 | GitHub の lucide-icons/lucide の `LICENSE` | git の blob の SHA-1 `718bb3f0e44153809972abed31839375804bf652`（`scripts/fetch_web_assets.sh`） |
 | Tailwind CSS の standalone の実行ファイル（CSS を作成するときだけ） | v4.3.3 | GitHub の tailwindlabs/tailwindcss の releases | `scripts/build_css.sh` に OS ごとに固定 |
-| ui-kit の写し（`app/web/static/ui-kit/` の `tokens.css`・`components.css`・`icons.svg`・`VERSION`・`SHA256SUMS`。3 製品で共通） | `VERSION` に書く（1.2.5） | 3 製品で共通の画面の決まり（[ADR-0028](decisions/0028-shared-ui-kit-css.md)）。部品集の `system/css/` | `SHA256SUMS`（`tests/web/test_static_assets.py` が写しと合うか確かめる） |
+| ui-kit のコピー（`app/web/static/ui-kit/` の `tokens.css`・`components.css`・`icons.svg`・`VERSION`・`SHA256SUMS`。3 製品で共通） | `VERSION` に書く（1.2.5） | 3 製品で共通の画面の決まり（[ADR-0028](decisions/0028-shared-ui-kit-css.md)）。部品集の `system/css/` | `SHA256SUMS`（`tests/web/test_static_assets.py` がコピーと合うか確認する） |
 
 バージョンを上げるときは、スクリプトのバージョンと sha256 を変更して実行する。
 どちらのスクリプトも、sha256 が一致しなければ停止する。
@@ -217,7 +217,7 @@ DTG_URL=http://127.0.0.1:8080 DTG_WEB_PASSWORD_FILE=/path/to/password.txt \
 ```
 
 認証の無い画面なら `DTG_WEB_PASSWORD_FILE` は不要。保存した画像に、架空の患者の
-値だけが写っていることを確認してからコミットする。
+値だけが含まれていることを確認してからコミットする。
 
 ## 10. 版の付け方
 
@@ -235,7 +235,7 @@ DTG_URL=http://127.0.0.1:8080 DTG_WEB_PASSWORD_FILE=/path/to/password.txt \
   文脈に入らないので、イメージの中では作れない。publish.yml は
   `fetch-depth: 0` でタグまで取ってから作る。履歴の浅い checkout ではタグが
   取れず、「タグが 1 つも無い」の形になる
-- 手元で `python -m app.web` や `python -m app.cli` を起こすときは、
+- 手元で `python -m app.web` や `python -m app.cli` を起動するときは、
   `APP_VERSION` が無ければ作業ツリーの git から同じ値を作る
 - 本番へは、タグの版（`1.2.0` の形）のイメージだけを置く。`+` の付いた版は、
   タグより後の作りで、試す環境のためのもの

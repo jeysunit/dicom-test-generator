@@ -110,7 +110,7 @@ source:
   date: ""           # 発行日（YYYY-MM-DD）
   url: ""            # 入手先
   document_id: ""    # 文書番号
-  notes: "架空。実在の装置の写しではない"
+  notes: "架空。実在の装置のコピーではない"
 device:
   modality: "CT"
   manufacturer: "DTG Synthetic"
@@ -433,7 +433,7 @@ python -m app.cli profiles list
 ## 9. エラー
 
 `app/core/exceptions.py` にあり、[08_error_handling.md](08_error_handling.md) の
-階層に載せてある。どれも `ConfigurationError` の下で、CLI の終了コードは 2。
+階層に入れてある。どれも `ConfigurationError` の下で、CLI の終了コードは 2。
 
 ```text
 ConfigurationError

@@ -1,4 +1,4 @@
-"""予約に当てたルーチンでの撮影と、シリーズ番号の記録（ADR-0025）."""
+"""予約に適用したルーチンでの撮影と、シリーズ番号の記録（ADR-0025）."""
 
 from __future__ import annotations
 
@@ -105,7 +105,7 @@ def test_body_part_examined_matches_when_the_description_does_not() -> None:
     )
 
     assert service.matched_routine(item, "CT").name == "ct_head_plain"
-    # 予約のモダリティが空なら、テンプレートのモダリティのルーチンから当てる
+    # 予約のモダリティが空なら、テンプレートのモダリティのルーチンから適用する
     assert service.matched_routine(item.model_copy(update={"modality": ""}), "CT").name == (
         "ct_head_plain"
     )
