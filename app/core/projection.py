@@ -74,7 +74,7 @@ ANATOMIC_REGIONS: dict[str, Code] = {
     "KNEE": Code("72696002", "SCT", "Knee"),
     "HAND": Code("85562004", "SCT", "Hand"),
 }
-# View Code Sequence のコード（PS3.16 CID 4010）。斜位と側臥位はコードを確かめて
+# View Code Sequence のコード（PS3.16 CID 4010）。斜位と側臥位はコードを確認して
 # いないので入れない（View Position だけを書く）
 VIEW_CODES: dict[str, Code] = {
     "PA": Code("272479007", "SCT", "postero-anterior"),
@@ -84,7 +84,7 @@ VIEW_CODES: dict[str, Code] = {
 }
 
 # CR・DX の画像が持たない属性（Frame of Reference・Image Plane と、CT・MR の画像の属性）。
-# 装置のプロファイルが足しても外す。DX は Modality LUT を持ってはならない（C.8.11.3）
+# 装置のプロファイルが追加しても外す。DX は Modality LUT を持ってはならない（C.8.11.3）
 PROJECTION_ABSENT_KEYWORDS = (
     "FrameOfReferenceUID",
     "PositionReferenceIndicator",
@@ -129,7 +129,7 @@ def projection_pixels(pixel_data: np.ndarray, photometric: str) -> np.ndarray:
     """MONOCHROME2 の画素を、符号なしの Bits Stored 12 の uint16 にする.
 
     uint8（simple_text）は 0〜上限に広げる。int16・uint16 は 0〜上限に収まることを
-    確かめる。`MONOCHROME1` は上限から引いた値にする（表示は同じになる）。
+    確認する。`MONOCHROME1` は上限から引いた値にする（表示は同じになる）。
     """
     upper = (1 << PROJECTION_BITS_STORED) - 1
     if pixel_data.dtype == np.uint8:
@@ -223,7 +223,7 @@ def projection_attributes(series: SeriesConfig, image_index: int, photometric: s
 
 
 def window_attributes() -> Dataset:
-    """VOI LUT Module の Window（上限の 1/2 と、4096 段の全体の幅）."""
+    """VOI LUT Module の Window（上限の 1/2 と、4096 階調の全体の幅）."""
     upper = (1 << PROJECTION_BITS_STORED) - 1
     ds = Dataset()
     ds.WindowCenter = str((upper + 1) // 2)
@@ -238,7 +238,7 @@ def keep_projection_shape(
 
     持たない属性（Frame of Reference・Image Plane など）は外す。必須（Type 1・2・2C）の
     属性は、プロファイルが外したら戻し、Type 1 を空にしたら戻す。プロファイルが `set` で
-    書いた値はそのまま。異常のデータはこの後に当てる。
+    書いた値はそのまま。異常のデータはこの後に適用する。
     """
     for keyword in PROJECTION_ABSENT_KEYWORDS:
         if keyword in ds:

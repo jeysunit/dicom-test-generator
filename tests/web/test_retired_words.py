@@ -33,7 +33,7 @@ RETIRED_WORDS = (
 
 
 def _visible_text(page: str) -> str:
-    """タグを除いた本文に、読み上げの名前と補助の文字（aria-label・title・placeholder）を足す."""
+    """タグを除いた本文に、読み上げの名前と補助の文字（aria-label・title・placeholder）を追加する."""
     text = html_module.unescape(re.sub(r"<[^>]+>", " ", page))
     attributes = " ".join(re.findall(r'(?:aria-label|title|placeholder)="([^"]*)"', page))
     return f"{text} {html_module.unescape(attributes)}"
@@ -140,7 +140,7 @@ def _string_literals(path: Path) -> list[str]:
 
 
 def test_conditional_wording_in_sources_avoids_retired_words() -> None:
-    """条件つきで出る文言（エラー・MPPS の失敗・空の一覧など）も、元のファイルで確かめる."""
+    """条件つきで出る文言（エラー・MPPS の失敗・空の一覧など）も、元のファイルで確認する."""
     web = Path(__file__).resolve().parents[2] / "app" / "web"
     cli = web.parent / "cli"
     for template in sorted((web / "templates").glob("*.html")):

@@ -163,11 +163,11 @@ class ModalityConfig(BaseModel):
     default_profile: str | None = None  # 装置のプロファイル（docs/spec/13 の 8）。None は重ねない
     default_hospital: str | None = None
     default_pixel_mode: PixelMode = "ct_realistic"
-    # 試験の形：緊急の患者の氏名（かな）を確かめず、直さず、そのまま DICOM に出す（半角カナ・
+    # 試験の形：緊急の患者の氏名（かな）を確認せず、直さず、そのまま DICOM に出す（半角カナ・
     # ひらがな・混ざった値の受け側の試験用。docs/spec/12a の 10.5）。false が通常
     patient_input_test_mode: bool = False
     # 緊急の患者の生年月日の「今日」を決めるタイムゾーン（IANA の名前）。サーバーの OS の
-    # 時計の地域に頼らない（UTC のコンテナでも日本の日付で確かめる。docs/spec/12a の 10.5）
+    # 時計の地域に頼らない（UTC のコンテナでも日本の日付で確認する。docs/spec/12a の 10.5）
     timezone: str = DEFAULT_TIMEZONE
     # 身元不明の患者（docs/spec/12a の 10.5）。「仮の ID を作る」ボタンが作る患者ID の頭と、
     # 「氏名が分からない」を選んだときの漢字・かなの氏名。英字の氏名は空にする
@@ -215,7 +215,7 @@ class ModalityConfig(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def _normalize_stations(cls, data: object) -> object:
-        """今の形（`ae_title` だけ）を装置1つの一覧にし、標準の装置の値を写す."""
+        """今の形（`ae_title` だけ）を装置1つの一覧にし、標準の装置の値をコピーする."""
         if not isinstance(data, dict):
             return data
         raw = dict(data)
@@ -248,7 +248,7 @@ class ModalityConfig(BaseModel):
             raise ValueError(f"default_station '{default_name}' is not in stations")
         raw["ae_title"] = default.get("ae_title")
         raw["station_name"] = default.get("station_name", "")
-        # 一覧と今の形の両方を書くのは、標準の装置の値と同じとき（読み直した値）だけ
+        # 一覧と今の形の両方を書くのは、標準の装置の値と同じとき（再読み込みした値）だけ
         if any(raw[key] != value for key, value in mirrored.items()):
             raise ValueError("write either stations or ae_title/station_name, not both")
         return raw

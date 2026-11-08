@@ -1,4 +1,4 @@
-"""UID の形の確かめ（PS3.5 9.1）の試験."""
+"""UID の形の確認（PS3.5 9.1）の試験."""
 
 from __future__ import annotations
 

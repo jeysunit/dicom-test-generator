@@ -1,4 +1,4 @@
-"""以前に受け付けた値の緊急の患者にも、追加撮影できる（入力の確かめは新規の撮影だけ。docs/spec/12a の 10.5）."""
+"""以前に受け付けた値の緊急の患者にも、追加撮影できる（入力の確認は新規の撮影だけ。docs/spec/12a の 10.5）."""
 
 import sqlite3
 from contextlib import closing

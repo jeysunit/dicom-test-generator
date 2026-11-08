@@ -210,7 +210,7 @@ def test_exam_page_is_read_only_and_lists_profiles(client) -> None:
     assert "dtg_synthetic_ct" in html
     assert "ct_generic" in html
     assert "撮影して送信" in html
-    # 確かめ直しの GET は、CSRF の token を URL に載せない（要る欄だけを送る）
+    # 再確認の GET は、CSRF の token を URL に含めない（要る欄だけを送る）
     assert 'hx-include="#exam-form"' not in html
     assert "disabled" not in html.split('id="actions"', 1)[1].split("</div>", 1)[0]
 
@@ -264,7 +264,7 @@ def test_emergency_form_validation_error_is_shown(client) -> None:
 
 @pytest.mark.parametrize(("series", "images"), [("100", "1"), ("1", "1001"), ("2", "1,0")])
 def test_exam_size_is_bounded_on_the_server(client, tmp_path, series, images) -> None:
-    """シリーズ数・枚数の上限は画面の欄だけでなくサーバーで確かめる（10.5）."""
+    """シリーズ数・枚数の上限は画面の欄だけでなくサーバーで確認する（10.5）."""
     token = csrf_token(client, "/exam")
     form = {
         "mode": "emergency",

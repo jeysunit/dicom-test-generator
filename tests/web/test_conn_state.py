@@ -171,7 +171,7 @@ def test_link_check_marks_a_peer_that_does_not_answer(tmp_path, worklist_scp) ->
 
 
 def test_link_check_does_not_overlap_a_running_check(tmp_path, worklist_scp, storage_scp) -> None:
-    # 確かめている最中に、差し替わった中身の新しいボタンから重ねて届いても、C-ECHO を重ねない
+    # 確認している最中に、差し替わった中身の新しいボタンから重ねて届いても、C-ECHO を重ねない
     client = make_client(tmp_path, worklist_scp.port, storage_scp.port)
     token = csrf_token(client, "/worklist")
 
@@ -181,7 +181,7 @@ def test_link_check_does_not_overlap_a_running_check(tmp_path, worklist_scp, sto
     assert overlapped.status_code == 204
     assert overlapped.text == ""
     assert client.app.state.link_status.worklist is None
-    # 前の確認が終われば、また確かめられる
+    # 前の確認が終われば、また確認できる
     assert client.post("/link/check", headers=post_headers(token)).status_code == 200
 
 

@@ -155,7 +155,7 @@ def phantom_shape(
 
     x・y は軸位の視野（列方向の幅, 行方向の高さ。mm）の中央に置く。z は、位置の
     範囲がいちばん長い軸位のシリーズの範囲の中央に置く。軸位が無ければ、今の
-    冠状断・矢状断が写す範囲（z が 0 から視野の高さだけ下）を使い、位置は変えない。
+    冠状断・矢状断が表す範囲（z が 0 から視野の高さだけ下）を使い、位置は変えない。
     """
     width_mm, height_mm = field_of_view_mm
     axial = [series for series in series_list if _is_axial(series)]

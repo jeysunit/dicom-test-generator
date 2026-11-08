@@ -100,7 +100,7 @@ class MppsQueue:
                 conn.execute(_SCHEMA)
                 columns = {row[1] for row in conn.execute("PRAGMA table_info(mpps)")}
                 if "calling_ae_title" not in columns:
-                    # 装置を切り替えられる前の版に足す。前の行は今の装置の AEタイトル
+                    # 装置を切り替えられる前の版に追加する。前の行は今の装置の AEタイトル
                     conn.execute(
                         "ALTER TABLE mpps ADD COLUMN calling_ae_title TEXT NOT NULL DEFAULT ''"
                     )

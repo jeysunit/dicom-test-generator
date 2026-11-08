@@ -112,7 +112,7 @@ def test_birth_input_checks_the_future_only_with_today() -> None:
 
 
 def test_birth_input_checks_form_then_era_then_today() -> None:
-    """確かめる順は形・元号の範囲・今日より後。範囲の外で今日より後の値は、範囲の誤り."""
+    """確認する順は形・元号の範囲・今日より後。範囲の外で今日より後の値は、範囲の誤り."""
     with pytest.raises(FieldValidationError) as caught:
         parse_birth_input("H40/01/01", OPENED)
     assert "平成の範囲にありません" in caught.value.message

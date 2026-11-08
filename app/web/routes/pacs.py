@@ -122,7 +122,7 @@ FromForm = Annotated[QueueFilter, Depends(filter_from_form)]
 
 @router.get("/pacs", response_class=HTMLResponse)
 def pacs_page(request: Request) -> HTMLResponse:
-    # 状態の要約と再送信の件数は、画面を開くときは画面の側に置く（読み直しでは同梱して差し替える）
+    # 状態の要約と再送信の件数は、画面を開くときは画面の側に置く（再読み込みでは同梱して差し替える）
     context = {**_queue_context(request, QueueFilter()), "first_render": True}
     return render(
         request,
@@ -194,7 +194,7 @@ def pacs_echo_worklist(request: Request) -> HTMLResponse:
 def pacs_check_all(request: Request) -> Response:
     """接続先の区画の「すべて接続確認」：区画を結果で差し替え、前の知らせは消す.
 
-    上の帯の「接続確認」（/link/check）と同じ錠を取る。確かめている最中にもう一度届いたら、
+    上の帯の「接続確認」（/link/check）と同じ錠を取る。確認している最中にもう一度届いたら、
     重ねて送らず 204 で何も差し替えない。
     """
     if not CHECK_ALL_LOCK.acquire(blocking=False):
@@ -226,7 +226,7 @@ def _conn_context(request: Request) -> dict[str, Any]:
 def link_check(request: Request) -> Response:
     """上の帯の接続の状態の「接続確認」：ワークリストの取得先とすべての送信先に C-ECHO を送る（10.3）.
 
-    確かめている最中にもう一度届いたら（別の応答で中身が差し替わり、押せるボタンが戻ったとき）、
+    確認している最中にもう一度届いたら（別の応答で中身が差し替わり、押せるボタンが戻ったとき）、
     重ねて送らず 204 で何も差し替えない。
     """
     if not CHECK_ALL_LOCK.acquire(blocking=False):
@@ -339,7 +339,7 @@ def _matches(job: QueueJob, filters: QueueFilter) -> bool:
         return False
     if filters.patient_id and filters.patient_id.casefold() not in job.patient_id.casefold():
         return False
-    # created_at は「2026-10-25T10:00:00」の形（この機械の時刻）。日付の部分だけを比べる
+    # created_at は「2026-10-25T10:00:00」の形（このマシンの時刻）。日付の部分だけを比べる
     day = job.created_at[:10]
     first, last = _period_days(filters)
     return (not first or day >= first) and (not last or day <= last)

@@ -179,7 +179,7 @@ def test_unknown_name_and_temporary_id_follow_the_settings(tmp_path, worklist_sc
 def test_bad_unknown_settings_are_refused_by_the_config(
     tmp_path, worklist_scp, storage_scp, settings, expected
 ) -> None:
-    """断る理由まで確かめる（別の理由で断られても通る緩い match にしない）."""
+    """断る理由まで確認する（別の理由で断られても通る緩い match にしない）."""
     data = modality_config(tmp_path, worklist_scp.port, storage_scp.port).model_dump()
     data.update(settings)
     with pytest.raises(Exception, match=re.escape(expected)):

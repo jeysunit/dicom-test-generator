@@ -52,7 +52,7 @@ PACS・RIS は、登録していない Calling AE Title からの Association �
   `config/app_config.yaml` の例
 - サービス：`app/modality/service.py`（選んだ装置の値を各 SCU と作成に渡す）、
   `app/modality/queue.py`・`mpps_queue.py`（行に AE タイトルを記録する列。既存の DB は
-  列を足して今の AE タイトルで埋める）、`commitment_scu.py`（待ち受けの Called AE）、
+  列を追加して今の AE タイトルで埋める）、`commitment_scu.py`（待ち受けの Called AE）、
   `association.py`（拒否の理由）
 - 画像の作成：`app/services/study_generator.py`（Station Name の優先順）
 - 画面：情報バー（`_band.html`）、設定の画面、`app/web/routes/`

@@ -1,4 +1,4 @@
-"""待ち受けの住所と認証・CSRF の確かめ（docs/spec/12a_web_screens_and_cli.md 10.9）.
+"""待ち受けの住所と認証・CSRF の確認（docs/spec/12a_web_screens_and_cli.md 10.9）.
 
 - 既定は手元（127.0.0.1）だけで待ち受け、認証は付けない
 - 手元の外で待ち受けるときは HTTP Basic を必須にし、パスワードのファイルが無ければ起動しない
@@ -134,7 +134,7 @@ def same_origin(request: Request) -> bool:
 
 
 async def csrf_guard(request: Request) -> None:
-    """書き込みの要求（POST など）を、同じ origin と CSRF の token で確かめる（10.9）."""
+    """書き込みの要求（POST など）を、同じ origin と CSRF の token で確認する（10.9）."""
     if request.method in SAFE_METHODS:
         return
     if not same_origin(request):

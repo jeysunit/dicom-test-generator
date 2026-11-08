@@ -1,7 +1,7 @@
 """緊急の患者の生年月日の欄：画面のスクリプトの読み取り結果（.hint）と誤りの文（.msg）.
 
 受ける形と誤りの組は、変換の試験（tests/core/test_wareki.py）と同じ（tests/birth_input_cases.py）。
-誤りの文はサーバー（app/core/wareki.py）と同じ字面であることを、同じ組で確かめる。
+誤りの文はサーバー（app/core/wareki.py）と同じ字面であることを、同じ組で確認する。
 node で app.js を読み込み、最小の偽の DOM で欄に入力を送る。時計は 2026/10/29 に止める。
 """
 

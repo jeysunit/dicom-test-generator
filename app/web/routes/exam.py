@@ -56,7 +56,7 @@ DOSE_REPORT_CHOICES = (
     ("both", "画面（画像）と SR"),
 )
 SEX_CHOICES = (("", "選んでください"), ("M", "男"), ("F", "女"), ("O", "その他"), ("U", "不明"))
-# 緊急の患者の欄の下に出す誤りの文（スクリプトが入力のたびに確かめる。サーバーも同じ文で断る）
+# 緊急の患者の欄の下に出す誤りの文（スクリプトが入力のたびに確認する。サーバーも同じ文で断る）
 INPUT_MESSAGES = {
     "patient-id": PATIENT_ID_MESSAGE,
     "alphabetic": ALPHABETIC_MESSAGE,
@@ -210,7 +210,7 @@ def exam_routine(
 ) -> HTMLResponse:
     """ルーチンを選び直したとき・テンプレートを変えたときに、シリーズの欄を描き直す.
 
-    テンプレートを変えたとき（`routine` が無い）は、予約に当て直す。
+    テンプレートを変えたとき（`routine` が無い）は、予約に適用し直す。
     """
     service = service_of(request)
     item: WorklistItem | None = None
@@ -231,7 +231,7 @@ def _routine_context(
     template: str,
     routine_name: str | None = None,
 ) -> dict[str, object]:
-    """ルーチンの選択肢と、選んだルーチン（無ければ予約に当てたルーチン。ADR-0025）.
+    """ルーチンの選択肢と、選んだルーチン（無ければ予約に適用したルーチン。ADR-0025）.
 
     そのモダリティのルーチンが無ければ「手で入れる」にする。ルーチンが読めなければ、
     「手で入れる」にしたうえで、読めない理由を出す（黙って手入力に切り替えない）。
@@ -275,7 +275,7 @@ def _retake_context(service: ModalityService, item: WorklistItem | None) -> dict
 def exam_check(
     request: Request, key: str = "", template: str = "", profile: str = "", done: str = ""
 ) -> HTMLResponse:
-    """テンプレート・装置を選び直したときに、撮れるかを確かめ直す（10.5）.
+    """テンプレート・装置を選び直したときに、撮れるかを再確認する（10.5）.
 
     緊急の患者を撮った後（`done`）は、撮った後の操作の行のままにする（前の患者で撮らない）。
     """
@@ -342,7 +342,7 @@ def exam_run(
                 name_ideographic, name_phonetic = service.unknown_name()
             if not append:
                 require_screen_fields(patient_id.strip(), name_ideographic, sex)
-            # 生年月日は西暦か元号で入れる。YYYYMMDD にしてから、ほかの欄と一緒に確かめる。
+            # 生年月日は西暦か元号で入れる。YYYYMMDD にしてから、ほかの欄と一緒に確認する。
             # 読めない誤りは、上の欄（患者ID・氏名）の誤りの後に返す（上の欄から順に 1 件）
             birth_value, birth_error = _birth_value(birth_date, service, strict=not append)
             emergency_patient = build_emergency_patient(
@@ -461,7 +461,7 @@ def _birth_value(
     """画面で入れた生年月日（西暦か元号）を YYYYMMDD にする。空は空.
 
     読めなければ（空, 誤り）。追加撮影（`strict=False`）は前の撮影の生年月日を使うので、
-    読めない値は空にして断らない（患者の値を確かめない。10.5）。
+    読めない値は空にして断らない（患者の値を確認しない。10.5）。
     受け口は、画面の外から呼ばれるときのために、旧い形（`1975-05-14`・`19750514`）も
     受ける（後方互換。画面の欄と誤りの文は `/` の形を勧めたまま）。
     """

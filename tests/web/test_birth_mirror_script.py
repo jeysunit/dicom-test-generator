@@ -1,6 +1,6 @@
-"""緊急の患者の入力の写し：生年月日の和暦と年齢（変換 12 行と年齢の境目 7 行は tests/core/test_wareki.py と同じ組）.
+"""緊急の患者の入力のコピー：生年月日の和暦と年齢（変換 12 行と年齢の境目 7 行は tests/core/test_wareki.py と同じ組）.
 
-node で app.js を読み込み、最小の偽の DOM に入力を送って、写しの生年月日の文字列を読む。
+node で app.js を読み込み、最小の偽の DOM に入力を送って、コピーの生年月日の文字列を読む。
 """
 
 from __future__ import annotations
@@ -177,7 +177,7 @@ def test_mirrored_birth_date_after_the_count_day_shows_the_era_without_an_age() 
 
 
 def test_mirrored_birth_date_reads_the_era_forms_and_keeps_an_unreadable_value_as_typed() -> None:
-    # 元号で入れても西暦にして写す。読めない値は入れたまま写し、括弧を付けない（誤りは欄の下）
+    # 元号で入れても西暦にしてコピーする。読めない値は入れたままコピー、括弧を付けない（誤りは欄の下）
     [era, formal, unreadable] = _run_detail(
         [["S50/05/14", TODAY, "M"], ["平成元年1月8日", TODAY, "F"], ["S50.5.14", TODAY, "M"]]
     )

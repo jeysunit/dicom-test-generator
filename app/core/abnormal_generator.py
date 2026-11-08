@@ -136,7 +136,7 @@ class AbnormalGenerator:
         return "".join(random.choice(charset) for _ in range(length))
 
 
-# 異常を当てるタグの表（keyword, VR, DICOM Type, 最大長）。表に無いタグは壊さない。
+# 異常を適用するタグの表（keyword, VR, DICOM Type, 最大長）。表に無いタグは壊さない。
 # Type は PS3.3 の画像の IOD での扱い。最大長が None のものは、VR ごとの壊し方になる。
 ABNORMAL_TARGET_TAGS: tuple[tuple[str, str, int, int | None], ...] = (
     ("PatientName", "PN", 2, None),
@@ -161,7 +161,7 @@ _EXPLICIT_VR_BIG_ENDIAN = "1.2.840.10008.1.2.2"
 
 
 def apply_abnormal_to_dataset(dataset: Dataset, generator: AbnormalGenerator) -> None:
-    """Dataset のタグに異常を当てる（docs/spec/02 の AbnormalGenerator）.
+    """Dataset のタグに異常を適用する（docs/spec/02 の AbnormalGenerator）.
 
     ``ABNORMAL_TARGET_TAGS`` のうち Dataset にあるタグを ``generator`` の
     レベルで壊す。壊した値が ``None`` ならタグを消す。``none`` では何も変えない。

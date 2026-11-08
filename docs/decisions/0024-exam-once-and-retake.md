@@ -7,7 +7,7 @@
 ## 背景
 
 DTG は同じ予約（Scheduled Procedure Step）から何度でも撮影でき、2回目以降は同じ
-Study に新しいシリーズを足していた。2回目の Study Date・Study Time は撮影の時刻で
+Study に新しいシリーズを追加していた。2回目の Study Date・Study Time は撮影の時刻で
 作り直していた。実機のモダリティでは、予約で撮影を終えたら、その予約は終わる。
 同じ予約でもう一度撮るのは別の操作として扱う。
 
@@ -15,10 +15,10 @@ Study に新しいシリーズを足していた。2回目の Study Date・Study
 
 - COMPLETED か DISCONTINUED にした MPPS は変更できず、その MPPS の一部として画像を
   作ることもできない。続けて作るときは新しい MPPS を作ってよい（PS3.4 F.7.2.2.2）
-- 手順を終えた後に画像を足すときは、新しいシリーズを作る。モダリティが Study
+- 手順を終えた後に画像を追加するときは、新しいシリーズを作る。モダリティが Study
   Instance UID を作ってよいのは、予約の無い撮影などの例外に限る（IHE RAD TF-2
   4.8.4.1.1.1）
-- 同じ予約のまま撮り直す（redo）・足す（add）形を、IHE は Append Case と呼ぶ。足した
+- 同じ予約のまま撮り直す（redo）・追加する（add）形を、IHE は Append Case と呼ぶ。追加した
   PPS は同じ Requested Procedure と元の SPS を指す（RAD TF-2 4.6.4.1.2.3.3）。追加の
   画像の Study Instance UID・受付番号は元と同じで、Study Date・Study Time・Study
   Description は元の画像の値を使い回す（RAD TF-2x Table A.1-3 と IHE-A.3.3）

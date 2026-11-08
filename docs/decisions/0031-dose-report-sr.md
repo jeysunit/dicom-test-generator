@@ -7,14 +7,14 @@
 ## 背景
 
 [ADR-0025](0025-exam-routines.md) は CT の最後のシリーズ「Dose Report」を、装置の
-画面を写した Secondary Capture の画像（Modality は `CT`）で作る。実際の CT の検査では、
+画面をキャプチャーした Secondary Capture の画像（Modality は `CT`）で作る。実際の CT の検査では、
 この画面のほかに、同じ検査の中に Modality が `SR` の線量の報告（RDSR）のシリーズが
 入る。PACS の表示・検索・シリーズの一覧に、画像でない SR のシリーズが混ざった検査を
 試すには、これも作れる必要がある。
 
 ## 決定
 
-1. 線量の報告のシリーズの種類に `dose_sr` を足す。Modality は `SR`、SOP Class は
+1. 線量の報告のシリーズの種類に `dose_sr` を追加する。Modality は `SR`、SOP Class は
    X-Ray Radiation Dose SR Storage（1.2.840.10008.5.1.4.1.1.88.67）。既存の
    `dose_report`（Secondary Capture）は変えない
 2. SR の内容は PS3.16 の TID 10011「CT Radiation Dose」の最小の形にする。必須（M）の行
@@ -33,14 +33,14 @@
    作る
 4. SR Document の各モジュール（PS3.3 A.35.8）を持ち、画素・Frame of Reference は持たない。
    Enhanced General Equipment の Device Serial Number (Type 1) は、テンプレートと装置の
-   プロファイルが決めなければ既定の値を入れる。装置のプロファイルが足した画像の属性は
+   プロファイルが決めなければ既定の値を入れる。装置のプロファイルが追加した画像の属性は
    外す。予約の値は、画像の Request Attributes Sequence（General Series Module の属性で、
    SR の IOD に無い）ではなく、SR Document General Module の Referenced Request Sequence
    （予約を満たす文書で必須の Type 1C）に入れる。同じ撮影で作った画像は Current Requested
    Procedure Evidence Sequence に入れる（作った側が画像を知っているときの Type 1C）。
    そのため SR は、ほかのシリーズの後に作る
 5. 撮影のとき、`dose_report`（画面 `screen`・SR `sr`・両方 `both`）で選ぶ。`sr` はルーチンの
-   線量の画面の行（シリーズ番号を含む）を SR に替え、`both` は画面の次に SR の行を足す。
+   線量の画面の行（シリーズ番号を含む）を SR に替え、`both` は画面の次に SR の行を追加する。
    撮らない行には何もしない。CT 以外と手で入れたシリーズには使わない。画面は「線量の
    報告（CT）」の選択、CLI は `exam --dose-report`。SR を撮るときは、撮影になる
    位置決めか軸位のシリーズも撮る
@@ -54,16 +54,16 @@
 - 線量の画面の行を常に SR に替える：実際の装置に近いが、今までの検査（画面の画像）と
   シリーズ・枚数が変わり、画面を見る試験ができなくなる
 - ルーチンの YAML に画面と SR の両方の行を書き、利用者が行を外して選ぶ：選択肢が
-  ルーチンごとに増える。画面は「外す」しか無く、SR を後から足せない
+  ルーチンごとに増える。画面は「外す」しか無く、SR を後から追加できない
 - RDSR に撮影ごとの詳細（再構成、造影、SSDE、被ばく線量の推定）を全部入れる：実際の
   RDSR に近づくが、必須でない行は PACS の表示・送信の試験の価値が小さい
 
 ## 結果
 
 - CT の検査の中に SR のシリーズを含められる。ModalitiesInStudy は `CT\SR` になる
-- 線量の値は架空で、実際の線量の確かめには使えない
+- 線量の値は架空で、実際の線量の確認には使えない
 - SR の内容の木は、dicom-validator（規格 2026d の IOD の確認）では検査されない。木の
-  構造は試験で TID 10011・10012・10013 の必須の行を確かめる
+  構造は試験で TID 10011・10012・10013 の必須の行を確認する
 
 ## 決めないこと
 

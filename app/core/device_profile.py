@@ -1,7 +1,7 @@
 """Device profile model and its application to a dataset (docs/spec/13).
 
 装置のプロファイルは、ある装置のコンフォーマンスステートメント（DICOM PS3.2）
-から写した、その装置の DICOM の出し方。モダリティのテンプレートの上に重ねる。
+からコピーした、その装置の DICOM の出し方。モダリティのテンプレートの上に重ねる。
 この module は Pure（ファイルを読まない）。読み込みは Service Layer が行う。
 """
 
@@ -59,7 +59,7 @@ PROTECTED_KEYWORDS: frozenset[str] = frozenset(
     }
 )
 
-# attributes.omit で消せない属性（docs/spec/13 の 3.3）。この道具が CT Image で出す
+# attributes.omit で消せない属性（docs/spec/13 の 3.3）。このツールが CT Image で出す
 # Type 1・Type 2 の属性。omit は装置の表に無い Type 3 を消すためのもので、
 # 必須の属性を欠いた画像は異常のデータ（abnormal）の仕事にする。
 OMIT_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
@@ -93,7 +93,7 @@ OMIT_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
         "MRAcquisitionType",
         "EchoTime",
         "EchoTrainLength",
-        "RepetitionTime",  # Type 2C だが、この道具は常に出す
+        "RepetitionTime",  # Type 2C だが、このツールは常に出す
         "InversionTime",  # Type 2C（Scanning Sequence が IR のとき）
         # PET Image の Type 1・Type 2（PS3.3 C.8.9.1・C.8.9.4）
         "SeriesDate",
@@ -115,7 +115,7 @@ OMIT_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
 )
 
 # attributes.empty と空の attributes.set で空にできない属性（docs/spec/13 の 3.3）。
-# この道具が CT Image で出す Type 1 の属性で、PROTECTED_KEYWORDS に無いもの
+# このツールが CT Image で出す Type 1 の属性で、PROTECTED_KEYWORDS に無いもの
 # （PS3.3 C.7.3.1・C.7.6.2・C.8.2.1）。Type 1 は空の値を許さない。
 # Modality は device.modality が決めるので PROTECTED_KEYWORDS に入れている
 EMPTY_FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
@@ -195,7 +195,7 @@ def to_dicom_value(value: AttributeValue, vr: str) -> AttributeValue:
 
 
 def _check_value_for_vr(value: AttributeValue, vr: str, label: str) -> None:
-    """VR に合う値かを確かめる（型・数の範囲・文字の長さと字）.
+    """VR に合う値かを確認する（型・数の範囲・文字の長さと字）.
 
     生成のときではなく読み込みのときに分かる誤り（ProfileParseError）にする。
     """
@@ -220,7 +220,7 @@ def _check_type1_value(keyword: str, value: AttributeValue) -> None:
     """Type 1 の属性に、規格に合わない値（値の数・先頭の値・0）を書かせない.
 
     意図して壊した画像は異常のデータ（abnormal）の仕事で、プロファイルは
-    正しい装置の写しにする。空の値は呼び出し側が先に断っている。
+    正しい装置のコピーにする。空の値は呼び出し側が先に断っている。
     """
     values = value if isinstance(value, list) else [value]
     if keyword == "ImageType":
@@ -487,11 +487,11 @@ class DeviceProfile(_StrictModel):
 def apply_device_profile(
     ds: Dataset, profile: DeviceProfile, apply_station_name: bool = True
 ) -> None:
-    """プロファイルの装置の値・属性・プライベートタグを Dataset に当てる.
+    """プロファイルの装置の値・属性・プライベートタグを Dataset に適用する.
 
     docs/spec/13 の 4.2：装置の値は病院テンプレートでも変えない。Station Name は
     施設が決めていなければ（apply_station_name=True）プロファイルの値にする。
-    attributes とプライベートタグは最後に当てる。
+    attributes とプライベートタグは最後に適用する。
     """
     device = profile.device
     ds.Manufacturer = device.manufacturer

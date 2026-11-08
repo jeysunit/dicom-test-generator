@@ -210,7 +210,7 @@ RAD TF-2 Table 4.5-3 で、SCU が R+・R+* の値をすべて求める。主な
 - Institution Name（返ってくれば）
 - Body Part Examined (0018,0015)（返ってくれば）。MWL の標準の返却の値ではないので、
   返さない RIS が多い。最上位か Scheduled Procedure Step Sequence の中のどちらかを
-  読み、撮影のルーチンを当てるのに使う（[ADR-0025](../decisions/0025-exam-routines.md)）
+  読み、撮影のルーチンを適用するのに使う（[ADR-0025](../decisions/0025-exam-routines.md)）
 
 Requesting Physician (0032,1032) は予約の詳細に「依頼医」として出すだけで、画像には
 転記しない（6.2 の表に無い。IHE RAD TF-2x Table A.1-1 の転記の対象でもない）。
@@ -769,7 +769,7 @@ app/
 │   ├── auth.py               # 待ち受けのアドレスと認証
 │   ├── routes/               # worklist・exam・pacs・settings
 │   ├── templates/            # Jinja2
-│   └── static/               # 作成した CSS・htmx・ui-kit の写し・Lucide の LICENSE
+│   └── static/               # 作成した CSS・htmx・ui-kit のコピー・Lucide の LICENSE
 └── cli/
     ├── main.py               # サブコマンドの引数
     └── modality_commands.py  # worklist・exam・send・echo・queue・commit・mpps
@@ -826,7 +826,7 @@ modality:
   output_dir: "output/modality"
   character_set: "auto"         # auto, utf8, jis, jis_kana
   character_set_fallback: "utf8"  # utf8, jis, jis_kana（auto は不可）
-  patient_input_test_mode: false  # true：緊急の患者の氏名（かな）を確かめず直さず出す（12a の 10.5）
+  patient_input_test_mode: false  # true：緊急の患者の氏名（かな）を確認せず直さず出す（12a の 10.5）
   timezone: "Asia/Tokyo"        # 緊急の患者の生年月日の「今日」を決める（IANA の名前。12a の 10.5）
   temporary_patient_id_prefix: "TMP"      # 「仮の ID を作る」の患者ID の頭（頭 + 日時。12a の 10.5）
   unknown_name_ideographic: "不明^不明"   # 「氏名が分からない」の氏名（漢字）
@@ -883,7 +883,7 @@ web:
 - 画面で選んだ装置は、状態の保存先の `station.json` に表示名で記録する。画面と CLI が
   同じ記録を使い、CLI の `--station <表示名>` はそのコマンドだけに効く（記録は変えない）。
   記録の表示名が設定に無くなっていたら、標準の装置を使い、接続の状態の中身で知らせる
-- 撮影と送信は、始めたときの装置の AEタイトルで最後まで行う（撮影は装置の値を写して
+- 撮影と送信は、始めたときの装置の AEタイトルで最後まで行う（撮影は装置の値をコピーして
   から、送信は件に AEタイトルを記録してから進める）。途中で切り替えても名乗りは
   変わらない。画面のプロセスの中で撮影が走っているときと、送信中の件があるときは、
   切り替えを断る（「撮影・送信の最中は装置を切り替えられません」）。別のプロセスの
@@ -965,7 +965,7 @@ DTG への影響：
 ### 14.4 Orthanc に画像を送るときの文字コード
 
 2026-10-25 に、Orthanc 1.13.0（`orthancteam/orthanc` の Docker イメージ 26.9.1）の
-ソースと、本物の Orthanc に画像を送る試験で確かめた。
+ソースと、本物の Orthanc に画像を送る試験で確認した。
 
 Orthanc は、画像の Specific Character Set (0008,0005) が複数の値のとき、**空でない
 最初の値だけで値の全体を読み**、ISO 2022 のエスケープシーケンスは文字集合の切り替えに
@@ -991,10 +991,10 @@ DTG への影響：
 - Orthanc の C-FIND の答えは、`DefaultEncoding`（指定しなければ `ISO_IR 100`）で返り、
   漢字・かな・ハングルが消える（どの文字コードの画像でも）。ワークリストの作成の制約
   （14.1）とは別の制約
-- 確かめて、崩れないもの：`ISO_IR 13` だけ（半角カナ）、`\ISO 2022 IR 149`
-  （ハングル）。崩れるのは、最初の値が空でない組（`ISO 2022 IR 6\ISO 2022 IR 149` を確かめた）
-- HL7 の MSH-18 は、DTG が送る経路が無いので関わらない（確かめた）
-- 本物の Orthanc での確かめは、tsunagi-dicom の結合の試験（本物の Orthanc と DCMTK）で
+- 確認して、崩れないもの：`ISO_IR 13` だけ（半角カナ）、`\ISO 2022 IR 149`
+  （ハングル）。崩れるのは、最初の値が空でない組（`ISO 2022 IR 6\ISO 2022 IR 149` を確認した）
+- HL7 の MSH-18 は、DTG が送る経路が無いので関わらない（確認した）
+- 本物の Orthanc での確認は、tsunagi-dicom の結合の試験（本物の Orthanc と DCMTK）で
   行った。Orthanc の `DefaultEncoding` を替えたときの C-FIND の答えは測っていない
 
 ---

@@ -288,7 +288,7 @@ def test_exam_claim_is_owned_and_renewed(tmp_path) -> None:
 
 
 def test_append_keeps_an_empty_first_description(tmp_path, worklist_scp) -> None:
-    """最初の撮影の説明が空なら、あとで RIS が説明を足しても追加撮影は空のまま（IHE-A.3.3）."""
+    """最初の撮影の説明が空なら、あとで RIS が説明を追加しても追加撮影は空のまま（IHE-A.3.3）."""
     service = _service(tmp_path, worklist_scp.port)
     key = _key(service)
     assert service.queue  # 待ち行列の表を作っておく

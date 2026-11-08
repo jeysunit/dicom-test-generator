@@ -128,7 +128,7 @@ def test_dose_report_is_a_secondary_capture(chest: dict[int, list]) -> None:
 
 
 def test_secondary_capture_shape_survives_a_profile() -> None:
-    """装置のプロファイルが CT の属性を足しても、SC の必須の属性を外しても、SC の形に戻す."""
+    """装置のプロファイルが CT の属性を追加しても、SC の必須の属性を外しても、SC の形に戻す."""
     from pydicom.dataset import Dataset
 
     ds = Dataset()

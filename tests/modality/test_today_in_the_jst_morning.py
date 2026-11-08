@@ -1,8 +1,8 @@
 """JST の 0〜9 時（UTC ではまだ前の日）にも、試験とアプリの「今日」がそろう.
 
-CI は UTC で動くので、JST の朝に流すと OS の `date.today()` は前の日になる。予約の
-試験の道具（MWL の SCP）とアプリの両方が、設定のタイムゾーン（既定は Asia/Tokyo）の
-今日を使うことを、時刻を固定して確かめる。
+CI は UTC で動くので、JST の朝に実行すると OS の `date.today()` は前の日になる。予約の
+試験のツール（MWL の SCP）とアプリの両方が、設定のタイムゾーン（既定は Asia/Tokyo）の
+今日を使うことを、時刻を固定して確認する。
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ def test_test_today_is_the_app_today_in_the_jst_morning(jst_morning, tmp_path, w
 
 
 def test_todays_orders_are_found_in_the_jst_morning(jst_morning, tmp_path, worklist_scp):
-    """予約の道具が作る「今日」の予約を、アプリの「今日」の条件で引ける."""
+    """予約のツールが作る「今日」の予約を、アプリの「今日」の条件で引ける."""
     service = _service(tmp_path, worklist_scp.port)
 
     result = service.query_worklist(service.default_query(service.today()))

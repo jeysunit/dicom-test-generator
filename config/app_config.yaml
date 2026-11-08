@@ -1,4 +1,4 @@
-# 装置のプロファイルの置き場（docs/spec/13_device_profiles.md の 6）。
+# 装置のプロファイルの保存先（docs/spec/13_device_profiles.md の 6）。
 # 実在の装置のプロファイルはリポジトリの外に置き、ここか環境の変数
 # DTG_PROFILE_DIRS で指す。相対のパスはこのファイルの場所から。
 profiles:
@@ -25,7 +25,7 @@ modality:
   output_dir: "output/modality"
   character_set: "auto"           # auto, utf8, jis, jis_kana（jis_kana の画像は Orthanc 1.13.0 が読み崩す。spec/12 の 14.4）
   character_set_fallback: "utf8"  # utf8, jis, jis_kana（auto は不可）
-  patient_input_test_mode: false  # true：緊急の患者の氏名（かな）を確かめず直さず出す（試験用）
+  patient_input_test_mode: false  # true：緊急の患者の氏名（かな）を確認せず直さず出す（試験用）
   timezone: "Asia/Tokyo"          # 緊急の患者の生年月日の「今日」を決める（IANA の名前）
   temporary_patient_id_prefix: "TMP"      # 「仮の ID を作る」の患者ID の頭（頭 + 日時 YYYYMMDDHHMMSS）
   unknown_name_ideographic: "不明^不明"   # 「氏名が分からない」を選んだときの氏名（漢字）

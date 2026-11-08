@@ -69,7 +69,7 @@ def test_summary_counts_states_and_failed_total_ignores_conditions(client) -> No
     html = client.get("/pacs/queue").text
     assert _counts(html)["all"] == "3"
     assert _counts(html)["failed"] == "2"
-    # 状態の要約と再送信の件数は、読み直しの応答に同梱して差し替える
+    # 状態の要約と再送信の件数は、再読み込みの応答に同梱して差し替える
     assert 'id="queue-sum"' in html and 'hx-swap-oob="true"' in html
     assert "失敗 2 件を再送信" in html
 

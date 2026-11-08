@@ -37,7 +37,7 @@ DX の IOD には For Presentation と For Processing の2つの SOP Class が�
    どの方式でも書く。値は `NO` で、`phantom` で焼き込みを選んだときだけ `YES` にする
    （C.8.11.3）。`phantom` の CR・DX の画像には、CT・MR と同じ偽物の印のタグを書く
    （[ADR-0033](0033-phantom-pixels.md)）
-8. テンプレート `cr_generic`・`dx_generic` と、例の装置のプロファイルを足す。予約の
+8. テンプレート `cr_generic`・`dx_generic` と、例の装置のプロファイルを追加する。予約の
    モダリティに合うテンプレートを選ぶ決まりは [ADR-0030](0030-mr-images.md) のまま
 
 ## 検討した選択肢

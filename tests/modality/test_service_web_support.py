@@ -217,7 +217,7 @@ def test_resend_refuses_a_job_that_is_sending(tmp_path, worklist_scp, storage_sc
 
 @pytest.mark.parametrize("name", ["../../config/app_config", "/etc/hosts", "ct_generic/../x", ""])
 def test_template_name_must_be_a_listed_template(tmp_path, worklist_scp, name) -> None:
-    """画面から来るテンプレートの名前で、テンプレートの置き場の外を読まない."""
+    """画面から来るテンプレートの名前で、テンプレートの保存先の外を読まない."""
     service = _service(tmp_path, worklist_scp.port)
     with pytest.raises(TemplateNotFoundError):
         service.template_modality(name)

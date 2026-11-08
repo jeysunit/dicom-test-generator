@@ -433,7 +433,7 @@ python -m app.cli profiles list
 ## 9. エラー
 
 `app/core/exceptions.py` にあり、[08_error_handling.md](08_error_handling.md) の
-階層に載せてある。どれも `ConfigurationError` の下で、CLI の終了コードは 2。
+階層に入れてある。どれも `ConfigurationError` の下で、CLI の終了コードは 2。
 
 ```text
 ConfigurationError

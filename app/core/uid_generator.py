@@ -18,7 +18,7 @@ LIMITED_FIRST_ARCS = frozenset({"0", "1"})
 LIMITED_SECOND_ARC_MAX = 39
 # run_scoped のときに根の後ろにつなぐ成分の最大の桁。
 # 生成ごとの番号（64 ビットの乱数、20 桁まで）と連番（7 桁まで。
-# 1 回の生成は 100 シリーズ × 10000 枚と数個の UID）を足す
+# 1 回の生成は 100 シリーズ × 10000 枚と数個の UID）を追加する
 RUN_ID_BITS = 64
 RUN_ID_MAX_DIGITS = len(str((1 << RUN_ID_BITS) - 1))
 COUNTER_MAX_DIGITS = 7

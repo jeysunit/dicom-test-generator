@@ -38,7 +38,7 @@ def test_icons_come_from_the_kit_and_the_lucide_license_stays() -> None:
 
 
 def test_built_css_is_committed_and_uses_the_kit_tokens() -> None:
-    # 値と部品は ui-kit の写し、作った CSS は Tailwind の色の名前を ui-kit の変数で使う
+    # 値と部品は ui-kit のコピー、作った CSS は Tailwind の色の名前を ui-kit の変数で使う
     css = (STATIC / "app.css").read_text(encoding="utf-8")
     assert ".text-label{color:var(--color-label)!important}" in css.replace(" ", "")
     kit = STATIC / "ui-kit"
@@ -48,7 +48,7 @@ def test_built_css_is_committed_and_uses_the_kit_tokens() -> None:
 
 
 def test_kit_copy_matches_its_fingerprints() -> None:
-    """ui-kit の写しは直さない：5 つのファイルが SHA256SUMS の指紋と合う（ADR-0028）."""
+    """ui-kit のコピーは直さない：5 つのファイルが SHA256SUMS の指紋と合う（ADR-0028）."""
     kit = STATIC / "ui-kit"
     sums = {}
     for line in (kit / "SHA256SUMS").read_text(encoding="utf-8").splitlines():

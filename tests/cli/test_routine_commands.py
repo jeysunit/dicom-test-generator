@@ -18,7 +18,7 @@ def config(tmp_path, worklist_scp, storage_scp):
 def test_without_series_options_the_matched_routine_is_used(
     monkeypatch, capsys, tmp_path, config
 ) -> None:
-    """-s・-i・--routine を省くと、予約に当てたルーチン（緊急の患者は CT の標準の胸部 単純）."""
+    """-s・-i・--routine を省くと、予約に適用したルーチン（緊急の患者は CT の標準の胸部 単純）."""
     code, out, err = run_cli(
         monkeypatch, capsys, tmp_path, config, *EMERGENCY,
         "--routine-images", "1,1,1,1,1,1", "--pixel-mode", "simple_text", "--json",

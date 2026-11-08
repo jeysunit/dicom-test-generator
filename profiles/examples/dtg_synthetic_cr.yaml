@@ -1,6 +1,6 @@
 # Device Profile: dtg_synthetic_cr
 # 架空の CR の装置のプロファイル（仕組みの例。docs/spec/13_device_profiles.md）。
-# 実在の装置の写しではない。実在の装置のプロファイルはリポジトリの外に置く。
+# 実在の装置のコピーではない。実在の装置のプロファイルはリポジトリの外に置く。
 
 schema_version: 1
 name: "dtg_synthetic_cr"

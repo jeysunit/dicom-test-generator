@@ -262,7 +262,7 @@ def item_marks(item: WorklistItem, own_ae_title: str, taken: bool = False) -> li
 
 
 def exam_notices(item: WorklistItem, own_ae_title: str) -> list[str]:
-    """撮影の画面で、撮る前に確かめてほしいこと（10.5・6.3）。撮影は止めない."""
+    """撮影の画面で、撮る前に確認してほしいこと（10.5・6.3）。撮影は止めない."""
     notices = []
     if item.scheduled_station_ae_title and item.scheduled_station_ae_title != own_ae_title:
         notices.append("この予約は別の装置の予定です")

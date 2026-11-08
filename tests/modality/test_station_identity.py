@@ -1,7 +1,7 @@
 """DTG が名乗る装置の切り替え（docs/spec/12 の 12 章・ADR-0023）の試験.
 
 手元の偽の RIS・PACS・MPPS の相手（tests/modality_peers.py）が受けた要求の Calling AE
-Title を見て、選んだ装置の AEタイトルで名乗ることを確かめる。
+Title を見て、選んだ装置の AEタイトルで名乗ることを確認する。
 """
 
 from __future__ import annotations

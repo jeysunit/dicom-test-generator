@@ -99,8 +99,8 @@ docker build -t dicom-test-generator .
 
 ## 3. 送信の状態を確認し、再送信する
 
-PACS の画面の下の段（送信ジョブ）に、ジョブごとの状態（送信待ち・送信中・送信完了・送信失敗）が
-表示される。上の段には送信先が並ぶ。状態ごとの件数のボタンと、期間・送信先・患者ID の
+PACS の画面の下の区画（送信ジョブ）に、ジョブごとの状態（送信待ち・送信中・送信完了・送信失敗）が
+表示される。上の区画には送信先が並ぶ。状態ごとの件数のボタンと、期間・送信先・患者ID の
 検索の帯で、一覧を絞れる。
 
 - 送信失敗の行は、理由が表示される。[もう一度送る] で再送信し、見出しの右の
@@ -111,7 +111,7 @@ PACS の画面の下の段（送信ジョブ）に、ジョブごとの状態（
 - 行の [詳細] で、その行を選ぶと、一覧の下に元のファイル（出力フォルダ）・試行回数・
   名乗る AEタイトルなどの詳細が出る。[閉じる] で閉じる
 - 接続先の一覧の [接続確認]（C-ECHO）で、送信先とワークリストの取得先との疎通を確認できる。
-  [すべて接続確認] と、上の帯の接続の状態の中身の [接続確認] は、全部の相手をまとめて確かめる
+  [すべて接続確認] と、上の帯の接続の状態の中身の [接続確認] は、全部の相手をまとめて確認する
 
 ## 4. 保管確認（Storage Commitment）と MPPS を使う
 
@@ -138,7 +138,7 @@ PACS の画面の下の段（送信ジョブ）に、ジョブごとの状態（
 `commit` で保管確認を要求した。送信した 4 件の検査（CT 頭部 92・CT 胸部 505・
 MR 頭部 281・DX 胸部 2 画像）とも、Orthanc から保管確認の結果「確認済」を受けた。
 Orthanc（1.6.0 以降）は保管確認を受け付け、結果を別の Association で返す。
-MPPS は ris-emulator を相手に確かめた（Orthanc は MPPS を受け付けない。4.3 を参照）。
+MPPS は ris-emulator を相手に確認した（Orthanc は MPPS を受け付けない。4.3 を参照）。
 
 1. Orthanc の設定の `DicomModalities` に、DTG の AEタイトル・IP アドレス・待ち受けの
    ポートを追加する（例：`"DicomModalities": { "dtg": [ "DTG_CT01",
@@ -223,7 +223,7 @@ Web 画面は HTTP Basic 認証が必須で（ユーザー名は `dtg`）、パ�
 |------|----------|
 | 疎通の確認 | `python -m app.cli echo --to PACS_TEST`・`echo --worklist` |
 | ワークリストの取得 | `python -m app.cli worklist query` |
-| 予約から撮影して送信（予約に当てたルーチン） | `python -m app.cli exam --from-worklist <キー> --send` |
+| 予約から撮影して送信（予約に適用したルーチン） | `python -m app.cli exam --from-worklist <キー> --send` |
 | ルーチンを選んで撮影 | `python -m app.cli exam --from-worklist <キー> --routine ct_head_plain` |
 | 線量の報告を SR で撮影（`screen`・`sr`・`both`） | `python -m app.cli exam --from-worklist <キー> --dose-report both` |
 | シリーズ数と画像数を手で入れて撮影 | `python -m app.cli exam --from-worklist <キー> -s 2 -i 1,20` |
@@ -238,9 +238,9 @@ Web 画面は HTTP Basic 認証が必須で（ユーザー名は `dtg`）、パ�
   終了コード 2 で停止する
 - `exam --mpps`・`--no-mpps` で、その撮影だけ MPPS の設定を上書きできる
 - 撮影のルーチンは `templates/routine/` の YAML（CT・MR・CR・DX・US の部位ごと）。
-  施設のルーチンは同じ形の YAML を足して作る。US のルーチンは、US の画像を作れる
+  施設のルーチンは同じ形の YAML を追加して作る。US のルーチンは、US の画像を作れる
   ようになるまで使えない
-- 施設が足す CR・DX のルーチンの YAML には `body_part` が要る（膝・手など対になる
+- 施設が追加する CR・DX のルーチンの YAML には `body_part` が要る（膝・手など対になる
   部位は `laterality` も）。無いと、ルーチン全部の読み込みが `TemplateParseError`
   で止まり、CT などの撮影も止まる。誤りの文には、YAML のファイル名（ルーチンの名前と
   同じ）が入る
@@ -251,7 +251,7 @@ Web 画面は HTTP Basic 認証が必須で（ユーザー名は `dtg`）、パ�
   従わない。膝と手の左右はルーチンの `laterality`（付けるルーチンは `R`）で決まる。
   白黒の反転（`MONOCHROME1`）を試すときは、テンプレートの
   `xray_image.photometric_interpretation` を `MONOCHROME1` にしたテンプレートを
-  足す。装置のプロファイルは、例の `dtg_synthetic_cr`・`dtg_synthetic_dx` を選べる
+  追加する。装置のプロファイルは、例の `dtg_synthetic_cr`・`dtg_synthetic_dx` を選べる
 - MR の予約は、テンプレートを指定しなければ MR のテンプレート（`mr_generic`）で
   撮る。緊急の患者を MR で撮るときは、画面のテンプレートで `mr_generic` を選ぶか、
   CLI で `exam --emergency -m mr_generic` を使う。装置のプロファイルは、例の

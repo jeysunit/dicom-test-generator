@@ -68,16 +68,16 @@
     }
     input.value = input.value.trim().replace(/\s*\^\s*/g, "^").replace(/\s+/g, "^");
     convertPhonetic(input);
-    // 補正した後の値で、欄の誤りの表示を確かめ直す（値の代入では input が起きない）
+    // 補正した後の値で、欄の誤りの表示を再確認する（値の代入では input が起きない）
     checkField(input);
   });
 
-  // 緊急の患者の欄：入力のたびに確かめ、誤りの文を欄（label）の外の直下に 1 行出す。欄は
+  // 緊急の患者の欄：入力のたびに確認、誤りの文を欄（label）の外の直下に 1 行出す。欄は
   // aria-invalid と aria-describedby で結ぶ（欄の下の文は読み上げない。画面の上の知らせだけが
   // 読み上げる）。文は data-message（サーバーと同じ文。app/core/patient_input.py）。ブラウザの
-  // 検証の吹き出しは使わない（form は novalidate）。送る前に全部を確かめ、誤りがあれば送らずに
+  // 検証の吹き出しは使わない（form は novalidate）。送る前に全部を確認、誤りがあれば送らずに
   // 最初の誤りの欄へ移る。漢字の氏名は、文字コードが JIS のときだけ JIS X 0208 の字かどうかを
-  // 確かめる（UTF-8 なら制限しない）。範囲は含みすぎてよく、最後の判定はサーバーが行う
+  // 確認する（UTF-8 なら制限しない）。範囲は含みすぎてよく、最後の判定はサーバーが行う
   var PATIENT_ID_CHARS = /^[\x20-\x7E]*$/;
   var PATIENT_ID_DELIMITERS = /[\\^~&|]/;
   var ALPHABETIC_CHARS = /^[A-Za-z' ^-]*$/;
@@ -140,7 +140,7 @@
     return true;
   }
   // 生年月日：読み取った結果を欄の下（.hint）に出し、誤りの文を返す。読めなければ .hint を消す。
-  // 誤りは 3 種類で、確かめる順は形・元号の範囲・今日より後（サーバーの wareki.parse_birth_input と同じ）。
+  // 誤りは 3 種類で、確認する順は形・元号の範囲・今日より後（サーバーの wareki.parse_birth_input と同じ）。
   // 今日より後は data-message、形は data-format-message、範囲の外は元号の表から作る文
   function checkBirth(input) {
     var read = readBirth(input.value, dateParts(latestBirthDate(input)));
@@ -160,7 +160,7 @@
   function showFieldError(input, message) {
     var line = document.getElementById(input.getAttribute("data-error-line") || "error-" + input.name);
     if (line) {
-      // 誤りの行は、印（.ic）と文（.t）。文の置き場が無い行は、行の全体を文にする
+      // 誤りの行は、印（.ic）と文（.t）。文の表示欄が無い行は、行の全体を文にする
       var text = line.querySelector ? line.querySelector(".t") : null;
       (text || line).textContent = message;
       line.hidden = !message;
@@ -185,7 +185,7 @@
   function checkField(input) {
     var kind = input.getAttribute("data-check");
     if (!kind) {
-      // 確かめの無い欄は、直したらサーバーで断られた誤りを消す
+      // 確認の無い欄は、直したらサーバーで断られた誤りを消す
       showFieldError(input, "");
       return true;
     }
@@ -231,18 +231,18 @@
     if (input instanceof HTMLInputElement) {
       checkField(input);
     } else if (input instanceof HTMLSelectElement && input.name === "charset" && input.form) {
-      // 文字コードを変えたら、漢字の氏名を確かめ直す
+      // 文字コードを変えたら、漢字の氏名を再確認する
       var name = input.form.elements.namedItem("name_ideographic");
       if (name instanceof HTMLInputElement) {
         checkField(name);
       }
     }
-    // 確かめの無い欄（性別・検査名など）は、直したらサーバーで断られた誤りを消す
+    // 確認の無い欄（性別・検査名など）は、直したらサーバーで断られた誤りを消す
     if (input instanceof HTMLSelectElement) {
       showFieldError(input, "");
     }
   });
-  // 送る前に全部を確かめる。誤りがあれば送らず、最初の誤りの欄へ移る
+  // 送る前に全部を確認する。誤りがあれば送らず、最初の誤りの欄へ移る
   document.addEventListener("htmx:beforeRequest", function (event) {
     var form = event.detail.elt;
     if (!(form instanceof HTMLFormElement) || form.id !== "exam-form") {
@@ -251,7 +251,7 @@
     var first = null;
     var failed = 0;
     showErrorSummary(0);
-    // 前の応答でサーバーが断った誤りは、送り直す前に消す（確かめの無い欄は、ここでしか消えない）
+    // 前の応答でサーバーが断った誤りは、送り直す前に消す（確認の無い欄は、ここでしか消えない）
     Array.prototype.forEach.call(form.elements, function (control) {
       if (control.name && !control.hasAttribute("data-check")) {
         showFieldError(control, "");
@@ -272,7 +272,7 @@
       first.focus();
       return;
     }
-    // form は novalidate なので、ブラウザの検証は自分で呼ぶ。確かめの無い欄（数の欄）の範囲・
+    // form は novalidate なので、ブラウザの検証は自分で呼ぶ。確認の無い欄（数の欄）の範囲・
     // 必須・整数を、ほかの欄と同じく欄の外の 1 行に出す（吹き出しは使わない）。日本語の文は
     // 下の invalid が setCustomValidity で付けるので、validationMessage にその文が入る
     var invalids = Array.prototype.filter.call(form.elements, function (control) {
@@ -512,8 +512,8 @@
     setRemoved(row, removing);
     lockLastSeries(table);
   });
-  // テンプレートを変えたら、ルーチンをそのテンプレートで当て直して描き直す（ルーチンの名前を
-  // 送らない）。テンプレートの確かめ直し（/exam/check）とは別の要求にする
+  // テンプレートを変えたら、ルーチンをそのテンプレートで適用し直して描き直す（ルーチンの名前を
+  // 送らない）。テンプレートの再確認（/exam/check）とは別の要求にする
   document.addEventListener("change", function (event) {
     var select = event.target;
     var fields = document.getElementById("routine-fields");
@@ -766,7 +766,7 @@
     }
   });
   // 手で押した「接続確認」の結果の読み上げ（部品集の 3 つの型）。結果の 1 文は読み上げの欄
-  // （#conn-result。popover の中）に入れる。先に空にして、同じ文が続いても読み直されるようにする。
+  // （#conn-result。popover の中）に入れる。先に空にして、同じ文が続いても再読み込みされるようにする。
   // 欄は中身ごと差し替わるので、差し替えた後の欄に入れる
   function announceConnResult(text) {
     var result = document.querySelector("#band #conn-result");
@@ -930,7 +930,7 @@
     });
   });
 
-  // 緊急の患者：入れた値を、操作の行の真上の「撮る患者と送信先」に写す（10.5）
+  // 緊急の患者：入れた値を、操作の行の真上の「撮る患者と送信先」にコピーする（10.5）
   var SEX_TEXT = { M: "男", F: "女", O: "その他", U: "不明" };
   // 生年月日の括弧の中身（元号の漢字 1 字と年・満年齢）。始まりの日で決め、年 ＝ 西暦の年 − 始まりの年 ＋ 1。
   // 明治（1868/10/23）より前は元号を出さず、年齢だけ。緊急の撮影は検査日が今日なので、今日が基準（app/core/wareki.py と同じ規則）
@@ -983,7 +983,7 @@
     return startText + prev[4] + (prevEnd[0] - prev[0] + 1) + "年は " + slashDay(prevEnd) + " までです。";
   }
   // 生年月日の入力を読む。{ day: [年, 月, 日] } か { error: "format" | "future" | 範囲の外の文 }。空は {}。
-  // limit（[年, 月, 日]）より後は "future"。limit が null なら今日より後を確かめない
+  // limit（[年, 月, 日]）より後は "future"。limit が null なら今日より後を確認しない
   function readBirth(value, limit) {
     var text = value.trim();
     if (!text) {
@@ -1026,7 +1026,7 @@
     }
     return { day: day };
   }
-  // 読み取り結果の 1 行：1975/05/14（昭50・51歳）。性別は付けない（.hint。患者の写しは後ろに性別を足す）
+  // 読み取り結果の 1 行：1975/05/14（昭50・51歳）。性別は付けない（.hint。患者のコピーは後ろに性別を追加する）
   function birthText(day, now) {
     return slashDay(day) + birthParen(day, now);
   }
@@ -1080,7 +1080,7 @@
         birth.removeAttribute("title");
         return;
       }
-      // 読めた値は西暦にして括弧を付ける。読めない値は入れたまま写す（誤りは欄の下の .msg に出る）
+      // 読めた値は西暦にして括弧を付ける。読めない値は入れたままコピーする（誤りは欄の下の .msg に出る）
       var read = readBirth(date.value, null);
       var paren = read.day ? birthParen(read.day, dateParts(date.getAttribute("data-today") || today())) : "";
       var day = read.day ? slashDay(read.day) : date.value.trim();

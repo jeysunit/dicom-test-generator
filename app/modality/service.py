@@ -131,7 +131,7 @@ NOT_TAKEN_MESSAGE = "この予約はまだ撮影していません。追加撮�
 EMERGENCY_APPEND_MESSAGE = "緊急の患者（予約なし）では追加撮影はできません"
 ORDER_BUSY_MESSAGE = "この予約は、ほかで撮影しています。終わってから撮ってください"
 CLAIM_TOUCH_SECONDS = 60  # 撮影の間、予約の札の時刻を進める間（札は 30 分で古くなる）
-AUTO_ROUTINE = "auto"  # 予約に当てたルーチンで撮る（ADR-0025）
+AUTO_ROUTINE = "auto"  # 予約に適用したルーチンで撮る（ADR-0025）
 # DICOM の値の区切り（PS3.5 6.2）。LO・PN・SH の値に入れると VM が増える
 VALUE_DELIMITER = "\\"
 
@@ -145,7 +145,7 @@ def _reject_value_delimiter(fields: tuple[tuple[str, str], ...]) -> None:
 
 
 def check_send_files(folder: Path, files: list[str]) -> None:
-    """送るファイルを確かめる：symbolic link を断り、フォルダの中の普通のファイルだけ（8.2）.
+    """送るファイルを確認する：symbolic link を断り、フォルダの中の普通のファイルだけ（8.2）.
 
     中を指す link も断る（送るまでに指す先を替えられるため）。外れたら FileReadError。
     """
@@ -254,7 +254,7 @@ class ExamRequest(BaseModel):
     append: bool = False
     emergency_study_instance_uid: str | None = None
     # 撮影のルーチン（ADR-0025）。None は手で入れた images_per_series で撮る。"auto" は
-    # 予約の検査名と部位に当てたルーチン。ほかはルーチンの名前
+    # 予約の検査名と部位に適用したルーチン。ほかはルーチンの名前
     routine: str | None = None
     # ルーチンのうち撮るシリーズの位置（0 始まり）と、その画像数。無ければ全部・既定の数
     routine_series: list[int] | None = None
@@ -288,7 +288,7 @@ class SendResult(BaseModel):
 
 
 class WorklistState(BaseModel):
-    """最後に引いたワークリスト（状態の置き場に保存した物。5.4）."""
+    """最後に引いたワークリスト（状態の保存先に保存したもの。5.4）."""
 
     model_config = {"frozen": True}
 
@@ -386,7 +386,7 @@ class ModalityService:
     def select_station(self, name: str) -> StationConfig:
         """装置を切り替えて記録する。撮影・送信の最中は断る（ModalityError）."""
         station = self.config.station(name)
-        # 撮影と同じ錠を取ってから確かめて書く（確かめた後に撮影が始まらないように）
+        # 撮影と同じ錠を取ってから確認して書く（確認した後に撮影が始まらないように）
         if not self._exam_lock.acquire(blocking=False):
             raise ModalityError(STATION_BUSY_MESSAGE)
         try:
@@ -466,7 +466,7 @@ class ModalityService:
         return state
 
     def _commitment_node(self, job_id: int) -> DestinationConfig:
-        """保管の確認を求めてよい件かを確かめ、送信先を返す."""
+        """保管の確認を求めてよい件かを確認、送信先を返す."""
         job = self.queue.get_job(job_id)
         node = self.config.destination(job.destination)
         if not node.storage_commitment:
@@ -718,11 +718,11 @@ class ModalityService:
         return self._routine_loader.get(name)
 
     def matched_routine(self, item: WorklistItem | None, template_modality: str) -> Routine:
-        """予約に当てるルーチン。緊急の患者（予約なし）はテンプレートのモダリティの標準.
+        """予約に適用するルーチン。緊急の患者（予約なし）はテンプレートのモダリティの標準.
 
         予約の検査名（Requested Procedure Description、次に Scheduled Procedure Step
         Description）と部位（Body Part Examined）に見出しの言葉を照らす。予約の
-        モダリティが空なら、テンプレートのモダリティのルーチンから当てる。
+        モダリティが空なら、テンプレートのモダリティのルーチンから適用する。
         """
         routines = self._routine_loader.list_routines()
         if item is None:
@@ -852,7 +852,7 @@ class ModalityService:
     def exam(self, request: ExamRequest) -> ExamResult:
         """予約（または緊急の患者）で撮る。量の上限と、同時に1つだけを守る（10.5）.
 
-        ルーチンで撮るときの合計の画像数は、ルーチンを当てた後に確かめる。
+        ルーチンで撮るときの合計の画像数は、ルーチンを適用した後に確認する。
         """
         if request.emergency_study_instance_uid is not None and (
             not request.append
@@ -917,7 +917,7 @@ class ModalityService:
             self._check_retake(request, record)
             if request.template is None and item.modality and item.modality != modality:
                 # テンプレートを指定しない撮影は、予約のモダリティに合うテンプレートで撮る
-                # （ADR-0030）。合うものが無ければ、下の確かめが断る
+                # （ADR-0030）。合うものが無ければ、下の確認が断る
                 template = self.template_for_modality(item.modality)
                 modality = self.template_modality(template)
             ensure_modality_matches(item, modality)
@@ -939,7 +939,7 @@ class ModalityService:
                     update["study_instance_uid"] = record.study_instance_uid
                 if record.study_date:
                     # 最初の画像の説明（テンプレートの説明を含む）に揃える。空なら空のまま
-                    # （あとで RIS が説明を足しても、テンプレートが違っても変えない）。
+                    # （あとで RIS が説明を追加しても、テンプレートが違っても変えない）。
                     # 前の版から移した記録（日時の無い記録）は、説明も分からないので予約の値
                     update["study_description"] = record.study_description
                     update["study_description_fixed"] = True
@@ -955,8 +955,8 @@ class ModalityService:
                     ("検査の説明", request.study_description),
                 )
             )
-            # 画面・CLI を通らない呼び出し（API）にも、同じ確かめを効かせる。追加撮影は、前の撮影と
-            # 患者ID・氏名が一致するかで確かめる（以前に受け付けた値の患者にも追加撮影できるように）
+            # 画面・CLI を通らない呼び出し（API）にも、同じ確認を効かせる。追加撮影は、前の撮影と
+            # 患者ID・氏名が一致するかで確認する（以前に受け付けた値の患者にも追加撮影できるように）
             character_set = resolve_image_character_set(
                 choice, None, self.config.character_set_fallback
             )
@@ -1162,7 +1162,7 @@ class ModalityService:
         files = sorted(str(path) for path in folder_path.glob("*.dcm"))
         if not files:
             raise FileReadError(str(folder_path), "No .dcm files in the folder")
-        # 待ち行列に入れる前に、送ってよいファイルかを確かめる（8.2）
+        # 待ち行列に入れる前に、送ってよいファイルかを確認する（8.2）
         check_send_files(folder_path, files)
         # 件の受付番号は、送る画像の Accession Number（読めなければ空のまま送る）
         summary = _read_job_summary(folder_path)
@@ -1217,11 +1217,11 @@ class ModalityService:
         return results
 
     def list_queue(self, status: str | None = None) -> list[QueueJob]:
-        """送信ジョブの一覧。患者ID・氏名・検査日時は、元のファイルの先頭から読んで足す."""
+        """送信ジョブの一覧。患者ID・氏名・検査日時は、元のファイルの先頭から読んで追加する."""
         return [self._with_summary(job) for job in self.queue.list_jobs(status)]
 
     def queue_job(self, job_id: int) -> QueueJob:
-        """送信ジョブ 1 件。一覧と同じく、患者ID・氏名・検査日時を元のファイルから足す."""
+        """送信ジョブ 1 件。一覧と同じく、患者ID・氏名・検査日時を元のファイルから追加する."""
         return self._with_summary(self.queue.get_job(job_id))
 
     def _with_summary(self, job: QueueJob) -> QueueJob:
@@ -1254,7 +1254,7 @@ class ModalityService:
         for _attempt in range(attempts):
             token = self.queue.mark_sending(job_id)
             try:
-                # 再送信でも確かめる。入れた後にファイルが替えられても送らない（8.2）
+                # 再送信でも確認する。入れた後にファイルが替えられても送らない（8.2）
                 check_send_files(Path(job.folder), [str(path) for path in pending])
             except FileReadError as exc:
                 error = str(exc)
@@ -1402,7 +1402,7 @@ class ModalityService:
     def _remove_if_empty(output_dir: Path) -> None:
         """撮影が止まったとき、撮影のために作った出力のフォルダが空なら消す（7.2）.
 
-        フォルダは _exam_output_dir が無いことを確かめた名前なので、この撮影が作ったもの。
+        フォルダは _exam_output_dir が無いことを確認した名前なので、この撮影が作ったもの。
         中にファイルが残っていれば消さない（rmdir は空のときだけ消える）。
         """
         try:

@@ -108,7 +108,7 @@ def _calendar_date(year: int, month: int, day: int) -> date:
 def parse_birth_input(value: str, today: date | None = None) -> date:
     """画面で入れた生年月日を読む。誤りは `FieldValidationError`（欄は birth_date）.
 
-    確かめる順は、形（暦に無い日を含む）・元号の範囲・今日より後（`today` があるときだけ）。
+    確認する順は、形（暦に無い日を含む）・元号の範囲・今日より後（`today` があるときだけ）。
     受ける形は西暦 `1975/5/14`、英字か漢字 1 字と年 `S50/05/14`・`昭50/05/14`、正式名
     `昭和50年5月14日`。年の 1 は `元` でもよい。英字は大文字・小文字・全角を受ける。前後の
     空白は捨てる。

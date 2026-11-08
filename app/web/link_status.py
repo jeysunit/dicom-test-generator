@@ -80,9 +80,9 @@ class LinkStatus:
 
 
 def check_summary(results: list[bool]) -> str:
-    """手で押した「接続確認」の結果を読み上げる 1 文（部品集の 3 つの型の、確かめられた場合の 2 つ）.
+    """手で押した「接続確認」の結果を読み上げる 1 文（部品集の 3 つの型の、確認できた場合の 2 つ）.
 
-    N は確かめた件数、M は失敗の件数。DTG は状態を持たない相手を持たないので、全部を数える。
+    N は確認した件数、M は失敗の件数。DTG は状態を持たない相手を持たないので、全部を数える。
     """
     total = len(results)
     failed = results.count(False)

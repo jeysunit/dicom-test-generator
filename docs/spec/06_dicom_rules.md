@@ -215,7 +215,7 @@ Pixel Representation 1 の画素は、Bits Stored のビット数の 2 の補数
 |----|--------|
 | 中心の x・y | 軸位の視野の中央。視野は CT が 列数 × 0.5 mm と 行数 × 0.5 mm、MR が 240 mm |
 | x・y の半径 | 視野の 0.4 倍 |
-| 中心の z と z の半径 | 位置の範囲がいちばん長い軸位のシリーズ（CT の軸位、MR の `plane: axial` の撮像・計算で作った画像）の範囲の中央と、範囲の長さの 0.55 倍（1枚だけのシリーズは、範囲の長さの代わりにスライス間隔を使う）。軸位が無ければ、今の冠状断・矢状断が写す範囲（z が 0 から視野の高さだけ下）の中央と、視野の高さの 0.55 倍 |
+| 中心の z と z の半径 | 位置の範囲がいちばん長い軸位のシリーズ（CT の軸位、MR の `plane: axial` の撮像・計算で作った画像）の範囲の中央と、範囲の長さの 0.55 倍（1枚だけのシリーズは、範囲の長さの代わりにスライス間隔を使う）。軸位が無ければ、今の冠状断・矢状断が表す範囲（z が 0 から視野の高さだけ下）の中央と、視野の高さの 0.55 倍 |
 
 **画素を作る**：各画素の中心の患者座標を、Image Position (Patient)・Image
 Orientation (Patient)・Pixel Spacing から計算する（PS3.3 C.7.6.2.1.1）。回転楕円体の
@@ -229,7 +229,7 @@ Orientation (Patient)・Pixel Spacing から計算する（PS3.3 C.7.6.2.1.1）�
 上へ回る。回転楕円体は中央に対して対称なので、中央から同じ距離の2枚は断面の
 大きさが同じになるが、目印の位置で見分けられる。目印は3次元の図形に含めない。
 
-**値**：区分ごとに一定の値にする。ノイズ・ぼかしは足さない。
+**値**：区分ごとに一定の値にする。ノイズ・ぼかしは追加しない。
 
 | 区分 | CT（HU。格納値は HU + 1024） | MR（符号なしの Bits Stored の上限に対する割合。四捨五入） |
 |------|------------------------------|----------------------------------------------------------|
@@ -248,7 +248,7 @@ Rescale・Window の値は、CT は 4.2、MR は 5.2 のとおり。MR は Bits 
 
 **偽物の印**：図形で画素を作った画像（CT の位置決め・軸位・冠状断・矢状断、MR の
 画像、CR・DX の画像（5.5））には、装置のプロファイル
-（[spec/13](13_device_profiles.md)）を当てた後に次を書き、プロファイルの値より
+（[spec/13](13_device_profiles.md)）を適用した後に次を書き、プロファイルの値より
 優先する。線量の画面・線量の報告の SR・PET/CT の PT のシリーズには書かない。
 ほかのモードの画像にも書かない（DX の Burned In Annotation だけは、どのモードでも
 `NO` を書く。5.5）。
@@ -264,7 +264,7 @@ Rescale・Window の値は、CT は 4.2、MR は 5.2 のとおり。MR は Bits 
 Burned In Annotation と Recognizable Visual Features は General Image Module の
 Type 3（PS3.3 C.7.6.1）。Software Versions・Device Serial Number・Station Name・
 プライベートタグは装置のプロファイルの値のまま。異常のデータ（1.1）はこの後に
-当てる。
+適用する。
 
 **PET/CT**：`phantom` でも PT のシリーズは図形にせず、`ct_realistic` の
 `gradient` の画素で作る（5.4）。
@@ -300,7 +300,7 @@ c、半径 r）から決めるので、撮影ごとに一度だけ決まり、�
 矢状断、MR の `plane` が冠状断・矢状断・`three_plane` の画像）は、並びの中央（先頭と
 末尾の中間）を図形の中心に合わせる。冠状断は y、矢状断は x を、図形の中心の値
 （CT は視野の中央 128 mm、MR は 120 mm）を中央にして、スライス間隔ずつ並べる。
-`start_z` はそこからのずれとして足す。`three_plane` は断面ごとの枚数で中央を決める。
+`start_z` はそこからのずれとして追加する。`three_plane` は断面ごとの枚数で中央を決める。
 Slice Location は並べた位置と同じ値にする。ルーチンに `phantom` が無いシリーズと、
 手で入れたシリーズは、4.6 のとおり `start_z` から進める。軸位・位置決めの位置と、
 z（軸位の範囲の上端）は変えない。
@@ -336,7 +336,7 @@ z（軸位の範囲の上端）は変えない。
 上限から引く。
 
 位置の目印の値は 4.6 のまま（CT は骨と同じ 1000 HU、X 線は骨と同じ 0.80）。画素の
-値の種類は、部位の区分の数と目印の値を足した数以下になる。
+値の種類は、部位の区分の数と目印の値を追加した数以下になる。
 
 **制約**：次の3つは 4.6 の画像の位置の決まりから来る。部位の図形でもそのまま残す。
 
@@ -386,7 +386,7 @@ CT の Image Type の値 3 の Defined Terms は `AXIAL` と `LOCALIZER`
   Conversion Type (0008,0064) は `WSD`（PS3.3 C.8.6.1）、Patient Orientation
   (0020,0020) は空（Type 2C。PS3.3 C.7.6.1）。画素は 8 ビットの MONOCHROME2 で、
   位置決めと軸位のシリーズごとの架空の CTDIvol・DLP を描く。Frame of Reference・
-  Image Plane・CT Image の属性は持たない（装置のプロファイルが足しても外す）
+  Image Plane・CT Image の属性は持たない（装置のプロファイルが追加しても外す）
 - Image Type の値 4 と Source Image Sequence は付けない。RDSR は作らない
 
 ### 5.2 MR Image の属性
@@ -482,7 +482,7 @@ X-Ray Radiation Dose SR（1.2.840.10008.5.1.4.1.1.88.67。[ADR-0031](../decision
   SR には入れない
 - 数値は NUM、単位は UCUM（`mGy`・`mGy.cm`・`kV`・`mA`・`s`・`mm`・`{events}`・
   `{ratio}`・`{X-Ray sources}`）。文字はすべて ASCII
-- 画素・Frame of Reference は持たない。装置のプロファイルが足した画像の属性は外す
+- 画素・Frame of Reference は持たない。装置のプロファイルが追加した画像の属性は外す
 
 ### 5.4 PET Image の属性
 
@@ -589,13 +589,13 @@ Frame of Reference と Image Plane のモジュールは持たない。シリー
   列は足の向き）、側面の画像を前から後ろの向きに描くとした代表例である
   （PS3.3 C.7.6.1.1.1）
 - 斜位（`RLO`・`LLO`）と側臥位（`RLD`・`LLD`）は View Position だけを書き、View
-  Code Sequence は入れない（コードを確かめていないため）
+  Code Sequence は入れない（コードを確認していないため）
 - 装置のプロファイルを重ねた後、Frame of Reference・Image Plane の属性（Image
   Position・Image Orientation・Pixel Spacing・Slice Thickness・Slice Location・
   Spacing Between Slices）、Patient Position、Modality LUT Sequence を外す。上の表の
   必須の属性は、プロファイルの `omit` で外しても戻し、Type 1 を空（空の並びを含む）に
   しても戻す。プロファイルの `set` で書いた値はそのまま使う。異常のデータ（1.1）は
-  この後に当てる
+  この後に適用する
 - 規格とルーチンが値を決める属性は、プロファイルの `set` に書けない（書けば作成を
   始めずに `ProfileMismatchError`。spec/13 の 4.3）。CR は Laterality・Body Part
   Examined・View Position、DX は Presentation Intent Type・Image Type（値 3 は長さ 0。
@@ -630,7 +630,7 @@ dciodvfy が Laterality の欠落を Error にする。値は PS3.16 Annex L の
 | `mr_shoulder` | `SHOULDER` | Y | `R`（架空） |
 | `pt_whole_body`・`pt_whole_body_pet_first` | `WHOLEBODY` | N | 無い |
 
-- 値の出どころ：Table L-1 の定義語（`CHESTABDPELVIS`＝Chest, Abdomen and Pelvis、
+- 値の出典：Table L-1 の定義語（`CHESTABDPELVIS`＝Chest, Abdomen and Pelvis、
   `ABDOMENPELVIS`＝Abdomen and Pelvis、`WHOLEBODY`＝Entire body など）。どの値も
   CID 4031 のコードに対応する。肝臓ダイナミックは、Table L-1 に `LIVER` もあるが、
   CID 4031 に無く、撮影の範囲も腹部全体なので `ABDOMEN` にする
@@ -734,7 +734,7 @@ YAMADA^TARO=山田^太郎=ヤマダ^タロウ
 `ISO 2022 IR 6\ISO 2022 IR 87`（`hospital_a` と、Job の `specific_character_set` の既定）の
 画像は、Orthanc 1.13.0 が漢字・かなを読み崩す。Orthanc は最初の値が空でない複数の値を、
 最初の値だけで全体を読むため。Orthanc へ送る Job では、`\ISO 2022 IR 87`（値 1 が空）か
-`ISO_IR 192` にする（確かめた結果は [spec/12](12_modality_emulator.md) の 14.4）。
+`ISO_IR 192` にする（確認した結果は [spec/12](12_modality_emulator.md) の 14.4）。
 
 ### 7.4 表現できない文字
 

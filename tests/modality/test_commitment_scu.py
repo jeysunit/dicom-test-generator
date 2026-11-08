@@ -1,7 +1,7 @@
 """保管の確認（Storage Commitment）の試験（docs/spec/12 の 8.3、docs/development.md の 4 章。Phase 3c）.
 
 手元の偽の PACS（tests/modality_peers.py の CommitmentPACS）を相手に、
-要求→結果→待ち行列の状態の一巡りを流す。実の PACS にはつながない。
+要求→結果→待ち行列の状態の一巡りを実行する。実の PACS にはつながない。
 """
 
 from __future__ import annotations
@@ -264,7 +264,7 @@ def test_large_report_is_refused_before_reading(
 
     assert int(status.Status) == STATUS_PROCESSING_FAILURE
     assert service.queue.get_job(job_id).commitment == "waiting"
-    # 件数の確かめより前に、大きさで断った
+    # 件数の確認より前に、大きさで断った
     assert "too large" in caplog.text
     assert "more references than requested" not in caplog.text
 

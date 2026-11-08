@@ -1,4 +1,4 @@
-"""手で入れた緊急の患者の値の確かめ（docs/spec/12a_web_screens_and_cli.md 10.5）.
+"""手で入れた緊急の患者の値の確認（docs/spec/12a_web_screens_and_cli.md 10.5）.
 
 画面と CLI の両方が使う Pure な処理。誤りは日本語の文で `FieldValidationError` にする（どの欄
 の誤りかを `field` に持つ）。文は入れた値を含めない（docs/spec/12 の 12 章）。規則の原典：
@@ -14,7 +14,7 @@
 
 漢字の氏名は、画像の文字コードで表せる字だけを受ける。UTF-8 なら制限しない。かなの氏名は
 全角カタカナだけを受け、ひらがなはカタカナに直す。半角カナは断る。試験の形（設定の
-`patient_input_test_mode`）では、かなの確かめと直しをせず、そのまま通す。
+`patient_input_test_mode`）では、かなの確認と直しをせず、そのまま通す。
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ PN_GROUP_MAX_LENGTH = 64
 PN_COMPONENT_MAX_COUNT = 5
 LO_MAX_LENGTH = 64
 # 生年月日の「今日」を決めるタイムゾーンの既定（サーバーの OS の時計の地域に頼らない。
-# UTC のコンテナでも日本の日付で確かめる。docs/spec/12a の 10.5）
+# UTC のコンテナでも日本の日付で確認する。docs/spec/12a の 10.5）
 DEFAULT_TIMEZONE = "Asia/Tokyo"
 _ASCII_PRINTABLE_MIN = 0x20
 _ASCII_PRINTABLE_MAX = 0x7E
@@ -99,7 +99,7 @@ def validate_emergency_patient(
     test_mode: bool = False,
     today: date | None = None,
 ) -> None:
-    """緊急の患者の値を確かめる。誤りは `FieldValidationError`（最初の1件）.
+    """緊急の患者の値を確認する。誤りは `FieldValidationError`（最初の1件）.
 
     `character_set` は画像の Specific Character Set の値（漢字の氏名が表せるか）。
     `today` は生年月日の上限（設定のタイムゾーンの今日）。
@@ -123,10 +123,10 @@ def build_emergency_patient(
     test_mode: bool = False,
     today: date | None = None,
 ) -> ScheduledPatient:
-    """値を確かめてから `ScheduledPatient` にする。pydantic の英語の文より先に日本語の文で断る.
+    """値を確認してから `ScheduledPatient` にする。pydantic の英語の文より先に日本語の文で断る.
 
-    かなの氏名のひらがなはカタカナに直してから確かめる。追加撮影（`strict=False`）は
-    確かめも直しもしない。前の撮影と患者ID・氏名が一致するかをサービスが確かめるので、
+    かなの氏名のひらがなはカタカナに直してから確認する。追加撮影（`strict=False`）は
+    確認も直しもしない。前の撮影と患者ID・氏名が一致するかをサービスが確認するので、
     以前に受け付けた値の患者にも追加撮影できる。
     """
     if strict:
@@ -214,7 +214,7 @@ def validate_patient_id(value: str) -> None:
 def validate_person_name(
     value: str, character_set: Sequence[str] | None = None, *, test_mode: bool = False
 ) -> None:
-    """氏名（PN）：群ごとの確かめ。3つの群のどれか1つは空でない（英字の群は空にできる）."""
+    """氏名（PN）：群ごとの確認。3つの群のどれか1つは空でない（英字の群は空にできる）."""
     groups = value.split(GROUP_SEPARATOR)
     if len(groups) > len(GROUP_LABELS):
         raise FieldValidationError("氏名の群は、英字・漢字・かなの3つまでです。", NAME_FIELDS[0])
@@ -269,7 +269,7 @@ def check_ideographic_group(group: str, character_set: Sequence[str] | None = No
 def check_phonetic_group(group: str, *, test_mode: bool = False) -> str:
     """かなの氏名：全角カタカナ（長音・中点・`^` 区切りを含む）だけ。半角カナは断る.
 
-    ひらがなは `normalize_phonetic_in_name` がカタカナに直してから確かめる。試験の形では
+    ひらがなは `normalize_phonetic_in_name` がカタカナに直してから確認する。試験の形では
     何も見ずに通す。
     """
     if test_mode:
@@ -314,7 +314,7 @@ def current_date(timezone: str = DEFAULT_TIMEZONE) -> date:
 def validate_birth_date(value: str, today: date | None = None) -> None:
     """生年月日：空か、暦にある YYYYMMDD で今日以前。`today` が無ければ既定のタイムゾーンの今日.
 
-    YYYYMMDD の値（CLI の `--birth-date`・サービス）を確かめる。画面の入力（西暦か元号）は先に
+    YYYYMMDD の値（CLI の `--birth-date`・サービス）を確認する。画面の入力（西暦か元号）は先に
     wareki.parse_birth_input で YYYYMMDD にするので、形の誤りの文は CLI の YYYYMMDD 向けのまま。
     """
     if not value:

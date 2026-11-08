@@ -2,19 +2,19 @@
 
 ## ADDED Requirements
 
-### Requirement: 予約に合うルーチンを既定で当てる
+### Requirement: 予約に合うルーチンを既定で適用する
 
 DTG は、撮影の画面を開いたとき（CLI では `-s`・`-i`・`--routine` を省いたとき）、
 予約のモダリティと同じモダリティのルーチンから1つを当て、そのルーチンの並びと
 画像数を既定にしなければならない（SHALL）。予約の検査の記述と部位（Body Part
 Examined (0018,0015) があれば）に、ルーチンの YAML の `keywords`（見出しの言葉）が
 含まれるルーチンを当て、どれも当たらなければそのモダリティの既定のルーチン（CT は
-胸部 単純）とする。施設の検査のコードの対応表は使わない。撮影の画面は、当てた
+胸部 単純）とする。施設の検査のコードの対応表は使わない。撮影の画面は、適用した
 ルーチンを最初から選んだ状態で出す。予約のモダリティが空なら、テンプレートの
 モダリティを使う。緊急の患者（予約なし）は、テンプレートのモダリティの既定の
 ルーチンにする。
 
-#### Scenario: 検査名で当てる
+#### Scenario: 検査名で適用する
 
 - **WHEN** モダリティ CT、Requested Procedure Description「胸部単純CT」の予約で撮影の画面を開く
 - **THEN** ルーチン「胸部 単純」が選ばれ、シリーズの行が 6 つ入り、画像数は上から 1・60・60・300・83・1 になる
@@ -24,12 +24,12 @@ Examined (0018,0015) があれば）に、ルーチンの YAML の `keywords`（
 - **WHEN** Requested Procedure Description「胸腹部造影CT」の予約で撮影の画面を開く
 - **THEN** ルーチン「胸腹部骨盤 造影」が選ばれる
 
-#### Scenario: 見出しの言葉で当てる
+#### Scenario: 見出しの言葉で適用する
 
 - **WHEN** Requested Procedure Description「肝ダイナミックCT」の予約で撮影の画面を開く
 - **THEN** 長い語「ダイナミック」が当たり、ルーチン「肝臓 ダイナミック」が選ばれた状態で出る
 
-#### Scenario: 部位で当てる
+#### Scenario: 部位で適用する
 
 - **WHEN** 検査の記述が2つとも「単純CT」で、Body Part Examined が `HEAD` の予約で撮影の画面を開く
 - **THEN** ルーチン「頭部 単純」が選ばれる
@@ -66,7 +66,7 @@ Examined (0018,0015) があれば）に、ルーチンの YAML の `keywords`（
 
 ### Requirement: 見出しの言葉を決まった順で比べる
 
-DTG は、予約の欄でルーチンを当てるとき、Requested Procedure Description、
+DTG は、予約の欄でルーチンを適用するとき、Requested Procedure Description、
 Scheduled Procedure Step Description、Body Part Examined の順に見て、先の欄で
 当たれば後の欄を見てはならない（SHALL NOT）。1つの欄でいくつかの語が当たれば長い
 語のルーチン、同じ長さなら欄の中で前に出てくる語のルーチンとする。欄と語は NFKC で
@@ -96,7 +96,7 @@ Scheduled Procedure Step Description、Body Part Examined の順に見て、先�
 
 ### Requirement: ルーチンを変えられ、手でも入れられる
 
-撮影の画面は、撮影の設定に「ルーチン」の選択を持ち、当てたルーチンを別の
+撮影の画面は、撮影の設定に「ルーチン」の選択を持ち、適用したルーチンを別の
 ルーチンに変えられなければならない（SHALL）。並べるのは、予約のモダリティと同じ
 ルーチンと「手で入れる」とする。すべてのシリーズの画像数にはルーチンの既定の値が
 入る。画像数は手で変えられ、シリーズを外せる。「手で入れる」を選んだら、今の
