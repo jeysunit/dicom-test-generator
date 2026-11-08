@@ -178,7 +178,7 @@ character_set:
 | `ideographic` | string | - | 漢字（例：`山田^太郎`） |
 | `phonetic` | string | - | かな（例：`ヤマダ^タロウ`） |
 
-PN への組み立ては spec/06 の 7.2 にある。
+PN の形式への変換は spec/06 の 7.2 にある。
 
 ### 3.4 study
 

@@ -431,7 +431,7 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID (0008,1155)
   までにし、空・`.`・`..` などのドットだけの名前は決まった名前（例：`emergency`・
   `UNKNOWN`）にし、Windows の予約名（`CON`・`NUL`・`COM1` など）は先頭に `_` を
   追加する（`app/core/path_safety.py`）
-- 組み立てたパスは `resolve()` して、出力のルートフォルダの中にあることを確認する。
+- 生成したパスは `resolve()` して、出力のルートフォルダの中にあることを確認する。
   外なら書き出さずに停止する（`FileWriteError`。終了コード 3）
 - Job YAML の Patient ID から作るファイル名（既存の作成）も同じ規則で作る
 - 撮影の前に、転記する値の形式を検証する。外れたら撮影せずに
@@ -602,7 +602,7 @@ N-EVENT-REPORT も受ける。
   の AE だけを検証し、一致したときだけ参照の並びを読む。参照の件数（Referenced
   SOP Sequence と Failed SOP Sequence の合計）が、その要求で問い合わせた画像の数を
   超えれば、何も記録せずに `0x0110` を返す。1 MiB は、1回の撮影の上限（2000 枚）の
-  参照を十分に入れられるサイズ。pynetdicom が組み立てる前のサイズは、DTG では
+  参照を十分に入れられるサイズ。pynetdicom がエンコードする前のサイズは、DTG では
   制限しない（待ち受けは初期設定でループバックだけ）
 - 要求に入れた画像の組（SOP Class UID と SOP Instance UID）だけを見る。
   Referenced SOP Sequence にあれば「確認済」、Failed SOP Sequence にあれば
