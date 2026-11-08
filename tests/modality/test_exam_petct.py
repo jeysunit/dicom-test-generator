@@ -77,7 +77,7 @@ def test_pt_order_is_taken_with_the_default_pet_ct_routine(
         )
     )
 
-    assert result.routine == "pt_whole_body"  # 「FDG」「PET」に当たる
+    assert result.routine == "pt_whole_body"  # 「FDG」「PET」に一致する
     assert _series(result.files) == [
         (1, "CT", "Topogram"),
         (2, "CT", "CT WB 3mm"),

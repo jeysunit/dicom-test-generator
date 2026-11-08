@@ -42,7 +42,7 @@ def test_emergency_append_preserves_study_and_patient(tmp_path, description) -> 
         conn.execute(
             "UPDATE exam_records SET study_date = '20200101', study_time = '101112'"
         )
-    # 別のプロセスでも再読み込みでき、生年月日と性別の訂正では最初の値を変えない
+    # 別のプロセスでも再取得でき、生年月日と性別の訂正では最初の値を変えない
     service = ModalityService(service.config)
     patient = PATIENT.model_copy(update={"birth_date": "19990101", "sex": "M"})
     added = _exam(service, append=True, emergency_study_instance_uid=uid,

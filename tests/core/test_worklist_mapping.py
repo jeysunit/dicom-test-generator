@@ -491,7 +491,7 @@ def test_scheduled_context_accepts_ds_forms(value: str) -> None:
     ["1..2", "../x", "01.2", "1.02.3", "1.2.a", "1.2.", ".1.2", "1.2\x00", "1" * 65, "/1.2"],
 )
 def test_scheduled_context_rejects_bad_study_instance_uid(uid: str) -> None:
-    """予約の Study Instance UID の形を確認、外れたら 4 で止める（docs/spec/12 の 6.5）."""
+    """予約の Study Instance UID の形を確認し、外れたら 4 で止める（docs/spec/12 の 6.5）."""
     item = worklist_item_from_identifier(_identifier()).model_copy(
         update={"study_instance_uid": uid}
     )

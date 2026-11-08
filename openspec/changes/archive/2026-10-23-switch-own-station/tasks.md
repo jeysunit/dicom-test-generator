@@ -2,7 +2,7 @@
 
 ## 1. 設定
 
-- [x] 1.1 `stations`・`default_station` を読むテスト（2つの装置・重複・今の形・両方を書いた形・VR に合わない値）を `tests/modality/test_config_and_queue.py` に追加、`app/modality/config.py` を実装する
+- [x] 1.1 `stations`・`default_station` を読むテスト（2つの装置・重複・今の形・両方を書いた形・VR に合わない値）を `tests/modality/test_config_and_queue.py` に追加し、`app/modality/config.py` を実装する
 - [x] 1.2 `config/app_config.yaml` の例に装置の一覧を、例の名前とループバックのアドレスだけで書く
 
 ## 2. 選んだ装置の記録と通信
@@ -20,7 +20,7 @@
 ## 4. 画面と CLI
 
 - [x] 4.1 情報バーに装置の選択を置き、切り替え・撮影の最中の拒否・再起動の後も残ることを `tests/web/` で確認する
-- [x] 4.2 CLI に `--station` を追加、そのコマンドだけに効くことと、設定に無い名前の終了コードをテストで確認する
+- [x] 4.2 CLI に `--station` を追加し、そのコマンドだけに効くことと、設定に無い名前の終了コードをテストで確認する
 - [x] 4.3 設定の画面に装置の一覧と、相手の側に AE タイトルを登録する旨を出す
 
 ## 5. 文書

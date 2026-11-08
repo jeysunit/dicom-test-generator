@@ -143,7 +143,7 @@ def test_same_association_round_trip(tmp_path, commitment_pacs, listen_port) -> 
 
     state = service.request_commitment(job_id)
 
-    # 同じ Association で待つので、戻ったときには結果が入っている（待ち受けは立てていない）
+    # 同じ Association で待つので、戻ったときには結果が入っている（待ち受けは起動していない）
     assert state.status == "confirmed"
     assert commitment_pacs.reported.wait(REPORT_WAIT_SECONDS)
     assert commitment_pacs.report_statuses == [0x0000]

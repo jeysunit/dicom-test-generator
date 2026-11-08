@@ -1,4 +1,4 @@
-// 地の切り替えと、値のコピー（docs/spec/12a の 10.2・10.3）。インラインのスクリプトは使わない。
+// 地の切り替えと、値の反映（docs/spec/12a の 10.2・10.3）。インラインのスクリプトは使わない。
 (function () {
   var root = document.documentElement;
   var COPIED_MS = 1200;
@@ -72,10 +72,10 @@
     checkField(input);
   });
 
-  // 緊急の患者の欄：入力のたびに確認、誤りの文を欄（label）の外の直下に 1 行出す。欄は
+  // 緊急の患者の欄：入力のたびに確認し、誤りの文を欄（label）の外の直下に 1 行出す。欄は
   // aria-invalid と aria-describedby で結ぶ（欄の下の文は読み上げない。画面の上の知らせだけが
   // 読み上げる）。文は data-message（サーバーと同じ文。app/core/patient_input.py）。ブラウザの
-  // 検証の吹き出しは使わない（form は novalidate）。送る前に全部を確認、誤りがあれば送らずに
+  // 検証の吹き出しは使わない（form は novalidate）。送る前に全部を確認し、誤りがあれば送らずに
   // 最初の誤りの欄へ移る。漢字の氏名は、文字コードが JIS のときだけ JIS X 0208 の字かどうかを
   // 確認する（UTF-8 なら制限しない）。範囲は含みすぎてよく、最後の判定はサーバーが行う
   var PATIENT_ID_CHARS = /^[\x20-\x7E]*$/;
@@ -508,7 +508,7 @@
     ) {
       return;
     }
-    // フォーカスは押したボタン（[外す]・[戻す] が入れ替わる）に残す
+    // フォーカスは押したボタン（[外す]・[戻す] が置き換わる）に残す
     setRemoved(row, removing);
     lockLastSeries(table);
   });
@@ -766,7 +766,7 @@
     }
   });
   // 手で押した「接続確認」の結果の読み上げ（部品集の 3 つの型）。結果の 1 文は読み上げの欄
-  // （#conn-result。popover の中）に入れる。先に空にして、同じ文が続いても再読み込みされるようにする。
+  // （#conn-result。popover の中）に入れる。先に空にして、同じ文が続いても再度読み上げられるようにする。
   // 欄は中身ごと差し替わるので、差し替えた後の欄に入れる
   function announceConnResult(text) {
     var result = document.querySelector("#band #conn-result");
@@ -930,7 +930,7 @@
     });
   });
 
-  // 緊急の患者：入れた値を、操作の行の真上の「撮る患者と送信先」にコピーする（10.5）
+  // 緊急の患者：入れた値を、操作の行の真上の「撮る患者と送信先」に反映する（10.5）
   var SEX_TEXT = { M: "男", F: "女", O: "その他", U: "不明" };
   // 生年月日の括弧の中身（元号の漢字 1 字と年・満年齢）。始まりの日で決め、年 ＝ 西暦の年 − 始まりの年 ＋ 1。
   // 明治（1868/10/23）より前は元号を出さず、年齢だけ。緊急の撮影は検査日が今日なので、今日が基準（app/core/wareki.py と同じ規則）
@@ -1026,7 +1026,7 @@
     }
     return { day: day };
   }
-  // 読み取り結果の 1 行：1975/05/14（昭50・51歳）。性別は付けない（.hint。患者のコピーは後ろに性別を追加する）
+  // 読み取り結果の 1 行：1975/05/14（昭50・51歳）。性別は付けない（.hint。患者の表示は後ろに性別を追加する）
   function birthText(day, now) {
     return slashDay(day) + birthParen(day, now);
   }
@@ -1080,7 +1080,7 @@
         birth.removeAttribute("title");
         return;
       }
-      // 読めた値は西暦にして括弧を付ける。読めない値は入れたままコピーする（誤りは欄の下の .msg に出る）
+      // 読めた値は西暦にして括弧を付ける。読めない値は入れたまま表示する（誤りは欄の下の .msg に出る）
       var read = readBirth(date.value, null);
       var paren = read.day ? birthParen(read.day, dateParts(date.getAttribute("data-today") || today())) : "";
       var day = read.day ? slashDay(read.day) : date.value.trim();

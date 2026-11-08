@@ -2,12 +2,12 @@
 
 ## 1. 依頼医
 
-- [x] 1.1 ワークリストの応答の Requesting Physician (0032,1032) を予約に読み込むテストを `tests/core/` に追加、`WorklistItem` と `worklist_mapping.py` を実装する。読めない値は、ほかの属性と同じく読めない値として扱う
-- [x] 1.2 予約の詳細に「依頼医」の行を追加、「紹介医」と別に表示されることを `tests/web/test_pages.py` で確認する。相手から来る値のエスケープを `tests/web/test_escaping.py` で確認する
+- [x] 1.1 ワークリストの応答の Requesting Physician (0032,1032) を予約に読み込むテストを `tests/core/` に追加し、`WorklistItem` と `worklist_mapping.py` を実装する。読めない値は、ほかの属性と同じく読めない値として扱う
+- [x] 1.2 予約の詳細に「依頼医」の行を追加し、「紹介医」と別に表示されることを `tests/web/test_pages.py` で確認する。相手から来る値のエスケープを `tests/web/test_escaping.py` で確認する
 
 ## 2. 受付番号
 
-- [x] 2.1 画面から送った件と CLI の `send` で送った件の受付番号が、画像の Accession Number になるテストを追加、今のコードで失敗することを確認する
+- [x] 2.1 画面から送った件と CLI の `send` で送った件の受付番号が、画像の Accession Number になるテストを追加し、今のコードで失敗することを確認する
 - [x] 2.2 件を作るときにフォルダの最初の画像の Accession Number を読んで `add_job` に渡す。読めなければ空にして送信は止めない
 - [x] 2.3 受付番号が空のまま記録された件は、表示のときに画像から読んで補う（今の患者 ID・氏名の読み方と同じ所で読む）
 

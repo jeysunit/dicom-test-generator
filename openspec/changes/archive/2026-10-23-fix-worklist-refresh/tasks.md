@@ -2,8 +2,8 @@
 
 ## 1. 再現のテスト
 
-- [x] 1.1 `tests/web/test_pages.py` に、`key` の無い `POST /worklist/refresh` が C-FIND を送らず、「予約を選んでから」の知らせを返し、`worklist_key` を含まないことのテストを追加、今のコードで失敗することを確認する
-- [x] 1.2 最後の一覧に無い鍵・応答に無い予約・時間切れの3つについて、画面の知らせが日本語で `worklist_key`・`worklist query` を含まないことのテストを追加、今のコードで失敗することを確認する
+- [x] 1.1 `tests/web/test_pages.py` に、`key` の無い `POST /worklist/refresh` が C-FIND を送らず、「予約を選んでから」の知らせを返し、`worklist_key` を含まないことのテストを追加し、今のコードで失敗することを確認する
+- [x] 1.2 最後の一覧に無い鍵・応答に無い予約・時間切れの3つについて、画面の知らせが日本語で `worklist_key`・`worklist query` を含まないことのテストを追加し、今のコードで失敗することを確認する
 
 ## 2. 実装
 

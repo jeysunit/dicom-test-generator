@@ -38,7 +38,7 @@ def test_page_puts_the_destination_section_above_the_job_list(client) -> None:
     destinations = html.index('<h2 class="hd">接続先')
     jobs = html.index('<h2 class="hd">送信ジョブ')
     assert destinations < jobs
-    # 下段は、状態の要約 → 検索の帯 → 件数の行 → 一覧の順
+    # 下部は、状態の要約 → 検索の帯 → 件数の行 → 一覧の順
     order = [
         html.index('id="queue-sum"'),
         html.index('id="queue-filter"'),

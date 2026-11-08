@@ -191,7 +191,7 @@ class StudyGeneratorService:
 
         `scheduled` を渡すと、予約の値（docs/spec/12 の 6 章）を画像にコピーする。
         予約に Study Instance UID があればそれを使う。各画像は書き出す前に
-        文字コードで表せるかを確認、表せなければ WorklistMappingError で止める。
+        文字コードで表せるかを確認し、表せなければ WorklistMappingError で止める。
         渡さなければいまと同じ動き。
         """
         total_images = sum(series.num_images for series in config.series_list)

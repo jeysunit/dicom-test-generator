@@ -2,7 +2,7 @@
 
 ## 0. 決めること
 
-- [x] 0.1 proposal の「決めたこと」の 1〜8 の答えを design.md にコピー、ADR-0033・
+- [x] 0.1 proposal の「決めたこと」の 1〜8 の答えを design.md にコピーし、ADR-0033・
       0034 の本文を答えに合わせる（2026-10-27）
 
 ## 1. 基本の図形（PR 1）
@@ -17,7 +17,7 @@
       `app/services/study_generator.py` に入れる。ほかの方式の位置が変わらないことも
       確認する
 - [ ] 1.5 `PixelSpecPhantom`・設定の `default_pixel_mode`・CLI の `--pixel-mode` に
-      `phantom` を追加、CT・MR の画像に偽物の印（Manufacturer・Manufacturer's Model
+      `phantom` を追加し、CT・MR の画像に偽物の印（Manufacturer・Manufacturer's Model
       Name `DTG SYNTHETIC`、Image Comments `SYNTHETIC TEST DATA`、Burned In
       Annotation `NO`、Recognizable Visual Features `NO`）を、装置のプロファイルの
       後に書く
@@ -25,7 +25,7 @@
 
 ## 2. CR・DX（PR 2）
 
-- [x] 2.1 spec 06 に CR・DX の節を追加、5.2 の「断る」から CR・DX を外す。13 の 4.3 と
+- [x] 2.1 spec 06 に CR・DX の節を追加し、5.2 の「断る」から CR・DX を外す。13 の 4.3 と
       roadmap を直す
 - [x] 2.2 CR Image・DX Image の必須の属性の試験を先に書き、`app/core/generator.py` に
       作る処理を追加する。`MONOCHROME1` の試験も書く（モジュールの値は
@@ -47,7 +47,7 @@
 ## 3. 部位の図形（PR 3）
 
 - [x] 3.1 ルーチンの `phantom`・`weighting`・`phase` を
-      `app/core/routine.py` に追加、`templates/routine/` の付けるルーチンに書く
+      `app/core/routine.py` に追加し、`templates/routine/` の付けるルーチンに書く
 - [x] 3.2 部位ごとの図形と、MR の強調・CT の相の値の試験を先に書いて実装する
       （図形は `app/core/phantom_region.py` に分けた。spec/06 の 4.7）
 - [x] 3.3 開発の環境で、`phantom` で CT 頭部・CT 胸部・MR 頭部・DX 胸部を撮り、
@@ -66,5 +66,5 @@
 
 ## 5. 仕上げ
 
-- [ ] 5.1 `pytest`・markdownlint・`check_doc_dates.py` が合格することを確認、この
+- [ ] 5.1 `pytest`・markdownlint・`check_doc_dates.py` が合格することを確認し、この
       change を archive する

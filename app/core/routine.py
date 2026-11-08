@@ -1,4 +1,4 @@
-"""撮影のルーチン（部位ごとのシリーズの並びと画像数）と、予約への当て方（ADR-0025）.
+"""撮影のルーチン（部位ごとのシリーズの並びと画像数）と、予約への割り当て方（ADR-0025）.
 
 ルーチンの形はモダリティごとに違う（docs/spec/03）。CT はシリーズの種類と再構成、
 MR はシーケンス、CR・DX は撮影の方向、US は静止画と動画の数を持つ。どのシリーズも
@@ -263,9 +263,9 @@ def match_routine(
     """予約の欄に見出しの言葉（`keywords`）が含まれるルーチンを適用する.
 
     `fields` は先の欄から順に（Requested Procedure Description、Scheduled Procedure
-    Step Description、Body Part Examined）。先の欄で当たれば後の欄は見ない。1つの欄で
-    いくつかの語が当たれば長い語、同じ長さなら欄の中で前に出てくる語のルーチン。
-    どの欄でも当たらなければ、そのモダリティの標準のルーチン。
+    Step Description、Body Part Examined）。先の欄で一致すれば後の欄は見ない。1つの欄で
+    いくつかの語が一致すれば長い語、同じ長さなら欄の中で前に出てくる語のルーチン。
+    どの欄でも一致しなければ、そのモダリティの標準のルーチン。
     """
     candidates = [routine for routine in routines if routine.modality == modality]
     if not candidates:
@@ -295,7 +295,7 @@ def assign_series_numbers(
     """シリーズ番号を決める。`wanted` は各シリーズの書いた番号（無ければ None）.
 
     `used` は予約で使った番号と、書いた番号か（True）自動か（False）。自動の番号は
-    自動で付けた番号の最大の次で、使った番号に当たれば空いている番号まで進める。書いた
+    自動で付けた番号の最大の次で、使った番号に一致すれば空いている番号まで進める。書いた
     番号が使った番号か、同じ撮影のほかのシリーズの番号と同じなら ValidationError。
     """
     taken = {number for number, _explicit in used}

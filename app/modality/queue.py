@@ -452,7 +452,7 @@ class SendQueue:
         """予約の撮影の札を取り、札を返す。ほかが持っていれば None.
 
         札の時刻は撮影の間 `touch_exam` で進める。進まないまま古くなった札（撮影の処理が
-        落ちた）は取り直せる。
+        落ちた）は再取得できる。
         """
         token = secrets.token_hex(SEND_TOKEN_BYTES)
         with self._connect() as conn:
@@ -476,7 +476,7 @@ class SendQueue:
             )
 
     def release_exam(self, worklist_key: str, token: str) -> None:
-        """自分の札だけを戻す（取り直されていたら、ほかの札は消さない）."""
+        """自分の札だけを戻す（再取得されていたら、ほかの札は消さない）."""
         with self._connect() as conn:
             conn.execute(
                 "DELETE FROM exam_locks WHERE worklist_key = ? AND token = ?",
@@ -518,7 +518,7 @@ class SendQueue:
         series_numbers: list[tuple[int, bool]] | None = None,
         emergency: EmergencyExamRecord | None = None,
     ) -> None:
-        """撮影を終えた予約を記録する。2回目以降（追加撮影）はシリーズの数だけ追加する.
+        """撮影を終えた予約を記録する。2回目以降（追加撮影）はシリーズの数だけ加える.
 
         前の版から移した記録（日時が空）は、移した後の最初の撮影の日時・説明で埋め、
         その後の追加撮影をそろえる。`series_numbers`（使った番号と、書いた番号か）は
@@ -841,7 +841,7 @@ def _now() -> str:
 def _add_ae_title_column(
     conn: sqlite3.Connection, table: str, column: str, legacy_ae_title: str
 ) -> None:
-    """AEタイトルの列が無ければ追加、前の行を `legacy_ae_title` で埋める（表と列は定数）."""
+    """AEタイトルの列が無ければ追加し、前の行を `legacy_ae_title` で埋める（表と列は定数）."""
     columns = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
     if column in columns:
         return

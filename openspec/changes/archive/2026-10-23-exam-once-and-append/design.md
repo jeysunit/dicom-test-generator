@@ -7,7 +7,7 @@
 - 同じ予約で何度でも「撮影」できる。2回目以降は同じ Study Instance UID で新しい
   シリーズを作る（spec 12 の 6.3）。MPPS を使うときは、撮影ごとに新しい MPPS の
   SOP Instance を作る
-- 2回目以降の Study Date・Study Time は撮影の時刻で作り直し、Series Number は 1 から
+- 2回目以降の Study Date・Study Time は撮影の時刻で再作成し、Series Number は 1 から
   振り直す
 - 予約に Study Instance UID が無いときに DTG が作った UID は、予約の鍵ごとに SQLite に
   記録し、2回目も使う（`generated_study_uids`）

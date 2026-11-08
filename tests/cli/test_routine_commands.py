@@ -1,4 +1,4 @@
-"""CLI の exam のルーチン（--routine・--routine-images と標準の当て方。ADR-0025）."""
+"""CLI の exam のルーチン（--routine・--routine-images と標準の割り当て方。ADR-0025）."""
 
 from __future__ import annotations
 

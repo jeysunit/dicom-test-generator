@@ -35,7 +35,7 @@ def test_action_column_is_pinned_to_the_right_edge() -> None:
     pinned = re.sub(r"\s+", "", source.split(".tbl th.act,", 1)[1].split("}", 1)[0])
     assert "position:sticky" in pinned
     assert "right:0" in pinned
-    # 組み立てた CSS にも入っている（commit した app.css と作り直しが合っていることは CI が見る）
+    # 組み立てた CSS にも入っている（commit した app.css と再ビルドの結果が合っていることは CI が見る）
     assert ".tbl td.act" in built and ".tbl th.act" in built
 
 

@@ -1,6 +1,6 @@
-"""モダリティエミュレーターのテストのツール：手元に MWL と Storage の SCP を立てる（docs/development.md の 4 章）.
+"""モダリティエミュレーターのテストのツール：手元に MWL と Storage の SCP を起動する（docs/development.md の 4 章）.
 
-実の PACS・RIS にはつながない。どの SCP も 127.0.0.1 の空いているポートで立てる。
+実の PACS・RIS にはつながない。どの SCP も 127.0.0.1 の空いているポートで起動する。
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ EXAMPLE_PROFILE = Path(__file__).resolve().parent.parent / "profiles" / "example
 def write_service_profile(
     directory: Path, name: str, *, mpps: bool, storage_commitment: bool
 ) -> None:
-    """例のプロファイルをコピー、`services` の MPPS・保管の確認だけを替えて置く（docs/spec/13 の 8）."""
+    """例のプロファイルをコピーし、`services` の MPPS・保管の確認だけを替えて置く（docs/spec/13 の 8）."""
     data = yaml.safe_load(EXAMPLE_PROFILE.read_text(encoding="utf-8"))
     data["name"] = name
     data["services"] = {
@@ -393,7 +393,7 @@ class MppsRecorder:
 
 
 def start_server(ae: AE, handlers: list[tuple[Any, Any]]) -> tuple[Any, int]:
-    """手元の空いているポートで、止めずに待ち受ける SCP を立てる."""
+    """手元の空いているポートで、止めずに待ち受ける SCP を起動する."""
     server = ae.start_server((LOCALHOST, 0), block=False, evt_handlers=handlers)
     return server, int(server.server_address[1])
 
@@ -454,7 +454,7 @@ def mpps_scp() -> Iterator[MppsRecorder]:
 
 
 def start_mpps_recorder(port: int = 0) -> tuple[MppsRecorder, Any]:
-    """偽の MPPS の相手を立てる。`port` を決めれば、そのポートで（落ちていた相手が戻る形）."""
+    """偽の MPPS の相手を起動する。`port` を決めれば、そのポートで（落ちていた相手が戻る形）."""
     recorder = MppsRecorder()
     ae = AE(ae_title=recorder.ae_title)
     ae.add_supported_context(ModalityPerformedProcedureStep)

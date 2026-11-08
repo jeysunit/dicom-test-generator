@@ -43,14 +43,14 @@
    依頼に装置の値をコピーしてから始める）
 4. **Station Name の優先順。** 装置の Station Name が空でなければ、それを画像に
    入れる。空なら今の順（病院テンプレート → 装置プロファイル → テンプレート）。
-   理由：Station Name は「その画像を作った機械の名前」（PS3.3 C.7.5.1）で、装置の
+   理由：Station Name は「その画像を作った装置の名前」（PS3.3 C.7.5.1）で、装置の
    切り替えが表すものと同じだから。ADR に書く
 5. **行に AE タイトルを記録する。** 送信キューの `jobs` と MPPS の行に、作ったときの
-   Calling AE Title の列を追加する。既存の DB は列を追加、今の設定の AE タイトルで埋める。
+   Calling AE Title の列を追加する。既存の DB は列を追加し、今の設定の AE タイトルで埋める。
    MPPS の行が送信先を行に固定している決まり（spec 12 の 8.4.1）と同じ考え方
 6. **保管確認の待ち受け。** `require_called_aet` は1つの AE タイトルにしか効かない
    ので、待ち受けの Called AE Title の確認を、設定の装置の AE タイトルの集合で
-   行う（`EVT_REQUESTED` などで確認、外れたら理由 7 で拒否する）。受けた結果は、
+   行う（`EVT_REQUESTED` などで確認し、外れたら理由 7 で拒否する）。受けた結果は、
    要求を記録した行の Calling AE Title と、届いた Association の Called AE Title が
    合うときだけ採る
 7. **拒否の理由。** `association_error` は、pynetdicom が返す A-ASSOCIATE-RJ の

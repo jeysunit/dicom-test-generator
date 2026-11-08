@@ -8,7 +8,7 @@ DTG は、撮影の画面を開いたとき（CLI では `-s`・`-i`・`--routin
 予約のモダリティと同じモダリティのルーチンから1つを当て、そのルーチンの並びと
 画像数を既定にしなければならない（SHALL）。予約の検査の記述と部位（Body Part
 Examined (0018,0015) があれば）に、ルーチンの YAML の `keywords`（見出しの言葉）が
-含まれるルーチンを当て、どれも当たらなければそのモダリティの既定のルーチン（CT は
+含まれるルーチンを割り当て、どれも一致しなければそのモダリティの既定のルーチン（CT は
 胸部 単純）とする。施設の検査のコードの対応表は使わない。撮影の画面は、適用した
 ルーチンを最初から選んだ状態で出す。予約のモダリティが空なら、テンプレートの
 モダリティを使う。緊急の患者（予約なし）は、テンプレートのモダリティの既定の
@@ -27,7 +27,7 @@ Examined (0018,0015) があれば）に、ルーチンの YAML の `keywords`（
 #### Scenario: 見出しの言葉で適用する
 
 - **WHEN** Requested Procedure Description「肝ダイナミックCT」の予約で撮影の画面を開く
-- **THEN** 長い語「ダイナミック」が当たり、ルーチン「肝臓 ダイナミック」が選ばれた状態で出る
+- **THEN** 長い語「ダイナミック」が一致し、ルーチン「肝臓 ダイナミック」が選ばれた状態で出る
 
 #### Scenario: 部位で適用する
 
@@ -68,7 +68,7 @@ Examined (0018,0015) があれば）に、ルーチンの YAML の `keywords`（
 
 DTG は、予約の欄でルーチンを適用するとき、Requested Procedure Description、
 Scheduled Procedure Step Description、Body Part Examined の順に見て、先の欄で
-当たれば後の欄を見てはならない（SHALL NOT）。1つの欄でいくつかの語が当たれば長い
+一致すれば後の欄を見てはならない（SHALL NOT）。1つの欄でいくつかの語が一致すれば長い
 語のルーチン、同じ長さなら欄の中で前に出てくる語のルーチンとする。欄と語は NFKC で
 正規化し、大文字と小文字を区別せずに比べ、長さは正規化した後の文字数で数える。
 同じモダリティの2つのルーチンに、正規化した後に同じになる語があれば、読み込みの
@@ -77,12 +77,12 @@ Scheduled Procedure Step Description、Body Part Examined の順に見て、先�
 #### Scenario: 先の欄が勝つ
 
 - **WHEN** Requested Procedure Description が「腹部CT」、Scheduled Procedure Step Description が「胸腹部」の予約で撮影の画面を開く
-- **THEN** ルーチン「腹部骨盤 単純＋造影」が選ばれる（Requested Procedure Description で当たったので、Scheduled Procedure Step Description は見ない）
+- **THEN** ルーチン「腹部骨盤 単純＋造影」が選ばれる（Requested Procedure Description で一致したので、Scheduled Procedure Step Description は見ない）
 
 #### Scenario: 全角と大文字
 
 - **WHEN** Requested Procedure Description が「ＣＨＥＳＴ ct」の予約で撮影の画面を開く
-- **THEN** 語「CHEST」が当たり、ルーチン「胸部 単純」が選ばれる
+- **THEN** 語「CHEST」が一致し、ルーチン「胸部 単純」が選ばれる
 
 #### Scenario: 同じ長さの語
 
@@ -105,7 +105,7 @@ Scheduled Procedure Step Description、Body Part Examined の順に見て、先�
 
 #### Scenario: 別のルーチンに変える
 
-- **WHEN** 「胸部 単純」が当たった予約で、ルーチンを「胸腹部骨盤 造影」に変える
+- **WHEN** 「胸部 単純」が一致した予約で、ルーチンを「胸腹部骨盤 造影」に変える
 - **THEN** シリーズの行は「胸腹部骨盤 造影」の 6 つになり、画像数は上から 1・150・133・83・116・1 になる
 
 #### Scenario: 画像数の無いルーチン
@@ -146,7 +146,7 @@ DTG は、DTG が扱うモダリティ（CT・MR・CR・DX・US）ごとに、�
 #### Scenario: MR の予約
 
 - **WHEN** テンプレートが CT だけのときに、モダリティ MR の予約で撮影の画面を開く
-- **THEN** MR の既定のルーチン「頭部」が当たるが、今と同じく「予約は MR、テンプレートは CT です」と知らせて撮影は押せない
+- **THEN** MR の既定のルーチン「頭部」が一致するが、今と同じく「予約は MR、テンプレートは CT です」と知らせて撮影は押せない
 
 ### Requirement: シリーズの種類ごとに DICOM の値を変える
 
@@ -217,7 +217,7 @@ DTG は、予約ごとに使ったシリーズ番号を記録し、ルーチン�
 - **WHEN** シリーズ番号 1・2・3 を自動で、501 をルーチンに書いて撮影した予約で、「手で入れる」で1シリーズを追加撮影する
 - **THEN** 追加したシリーズの番号は 4 になる
 
-#### Scenario: 自動の番号が書いた番号に当たる
+#### Scenario: 自動の番号が書いた番号に一致する
 
 - **WHEN** シリーズ番号 1・2・3 を自動で、4 をルーチンに書いて撮影した予約で、「手で入れる」で1シリーズを追加撮影する
 - **THEN** 追加したシリーズの番号は 5 になる

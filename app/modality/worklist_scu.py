@@ -257,7 +257,7 @@ def query_worklist(
 def _check_limits(
     assoc: Any, peer: WorklistPeerConfig, response: Dataset, received: int, total_bytes: int
 ) -> int:
-    """応答の1件を数える前に上限を確認、その件の大きさを返す（5.5）.
+    """応答の1件を数える前に上限を確認し、その件の大きさを返す（5.5）.
 
     超えたら C-CANCEL を送り、Association を切って WorklistQueryError で止める。
     """

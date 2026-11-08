@@ -187,7 +187,7 @@ def test_resend_of_a_sent_job_makes_a_new_job(tmp_path, worklist_scp, storage_sc
     original, resent = service.queue.get_job(job_id), service.queue.get_job(new_id)
     assert original.status == "sent" and original.attempts == 1  # 元の件は変えない
     assert (resent.folder, resent.destination) == (original.folder, original.destination)
-    # 画像は作り直さず、同じファイルを送る
+    # 画像は再作成せず、同じファイルを送る
     assert sorted(ds.SOPInstanceUID for ds in storage_scp.received[2:]) == sorted(first_uids)
     assert resent.num_files == len(exam.files)
 

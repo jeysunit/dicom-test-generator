@@ -77,7 +77,7 @@ DOSE_REPORT_ROWS_PER_PAGE = 18
 
 def dose_report_lines(series_list: list[SeriesConfig], page: int = 0) -> list[str]:
     """線量の画面の文字の行。撮影したシリーズ（位置決め・軸位）ごとに架空の CTDIvol と
-    DLP を並べる。冠状断・矢状断は作り直した画像なので線量の行に入れない.
+    DLP を並べる。冠状断・矢状断は再構成した画像なので線量の行に入れない.
 
     `page` は線量の画面の何枚目か（0 始まり）。1 枚に収まらない行は次の画面に回す。
     """
@@ -144,7 +144,7 @@ def _centered_offset(
     """冠状断・矢状断の画像の位置（y・x。mm）。
 
     `center` を渡したとき（部位の図形）は、並びの中央（先頭と末尾の中間）を `center` に
-    置き、`start_z` はそこからのずれとして追加する。渡さなければ `start_z` から進める。
+    置き、`start_z` はそこからのずれとして加える。渡さなければ `start_z` から進める。
     """
     if center is None:
         return series.start_z + position_index * series.slice_spacing

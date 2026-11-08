@@ -2,9 +2,9 @@
 
 ## 1. 実装
 
-- [x] 1.1 `app/modality/queue.py` に緊急の撮影の記録（`emergency_exams`）を追加、`record_exam` で同じトランザクションに残す
+- [x] 1.1 `app/modality/queue.py` に緊急の撮影の記録（`emergency_exams`）を追加し、`record_exam` で同じトランザクションに残す
 - [x] 1.2 `app/modality/service.py` で、緊急の患者の追加撮影を Study Instance UID と患者ID・氏名で確認して受け、記録の Study・患者の値で撮る。札は `emergency:<UID>` で取る
-- [x] 1.3 CLI の `exam` に `--study-uid` を追加、`--emergency --append` のときだけ受ける
+- [x] 1.3 CLI の `exam` に `--study-uid` を追加し、`--emergency --append` のときだけ受ける
 
 ## 2. 確認
 

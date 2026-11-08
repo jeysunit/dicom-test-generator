@@ -217,7 +217,7 @@ DTG_URL=http://127.0.0.1:8080 DTG_WEB_PASSWORD_FILE=/path/to/password.txt \
 ```
 
 認証の無い画面なら `DTG_WEB_PASSWORD_FILE` は不要。保存した画像に、架空の患者の
-値だけが写っていることを確認してからコミットする。
+値だけが含まれていることを確認してからコミットする。
 
 ## 10. 版の付け方
 

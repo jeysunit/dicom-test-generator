@@ -372,8 +372,8 @@ Scheduled Station AE Title (0040,0001) は画像に転記する属性ではな�
   - 同じ予約を、別のプロセス（画面と CLI など）が同時に撮らない。撮影済みの判定から
     記録までを、状態の保存先の SQLite の予約ごとの札で守る（ほかが撮っていれば「この
     予約は、ほかで撮影しています。終わってから撮ってください」）。撮影の間は札の時刻を
-    1 分ごとに進め、30 分より長く進まない札は、撮影の処理が落ちたとみなして取り直す。
-    札は持ち主だけが戻す（取り直された札は消さない）
+    1 分ごとに進め、30 分より長く進まない札は、撮影の処理が落ちたとみなして再取得する。
+    札は持ち主だけが戻す（再取得された札は消さない）
 - **緊急の患者の追加撮影は、前の撮影の Study Instance UID を CLI で指定したときだけ
   受ける**（[ADR-0027](../decisions/0027-emergency-append.md)。IHE PIR の Case 6 を
   試すため）
@@ -531,7 +531,7 @@ Referenced SOP Class UID (0008,1150)・Referenced SOP Instance UID (0008,1155)
   再送信は初期設定でしない（設定 `retry.max_attempts` で回数を決めたときだけ）
 - 送信完了の件も、回数の上限なしに再送信できる。同じフォルダの画像をすべて、その件と
   同じ送信先へ、新しい件として送信する（元の件と、その保管確認の結果は変えない）。
-  画像は作り直さないので、SOP Instance UID・Series Instance UID・Study Instance UID は
+  画像は再作成しないので、SOP Instance UID・Series Instance UID・Study Instance UID は
   最初の送信と同じ（PS3.5 9 の UID は1つの物を指す）。相手が同じ SOP Instance UID の
   2回目をどう扱うか（上書き・無視・Warning・Failure）は相手の実装による。DTG は
   応答の Status をそのまま記録する。送信中・送信待ちの件は再送信しない

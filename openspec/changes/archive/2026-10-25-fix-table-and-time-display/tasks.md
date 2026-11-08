@@ -2,12 +2,12 @@
 
 ## 1. 時刻
 
-- [x] 1.1 `display.utc_offset_label` を追加、取得の時刻と PACS の時刻の見出しに添える。`tests/web/test_time_and_scroll.py` で確認する
+- [x] 1.1 `display.utc_offset_label` を追加し、取得の時刻と PACS の時刻の見出しに添える。`tests/web/test_time_and_scroll.py` で確認する
 
 ## 2. 表
 
 - [x] 2.1 PACS の再取得・再送の差し替えで、横スクロールの位置を保つ（`app.js`）
-- [x] 2.2 ルーチンの表を、幅 390px 前後でもはみ出さない幅にする。狭い画面では「種類」の列を出さず、Series Description の下に出す（`input.css`・`_routine_fields.html`。`app.css` を作り直す）
+- [x] 2.2 ルーチンの表を、幅 390px 前後でもはみ出さない幅にする。狭い画面では「種類」の列を出さず、Series Description の下に出す（`input.css`・`_routine_fields.html`。`app.css` を再ビルドする）
 
 ## 3. 撮影の画面
 

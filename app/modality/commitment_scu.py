@@ -317,7 +317,7 @@ class CommitmentManager:
         `own_ae_title` は結果が届いた自分の側の AEタイトル。要求を送った装置の AE
         タイトルと違えば、その要求の結果にしない。
         """
-        # 先に Event Type・Transaction UID・相手の AE だけを確認、合ったときだけ参照を読む
+        # 先に Event Type・Transaction UID・相手の AE だけを確認し、合ったときだけ参照を読む
         try:
             transaction_uid = read_transaction_uid(event_type, info)
         except CommitmentReportRefused as exc:

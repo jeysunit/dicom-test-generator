@@ -2,9 +2,9 @@
 
 ## 1. 画面
 
-- [x] 1.1 `tests/web/` に、各行の「詳細」が `popovertarget` のボタンで、同じ ID の枠に元のファイル・試行回数・名乗る AE タイトルがあることのテストを追加、`_queue.html` を直す
+- [x] 1.1 `tests/web/` に、各行の「詳細」が `popovertarget` のボタンで、同じ ID の枠に元のファイル・試行回数・名乗る AE タイトルがあることのテストを追加し、`_queue.html` を直す
 - [x] 1.2 `app.js` で、枠を開くときにボタンの位置から枠の位置を決め、2 秒ごとの差し替えの後に開いていた枠を開き直し、フォーカスを同じ役割の要素に戻す
-- [x] 1.3 枠の見た目を `app/web/styles/input.css` に追加、`scripts/build_css.sh` で `app.css` を作り直す
+- [x] 1.3 枠の見た目を `app/web/styles/input.css` に追加し、`scripts/build_css.sh` で `app.css` を再ビルドする
 
 ## 2. 確認
 

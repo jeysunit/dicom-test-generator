@@ -110,7 +110,7 @@ source:
   date: ""           # 発行日（YYYY-MM-DD）
   url: ""            # 入手先
   document_id: ""    # 文書番号
-  notes: "架空。実在の装置の写しではない"
+  notes: "架空。実在の装置のコピーではない"
 device:
   modality: "CT"
   manufacturer: "DTG Synthetic"

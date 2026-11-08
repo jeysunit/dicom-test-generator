@@ -415,7 +415,7 @@ class ModalityService:
         return any(destination.storage_commitment for destination in self.config.destinations)
 
     def start_commitment_listener(self) -> CommitmentListener | None:
-        """待ち受けを立てる。保管の確認を使う送信先が無ければ立てずに None（8.3）."""
+        """待ち受けを起動する。保管の確認を使う送信先が無ければ起動せずに None（8.3）."""
         if not self.uses_commitment():
             return None
         listener = self._new_listener()
@@ -449,9 +449,9 @@ class ModalityService:
         return self.queue.get_job(job_id).calling_ae_title or self.current_station().ae_title
 
     def commit_and_wait(self, job_id: int, wait_seconds: float | None = None) -> CommitmentState:
-        """CLI の `commit`：待ち受けを立ててから求め、結果か `wait_seconds` まで待つ（11.8）.
+        """CLI の `commit`：待ち受けを起動してから求め、結果か `wait_seconds` まで待つ（11.8）.
 
-        待ち受けを立てられなければ、N-ACTION を送らずに ModalityConfigError。
+        待ち受けを起動できなければ、N-ACTION を送らずに ModalityConfigError。
         """
         node = self._commitment_node(job_id)
         listener = self._new_listener()
@@ -466,7 +466,7 @@ class ModalityService:
         return state
 
     def _commitment_node(self, job_id: int) -> DestinationConfig:
-        """保管の確認を求めてよい件かを確認、送信先を返す."""
+        """保管の確認を求めてよい件かを確認し、送信先を返す."""
         job = self.queue.get_job(job_id)
         node = self.config.destination(job.destination)
         if not node.storage_commitment:
@@ -1189,7 +1189,7 @@ class ModalityService:
         """送り直す（8.2）。送信失敗の件は、送れていない画像だけを同じ件で送る.
 
         `job_id` が送信完了の件なら、同じフォルダの画像をすべて、同じ送信先へ新しい件として
-        送る（回数の上限は無い。画像は作り直さないので UID は変わらない）。
+        送る（回数の上限は無い。画像は再作成しないので UID は変わらない）。
         `stale` は、送信中のまま止まった件を失敗に戻してから送り直す。
         """
         if sum((job_id is not None, all_failed, stale)) != 1:
