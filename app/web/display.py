@@ -112,7 +112,7 @@ def send_error_label(reason: str) -> str:
 
 
 def _mpps_error_label(reason: str) -> str:
-    """MPPS の送信失敗の原文（`app/modality/mpps_scu.py`・`mpps_queue.py`）を日本語にする。当たらなければ空."""
+    """MPPS の送信失敗の原文（`app/modality/mpps_scu.py`・`mpps_queue.py`）を日本語にする。一致しなければ空."""
     failed = re.match(r"N-(?:CREATE|SET) failed with status (0x[0-9A-Fa-f]{4})", reason)
     if failed:
         return f"送信先が MPPS を受け付けませんでした（状態 {failed[1]}）。送信先の記録を確かめてください"
@@ -128,7 +128,7 @@ def _mpps_error_label(reason: str) -> str:
 
 
 def mpps_error_label(reason: str) -> str:
-    """MPPS の注意に出す理由。どの形にも当たらないときは、次にすることを示す."""
+    """MPPS の注意に出す理由。どの形にも一致しないときは、次にすることを示す."""
     label = send_error_label(reason)
     if label == GENERIC_SEND_ERROR:
         return f"{GENERIC_SEND_ERROR}。python -m app.cli mpps list で記録を確かめてください"
