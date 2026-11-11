@@ -75,7 +75,7 @@ _SCHEMA = (
         study_instance_uid TEXT NOT NULL
     )
     """,
-    # 予約を撮っている間の札（別のプロセスが同じ予約を同時に撮らない。ADR-0024）
+    # 予約を撮っている間のトークン（別のプロセスが同じ予約を同時に撮らない。ADR-0024）
     """
     CREATE TABLE IF NOT EXISTS exam_locks (
         worklist_key TEXT PRIMARY KEY,
@@ -228,7 +228,7 @@ class SendQueue:
                     conn.execute(statement)
                 columns = {row[1] for row in conn.execute("PRAGMA table_info(jobs)")}
                 if "send_token" not in columns:
-                    # 札の列が無い前の版の送信キューに追加する
+                    # トークンの列が無い前の版の送信キューに追加する
                     conn.execute(
                         "ALTER TABLE jobs ADD COLUMN send_token TEXT NOT NULL DEFAULT ''"
                     )
@@ -275,9 +275,9 @@ class SendQueue:
         return job_id
 
     def mark_sending(self, job_id: int) -> str:
-        """待ち・失敗の件だけを送信中にし、送る権利の札を返す（8.2）.
+        """待ち・失敗の件だけを送信中にし、送る権利のトークンを返す（8.2）.
 
-        同じ件を2つの手順が同時に送らない。札は touch_sending・record_results・
+        同じ件を2つの手順が同時に送らない。トークンは touch_sending・record_results・
         record_job_failure に渡し、止まったとみなされて別の手順が引き取った後に、
         古い手順が書き込めないようにする。
         """
@@ -321,7 +321,7 @@ class SendQueue:
         return reset
 
     def touch_sending(self, job_id: int, token: str) -> None:
-        """送っている間に時刻を進める（長い送信を止まったとみなさない）。札が違えば止める."""
+        """送っている間に時刻を進める（長い送信を止まったとみなさない）。トークンが違えば止める."""
         with self._connect() as conn:
             self._claim(conn, job_id, token)
 
@@ -330,7 +330,7 @@ class SendQueue:
     ) -> JobStatus:
         """ファイルごとの結果を残し、検査の状態（送れた・失敗）を決めて返す.
 
-        `token` を渡すと、その札の送信中のときだけ書く（違えば ModalityError で何も書かない）。
+        `token` を渡すと、そのトークンの送信中のときだけ書く（違えば ModalityError で何も書かない）。
         """
         with self._connect() as conn:
             if token is not None:
@@ -364,7 +364,7 @@ class SendQueue:
     def record_job_failure(self, job_id: int, reason: str, token: str | None = None) -> None:
         """Association を張れないなど、ファイルに届く前の失敗を残す.
 
-        `token` を渡すと、その札の送信中のときだけ書く（違えば ModalityError で何も書かない）。
+        `token` を渡すと、そのトークンの送信中のときだけ書く（違えば ModalityError で何も書かない）。
         """
         with self._connect() as conn:
             if token is not None:
@@ -382,7 +382,7 @@ class SendQueue:
 
     @staticmethod
     def _claim(conn: sqlite3.Connection, job_id: int, token: str) -> None:
-        """札の送信中なら時刻を進める。違えば止める（同じ取引の中の書き込みは巻き戻る）."""
+        """トークンの送信中なら時刻を進める。違えば止める（同じ取引の中の書き込みは巻き戻る）."""
         cursor = conn.execute(
             "UPDATE jobs SET updated_at = ? WHERE id = ? AND status = 'sending' AND send_token = ?",
             (_now(), job_id, token),
@@ -449,9 +449,9 @@ class SendQueue:
         )
 
     def claim_exam(self, worklist_key: str) -> str | None:
-        """予約の撮影の札を取り、札を返す。ほかが持っていれば None.
+        """予約の撮影のトークンを取得し、返す。ほかが持っていれば None.
 
-        札の時刻は撮影の間 `touch_exam` で進める。進まないまま古くなった札（撮影の処理が
+        トークンの時刻は撮影の間 `touch_exam` で進める。進まず期限切れになったトークン（撮影の処理が
         落ちた）は再取得できる。
         """
         token = secrets.token_hex(SEND_TOKEN_BYTES)
@@ -468,7 +468,7 @@ class SendQueue:
         return token if cursor.rowcount == 1 else None
 
     def touch_exam(self, worklist_key: str, token: str) -> None:
-        """撮影の間、札の時刻を進める（長い撮影を落ちたとみなさない）."""
+        """撮影の間、トークンの時刻を進める（長い撮影を落ちたとみなさない）."""
         with self._connect() as conn:
             conn.execute(
                 "UPDATE exam_locks SET locked_at = ? WHERE worklist_key = ? AND token = ?",
@@ -476,7 +476,7 @@ class SendQueue:
             )
 
     def release_exam(self, worklist_key: str, token: str) -> None:
-        """自分の札だけを戻す（再取得されていたら、ほかの札は消さない）."""
+        """自分のトークンだけを解放する（再取得されていたら、ほかのトークンは消さない）."""
         with self._connect() as conn:
             conn.execute(
                 "DELETE FROM exam_locks WHERE worklist_key = ? AND token = ?",

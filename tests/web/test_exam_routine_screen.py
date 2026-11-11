@@ -65,7 +65,7 @@ def test_every_count_field_is_tied_to_its_error_line(client) -> None:
             assert line, f"{label}: {field}"
             assert f'id="{line.group(1)}"' in html, label
             assert f'aria-describedby="{line.group(1)}"' in field, label
-    # 必須の印は .req（赤い札にしない）
+    # 必須の印は .req（赤いバッジにしない）
     manual = pages["手入力"]
     assert manual.count('<span class="req">必須</span>') == 2
     assert "badge text-danger" not in manual

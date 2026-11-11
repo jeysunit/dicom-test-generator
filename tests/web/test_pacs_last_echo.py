@@ -45,7 +45,7 @@ def test_column_is_empty_before_any_check(client) -> None:
     cell = _cell(client.get("/pacs").text)
 
     assert '<span class="none">—</span>' in cell
-    # 確認中の札は、押している間だけ CSS で出す
+    # 状態バッジ「確認中」は、押している間だけ CSS で出す
     assert _WAIT in cell
     assert 'data-k="ok"' not in cell and 'data-k="ng"' not in cell
 

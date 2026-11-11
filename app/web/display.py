@@ -32,9 +32,9 @@ MODALITY_COLORS = {
     "SR": "sr",
 }
 STATUS_LABELS = {"pending": "送信待ち", "sending": "送信中", "sent": "送信完了", "failed": "送信失敗"}
-# 状態の札の種類（`.st` の `data-k`。枠と印は画面の決まりの状態の札と同じ）
+# 状態バッジの種類（`.st` の `data-k`。枠と印は画面の決まりの状態バッジと同じ）
 STATUS_KINDS = {"pending": "plan", "sending": "wait", "sent": "ok", "failed": "ng"}
-# 保管の確認の状態（10.6・10.8）と、出すときの札の種類（送信ジョブの状態と同じ札を使う）
+# 保管の確認の状態（10.6・10.8）と、出すときの状態バッジの種類（送信ジョブの状態と同じバッジを使う）
 COMMITMENT_LABELS = {
     "waiting": "確認待ち",
     "confirmed": "確認済",

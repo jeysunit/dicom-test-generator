@@ -130,7 +130,7 @@ NOT_TAKEN_MESSAGE = "この予約はまだ撮影していません。追加撮�
 # --study-uid。docs/spec/12 の 6.3）。指定の無い画面と CLI には、今までの文言で断る
 EMERGENCY_APPEND_MESSAGE = "緊急の患者（予約なし）では追加撮影はできません"
 ORDER_BUSY_MESSAGE = "この予約は、ほかで撮影しています。終わってから撮ってください"
-CLAIM_TOUCH_SECONDS = 60  # 撮影の間、予約の札の時刻を進める間（札は 30 分で古くなる）
+CLAIM_TOUCH_SECONDS = 60  # 撮影の間、予約のトークンの時刻を進める間（トークンは 30 分で期限切れになる）
 AUTO_ROUTINE = "auto"  # 予約に適用したルーチンで撮る（ADR-0025）
 # DICOM の値の区切り（PS3.5 6.2）。LO・PN・SH の値に入れると VM が増える
 VALUE_DELIMITER = "\\"
@@ -160,7 +160,7 @@ def check_send_files(folder: Path, files: list[str]) -> None:
 
 
 def _throttled(touch: Callable[[], None] | None) -> Callable[[int, int], None] | None:
-    """作成の進み（1枚ごと）で呼ばれ、`touch` を間を空けて呼ぶ（札の時刻を進める）."""
+    """作成の進み（1枚ごと）で呼ばれ、`touch` を間を空けて呼ぶ（トークンの時刻を進める）."""
     if touch is None:
         return None
     last = [time.monotonic()]
@@ -874,7 +874,7 @@ class ModalityService:
             if key is None:
                 return self._exam(request)
             # 同じ予約を、別のプロセス（CLI と画面など）が同時に撮らないようにする。撮影済みの
-            # 判定から記録までを、予約ごとの札で守る（6.3・ADR-0024）
+            # 判定から記録までを、予約ごとのトークンで守る（6.3・ADR-0024）
             token = self.queue.claim_exam(key)
             if token is None:
                 raise ModalityError(ORDER_BUSY_MESSAGE)
@@ -888,7 +888,7 @@ class ModalityService:
     def _exam(
         self, request: ExamRequest, keep_claim: Callable[[], None] | None = None
     ) -> ExamResult:
-        """`keep_claim` は、撮影の間に予約の札の時刻を進める（長い撮影を落ちたとみなさない）."""
+        """`keep_claim` は、撮影の間に予約のトークンの時刻を進める（長い撮影を落ちたとみなさない）."""
         if (request.worklist_key is None) == (request.emergency_patient is None):
             raise ConfigurationError(
                 "Specify exactly one of worklist_key or emergency_patient",
@@ -1268,7 +1268,7 @@ class ModalityService:
                     node,
                     pending,
                     node.timeout_seconds,
-                    # 1ファイルごとに時刻を進め、札が違えば（引き取られたら）残りを送らない
+                    # 1ファイルごとに時刻を進め、トークンが違えば（引き取られたら）残りを送らない
                     on_progress=lambda token=token: self.queue.touch_sending(job_id, token),
                 )
             except AssociationError as exc:

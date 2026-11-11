@@ -248,7 +248,7 @@ def test_new_order_mode_shoots_the_retake_order_from_ris(
 
 
 def test_same_order_is_not_shot_by_two_processes_at_once(tmp_path, worklist_scp) -> None:
-    """別のプロセスが同じ予約を撮っている間は撮らない（予約ごとの札。ADR-0024）."""
+    """別のプロセスが同じ予約を撮っている間は撮らない（予約ごとのトークン。ADR-0024）."""
     service = _service(tmp_path, worklist_scp.port)
     other = _service(tmp_path, worklist_scp.port)  # 同じ状態の保存先を使う別のプロセス
     key = _key(service)
@@ -261,11 +261,11 @@ def test_same_order_is_not_shot_by_two_processes_at_once(tmp_path, worklist_scp)
 
     other.queue.release_exam(key, token)
     _exam(service, key)
-    assert service.queue.claim_exam(key) is not None  # 撮り終えたら札は戻している
+    assert service.queue.claim_exam(key) is not None  # 撮り終えたらトークンは解放している
 
 
 def test_exam_claim_is_owned_and_renewed(tmp_path) -> None:
-    """札は持ち主だけが戻せ、時刻を進めた札は古くならない。落ちたまま古い札は再取得できる."""
+    """トークンは持ち主だけが解放でき、時刻を進めたトークンは期限切れにならない。落ちたまま期限切れのトークンは再取得できる."""
     queue = SendQueue(tmp_path / QUEUE_DB_NAME)
     first = queue.claim_exam("abc")
     assert first is not None and queue.claim_exam("abc") is None
@@ -279,9 +279,9 @@ def test_exam_claim_is_owned_and_renewed(tmp_path) -> None:
     assert queue.claim_exam("abc") is None
 
     age()
-    second = queue.claim_exam("abc")  # 進まないまま古くなった札は再取得できる
+    second = queue.claim_exam("abc")  # 時刻が進まず期限切れになったトークンは再取得できる
     assert second is not None
-    queue.release_exam("abc", first)  # 前の持ち主は、再取得された札を消せない
+    queue.release_exam("abc", first)  # 前の持ち主は、再取得されたトークンを消せない
     assert queue.claim_exam("abc") is None
     queue.release_exam("abc", second)
     assert queue.claim_exam("abc") is not None

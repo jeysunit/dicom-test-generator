@@ -7,7 +7,7 @@
 ## 背景
 
 DTG・ris-emulator・tsunagi-dicom の 3 製品は、同じ画面の決まり（外枠・左のナビ・
-検索の帯・一覧の表・状態の札・通知・区画）で組んでいる。ところが DTG は Tailwind の
+検索の帯・一覧の表・状態バッジ・通知・区画）で組んでいる。ところが DTG は Tailwind の
 `input.css` の中に、ris-emulator は手書きの `app.css` の中に、同じ部品をそれぞれ
 別の名前で持っていた（左のナビの `.nav-group`・`.nav-item` と `.nav-g`・`.nav-i`、
 区画の中身の `.sec-body` と `.sec > .in` など）。`.st`・`.sum`・`.searchband` は同じ

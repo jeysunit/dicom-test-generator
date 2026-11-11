@@ -415,7 +415,7 @@ def test_create_failure_then_duplicate_is_not_accepted(tmp_path, worklist_scp, m
 
 
 def test_concurrent_retries_send_each_message_once(tmp_path, worklist_scp, mpps_scp) -> None:
-    """2つの手順が同時に `mpps retry` しても、同じ通知を重ねて送らない（送る権利の札）."""
+    """2つの手順が同時に `mpps retry` しても、同じ通知を重ねて送らない（送る権利のトークン）."""
     down_port = free_port()
     _scheduled_exam(_service(tmp_path, worklist_scp.port, down_port))
     back, server = start_mpps_recorder(down_port)
