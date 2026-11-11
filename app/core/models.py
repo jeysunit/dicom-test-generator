@@ -116,8 +116,8 @@ BodyPart = Literal[
 ]
 PROJECTION_BODY_PARTS = frozenset({"CHEST", "ABDOMEN", "LSPINE", "CSPINE", "KNEE", "HAND"})
 PAIRED_BODY_PARTS = frozenset({"KNEE", "HAND", "SHOULDER"})
-# 部位を書くシリーズのモダリティの既定の部位。ルーチンを使わず手で入れたシリーズに
-# 入れる（CR・DX の手で入れたシリーズと同じ胸部。ADR-0037）
+# 部位を書くシリーズのモダリティの既定の部位。ルーチンを使わず手入力したシリーズに
+# 入れる（CR・DX の手入力のシリーズと同じ胸部。ADR-0037）
 DEFAULT_BODY_PART: BodyPart = "CHEST"
 # 左右。General Series の Laterality (0020,0060) は R・L だけ（PS3.3 C.7.3.1）、DX の
 # Image Laterality (0020,0062) は B も書ける（C.8.11.2。U は対にならない部位に DTG が入れる）

@@ -72,7 +72,7 @@ def csrf_token(client: TestClient, path: str = "/worklist", **kwargs) -> str:
 
 
 def post_headers(token: str) -> dict[str, str]:
-    """HTMX と同じ見出し：自分の住所の Origin と CSRF の token."""
+    """HTMX と同じ見出し：自分のアドレスの Origin と CSRF の token."""
     return {"Origin": ORIGIN, "X-CSRF-Token": token, "HX-Request": "true"}
 
 

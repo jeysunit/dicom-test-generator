@@ -291,7 +291,7 @@ def test_append_keeps_an_empty_first_description(tmp_path, worklist_scp) -> None
     """最初の撮影の説明が空なら、あとで RIS が説明を追加しても追加撮影は空のまま（IHE-A.3.3）."""
     service = _service(tmp_path, worklist_scp.port)
     key = _key(service)
-    assert service.queue  # 待ち行列の表を作っておく
+    assert service.queue  # 送信キューの表を作っておく
     with closing(sqlite3.connect(tmp_path / "state" / QUEUE_DB_NAME)) as conn, conn:
         conn.execute(
             "INSERT INTO exam_records VALUES (?, ?, '20261022', '100000', '', 1)",

@@ -1,8 +1,8 @@
-"""MPPS の知らせの待ち行列（sqlite3。docs/spec/12_modality_emulator.md 8.4.1）.
+"""MPPS の通知のキュー（sqlite3。docs/spec/12_modality_emulator.md 8.4.1）.
 
 1件は1つの撮影の MPPS（1つの SOP Instance）。N-CREATE と、終わりの N-SET
 （COMPLETED・DISCONTINUED）の値と、それぞれ送れたかを持つ。送れなかった分は
-`mpps retry` で、N-CREATE を先に送り直す。待ち行列と同じ sqlite3 のファイルに置く。
+`mpps retry` で、N-CREATE を先に送り直す。送信キューと同じ sqlite3 のファイルに置く。
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ class MppsRecord(BaseModel):
 
     @property
     def sent(self) -> bool:
-        """いまの状態までの知らせを、すべて送れたか."""
+        """いまの状態までの通知を、すべて送れたか."""
         return self.create_sent and (not self.has_set or self.set_sent)
 
 
@@ -119,7 +119,7 @@ class MppsQueue:
         peer: tuple[str, str, int],
         calling_ae_title: str = "",
     ) -> int:
-        """N-CREATE の知らせを入れる。`peer` は（AEタイトル, 住所, ポート）で、行に固定する.
+        """N-CREATE の通知を入れる。`peer` は（AEタイトル, ホスト, ポート）で、行に固定する.
 
         `calling_ae_title`（撮影した装置の AEタイトル）も行に固定する。
         """
@@ -201,7 +201,7 @@ class MppsQueue:
         return self._select("", ())
 
     def unsent(self) -> list[MppsRecord]:
-        """送れていない知らせのある件（古い順）."""
+        """送れていない通知のある件（古い順）."""
         return self._select(
             "WHERE create_sent = 0 OR (set_json != '' AND set_sent = 0)", ()
         )

@@ -252,7 +252,7 @@ def test_mpps_retry_after_switching_uses_the_ae_of_the_exam(tmp_path, worklist_s
 
 
 def test_old_queue_rows_get_the_default_ae_title(tmp_path) -> None:
-    """AEタイトルの列が無い前の版の待ち行列は、標準の装置の AEタイトルで埋める."""
+    """AEタイトルの列が無い前の版の送信キューは、標準の装置の AEタイトルで埋める."""
     db_path = tmp_path / QUEUE_DB_NAME
     with closing(sqlite3.connect(db_path)) as conn, conn:
         conn.execute(
@@ -330,7 +330,7 @@ def test_commitment_report_to_the_requesting_station_after_switching(
 
 
 def test_unregistered_calling_ae_title_is_told(tmp_path, worklist_scp) -> None:
-    """相手が理由 3（calling-AE-title-not-recognized）で断ったら知らせる（PS3.8 9.3.4）."""
+    """相手が理由 3（calling-AE-title-not-recognized）で断ったら示す（PS3.8 9.3.4）."""
     pacs = StorageRecorder()
     ae = AE(ae_title=pacs.ae_title)
     ae.supported_contexts = AllStoragePresentationContexts
@@ -347,5 +347,5 @@ def test_unregistered_calling_ae_title_is_told(tmp_path, worklist_scp) -> None:
     assert result.status == "failed"
     assert "相手が AEタイトル DTG_MR01 を受け付けませんでした" in result.error
     assert "この装置の AEタイトルを登録してください" in result.error
-    assert "peer=" not in result.error  # 利用者が読む知らせに内部の値を付けない
+    assert "peer=" not in result.error  # 利用者が読むメッセージに内部の値を付けない
     assert pacs.received == []

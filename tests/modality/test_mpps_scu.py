@@ -220,7 +220,7 @@ def test_generation_failure_sends_discontinued(tmp_path, worklist_scp, mpps_scp,
 
 
 def test_peer_down_keeps_messages_and_retry_sends_in_order(tmp_path, worklist_scp, mpps_scp) -> None:
-    """相手が落ちていても撮影は止めず、知らせを残して `mpps retry` で N-CREATE→N-SET の順に送る."""
+    """相手が落ちていても撮影は止めず、通知を残して `mpps retry` で N-CREATE→N-SET の順に送る."""
     down_port = free_port()
     service = _service(tmp_path, worklist_scp.port, down_port)
 
@@ -348,7 +348,7 @@ def test_first_set_refusal_is_not_treated_as_sent(tmp_path, worklist_scp, mpps_s
 
 
 def test_retry_of_forced_mpps_works_when_config_does_not_use_mpps(tmp_path, worklist_scp, mpps_scp) -> None:
-    """`exam --mpps` で作って送れなかった知らせは、設定が使わない形でも送り直せる."""
+    """`exam --mpps` で作って送れなかった通知は、設定が使わない形でも送り直せる."""
     down_port = free_port()
     down = _service(tmp_path, worklist_scp.port, down_port, use_mpps=False)
     assert _scheduled_exam(down, mpps=True).mpps.sent is False
@@ -415,7 +415,7 @@ def test_create_failure_then_duplicate_is_not_accepted(tmp_path, worklist_scp, m
 
 
 def test_concurrent_retries_send_each_message_once(tmp_path, worklist_scp, mpps_scp) -> None:
-    """2つの手順が同時に `mpps retry` しても、同じ知らせを重ねて送らない（送る権利の札）."""
+    """2つの手順が同時に `mpps retry` しても、同じ通知を重ねて送らない（送る権利の札）."""
     down_port = free_port()
     _scheduled_exam(_service(tmp_path, worklist_scp.port, down_port))
     back, server = start_mpps_recorder(down_port)

@@ -271,7 +271,7 @@ class CommitmentListener:
 
 
 class CommitmentManager:
-    """要求を出し、結果を待ち行列に書く（8.3.2・8.3.3）。待ち受けと同じ手順を通す."""
+    """要求を出し、結果を送信キューに書く（8.3.2・8.3.3）。待ち受けと同じ手順を通す."""
 
     def __init__(self, own_ae_title: str, queue: SendQueue) -> None:
         self._own_ae_title = own_ae_title
@@ -394,7 +394,7 @@ def _dispatch(event: Any, on_report: ReportHandler) -> int:
     raw = getattr(event.request, "EventInformation", None)
     size = len(raw.getvalue()) if raw is not None else 0
     if size > MAX_REPORT_BYTES:
-        # 読む前に大きさで断る（大きな偽の知らせで読ませない。8.3.2）
+        # 読む前に大きさで断る（大きな偽の通知で読ませない。8.3.2）
         logger.warning(
             "Storage commitment report too large from %r: %s bytes", peer_ae_title, size
         )

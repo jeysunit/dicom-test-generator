@@ -62,7 +62,7 @@ function line(name, text) {
 eval(fs.readFileSync(process.argv[1], "utf8"));
 
 const out = {};
-// 画面の上の誤りの件数の知らせ（role="alert" の箱の中の .notice と .t）
+// 画面の上の誤りの件数の通知（role="alert" の箱の中の .notice と .t）
 const summaryText = { textContent: "" };
 const summaryNotice = { hidden: true, querySelector: (selector) => (selector === ".t" ? summaryText : null) };
 lines["error-summary"] = { querySelector: (selector) => (selector === ".notice" ? summaryNotice : null) };

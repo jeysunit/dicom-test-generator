@@ -1,4 +1,4 @@
-"""待ち受けの住所と認証・CSRF の確認（docs/spec/12a_web_screens_and_cli.md 10.9）.
+"""待ち受けのアドレスと認証・CSRF の確認（docs/spec/12a_web_screens_and_cli.md 10.9）.
 
 - 既定は手元（127.0.0.1）だけで待ち受け、認証は付けない
 - 手元の外で待ち受けるときは HTTP Basic を必須にし、パスワードのファイルが無ければ起動しない
@@ -37,7 +37,7 @@ class WebStartupError(ConfigurationError):
 
 
 def is_loopback(host: str) -> bool:
-    """手元の住所か（127.0.0.0/8・::1・localhost）."""
+    """手元のアドレスか（127.0.0.0/8・::1・localhost）."""
     name = host.strip().strip("[]").lower()
     if name == _LOCALHOST_NAME:
         return True
@@ -122,7 +122,7 @@ def new_csrf_token() -> str:
 
 
 def same_origin(request: Request) -> bool:
-    """`Origin`（無ければ `Referer`）の住所とポートが、要求の `Host` と同じか."""
+    """`Origin`（無ければ `Referer`）のアドレスとポートが、要求の `Host` と同じか."""
     host = request.headers.get("host", "")
     source = request.headers.get("origin") or request.headers.get("referer") or ""
     if not host or not source or source == "null":

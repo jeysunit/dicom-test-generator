@@ -110,7 +110,7 @@ def build_n_set(
 
     Performed Series Sequence は COMPLETED・DISCONTINUED の時点で空にしない
     （PS3.4 F.7.2 の表 F.7.2-1 の Note 2）。DISCONTINUED は読めた画像だけを
-    知らせ（F.7.2.2.2）、1 枚も無ければ画像の無いシリーズの項目を 1 つ入れる。
+    通知（F.7.2.2.2）、1 枚も無ければ画像の無いシリーズの項目を 1 つ入れる。
     COMPLETED で読めない画像があれば例外を上げる（呼び手が DISCONTINUED にする）。
     """
     ds = Dataset()
@@ -230,7 +230,7 @@ class MppsOutcome(BaseModel):
 
 
 class MppsManager:
-    """撮影の開始・終わりに MPPS を送り、送れない知らせを残す（8.4.1）."""
+    """撮影の開始・終わりに MPPS を送り、送れない通知を残す（8.4.1）."""
 
     def __init__(
         self,
@@ -296,7 +296,7 @@ class MppsManager:
         return self.outcome(record_id)
 
     def retry(self) -> list[MppsRecord]:
-        """送れていない知らせを古い順に送り直す。N-CREATE を先に（8.4.1）."""
+        """送れていない通知を古い順に送り直す。N-CREATE を先に（8.4.1）."""
         retried = []
         for record in self._queue.unsent():
             self._with_claim(record.id, lambda record_id=record.id: self._resend(record_id))
@@ -372,7 +372,7 @@ class MppsManager:
     ) -> bool:
         """`retry.max_attempts` の分だけすぐ試す。だめなら理由を残して False.
 
-        `0x0111`・`0x0110` を送れた扱いにしてよいのは、前の同じ知らせが「応答なし」で
+        `0x0111`・`0x0110` を送れた扱いにしてよいのは、前の同じ通知が「応答なし」で
         終わっていたと行の記録から言えるときだけ（8.4.1）。
         """
         for attempt in range(1 + self._attempts):

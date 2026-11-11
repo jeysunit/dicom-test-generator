@@ -78,7 +78,7 @@ def test_store_success(storage_scp, dicom_files) -> None:
 
 
 def test_store_reports_progress_per_file(storage_scp, dicom_files) -> None:
-    """送っている間、ファイルごとに知らせる（待ち行列の送信中の時刻を進めるため。8.2）."""
+    """送っている間、ファイルごとに通知する（送信キューの送信中の時刻を進めるため。8.2）."""
     calls: list[int] = []
 
     store_files(

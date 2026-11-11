@@ -9,7 +9,7 @@ from modality_peers import free_port
 from web_helpers import csrf_token, make_client, post_headers
 
 # 画面に出さない言い方（PACS の現場で使わない言葉。結果の表示に出ないことを確認する）
-AVOIDED = ("送れた", "待ち行列", "住所", "この道具", "ダミー", "模擬")
+AVOIDED = ("送れた", "この道具", "ダミー", "模擬")
 
 
 def _emergency_form(**extra: str) -> dict[str, str]:
@@ -35,7 +35,7 @@ def test_exam_result_is_a_green_completion_with_separate_warnings(client) -> Non
 
     html = client.post("/exam", data=_emergency_form(), headers=post_headers(token)).text
 
-    # 誰を撮ったか（氏名と患者ID）を知らせに入れる（10.5）
+    # 誰を撮ったか（氏名と患者ID）を通知に入れる（10.5）
     assert "撮影完了：緊急 太郎（E0001）の 2 画像" in html
     assert re.search(r'class="notice[^"]*" data-k="ok"', html)
     assert "出力先フォルダ" in html
@@ -69,13 +69,13 @@ def test_send_failure_is_a_red_notice(tmp_path, worklist_scp) -> None:
     ).text
 
     assert "撮影完了：緊急 太郎（E0001）の 2 画像" in html
-    # つながらなかった送信も、送信ジョブの枚数（2 画像のうち 0）で知らせる
+    # つながらなかった送信も、送信ジョブの枚数（2 画像のうち 0）で示す
     assert (
         "送信失敗：緊急 太郎（E0001）の画像を PACS_TEST へ送信できませんでした"
         "（2 画像のうち 0 画像を送信。ジョブ 1）" in html
     )
     assert 'class="notice" role="alert" data-k="err"' in html
-    # 英語の誤りの原文は知らせに出さず、日本語の理由にする（原文は送信ジョブの詳細に残る）
+    # 英語の誤りの原文は通知に出さず、日本語の理由にする（原文は送信ジョブの詳細に残る）
     notice = html.split('class="notice" role="alert" data-k="err"', 1)[1].split("</div>", 1)[0]
     assert "Association failed" not in notice
     assert "接続できませんでした" in notice

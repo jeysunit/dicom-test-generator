@@ -22,7 +22,7 @@ from .link_status import LinkStatus
 
 logger = logging.getLogger(__name__)
 
-# 予約を探す・再検索するときの失敗の知らせ（10.4・10.8）
+# 予約を探す・再検索するときの失敗の通知（10.4・10.8）
 ITEM_NOT_FOUND_MESSAGE = (
     "この予約は最後に取得した一覧にありません。「検索」からやり直してください"
 )
@@ -72,7 +72,7 @@ def render(
 def render_error(
     request: Request, exc: DICOMGeneratorError | ValidationError, *, oob_band: bool = False
 ) -> HTMLResponse:
-    """操作の失敗を、その操作の結果の場所に出す（10.3 の知らせ）.
+    """操作の失敗を、その操作の結果の場所に出す（10.3 の通知）.
 
     oob_band のときは、上の帯の接続の状態も同じ応答で差し替える。
     """

@@ -108,7 +108,7 @@ def test_default_ct_profile_is_not_applied_to_an_mr_order(tmp_path, worklist_scp
     (ds,) = _headers(result.files)
     assert ds.Modality == "MR"
     assert ds.ManufacturerModelName == "DTG Synthetic MR"
-    # 黙って外さず、重ねなかったことを知らせる
+    # 黙って外さず、重ねなかったことを示す
     assert any("dtg_synthetic_ct" in notice and "MR" in notice for notice in result.notices)
 
 
@@ -129,7 +129,7 @@ def test_default_ct_profile_is_not_applied_with_the_mr_template_named(
 
 
 def test_profile_none_does_not_apply_the_default(tmp_path, worklist_scp) -> None:
-    """「なし」（""）は既定の装置を重ねず、重ねなかった知らせも出さない."""
+    """「なし」（""）は既定の装置を重ねず、重ねなかった通知も出さない."""
     service = _service(tmp_path, worklist_scp.port, default_profile="dtg_synthetic_mr")
 
     result = service.exam(

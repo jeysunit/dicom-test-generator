@@ -78,7 +78,7 @@ def free_port() -> int:
 
 
 def age_job(db_path: Path, job_id: int, seconds: int) -> None:
-    """待ち行列の件の updated_at を過去にする（送信中のまま止まった件を作る）."""
+    """送信キューの件の updated_at を過去にする（送信中のまま止まった件を作る）."""
     old = (datetime.now() - timedelta(seconds=seconds)).isoformat(timespec="seconds")
     with closing(sqlite3.connect(db_path)) as conn, conn:
         conn.execute("UPDATE jobs SET updated_at = ? WHERE id = ?", (old, job_id))

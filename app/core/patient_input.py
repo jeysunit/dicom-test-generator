@@ -1,4 +1,4 @@
-"""手で入れた緊急の患者の値の確認（docs/spec/12a_web_screens_and_cli.md 10.5）.
+"""手入力した緊急の患者の値の確認（docs/spec/12a_web_screens_and_cli.md 10.5）.
 
 画面と CLI の両方が使う Pure な処理。誤りは日本語の文で `FieldValidationError` にする（どの欄
 の誤りかを `field` に持つ）。文は入れた値を含めない（docs/spec/12 の 12 章）。規則の原典：

@@ -5,7 +5,7 @@
 DTG が画像を作れるモダリティは CT・MR・PT だけで、CR と DX は作れない。ルーチン
 （`templates/routine/` の `cr_*`・`dx_*` の 12 本）はあるが、CR・DX のテンプレートと
 画像を作る処理が無い。CR・DX の予約は、合うテンプレートが無いので「予約は CR、
-テンプレートは CT です」と知らせて撮影しない。
+テンプレートは CT です」と示して撮影しない。
 
 画素も、検査の中身と結び付いていない。今の方式は `simple_text`（SOP Instance UID の
 文字）と `ct_realistic`（`gradient`・`circle`・`noise`）の2つで、どちらも1つの

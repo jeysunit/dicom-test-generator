@@ -1,4 +1,4 @@
-"""送信の待ち行列と送った履歴（sqlite3。docs/spec/12_modality_emulator.md 8.2）."""
+"""送信キューと送った履歴（sqlite3。docs/spec/12_modality_emulator.md 8.2）."""
 
 from __future__ import annotations
 
@@ -216,7 +216,7 @@ class CommitmentState(BaseModel):
 
 
 class SendQueue:
-    """待ち行列。1件は1つの検査（1つのフォルダ）を1つの送信先へ送ること."""
+    """送信キュー。1件は1つの検査（1つのフォルダ）を1つの送信先へ送ること."""
 
     def __init__(self, db_path: Path, legacy_ae_title: str = "") -> None:
         """`legacy_ae_title` は、AEタイトルの列が無い前の版の行に入れる AEタイトル."""
@@ -228,11 +228,11 @@ class SendQueue:
                     conn.execute(statement)
                 columns = {row[1] for row in conn.execute("PRAGMA table_info(jobs)")}
                 if "send_token" not in columns:
-                    # 札の列が無い前の版の待ち行列に追加する
+                    # 札の列が無い前の版の送信キューに追加する
                     conn.execute(
                         "ALTER TABLE jobs ADD COLUMN send_token TEXT NOT NULL DEFAULT ''"
                     )
-                # 装置を切り替えられる前の版の待ち行列に追加する。前の行は今の装置の AEタイトル
+                # 装置を切り替えられる前の版の送信キューに追加する。前の行は今の装置の AEタイトル
                 _add_ae_title_column(conn, "jobs", "calling_ae_title", legacy_ae_title)
                 _add_ae_title_column(conn, "commitments", "own_ae_title", legacy_ae_title)
                 # 撮影の記録が無かった前の版で撮った予約も、撮影済みとして移す（UID だけ）
@@ -242,7 +242,7 @@ class SendQueue:
                 )
                 file_columns = {row[1] for row in conn.execute("PRAGMA table_info(job_files)")}
                 if "sop_class_uid" not in file_columns:
-                    # 保管の確認の前の版の待ち行列に追加する（Phase 3c）
+                    # 保管の確認の前の版の送信キューに追加する（Phase 3c）
                     conn.execute(
                         "ALTER TABLE job_files ADD COLUMN sop_class_uid TEXT NOT NULL DEFAULT ''"
                     )

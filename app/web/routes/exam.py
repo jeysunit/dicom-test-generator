@@ -77,7 +77,7 @@ MAX_SERIES = 99
 MAX_IMAGES_PER_SERIES = 1000
 FormStr = Annotated[str, Form()]
 FormList = Annotated[list[str], Form()]
-# ルーチンの選択の「手で入れる」（今のシリーズ数・画像数の欄。ADR-0025）
+# ルーチンの選択の「手入力」（今のシリーズ数・画像数の欄。ADR-0025）
 MANUAL_ROUTINE = "manual"
 SERIES_KIND_LABELS = {
     "localizer": "位置決め",
@@ -233,8 +233,8 @@ def _routine_context(
 ) -> dict[str, object]:
     """ルーチンの選択肢と、選んだルーチン（無ければ予約に適用したルーチン。ADR-0025）.
 
-    そのモダリティのルーチンが無ければ「手で入れる」にする。ルーチンが読めなければ、
-    「手で入れる」にしたうえで、読めない理由を出す（黙って手入力に切り替えない）。
+    そのモダリティのルーチンが無ければ「手入力」にする。ルーチンが読めなければ、
+    「手入力」にしたうえで、読めない理由を出す（黙って手入力に切り替えない）。
     """
     context: dict[str, object] = {
         "routine_choices": [],
@@ -322,7 +322,7 @@ def exam_run(
     study_description: FormStr = "",
     exam_token: FormStr = "",
     append: FormStr = "",
-    # 画面の既定はルーチン（ADR-0025）。欄の無い要求（スクリプトなど）は今のまま手で入れた値
+    # 画面の既定はルーチン（ADR-0025）。欄の無い要求（スクリプトなど）は今のまま手入力した値
     routine: FormStr = MANUAL_ROUTINE,
     routine_series: FormList = [],  # noqa: B006（FastAPI の Form の既定）
     routine_images: FormList = [],  # noqa: B006
@@ -479,7 +479,7 @@ def _birth_value(
 
 
 def _scheduled_patient(service: ModalityService, result: ExamResult) -> str:
-    """予約で撮った結果の知らせに入れる患者（氏名と患者ID）."""
+    """予約で撮った結果の通知に入れる患者（氏名と患者ID）."""
     try:
         item = service.find_item(result.worklist_key or "")
     except DICOMGeneratorError:
@@ -488,7 +488,7 @@ def _scheduled_patient(service: ModalityService, result: ExamResult) -> str:
 
 
 def _send_context(service: ModalityService, send: SendResult) -> dict[str, object]:
-    """送信の結果の知らせに入れる患者と送信先（AEタイトル・ホスト）."""
+    """送信の結果の通知に入れる患者と送信先（AEタイトル・ホスト）."""
     # 枚数は送信ジョブの数（つながらなかった送信は、画像ごとの結果を持たない）
     sent = sum(1 for result in send.results if result.sent)
     total = len(send.results)
@@ -542,7 +542,7 @@ def _series_request(
     series: str,
     images: str,
 ) -> dict[str, object]:
-    """撮るシリーズの指定を ExamRequest の値にする（ルーチンか、手で入れた値）."""
+    """撮るシリーズの指定を ExamRequest の値にする（ルーチンか、手入力した値）."""
     if routine == MANUAL_ROUTINE:
         return {"images_per_series": _parse_images(images, series)}
     try:

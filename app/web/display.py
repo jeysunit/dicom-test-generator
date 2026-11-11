@@ -106,7 +106,7 @@ def send_error_label(reason: str) -> str:
     if mpps:
         return mpps
     if re.search(r"[ぁ-んァ-ヶ一-龯]", reason):
-        # 相手の AEタイトルを受け付けなかった知らせなど、すでに日本語の文
+        # 相手の AEタイトルを受け付けなかったメッセージなど、すでに日本語の文
         return reason
     return GENERIC_SEND_ERROR
 
@@ -218,7 +218,7 @@ def auto_charset_note(item: WorklistItem | None, fallback: str) -> str:
 
 
 def patient_label(patient_name: str, patient_id: str) -> str:
-    """知らせに入れる患者：`緊急 太郎（E0002）`。氏名は漢字、無ければ英字・かな."""
+    """通知に入れる患者：`緊急 太郎（E0002）`。氏名は漢字、無ければ英字・かな."""
     alphabetic, ideographic, phonetic = name_parts(patient_name)
     name = ideographic or alphabetic or phonetic or "氏名なし"
     return f"{name}（{patient_id}）" if patient_id else name

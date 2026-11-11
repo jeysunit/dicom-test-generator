@@ -77,7 +77,7 @@ def test_pages_avoid_retired_words(client) -> None:
 
 
 def test_pacs_queue_with_rows_avoids_retired_words(tmp_path, worklist_scp, storage_scp) -> None:
-    """失敗の行（もう一度送る）と送信完了の行・知らせを含む表と、行の詳細."""
+    """失敗の行（もう一度送る）と送信完了の行・通知を含む表と、行の詳細."""
     unreachable = make_client(tmp_path, worklist_scp.port, free_port())
     key = key_for(query_worklist(unreachable), "A0001")
     token = csrf_token(unreachable, f"/exam?key={key}")

@@ -133,11 +133,11 @@ Title）の Association を受け、それ以外は拒否しなければなら�
 - **WHEN** 相手が `DTG_XR99` あてに Association を求める
 - **THEN** 待ち受けは Association を拒否する（理由 7「called-AE-title-not-recognized」。PS3.8 9.3.4）
 
-### Requirement: 登録されていない AEタイトルを理由に拒否されたら知らせる
+### Requirement: 登録されていない AEタイトルを理由に拒否されたら示す
 
 DTG は、相手が A-ASSOCIATE-RJ の理由 3「calling-AE-title-not-recognized」
 （PS3.8 9.3.4）で Association を拒否したとき、使った AEタイトルと、相手の側に
-登録が要ることを知らせなければならない（SHALL）。
+登録が要ることを示さなければならない（SHALL）。
 
 #### Scenario: PACS に MR1号機が登録されていない
 

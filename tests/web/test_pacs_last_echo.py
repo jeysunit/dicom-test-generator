@@ -1,4 +1,4 @@
-"""PACS の接続先の表の「最後の接続確認」の列と、押した直後の知らせ（docs/spec/12a の 10.6）."""
+"""PACS の接続先の表の「最後の接続確認」の列と、押した直後の通知（docs/spec/12a の 10.6）."""
 
 from __future__ import annotations
 
@@ -93,7 +93,7 @@ def test_worklist_row_and_check_all(tmp_path, worklist_scp, storage_scp) -> None
     assert table.count('data-k="ok">成功</span>') == 2
     # 上の帯も同じ応答で差し替える
     assert '<div id="band" popover hx-swap-oob="true"' in section
-    # 前の接続確認の知らせは、同じ応答で消す
+    # 前の接続確認の通知は、同じ応答で消す
     assert '<div id="echo-notice" hx-swap-oob="true"></div>' in section
 
 

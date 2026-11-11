@@ -201,7 +201,7 @@ def test_exam_page_marks_each_field_for_the_script(client) -> None:
         assert f'data-check="{kind}"' in label, name
         assert f'data-message="{message}"' in label, name
         assert f'aria-describedby="error-{name}' in label, name
-        # 誤りの行は label の中の下で、印と文（.msg）。読み上げない（画面の上の知らせだけが role="alert"）
+        # 誤りの行は label の中の下で、印と文（.msg）。読み上げない（画面の上の通知だけが role="alert"）
         line = re.search(rf'<span class="msg" id="error-{name}" hidden>(.*?)</span></span>', label, re.S)
         assert line, name
         assert '<svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-alert"/></svg>' in line.group(1), name
@@ -209,7 +209,7 @@ def test_exam_page_marks_each_field_for_the_script(client) -> None:
         assert 'role="alert"' not in line.group(0), name
     for name in ("sex", "study_description"):
         assert f'id="error-{name}"' in page
-    # 送るのを止めたときの件数の知らせ（読み上げる唯一の場所）。form の外の上に置く
+    # 送るのを止めたときの件数の通知（読み上げる唯一の場所）。form の外の上に置く
     assert page.index('<div id="error-summary" role="alert">') < page.index('<form id="exam-form"')
     # 患者ID は先頭の欄で、上限は 64 字（VR LO）
     patient_id = page[page.index('name="patient_id"') : page.index(">", page.index('name="patient_id"'))]
