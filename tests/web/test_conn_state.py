@@ -1,4 +1,4 @@
-"""上の帯の「接続の状態」：全体の状態の札と、押すと出る中身（docs/spec/12a の 10.3）."""
+"""上の帯の「接続の状態」：全体の状態バッジと、押すと出る中身（docs/spec/12a の 10.3）."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ _BADGE = re.compile(r'<span id="conn-state" class="st" data-k="(\w+)">([^<]+)</s
 
 def _badge(html: str) -> tuple[str, str]:
     found = _BADGE.search(html)
-    assert found, "全体の状態の札がない"
+    assert found, "全体の状態バッジがない"
     return found.group(1), found.group(2)
 
 
@@ -24,7 +24,7 @@ def test_closed_state_is_one_badge_in_the_top_band(client) -> None:
     html = client.get("/worklist").text
     header = html[html.index("<header") : html.index("</header>")]
 
-    # 上の帯に、標準の popover を開くボタンと全体の状態の札がある。別の帯（情報バー）は無い
+    # 上の帯に、標準の popover を開くボタンと全体の状態バッジがある。別の帯（情報バー）は無い
     assert 'popovertarget="band"' in header
     assert _badge(header) == ("plan", "未確認")
     assert '<div id="band" popover' in header
@@ -46,7 +46,7 @@ def test_top_band_follows_the_kit_parts(client) -> None:
     assert "/static/ui-kit/icons.svg#i-menu" in nav.group(0)
     assert "icon-panel-left" not in html
 
-    # 接続の状態：「接続の状態」(.cl)・全体の札(.st)・シェブロン(.chev) をこの順に。aria-label を付けない
+    # 接続の状態：「接続の状態」(.cl)・全体の状態バッジ(.st)・シェブロン(.chev) をこの順に。aria-label を付けない
     conn = re.search(r'<span class="connwrap">\s*<button[^>]*class="connbtn"[^>]*>(.*?)</button>', header, re.DOTALL)
     assert conn
     assert "aria-label" not in conn.group(0)
@@ -81,7 +81,7 @@ def test_badge_follows_the_last_probe(tmp_path, worklist_scp, storage_scp) -> No
     token = csrf_token(client, "/pacs")
 
     echoed = client.post("/pacs/echo/PACS_TEST", headers=post_headers(token))
-    # 接続確認の応答が、上の帯の札と中身を同じ応答で差し替える
+    # 接続確認の応答が、上の帯の状態バッジと中身を同じ応答で差し替える
     assert 'hx-swap-oob="true"' in echoed.text
     assert re.search(
         r'<span id="conn-state" hx-swap-oob="true" class="st" data-k="ok">接続中</span>', echoed.text
@@ -112,7 +112,7 @@ def test_failed_worklist_query_changes_the_badge(tmp_path, storage_scp) -> None:
 
     failed = query_worklist(client)
 
-    # 失敗の応答も、上の帯の札を同じ応答で差し替える
+    # 失敗の応答も、上の帯の状態バッジを同じ応答で差し替える
     assert re.search(r'<span id="conn-state" hx-swap-oob="true" class="st" data-k="ng">', failed)
     assert _badge(client.get("/worklist").text) == ("ng", "一部が接続不可")
 
@@ -150,7 +150,7 @@ def test_link_check_probes_every_peer_and_replaces_the_popover(
 
     checked = client.post("/link/check", headers=post_headers(token)).text
 
-    # 中身（#band）は差し替えの本体で、全体の状態の札は同梱して差し替える
+    # 中身（#band）は差し替えの本体で、全体の状態バッジは同梱して差し替える
     assert '<div id="band" popover' in checked and 'id="band" popover hx-swap-oob' not in checked
     assert re.search(
         r'<span id="conn-state" hx-swap-oob="true" class="st" data-k="ok">接続中</span>', checked
@@ -192,7 +192,7 @@ def _result_sentence(html: str) -> str:
 
 
 def test_popover_has_a_live_region_for_the_manual_check(client) -> None:
-    """読み上げの欄は popover の中にある（閉じると読まれない）。1 分ごとの札には aria-live を付けない."""
+    """読み上げの欄は popover の中にある（閉じると読まれない）。1 分ごとに替わる状態バッジには aria-live を付けない."""
     html = client.get("/worklist").text
     band = html[html.index('<div id="band"') : html.index("</header>")]
 

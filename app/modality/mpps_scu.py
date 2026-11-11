@@ -311,7 +311,7 @@ class MppsManager:
             self._send_set(record_id)
 
     def _with_claim(self, record_id: int, send: Callable[[], None]) -> None:
-        """送る権利の札を取れたときだけ送る。取れなければ送らずに残す（8.4.1）."""
+        """送る権利のトークンを取得できたときだけ送る。取れなければ送らずに残す（8.4.1）."""
         token = self._queue.claim(record_id)
         if token is None:
             self._queue.record_error(record_id, "being sent by another process")

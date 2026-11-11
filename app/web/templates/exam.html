@@ -12,8 +12,8 @@
   </ol>
 </nav>
 {% endif %}
-{# 「予約の値（読むだけ）」の札は、バナーの外の見出しの行に出す（部品集の入力の画面の患者バナー）。
-   札がバナーの右端にそろうように、見出しの行も本文と同じ幅（.w-form）に収める #}
+{# 「予約の値（読むだけ）」のバッジは、バナーの外の見出しの行に出す（部品集の入力の画面の患者バナー）。
+   バッジがバナーの右端にそろうように、見出しの行も本文と同じ幅（.w-form）に収める #}
 <div class="w-form"><div class="pagehead"><h1>撮影</h1>{% if item %}<span class="badge">予約の値（読むだけ）</span>{% endif %}</div></div>
 {% if load_error %}
 {% with error = load_error %}{% include "_notice.html" %}{% endwith %}

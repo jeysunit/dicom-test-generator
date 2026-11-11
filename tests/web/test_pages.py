@@ -461,7 +461,7 @@ def test_pacs_queue_partial_polls(client) -> None:
 
 
 def test_pacs_job_states_are_shown_as_state_marks(client) -> None:
-    """送信ジョブと保管の確認の状態は、枠・印・文字の札で出す（色だけにしない）."""
+    """送信ジョブと保管の確認の状態は、枠・印・文字の状態バッジで出す（色だけにしない）."""
     results = _query(client)
     key = _key_for(results, "A0001")
     token = csrf_token(client)

@@ -235,7 +235,7 @@ def link_check(request: Request) -> Response:
         notices = _check_all(request)
     finally:
         CHECK_ALL_LOCK.release()
-    # 中身（#band）を結果で差し替え、全体の状態の札も同じ応答で差し替える。
+    # 中身（#band）を結果で差し替え、全体の状態バッジも同じ応答で差し替える。
     # 結果の 1 文は、中身の中の読み上げの欄（app.js が差し替えの後に入れる）に渡す
     return render(
         request,

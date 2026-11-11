@@ -53,7 +53,7 @@ _COLUMNS = (
     " peer_ae_title, peer_host, peer_port, create_no_response, set_no_response,"
     " calling_ae_title"
 )
-# 札を取ってからこの秒より長く経った行は、送る手順が落ちたとみなして札を再取得できる（8.4.1）
+# トークンを取得してからこの秒より長く経った行は、送る手順が落ちたとみなしてトークンを再取得できる（8.4.1）
 STALE_SEND_TOKEN_SECONDS = 10 * 60
 SEND_TOKEN_BYTES = 16
 MppsOperation = Literal["create", "set"]
@@ -145,7 +145,7 @@ class MppsQueue:
             return int(cursor.lastrowid or 0)
 
     def claim(self, record_id: int) -> str | None:
-        """送る権利の札を取る。札が空か古い行だけ。取れなければ None（8.4.1）."""
+        """送る権利のトークンを取得する。トークンが空か期限切れの行だけ。取れなければ None（8.4.1）."""
         token = secrets.token_hex(SEND_TOKEN_BYTES)
         cutoff = (datetime.now() - timedelta(seconds=STALE_SEND_TOKEN_SECONDS)).isoformat(
             timespec="seconds"

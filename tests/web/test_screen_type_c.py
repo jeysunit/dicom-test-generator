@@ -25,7 +25,7 @@ def test_scheduled_exam_has_crumbs_banner_sections_and_action_row(client) -> Non
     for label in ("患者ID", "生年月日・性別", "受付番号", "予定日時", "モダリティ・検査名"):
         assert f'<div class="l">{label}</div>' in banner
     assert "P000001" in banner
-    # 「予約の値（読むだけ）」の札は、バナーの外の見出しの行に出す
+    # 「予約の値（読むだけ）」のバッジは、バナーの外の見出しの行に出す
     head = html.split('<div class="pagehead">', 1)[1].split("</div>", 1)[0]
     assert '<span class="badge">予約の値（読むだけ）</span>' in head
     assert "予約の値（読むだけ）" not in banner
