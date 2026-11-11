@@ -90,7 +90,7 @@ DTG は、`phantom` で焼き込み（Job の `pixel_spec.burn_in`、CLI の `--
 #### Scenario: 図形でない方式の焼き込み
 
 - **WHEN** `--pixel-mode ct_realistic --burn-in` で `quick` を実行する
-- **THEN** 画像を作らず、設定の誤りとして知らせる
+- **THEN** 画像を作らず、設定の誤りとして示す
 
 ### Requirement: 図形の方式は選んだときだけ使う
 
@@ -148,7 +148,7 @@ Pixel Spacing を入れる（PS3.3 C.8.11）。どちらも Frame of Reference �
 
 DTG は、ルーチンの `phantom`（`head`・`chest`・`trunk`・`abdomen`・`spine`・`limb`）で
 図形の組を選び、MR はシリーズの `weighting`、CT の造影のシリーズは `phase` で区分の
-値を変えなければならない（SHALL）。`phantom` を書いていないルーチンと手で入れた
+値を変えなければならない（SHALL）。`phantom` を書いていないルーチンと手入力の
 シリーズは、基本の図形（回転楕円体と目印）にする。値は design.md の表の架空の値にする。
 
 #### Scenario: 頭部の CT

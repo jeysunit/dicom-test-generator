@@ -42,7 +42,7 @@ def test_images_have_no_mpps_reference_without_mpps(tmp_path, worklist_scp) -> N
 def test_discontinued_reports_images_written_before_the_stop(
     tmp_path, worklist_scp, mpps_scp: MppsRecorder, monkeypatch
 ) -> None:
-    # 途中まで書いた画像も DISCONTINUED の N-SET で知らせる（PS3.4 F.7.2.2.2）
+    # 途中まで書いた画像も DISCONTINUED の N-SET で通知する（PS3.4 F.7.2.2.2）
     service = _service(tmp_path, worklist_scp.port, mpps_scp.port)
     original = service._generator.generate
 

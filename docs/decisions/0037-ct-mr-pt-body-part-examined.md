@@ -2,7 +2,7 @@
 
 - 状態：採用
 - 作成日：2026-11-01
-- 最終更新日：2026-11-08
+- 最終更新日：2026-11-11
 
 ## 背景
 
@@ -22,7 +22,7 @@ DTG は CR・DX だけ、ルーチンの `body_part` と `laterality` を持っ�
    Annex L の Table L-1 の定義語で、ルーチンの `body_part` が決める。線量の報告（SR）は
    General Series の Laterality も Body Part Examined も持たないので書かない
 2. **ルーチンの `body_part` は CT・MR・PT で任意、書かなければ `CHEST`（`DEFAULT_BODY_PART`）。**
-   ルーチンを使わず手で入れたシリーズも `CHEST`。CR・DX の手で入れたシリーズと同じ値にそろえる。
+   ルーチンを使わず手入力したシリーズも `CHEST`。CR・DX の手入力のシリーズと同じ値にそろえる。
    同梱のルーチンは全部 `body_part` を書く（試験が見る）
 3. **対になる部位（膝・手・肩）は `laterality`（`R`・`L`）を General Series の Laterality に書く。**
    同梱の MR 膝・MR 肩は、CR・DX の膝・手と同じ架空の `R`
@@ -46,7 +46,7 @@ DTG は CR・DX だけ、ルーチンの `body_part` と `laterality` を持っ�
 
 - CT・MR・PT の全画像に Body Part Examined が入り、dciodvfy の Laterality の Error が消える
 - MR 膝・MR 肩の画像には Laterality `R` が入る
-- 手で入れた CT・MR・PT のシリーズには `CHEST` が入る。ルーチンの部位は引き継がないので、
+- 手入力した CT・MR・PT のシリーズには `CHEST` が入る。ルーチンの部位は引き継がないので、
   たとえば MR 膝のルーチンに手で追加したシリーズは、同じ検査の中で `KNEE` と `CHEST` が
   混ざる。許容する（ルーチンの部位を手のシリーズへ渡すのは、必要になってから決める）
 - 既存のジョブの YAML・ルーチンは、書き換えずに動く

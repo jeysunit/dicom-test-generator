@@ -281,7 +281,7 @@
 .conn td.res .none {
   color: var(--color-label);
 }
-/* 中身の無い知らせの表示領域は、区画の間をあけない */
+/* 中身の無い通知の表示領域は、区画の間をあけない */
 #echo-notice:empty {
   display: none;
 }

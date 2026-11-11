@@ -119,13 +119,13 @@ def worklist_refresh(request: Request, key: FormStr = "") -> HTMLResponse:
     error = ""
     key = key.strip()
     if not key:
-        # 行を選ばずに届いた要求は、問い合わせずに知らせる（10.4）
+        # 行を選ばずに届いた要求は、問い合わせずに示す（10.4）
         error = NO_SELECTION_MESSAGE
     else:
         try:
             service.refresh_item(key)
         except DICOMGeneratorError as exc:
-            # 再検索できなくても一覧は消さず、上に理由を出す（10.3 の知らせ）
+            # 再検索できなくても一覧は消さず、上に理由を出す（10.3 の通知）
             error = worklist_error_text(exc)
     try:
         state = service.last_worklist_state()

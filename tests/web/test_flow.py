@@ -35,7 +35,7 @@ def test_pick_exam_send_and_confirm(client, worklist_scp, storage_scp) -> None:
     response = client.post("/exam", data=_exam_form(key, "exam_send"), headers=post_headers(token))
 
     assert response.status_code == 200, response.text
-    # 知らせに、誰の画像を・どこへ・何枚かを入れる（10.5）
+    # 通知に、誰の画像を・どこへ・何枚かを入れる（10.5）
     assert "撮影完了：山田 太郎（P000001）の 3 画像" in response.text
     assert (
         "送信完了：山田 太郎（P000001）の 3/3 画像を PACS_TEST へ送信しました（ジョブ 1）"
@@ -157,7 +157,7 @@ def test_sent_job_is_resent_from_pacs_as_a_new_job(client, worklist_scp, storage
     notice = resent.split('<div id="queue-notice" hx-swap-oob="true">', 1)[1].split("</div>", 1)[0]
     assert "ジョブ 2 として再送信しました（送信完了）" in notice
     assert sorted(_resend_buttons(resent)) == ["1", "2"]
-    assert "queue-notice" not in client.get("/pacs/queue").text  # 再取得では知らせを消さない
+    assert "queue-notice" not in client.get("/pacs/queue").text  # 再取得では通知を消さない
     assert len(storage_scp.received) == 6
     uids = [ds.SOPInstanceUID for ds in storage_scp.received]
     assert sorted(uids[:3]) == sorted(uids[3:])  # 同じ画像を送り直す

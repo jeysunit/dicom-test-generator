@@ -116,7 +116,7 @@ MR_IMAGE_TAG_MAP = {
 
 # このツールが画像を作れるモダリティ（シリーズの Modality。ADR-0030・ADR-0032・ADR-0034）
 GENERATABLE_MODALITIES = ("CT", "MR", "PT", "CR", "DX")
-# 一般撮影（投影の画像）のモダリティ。手で入れたシリーズは胸部の PA にする
+# 一般撮影（投影の画像）のモダリティ。手入力のシリーズは胸部の PA にする
 PROJECTION_MODALITIES = ("CR", "DX")
 MANUAL_PROJECTION_BODY_PART = "CHEST"
 MANUAL_PROJECTION_VIEW = "PA"
@@ -824,7 +824,7 @@ class StudyGeneratorService:
     def _resolve_series(series: SeriesConfig, template_modality: str) -> SeriesConfig:
         """モダリティを決めていないシリーズに、テンプレートのモダリティを入れる（ADR-0030）.
 
-        MR のテンプレートで手で入れたシリーズ（種類の既定は axial）は、MR の撮像にする。
+        MR のテンプレートで手入力したシリーズ（種類の既定は axial）は、MR の撮像にする。
         """
         if series.modality is not None:
             return series
@@ -834,13 +834,13 @@ class StudyGeneratorService:
         if template_modality == "MR" and series.kind == "axial":
             update["kind"] = "acquisition"
         elif template_modality == "PT" and series.kind == "axial":
-            # PET/CT のテンプレートで手で入れたシリーズは、減弱補正ありの PET にする
+            # PET/CT のテンプレートで手入力したシリーズは、減弱補正ありの PET にする
             update["kind"] = "pet_ac"
         elif template_modality == "PT" and series.kind in ("localizer", "dose_report"):
             # 位置決めと線量の画面は CT の画像
             update["modality"] = "CT"
         elif template_modality in PROJECTION_MODALITIES and series.kind == "axial":
-            # CR・DX のテンプレートで手で入れたシリーズは、胸部の PA の投影の画像（ADR-0034）
+            # CR・DX のテンプレートで手入力したシリーズは、胸部の PA の投影の画像（ADR-0034）
             update["kind"] = "projection"
             update["view_positions"] = [MANUAL_PROJECTION_VIEW]
         if update.get("kind", series.kind) == "projection" and series.body_part is None:

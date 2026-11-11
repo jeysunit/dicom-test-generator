@@ -65,7 +65,7 @@ docker build -t dicom-test-generator .
    記述（胸部・頭部・腹部など）に合うルーチンが選ばれ、シリーズの並びと画像数が
    入っている。そのまま撮れる。変えるときは、ルーチンを選び直すか、画像数を直すか、
    [外す] でシリーズを外す。外したシリーズは薄く表示され、[戻す] で元の画像数のまま
-   戻せる。「手で入れる」を選ぶと、シリーズ数と画像数を入れる欄になる
+   戻せる。「手入力」を選ぶと、シリーズ数と画像数を入れる欄になる
 4. [撮影して送信] を押す。DICOM ファイルを作成して出力フォルダに保存し、続けて
    標準の送信先（PACS）へ送信する。送信しないときは [撮影] を押す
 
@@ -226,7 +226,7 @@ Web 画面は HTTP Basic 認証が必須で（ユーザー名は `dtg`）、パ�
 | 予約から撮影して送信（予約に適用したルーチン） | `python -m app.cli exam --from-worklist <キー> --send` |
 | ルーチンを選んで撮影 | `python -m app.cli exam --from-worklist <キー> --routine ct_head_plain` |
 | 線量の報告を SR で撮影（`screen`・`sr`・`both`） | `python -m app.cli exam --from-worklist <キー> --dose-report both` |
-| シリーズ数と画像数を手で入れて撮影 | `python -m app.cli exam --from-worklist <キー> -s 2 -i 1,20` |
+| シリーズ数と画像数を手入力して撮影 | `python -m app.cli exam --from-worklist <キー> -s 2 -i 1,20` |
 | 予約の無い患者で撮影 | `python -m app.cli exam --emergency --patient-id E0001 --patient-name "KINKYU^TARO"` |
 | 予約の無い患者の検査に追加で撮影（前の撮影と同じ患者ID・氏名） | `python -m app.cli exam --emergency --append --study-uid <前の撮影の Study Instance UID> --patient-id E0001 --patient-name "KINKYU^TARO"` |
 | 送信キューの確認と再送信 | `python -m app.cli queue list --status failed`・`queue retry --all` |

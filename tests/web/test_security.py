@@ -139,7 +139,7 @@ def test_post_requires_same_origin_and_csrf_token(client) -> None:
         ).status_code
         == 403
     )
-    # Origin が無いときは Referer の住所で確認する
+    # Origin が無いときは Referer のアドレスで確認する
     assert (
         client.post(
             "/worklist/query",

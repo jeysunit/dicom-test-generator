@@ -156,7 +156,7 @@ class DICOMBuilder:
             ds.PositionReferenceIndicator = DEFAULT_POSITION_REFERENCE_INDICATOR
 
             # General Image Module・CT Image Module。種類はルーチンのシリーズの種類
-            # （手で入れたシリーズは axial で、DEFAULT_IMAGE_TYPE と同じ）
+            # （手入力のシリーズは axial で、DEFAULT_IMAGE_TYPE と同じ）
             ds.ImageType = image_type(series_config)
             if series_config.contrast:
                 # Contrast/Bolus Module は造影を使ったときに要る（PS3.3 C.7.6.4）
@@ -761,7 +761,7 @@ class DICOMBuilder:
         if ds.Modality in BODY_PART_SERIES_MODALITIES:
             # Body Part Examined は Type 3 だが、無いと Laterality (Type 2C) が要るか判定
             # できない。対にならない部位なら Laterality は要らない（PS3.3 C.7.3.1、
-            # PS3.16 Annex L Table L-5。ADR-0037）。手で入れたシリーズは既定の部位
+            # PS3.16 Annex L Table L-5。ADR-0037）。手入力のシリーズは既定の部位
             ds.BodyPartExamined = series_config.body_part or DEFAULT_BODY_PART
             if series_config.laterality is not None:
                 ds.Laterality = series_config.laterality
