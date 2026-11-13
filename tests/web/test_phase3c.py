@@ -62,7 +62,7 @@ def _exam_send(client: TestClient) -> str:
 
 
 def test_pacs_queue_shows_commitment_confirmed(tmp_path, worklist_scp, commitment_pacs) -> None:
-    """画面のプロセスは待ち受けを立て、「送れた」で自動に求め、結果を待ち行列の列に出す."""
+    """画面のプロセスは待ち受けを立て、「送れた」で自動に求め、結果を送信キューの列に出す."""
     listen_port = free_port()
     commitment_pacs.listener_port = listen_port
     config = _config(

@@ -73,7 +73,7 @@
   });
 
   // 緊急の患者の欄：入力のたびに確認し、誤りの文を欄（label）の外の直下に 1 行出す。欄は
-  // aria-invalid と aria-describedby で結ぶ（欄の下の文は読み上げない。画面の上の知らせだけが
+  // aria-invalid と aria-describedby で結ぶ（欄の下の文は読み上げない。画面の上の通知だけが
   // 読み上げる）。文は data-message（サーバーと同じ文。app/core/patient_input.py）。ブラウザの
   // 検証の吹き出しは使わない（form は novalidate）。送る前に全部を確認し、誤りがあれば送らずに
   // 最初の誤りの欄へ移る。漢字の氏名は、文字コードが JIS のときだけ JIS X 0208 の字かどうかを
@@ -171,7 +171,7 @@
       input.removeAttribute("aria-invalid");
     }
   }
-  // 送るのを止めたとき、画面の上に誤りの件数を知らせる（role="alert"。欄の下の文は読み上げない）
+  // 送るのを止めたとき、画面の上に誤りの件数を示す（role="alert"。欄の下の文は読み上げない）
   function showErrorSummary(count) {
     var box = document.getElementById("error-summary");
     var notice = box && box.querySelector(".notice");
@@ -200,7 +200,7 @@
     showFieldError(input, message);
     return !message;
   }
-  // かな：ひらがなをカタカナに直し、直したことを欄の下に知らせる（試験の形では直さない）
+  // かな：ひらがなをカタカナに直し、直したことを欄の下に示す（試験の形では直さない）
   function convertPhonetic(input) {
     if (input.getAttribute("data-check") !== "phonetic" || input.hasAttribute("data-test-mode")) {
       return;
@@ -423,7 +423,7 @@
   });
 
   // 数の欄の検証の文言：ブラウザの検証の文言は、ブラウザの言語（英語など）で出る。
-  // 画面のほかの知らせと同じ日本語にする。欄の名前は data-count-label に置く。
+  // 画面のほかの通知と同じ日本語にする。欄の名前は data-count-label に置く。
   // 範囲は欄の min・max から読む。値を直したら、次の検証まで文言を消す
   document.addEventListener(
     "invalid",
@@ -554,7 +554,7 @@
       form.removeAttribute("data-routine-failed");
     }
   });
-  // ルーチンを描き直せなかったとき（断られた・届かなかった）は、選択のそばに知らせる。
+  // ルーチンを描き直せなかったとき（断られた・届かなかった）は、選択のそばに示す。
   // 選んだルーチンと表の行がずれたまま撮らないように、描き直せるまで撮影の要求を止める
   // （ボタンを押せなくするだけでは、htmx の後処理や撮影のボタンの描き直しで戻るため）
   var ROUTINE_FAILED_MESSAGE =
@@ -605,7 +605,7 @@
   });
 
   // 撮影・送信：押したボタンで途中の文言を選び、新しい要求の前に前の結果を消す。
-  // 応答が返らなかったとき（通信の失敗）は、結果の場所に知らせる。
+  // 応答が返らなかったとき（通信の失敗）は、結果の場所に示す。
   document.addEventListener("click", function (event) {
     var button = event.target.closest("form button[name='action']");
     if (button) {
@@ -644,7 +644,7 @@
       fields.inert = false;
       // 押したボタンは応答まで押せず、フォーカスが本文の先頭へ落ちる。応答の後は、
       // 結果の場所へフォーカスを移し、キーボードの人が位置を見失わないようにする。
-      // 結果の知らせは aria-live で読み上げられる。応答を待つ間に別の欄へ移って入力して
+      // 結果の通知は aria-live で読み上げられる。応答を待つ間に別の欄へ移って入力して
       // いるときは、その入力を邪魔しない（フォーカスが本文の先頭か、撮影のボタンの
       // 並びにあるときだけ移す）
       var result = document.getElementById("result");
@@ -662,7 +662,7 @@
     var form = source instanceof HTMLFormElement ? source : source.closest("form");
     var target = detail.target;
     if (target && target.id === "queue") {
-      // PACS の画面の再送信：表の上の知らせの場所に出す
+      // PACS の画面の再送信：表の上の通知の場所に出す
       return document.getElementById("queue-notice");
     }
     // 一覧・予約の詳細（行を選んだとき）・接続確認の結果は、差し替える先にそのまま出す
@@ -699,7 +699,7 @@
     place.replaceChildren(notice);
   }
   // 接続の状態（上の帯）の装置の切り替え（ADR-0023）が届かない・断られたときは、選択を
-  // 元の装置に戻し、枠に知らせる（表示とサーバーの装置がずれないように）。
+  // 元の装置に戻し、枠に示す（表示とサーバーの装置がずれないように）。
   function isStationSelect(element) {
     return element instanceof HTMLSelectElement && element.closest("#band") !== null;
   }
@@ -716,7 +716,7 @@
     select.closest("label").after(notice);
   }
   document.addEventListener("htmx:beforeSwap", function (event) {
-    // 差し替えの知らせは差し替える先で出るので、要求を出した要素は requestConfig から取る
+    // 差し替えの通知は差し替える先で出るので、要求を出した要素は requestConfig から取る
     var config = event.detail.requestConfig;
     var xhr = event.detail.xhr;
     if (config && isStationSelect(config.elt) && xhr && xhr.status >= 400) {
@@ -758,7 +758,7 @@
     try {
       window.history.replaceState(window.history.state, "", window.location.pathname);
     } catch (error) {
-      // 住所を書き換えられなくても、条件は戻っている
+      // アドレスバーの URL を書き換えられなくても、条件は戻っている
     }
     var first = form.querySelector("input:not([type=hidden]), select");
     if (first) {
@@ -875,7 +875,7 @@
     }
   });
   // 再送信を押す直前に出ていた再取得（GET）の応答も、再送信の応答が返るまでは差し替えない。
-  // 差し替えの知らせは差し替える先（#queue）で出るので、再取得かは要求の動詞で見分ける
+  // 差し替えの通知は差し替える先（#queue）で出るので、再取得かは要求の動詞で見分ける
   document.addEventListener("htmx:beforeSwap", function (event) {
     var config = event.detail.requestConfig;
     if (event.target.id === "queue" && config && config.verb === "get" && resendInFlight()) {

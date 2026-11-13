@@ -233,7 +233,7 @@ def normalize(text: str) -> str:
 def check_routine_set(routines: Iterable[Routine]) -> None:
     """モダリティごとに既定が1つで、同じ語が2つのルーチンに無いことを確認する.
 
-    違えば ValueError（読む側が保存先のファイルの名前を追加して知らせる）。
+    違えば ValueError（読む側が保存先のファイルの名前を追加して伝える）。
     """
     by_modality: dict[str, list[Routine]] = {}
     for routine in routines:

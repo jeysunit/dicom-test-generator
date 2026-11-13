@@ -1,4 +1,4 @@
-{# 送信の結果の知らせ。誰の画像を・どこへ・何枚・送れたかを入れる（docs/spec/12a の 10.5）。
+{# 送信の結果の通知。誰の画像を・どこへ・何枚・送れたかを入れる（docs/spec/12a の 10.5）。
    枚数は送信ジョブの数（send_sent・send_total。exam.py の _send_context） #}
 {% set done = send.status == "sent" %}
 {% set whose = send_patient ~ "の" if send_patient else "" %}

@@ -90,7 +90,7 @@ class SeriesConfig(BaseModel):
 ```
 
 撮影のルーチン（[ADR-0025](../decisions/0025-exam-routines.md)）のシリーズは、
-次の欄も持つ（`app/core/models.py`）。手で入れたシリーズは既定の値のまま。
+次の欄も持つ（`app/core/models.py`）。手入力のシリーズは既定の値のまま。
 
 | 欄 | 型 | 既定 | 中身 |
 |----|----|------|------|
@@ -110,7 +110,7 @@ class SeriesConfig(BaseModel):
 
 `kind` が `acquisition`・`derived` のシリーズは `modality` を MR に、`pet_ac`・`pet_nac` は
 PT にする（CT のシリーズに MR・PET の種類を入れると検証で止まる）。MR のテンプレートで
-手で入れたシリーズは、種類が `axial` なら MR の撮像（`acquisition`）に、PET/CT のテンプレート
+手入力のシリーズは、種類が `axial` なら MR の撮像（`acquisition`）に、PET/CT のテンプレート
 （モダリティ PT）では、`axial` なら減弱補正ありの PET（`pet_ac`）、`localizer` と
 `dose_report` なら CT のシリーズにする。CR・DX のテンプレートでは、`axial` なら胸部
 （`CHEST`）の PA の投影の画像（`projection`）にする。MR・PT・CR・DX のシリーズに造影

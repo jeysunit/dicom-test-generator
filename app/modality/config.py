@@ -226,7 +226,7 @@ class ModalityConfig(BaseModel):
                 raise ValueError("stations must list at least one station")
         else:
             if "ae_title" not in mirrored:
-                return {**raw, **mirrored}  # 項目が無いことは、ふつうの検証で知らせる
+                return {**raw, **mirrored}  # 項目が無いことは、ふつうの検証で示す
             stations = [
                 {
                     "name": mirrored["ae_title"],

@@ -114,14 +114,14 @@ def register_modality_commands(
         "--series",
         type=int,
         help=(
-            "シリーズ数（手で入れる）。-s・-i・--routine を省くと、予約に当てたルーチンで撮る"
+            "シリーズ数（手入力）。-s・-i・--routine を省くと、予約に当てたルーチンで撮る"
         ),
     )
     exam_parser.add_argument(
         "-i",
         "--images",
         help=(
-            "各シリーズの画像数（カンマ区切り。手で入れる）。-s だけなら、シリーズごとに"
+            "各シリーズの画像数（カンマ区切り。手入力）。-s だけなら、シリーズごとに"
             f"{DEFAULT_IMAGES_PER_SERIES} 画像"
         ),
     )
@@ -193,7 +193,7 @@ def register_modality_commands(
 
     mpps_parser = subparsers.add_parser("mpps", help="MPPS の送信ジョブ（Phase 3c）")
     mpps_sub = mpps_parser.add_subparsers(dest="mpps_command")
-    mpps_list_parser = mpps_sub.add_parser("list", parents=[common], help="MPPS の知らせを出す")
+    mpps_list_parser = mpps_sub.add_parser("list", parents=[common], help="MPPS の通知を出す")
     mpps_list_parser.set_defaults(func=mpps_list_command)
     mpps_retry_parser = mpps_sub.add_parser(
         "retry", parents=[common], help="送信に失敗した MPPS を再送信する"
@@ -255,7 +255,7 @@ def worklist_show_command(args: argparse.Namespace) -> int:
 def _exam_series_options(
     args: argparse.Namespace,
 ) -> tuple[list[int], str | None, list[int] | None]:
-    """撮るシリーズの指定を（手で入れる画像数, ルーチン, ルーチンの画像数）にする.
+    """撮るシリーズの指定を（手入力の画像数,ルーチン, ルーチンの画像数）にする.
 
     -s・-i を指定すれば今の手入力。-s・-i・--routine を省けば予約に適用したルーチン
     （ADR-0025）。--routine と -s・-i を一緒に指定したら入力の誤り（終了コード 4）。

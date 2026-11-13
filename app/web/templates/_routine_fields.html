@@ -6,7 +6,7 @@
     <span class="l">ルーチン</span>
     <select name="routine" class="select" hx-get="/exam/routine" hx-target="#routine-fields" hx-swap="outerHTML" hx-include="#exam-form [name='key'], #exam-form [name='template']" hx-trigger="change" hx-sync="#routine-fields:replace">
       {% for choice in routine_choices %}<option value="{{ choice.name }}"{% if choice.name == selected_routine %} selected{% endif %}>{{ choice.label }}</option>{% endfor %}
-      <option value="{{ manual_routine }}"{% if selected_routine == manual_routine %} selected{% endif %}>手で入れる</option>
+      <option value="{{ manual_routine }}"{% if selected_routine == manual_routine %} selected{% endif %}>手入力</option>
     </select>
   </label>
   {% if routine_error %}<p role="alert" class="text-danger sm:col-span-3">{{ routine_error }}</p>{% endif %}

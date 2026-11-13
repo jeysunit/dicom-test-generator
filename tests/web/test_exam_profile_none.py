@@ -85,7 +85,7 @@ def test_none_on_the_screen_does_not_apply_the_default_profile(
     html = _exam(ct_default_client, key, "ct_generic", "")
 
     assert "撮影完了" in html, html
-    assert "dtg_synthetic_ct" not in html  # 重ねなかった知らせも出さない（選んだのは利用者）
+    assert "dtg_synthetic_ct" not in html  # 重ねなかった通知も出さない（選んだのは利用者）
     (ds,) = _written(tmp_path)
     assert ds.ManufacturerModelName != "DTG Synthetic CT 64"
 

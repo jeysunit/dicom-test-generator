@@ -25,9 +25,9 @@ def test_exam_page_selects_the_matched_routine(client) -> None:
     assert _row_images(html) == [1, 60, 60, 300, 83, 1]
     for label in ("位置決め", "軸位", "冠状断", "線量の画面"):
         assert f">{label}</td>" in html
-    # 選択肢はテンプレートのモダリティ（CT）のルーチンと、最後の「手で入れる」
+    # 選択肢はテンプレートのモダリティ（CT）のルーチンと、最後の「手入力」
     select = html.split('name="routine"', 1)[1].split("</select>", 1)[0]
-    assert select.rstrip().endswith('<option value="manual">手で入れる</option>')
+    assert select.rstrip().endswith('<option value="manual">手入力</option>')
     assert "mr_head" not in select
 
 
@@ -50,7 +50,7 @@ def test_every_count_field_is_tied_to_its_error_line(client) -> None:
     key = key_for(query_worklist(client), "A0001")
     pages = {
         "予約のルーチン": client.get(f"/exam?key={key}").text,
-        "手で入れる": client.get("/exam/routine?template=ct_generic&routine=manual").text,
+        "手入力": client.get("/exam/routine?template=ct_generic&routine=manual").text,
     }
     for label, html in pages.items():
         # data-count-label を付け忘れた type="number" の欄も、拾って確認する
@@ -65,8 +65,8 @@ def test_every_count_field_is_tied_to_its_error_line(client) -> None:
             assert line, f"{label}: {field}"
             assert f'id="{line.group(1)}"' in html, label
             assert f'aria-describedby="{line.group(1)}"' in field, label
-    # 必須の印は .req（赤い札にしない）
-    manual = pages["手で入れる"]
+    # 必須の印は .req（赤いバッジにしない）
+    manual = pages["手入力"]
     assert manual.count('<span class="req">必須</span>') == 2
     assert "badge text-danger" not in manual
 
@@ -117,7 +117,7 @@ def test_mr_order_with_the_ct_template_cannot_be_taken(client) -> None:
 
 
 def test_unreadable_routines_are_reported(client, tmp_path) -> None:
-    """ルーチンを読めなければ「手で入れる」にし、黙らずに理由を出す."""
+    """ルーチンを読めなければ「手入力」にし、黙らずに理由を出す."""
     from app.services.routine_loader import RoutineLoaderService
 
     broken = tmp_path / "routines"

@@ -14,7 +14,7 @@
 <input type="hidden" form="queue-filter" name="page" value="{{ list_page }}">
 {% if queue_error %}{% with error = queue_error %}{% include "_notice.html" %}{% endwith %}
 {% else %}
-{# 条件に合う件が 1,000 件を超えたときの知らせ（新しい 1,000 件だけを出す） #}
+{# 条件に合う件が 1,000 件を超えたときの通知（新しい 1,000 件だけを出す） #}
 {% if limited %}
 <div class="notice" data-k="warn" role="status"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-info"/></svg><span>送信ジョブが 1,000 件を超えたため、新しい 1,000 件だけを出しています。期間を狭めてください。</span></div>
 {% endif %}

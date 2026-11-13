@@ -142,7 +142,7 @@ def pacs_queue(request: Request, filters: FromQuery) -> HTMLResponse:
 
 @dataclass(frozen=True)
 class EchoNotice:
-    """接続確認を押した直後に区画の上に出す知らせ（何が起きたか・なぜか・次にすること）."""
+    """接続確認を押した直後に区画の上に出す通知（何が起きたか・なぜか・次にすること）."""
 
     ok: bool
     text: str
@@ -192,7 +192,7 @@ def pacs_echo_worklist(request: Request) -> HTMLResponse:
 
 @router.post("/pacs/check-all", response_class=HTMLResponse)
 def pacs_check_all(request: Request) -> Response:
-    """接続先の区画の「すべて接続確認」：区画を結果で差し替え、前の知らせは消す.
+    """接続先の区画の「すべて接続確認」：区画を結果で差し替え、前の通知は消す.
 
     上の帯の「接続確認」（/link/check）と同じ錠を取る。確認している最中にもう一度届いたら、
     重ねて送らず 204 で何も差し替えない。
@@ -235,7 +235,7 @@ def link_check(request: Request) -> Response:
         notices = _check_all(request)
     finally:
         CHECK_ALL_LOCK.release()
-    # 中身（#band）を結果で差し替え、全体の状態の札も同じ応答で差し替える。
+    # 中身（#band）を結果で差し替え、全体の状態バッジも同じ応答で差し替える。
     # 結果の 1 文は、中身の中の読み上げの欄（app.js が差し替えの後に入れる）に渡す
     return render(
         request,
@@ -250,7 +250,7 @@ def pacs_retry(request: Request, job_id: int, filters: FromForm) -> HTMLResponse
     try:
         results = service_of(request).retry(job_id=job_id)
     except DICOMGeneratorError as exc:
-        # 失敗しても表は消さず、表の上の知らせの場所に理由を出す
+        # 失敗しても表は消さず、表の上の通知の場所に理由を出す
         return render(
             request, "_queue.html", **_queue_context(request, filters, error=error_text(exc))
         )
@@ -318,7 +318,7 @@ def _queue_context(
         **context,
         "jobs": jobs[first : first + PAGE_SIZE],
         "queue_error": "",
-        # 期間の初期が今日なので、送信ジョブがあるのに 0 件のときは「条件に合う…」と知らせる
+        # 期間の初期が今日なので、送信ジョブがあるのに 0 件のときは「条件に合う…」と示す
         "any_jobs": bool(all_jobs),
         "total": len(narrowed),
         "counts": counts,

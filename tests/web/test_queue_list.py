@@ -122,8 +122,8 @@ def test_the_filter_and_the_summary_buttons_go_back_to_the_first_page(client) ->
         (0, 0, None, False),  # 0 件は 1 ページ（ページ送りなし）
         (50, 50, None, False),  # ちょうど 50 件は送りなし
         (51, 51, 2, False),  # 51 件で 2 ページ
-        (1000, 1000, 20, False),  # ちょうど 1,000 件は上限の知らせなし
-        (1001, 1000, 20, True),  # 1,001 件で上限の知らせあり（表示だけが 1,000 件）
+        (1000, 1000, 20, False),  # ちょうど 1,000 件は上限の通知なし
+        (1001, 1000, 20, True),  # 1,001 件で上限の通知あり（表示だけが 1,000 件）
     ],
 )
 def test_page_and_display_limit_boundaries(client, count, listed, pages, notice) -> None:

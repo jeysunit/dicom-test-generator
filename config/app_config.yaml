@@ -5,7 +5,7 @@ profiles:
   search_paths: []
 
 # モダリティエミュレーター（docs/spec/12_modality_emulator.md の 12 章）。
-# 例は手元の住所と例の名前だけ。試験用の PACS・RIS にだけつなぐ。
+# 例は手元のアドレスと例の名前だけ。試験用の PACS・RIS にだけつなぐ。
 modality:
   # 名乗る装置の一覧（AEタイトル・Station Name）。画面の情報バーで切り替える。
   # 相手の PACS・RIS に、使う装置の AEタイトルを登録しておく。
@@ -21,7 +21,7 @@ modality:
   listen:                         # 保管の確認の結果を受ける待ち受け（Phase 3c）
     bind_address: "127.0.0.1"
     port: 11113
-  state_dir: "modality_state"     # 予約の最後の結果・待ち行列（sqlite3）
+  state_dir: "modality_state"     # 予約の最後の結果・送信キュー（sqlite3）
   output_dir: "output/modality"
   character_set: "auto"           # auto, utf8, jis, jis_kana（jis_kana の画像は Orthanc 1.13.0 が読み崩す。spec/12 の 14.4）
   character_set_fallback: "utf8"  # utf8, jis, jis_kana（auto は不可）

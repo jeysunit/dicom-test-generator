@@ -44,7 +44,7 @@ def test_birth_field_is_one_text_field_with_a_hint_line(client) -> None:
     assert 'type="text"' in field and 'inputmode="text"' in field and 'autocomplete="off"' in field
     assert 'type="date"' not in label
     # 読み取り結果（.hint）と誤り（.msg）を欄に結ぶ。打つたびに読まれないよう aria-live は付けない
-    # 誤りの行を先に結ぶのはほかの欄（氏名（かな）の知らせ）と同じ。.hint と .msg は同時には出ない
+    # 誤りの行を先に結ぶのはほかの欄（氏名（かな）の通知）と同じ。.hint と .msg は同時には出ない
     assert 'aria-describedby="error-birth_date hint-birth_date"' in field
     assert '<span class="hint" id="hint-birth_date" hidden></span>' in label
     assert label.index('id="hint-birth_date"') < label.index('id="error-birth_date"')

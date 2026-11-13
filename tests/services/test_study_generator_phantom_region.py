@@ -155,7 +155,7 @@ def test_manual_series_in_a_region_study_keep_the_basic_shape(tmp_path) -> None:
     series = [*_routine_series("ct_head_plain", [1], images=[5]),
               SeriesConfig(series_number=2, num_images=5)]
     study = _generate(tmp_path, series, "ct_generic")
-    # 手で入れたシリーズは基本の図形（背景・図形・目印の 3 種類）
+    # 手入力のシリーズは基本の図形（背景・図形・目印の 3 種類）
     for index, ds in enumerate(study[2]):
         assert _values(ds, index, 5) <= {-1000 + CT_OFFSET, 40 + CT_OFFSET}
 

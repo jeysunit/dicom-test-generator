@@ -97,7 +97,7 @@ def store_files(
     """1つの検査の画像を、1つの Association で送る（8.2）.
 
     Association を張れなければ AssociationError。ファイルごとの成否は結果に残す。
-    `on_progress` は1ファイルを送るたびに呼ぶ（待ち行列の送信中の時刻を進める）。
+    `on_progress` は1ファイルを送るたびに呼ぶ（送信キューの送信中の時刻を進める）。
     そこで例外が起きたら（送る権利を失ったら）、残りを送らずに Association を閉じて上げる。
     """
     readable, results = _read_headers(paths)

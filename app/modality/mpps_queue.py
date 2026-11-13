@@ -1,8 +1,8 @@
-"""MPPS の知らせの待ち行列（sqlite3。docs/spec/12_modality_emulator.md 8.4.1）.
+"""MPPS の通知のキュー（sqlite3。docs/spec/12_modality_emulator.md 8.4.1）.
 
 1件は1つの撮影の MPPS（1つの SOP Instance）。N-CREATE と、終わりの N-SET
 （COMPLETED・DISCONTINUED）の値と、それぞれ送れたかを持つ。送れなかった分は
-`mpps retry` で、N-CREATE を先に送り直す。待ち行列と同じ sqlite3 のファイルに置く。
+`mpps retry` で、N-CREATE を先に送り直す。送信キューと同じ sqlite3 のファイルに置く。
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ _COLUMNS = (
     " peer_ae_title, peer_host, peer_port, create_no_response, set_no_response,"
     " calling_ae_title"
 )
-# 札を取ってからこの秒より長く経った行は、送る手順が落ちたとみなして札を再取得できる（8.4.1）
+# トークンを取得してからこの秒より長く経った行は、送る手順が落ちたとみなしてトークンを再取得できる（8.4.1）
 STALE_SEND_TOKEN_SECONDS = 10 * 60
 SEND_TOKEN_BYTES = 16
 MppsOperation = Literal["create", "set"]
@@ -86,7 +86,7 @@ class MppsRecord(BaseModel):
 
     @property
     def sent(self) -> bool:
-        """いまの状態までの知らせを、すべて送れたか."""
+        """いまの状態までの通知を、すべて送れたか."""
         return self.create_sent and (not self.has_set or self.set_sent)
 
 
@@ -119,7 +119,7 @@ class MppsQueue:
         peer: tuple[str, str, int],
         calling_ae_title: str = "",
     ) -> int:
-        """N-CREATE の知らせを入れる。`peer` は（AEタイトル, 住所, ポート）で、行に固定する.
+        """N-CREATE の通知を入れる。`peer` は（AEタイトル, ホスト, ポート）で、行に固定する.
 
         `calling_ae_title`（撮影した装置の AEタイトル）も行に固定する。
         """
@@ -145,7 +145,7 @@ class MppsQueue:
             return int(cursor.lastrowid or 0)
 
     def claim(self, record_id: int) -> str | None:
-        """送る権利の札を取る。札が空か古い行だけ。取れなければ None（8.4.1）."""
+        """送る権利のトークンを取得する。トークンが空か期限切れの行だけ。取れなければ None（8.4.1）."""
         token = secrets.token_hex(SEND_TOKEN_BYTES)
         cutoff = (datetime.now() - timedelta(seconds=STALE_SEND_TOKEN_SECONDS)).isoformat(
             timespec="seconds"
@@ -201,7 +201,7 @@ class MppsQueue:
         return self._select("", ())
 
     def unsent(self) -> list[MppsRecord]:
-        """送れていない知らせのある件（古い順）."""
+        """送れていない通知のある件（古い順）."""
         return self._select(
             "WHERE create_sent = 0 OR (set_json != '' AND set_sent = 0)", ()
         )

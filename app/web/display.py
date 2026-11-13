@@ -32,9 +32,9 @@ MODALITY_COLORS = {
     "SR": "sr",
 }
 STATUS_LABELS = {"pending": "送信待ち", "sending": "送信中", "sent": "送信完了", "failed": "送信失敗"}
-# 状態の札の種類（`.st` の `data-k`。枠と印は画面の決まりの状態の札と同じ）
+# 状態バッジの種類（`.st` の `data-k`。枠と印は画面の決まりの状態バッジと同じ）
 STATUS_KINDS = {"pending": "plan", "sending": "wait", "sent": "ok", "failed": "ng"}
-# 保管の確認の状態（10.6・10.8）と、出すときの札の種類（送信ジョブの状態と同じ札を使う）
+# 保管の確認の状態（10.6・10.8）と、出すときの状態バッジの種類（送信ジョブの状態と同じバッジを使う）
 COMMITMENT_LABELS = {
     "waiting": "確認待ち",
     "confirmed": "確認済",
@@ -106,7 +106,7 @@ def send_error_label(reason: str) -> str:
     if mpps:
         return mpps
     if re.search(r"[ぁ-んァ-ヶ一-龯]", reason):
-        # 相手の AEタイトルを受け付けなかった知らせなど、すでに日本語の文
+        # 相手の AEタイトルを受け付けなかったメッセージなど、すでに日本語の文
         return reason
     return GENERIC_SEND_ERROR
 
@@ -218,7 +218,7 @@ def auto_charset_note(item: WorklistItem | None, fallback: str) -> str:
 
 
 def patient_label(patient_name: str, patient_id: str) -> str:
-    """知らせに入れる患者：`緊急 太郎（E0002）`。氏名は漢字、無ければ英字・かな."""
+    """通知に入れる患者：`緊急 太郎（E0002）`。氏名は漢字、無ければ英字・かな."""
     alphabetic, ideographic, phonetic = name_parts(patient_name)
     name = ideographic or alphabetic or phonetic or "氏名なし"
     return f"{name}（{patient_id}）" if patient_id else name

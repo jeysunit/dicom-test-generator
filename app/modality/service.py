@@ -130,14 +130,14 @@ NOT_TAKEN_MESSAGE = "この予約はまだ撮影していません。追加撮�
 # --study-uid。docs/spec/12 の 6.3）。指定の無い画面と CLI には、今までの文言で断る
 EMERGENCY_APPEND_MESSAGE = "緊急の患者（予約なし）では追加撮影はできません"
 ORDER_BUSY_MESSAGE = "この予約は、ほかで撮影しています。終わってから撮ってください"
-CLAIM_TOUCH_SECONDS = 60  # 撮影の間、予約の札の時刻を進める間（札は 30 分で古くなる）
+CLAIM_TOUCH_SECONDS = 60  # 撮影の間、予約のトークンの時刻を進める間（トークンは 30 分で期限切れになる）
 AUTO_ROUTINE = "auto"  # 予約に適用したルーチンで撮る（ADR-0025）
 # DICOM の値の区切り（PS3.5 6.2）。LO・PN・SH の値に入れると VM が増える
 VALUE_DELIMITER = "\\"
 
 
 def _reject_value_delimiter(fields: tuple[tuple[str, str], ...]) -> None:
-    """手で入れた値に `\\` があれば断る（ValidationError）."""
+    """手入力した値に `\\` があれば断る（ValidationError）."""
     for label, value in fields:
         if VALUE_DELIMITER in value:
             # 誤りの文に入れた値を出さない（docs/spec/12 の 12 章）
@@ -160,7 +160,7 @@ def check_send_files(folder: Path, files: list[str]) -> None:
 
 
 def _throttled(touch: Callable[[], None] | None) -> Callable[[int, int], None] | None:
-    """作成の進み（1枚ごと）で呼ばれ、`touch` を間を空けて呼ぶ（札の時刻を進める）."""
+    """作成の進み（1枚ごと）で呼ばれ、`touch` を間を空けて呼ぶ（トークンの時刻を進める）."""
     if touch is None:
         return None
     last = [time.monotonic()]
@@ -253,7 +253,7 @@ class ExamRequest(BaseModel):
     # 撮影済みの予約での追加撮影（IHE の Append Case。docs/spec/12 の 6.3・ADR-0024）
     append: bool = False
     emergency_study_instance_uid: str | None = None
-    # 撮影のルーチン（ADR-0025）。None は手で入れた images_per_series で撮る。"auto" は
+    # 撮影のルーチン（ADR-0025）。None は手入力した images_per_series で撮る。"auto" は
     # 予約の検査名と部位に適用したルーチン。ほかはルーチンの名前
     routine: str | None = None
     # ルーチンのうち撮るシリーズの位置（0 始まり）と、その画像数。無ければ全部・既定の数
@@ -274,7 +274,7 @@ class ExamResult(BaseModel):
     character_set: list[str]
     notices: list[str] = Field(default_factory=list)
     mpps: MppsOutcome | None = None  # MPPS を使わない撮影では None（11.4）
-    routine: str | None = None  # 使ったルーチンの名前。手で入れた撮影は None
+    routine: str | None = None  # 使ったルーチンの名前。手入力の撮影は None
 
 
 class SendResult(BaseModel):
@@ -372,7 +372,7 @@ class ModalityService:
         return self.config.station()
 
     def station_notice(self) -> str:
-        """記録した装置が設定に無くなって、標準の装置に戻したときの知らせ。無ければ空."""
+        """記録した装置が設定に無くなって、標準の装置に戻したときの通知。無ければ空."""
         if self._station_override is not None:
             return ""
         recorded = self._recorded_station_name()
@@ -523,8 +523,8 @@ class ModalityService:
         return self.mpps_queue.list_all()
 
     def retry_mpps(self) -> list[MppsRecord]:
-        """送れていない MPPS の知らせを送り直す。残れば MPPSError（11.9）."""
-        # `exam --mpps` で作った知らせは、設定で使わなくても送り直せる（8.4.1）
+        """送れていない MPPS の通知を送り直す。残れば MPPSError（11.9）."""
+        # `exam --mpps` で作った通知は、設定で使わなくても送り直せる（8.4.1）
         if not self.config.worklist.use_mpps and not self.mpps_queue.unsent():
             raise ModalityConfigError(
                 "MPPS is not used (worklist.use_mpps is false) and nothing is left to send",
@@ -636,7 +636,7 @@ class ModalityService:
 
     @staticmethod
     def emergency_person_name(alphabetic: str, ideographic: str, phonetic: str) -> str:
-        """手で入れた3つの氏名の欄を PN にする。空白は `^` にする（docs/spec/12a の 10.5）.
+        """手入力した3つの氏名の欄を PN にする。空白は `^` にする（docs/spec/12a の 10.5）.
 
         画面のスクリプトの置き換えは補助で、ここで必ず同じ置き換えをする。
         """
@@ -874,7 +874,7 @@ class ModalityService:
             if key is None:
                 return self._exam(request)
             # 同じ予約を、別のプロセス（CLI と画面など）が同時に撮らないようにする。撮影済みの
-            # 判定から記録までを、予約ごとの札で守る（6.3・ADR-0024）
+            # 判定から記録までを、予約ごとのトークンで守る（6.3・ADR-0024）
             token = self.queue.claim_exam(key)
             if token is None:
                 raise ModalityError(ORDER_BUSY_MESSAGE)
@@ -888,7 +888,7 @@ class ModalityService:
     def _exam(
         self, request: ExamRequest, keep_claim: Callable[[], None] | None = None
     ) -> ExamResult:
-        """`keep_claim` は、撮影の間に予約の札の時刻を進める（長い撮影を落ちたとみなさない）."""
+        """`keep_claim` は、撮影の間に予約のトークンの時刻を進める（長い撮影を落ちたとみなさない）."""
         if (request.worklist_key is None) == (request.emergency_patient is None):
             raise ConfigurationError(
                 "Specify exactly one of worklist_key or emergency_patient",
@@ -1056,7 +1056,7 @@ class ModalityService:
                 config=config, scheduled=ctx, progress_callback=_throttled(keep_claim)
             )
         except (DICOMGeneratorError, OSError):
-            # 止まる前に書けた画像も DISCONTINUED の N-SET で知らせる（PS3.4 F.7.2.2.2）
+            # 止まる前に書けた画像も DISCONTINUED の N-SET で通知する（PS3.4 F.7.2.2.2）
             partial = sorted(str(path) for path in output_dir.glob("*.dcm"))
             self._remove_if_empty(output_dir)
             if mpps_id is not None:
@@ -1084,7 +1084,7 @@ class ModalityService:
                 )
             except IMAGE_READ_ERRORS:
                 # 作った画像のヘッダーを読めなければ、開いたままにせず DISCONTINUED を残す。
-                # DISCONTINUED は読めた画像だけを知らせる
+                # DISCONTINUED は読めた画像だけを通知する
                 mpps.finish_exam(
                     mpps_id,
                     STATE_DISCONTINUED,
@@ -1149,7 +1149,7 @@ class ModalityService:
     def send(
         self, folder: str, destination: str | None = None, calling_ae_title: str | None = None
     ) -> SendResult:
-        """フォルダの *.dcm を待ち行列に1件入れ、すぐに送る（8.2）.
+        """フォルダの *.dcm を送信キューに1件入れ、すぐに送る（8.2）.
 
         名乗る AEタイトル（件に記録する）は、`calling_ae_title`、無ければ画像を作った
         装置（画像の Source AE Title が設定の装置のどれかなら、その AEタイトル）、それも
@@ -1162,7 +1162,7 @@ class ModalityService:
         files = sorted(str(path) for path in folder_path.glob("*.dcm"))
         if not files:
             raise FileReadError(str(folder_path), "No .dcm files in the folder")
-        # 待ち行列に入れる前に、送ってよいファイルかを確認する（8.2）
+        # 送信キューに入れる前に、送ってよいファイルかを確認する（8.2）
         check_send_files(folder_path, files)
         # 件の受付番号は、送る画像の Accession Number（読めなければ空のまま送る）
         summary = _read_job_summary(folder_path)
@@ -1268,7 +1268,7 @@ class ModalityService:
                     node,
                     pending,
                     node.timeout_seconds,
-                    # 1ファイルごとに時刻を進め、札が違えば（引き取られたら）残りを送らない
+                    # 1ファイルごとに時刻を進め、トークンが違えば（引き取られたら）残りを送らない
                     on_progress=lambda token=token: self.queue.touch_sending(job_id, token),
                 )
             except AssociationError as exc:

@@ -1,7 +1,7 @@
 """保管の確認（Storage Commitment）の試験（docs/spec/12 の 8.3、docs/development.md の 4 章。Phase 3c）.
 
 手元の偽の PACS（tests/modality_peers.py の CommitmentPACS）を相手に、
-要求→結果→待ち行列の状態の一巡りを実行する。実の PACS にはつながない。
+要求→結果→送信キューの状態の一巡りを実行する。実の PACS にはつながない。
 """
 
 from __future__ import annotations
@@ -103,7 +103,7 @@ def _exam_and_send(service: ModalityService, images: list[int] | None = None) ->
 
 
 def test_separate_association_round_trip(service, commitment_pacs) -> None:
-    """要求→別の Association の結果→待ち行列の「確認済」（推奨の既定の道。8.3.1）."""
+    """要求→別の Association の結果→送信キューの「確認済」（推奨の既定の道。8.3.1）."""
     # 結果が要求より後に届く前提を決まった形にする（すぐ送ると、状態を読む前に確認済になりうる）
     commitment_pacs.report_delay = 0.5
     job_id = _exam_and_send(service, [1, 2])
@@ -239,7 +239,7 @@ def test_more_references_than_requested_is_refused(service, commitment_pacs) -> 
 def test_large_report_is_refused_before_reading(
     service, commitment_pacs, listen_port, transaction, caplog
 ) -> None:
-    """1 MiB を超える知らせは、Transaction UID を読む前に大きさで断る（8.3.2）."""
+    """1 MiB を超える通知は、Transaction UID を読む前に大きさで断る（8.3.2）."""
     job_id = _exam_and_send(service, [1])
     commitment_pacs.report_path = "none"
     state = service.request_commitment(job_id)

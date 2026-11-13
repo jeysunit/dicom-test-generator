@@ -1,4 +1,4 @@
-"""設定（modality: の節）と待ち行列（sqlite3）の試験."""
+"""設定（modality: の節）と送信キュー（sqlite3）の試験."""
 
 from __future__ import annotations
 

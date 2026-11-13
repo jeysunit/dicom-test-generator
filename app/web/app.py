@@ -110,7 +110,7 @@ def create_app(
 
     @app.exception_handler(StarletteHTTPException)
     async def http_error(request: Request, exc: StarletteHTTPException) -> Response:
-        # 断った理由を、HTMX が差し込める短い HTML で返す（10.3 の知らせ）
+        # 断った理由を、HTMX が差し込める短い HTML で返す（10.3 の通知）
         response = render(request, "_notice.html", error=f"{exc.status_code}: {exc.detail}")
         response.status_code = exc.status_code
         return response

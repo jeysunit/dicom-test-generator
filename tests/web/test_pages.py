@@ -246,7 +246,7 @@ def test_exam_check_partial_follows_profile_choice(client) -> None:
 def test_unknown_worklist_key_on_exam_page(client) -> None:
     html = client.get("/exam?key=0000000000").text
     assert 'role="alert"' in html
-    # 内部の予約の鍵は出さず、次の操作を日本語で知らせる（docs/spec/12a の 10.4）
+    # 内部の予約の鍵は出さず、次の操作を日本語で示す（docs/spec/12a の 10.4）
     assert "0000000000" not in html
     assert "「検索」からやり直してください" in html
 
@@ -374,7 +374,7 @@ def test_refresh_of_a_removed_item_keeps_the_row(client, worklist_scp) -> None:
         "この予約はワークリストにもうありません（受付番号 A0001）。"
         "RIS で取り消されたか、変更された可能性があります"
     ) in html
-    assert html.count("A0001") >= 2  # 知らせと、残した一覧の行
+    assert html.count("A0001") >= 2  # 通知と、残した一覧の行
     assert "worklist_key" not in html
 
 
@@ -461,7 +461,7 @@ def test_pacs_queue_partial_polls(client) -> None:
 
 
 def test_pacs_job_states_are_shown_as_state_marks(client) -> None:
-    """送信ジョブと保管の確認の状態は、枠・印・文字の札で出す（色だけにしない）."""
+    """送信ジョブと保管の確認の状態は、枠・印・文字の状態バッジで出す（色だけにしない）."""
     results = _query(client)
     key = _key_for(results, "A0001")
     token = csrf_token(client)
@@ -517,7 +517,7 @@ def test_required_fields_are_marked(client) -> None:
         field = _field(html, name)
         assert "必須" in field, name
         assert " required" in field, name
-    # シリーズ数・画像数は「手で入れる」のときの欄（既定はルーチン。ADR-0025）
+    # シリーズ数・画像数は「手入力」のときの欄（既定はルーチン。ADR-0025）
     manual = client.get("/exam/routine?routine=manual").text
     for name in ("series", "images"):
         field = _field(manual, name)
