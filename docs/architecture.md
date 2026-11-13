@@ -120,7 +120,7 @@ UI レイヤー ─（データモデル・例外・定数・表示用の関数�
 
 ## 3. DICOM 画像の作成の流れ
 
-CLI の `generate`・`quick` は、`GenerationConfig` を組み立てて
+CLI の `generate`・`quick` は、`GenerationConfig` を構築して
 `StudyGeneratorService.generate` を呼ぶ。撮影（Web 画面の撮影と CLI の `exam`）は
 `ModalityService.exam` を経由する。`ModalityService.exam` は、撮影の依頼から
 `GenerationConfig` を、予約から予約の値（`ScheduledContext`）を作り、MPPS が

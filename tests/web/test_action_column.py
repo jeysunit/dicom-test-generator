@@ -3,7 +3,7 @@
 幅が足りなくて表が横に動くときも、操作のボタンが見えて押せるようにする。ブラウザでの
 寸法（幅 390・1280 で、ボタンが表の包みの中にあり最前面にある）は、この試験では測れない
 （ブラウザの試験の仕組みを持たない）。ここでは、そのための CSS の規則と、3 つの表の最後の列の
-印（`.act`）が、組み立てた CSS とテンプレートの両方にあることを確認する。
+印（`.act`）が、ビルドした CSS とテンプレートの両方にあることを確認する。
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def test_action_column_is_pinned_to_the_right_edge() -> None:
     pinned = re.sub(r"\s+", "", source.split(".tbl th.act,", 1)[1].split("}", 1)[0])
     assert "position:sticky" in pinned
     assert "right:0" in pinned
-    # 組み立てた CSS にも入っている（commit した app.css と再ビルドの結果が合っていることは CI が見る）
+    # ビルドした CSS にも入っている（commit した app.css と再ビルドの結果が合っていることは CI が見る）
     assert ".tbl td.act" in built and ".tbl th.act" in built
 
 
