@@ -18,6 +18,9 @@
 - 画面は ui-kit の部品と絵で組む（`app/web/static/ui-kit/`）。コピーは直さない。無い部品は
   作らず、先に部品集を直す。[ADR-0028](docs/decisions/0028-shared-ui-kit-css.md)
   に従う
+- 画面の対応ブラウザーは Baseline Widely available
+  （[docs/spec/12a](docs/spec/12a_web_screens_and_cli.md) の 10.1a）。入らない機能は、
+  退避を付けたときだけ使う
 - 不明な点は推測せず、質問する
 - 実装を始める前に現在のブランチを確認する。`main` なら作業を始めず、ブランチを
   作成する

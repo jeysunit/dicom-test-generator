@@ -64,6 +64,51 @@ standalone の実行ファイル）にする。** 選んだ理由は ADR-0011 �
 - tokens.css の値が 10.2 の表とずれたら検出できるよう、テストで比較する
   （`tests/web/test_theme_tokens.py`）
 
+### 10.1a 対応ブラウザー
+
+理由は [ADR-0038](../decisions/0038-browser-support-baseline-widely-available.md)
+にある。
+
+- **対応の線は「Baseline Widely available」にする。** Baseline は、主なブラウザー
+  （Chrome・Edge・Firefox・Safari の、パソコンとスマートフォン）がそろって対応した
+  時点でウェブの機能を区切る基準で、Widely available は、そろってから 30 か月
+  たった機能。この区切りの機能だけで作れば、画面は追加の対応なしで、主なブラウザー
+  のどれでも動く
+- **Widely available に入らない機能を使うときの決まり：** 使えないブラウザーで
+  画面が壊れない退避を、同じ PR で必ず付ける（その機能が無くても業務の操作が全部
+  でき、見た目の差だけが残る形。付けられない機能は使わない）。退避の中身と、その
+  機能が Widely available になる日（Baseline の日付）を、コードのコメントか PR の
+  本文に書く
+- 画面はビルド工程（Node・`package.json`）を持たないので、機械が読む線の設定
+  （`browserslist`）は置けない。線は、この節と PR のレビューで守る。機能の日付は、
+  [web-features](https://github.com/web-platform-dx/web-features) のデータで引く
+  （依存には足さず、確認のときに一度だけ使う）。CSS を作る Tailwind CSS v4 は、
+  変換の対象のブラウザーを固定で持つ（Chrome 111・Firefox 128・Safari 16.4）。
+  Chrome と Safari は線より古く、Firefox だけ 128 で線より新しいので、導入先の
+  端末の確認では、線の下限は Firefox 128 とみなす
+- **線に入らない機能は次の 2 件（2026-11-14 時点。web-features 3.46.0）。**
+  popover の 7 つの機能（`popover` 属性・`popovertarget`・`showPopover()`・
+  `hidePopover()`・`beforetoggle`・`toggle`・`:popover-open`）は全部 2026-10-16 から
+  Widely available で、線の内
+  - `scrollbar-gutter: stable`（ui-kit の `components.css`）：Baseline low
+    （2024-12-11）。Widely available になるのは 2027-06-11 の見込み。退避は不要
+    （使えないブラウザーでも、スクロールバーが出入りするときに幅が動くだけで、
+    操作は変わらない）。コピーは DTG の側で直さず、ui-kit で扱う
+  - `@property`（Tailwind CSS が `app.css` に作る `--tw-*` の登録）：Baseline low
+    （2024-07-09）。Widely available になるのは 2027-01-09 の見込み。Tailwind が
+    `@supports` の退避（初期値の指定）を一緒に出すので、DTG の側の対応は不要
+- **版の線は日々動く。** 機能が線に入る日は過ぎるほど進むので、半年に 1 回と、
+  ui-kit・Tailwind CSS・htmx の版を上げるときに、使っている機能を確認し直す
+- **導入先が決まったら、端末の実際のブラウザーの版で確認する。** 線より古い端末が
+  あれば、その版まで対応を下げるか、端末を更新してもらうかを、導入先と決める
+  （下げるときはこの節に理由を書く）
+- **見直しの時期：** 導入先が決まったとき、ブラウザーの更新が遅い端末が見つかった
+  とき、そして半年に 1 回
+
+出典：
+
+- Baseline の定義：<https://web.dev/baseline>
+
 ### 10.2 見た目の基準
 
 **画面（ワークリスト・撮影・PACS・設定）は、ライトテーマを初期設定にし、
