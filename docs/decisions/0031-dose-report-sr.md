@@ -47,7 +47,7 @@
 6. MPPS の Performed Series Sequence では、SR を Referenced Non-Image Composite SOP
    Instance Sequence に入れる（画像は Referenced Image Sequence のまま。PS3.4 の表 F.7.2-1）
 7. 既定は `screen`（今までの検査の枚数・シリーズの数は変わらない）。`both` を既定に
-   する案は、PR で承認者の判断を求める
+   する案は、PR で依頼者の判断を求める
 
 ## 検討した選択肢
 
