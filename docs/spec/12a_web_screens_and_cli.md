@@ -1062,6 +1062,7 @@ python -m app.cli exam --emergency --patient-id E0001 \
 | `--routine-images LIST` | ルーチンの各シリーズの画像数（数はルーチンのシリーズの数と同じ） | ルーチンの標準の数 |
 | `--dose-report MODE` | CT のルーチンの線量の報告：`screen`（線量の画面の画像）・`sr`（X-Ray Radiation Dose SR）・`both`（両方。[ADR-0031](../decisions/0031-dose-report-sr.md)） | `screen` |
 | `--pixel-mode MODE` | ピクセル（`simple_text`・`ct_realistic`・`phantom`。[06](06_dicom_rules.md) の 4 章） | 設定の初期値 |
+| `--burn-in`・`--no-burn-in` | 画素の上端に文字を焼き込む・焼き込まない（`phantom` のときだけ。`phantom` 以外の方式と一緒に書くと断る。[06](06_dicom_rules.md) の 4.8） | 設定（`modality.burn_in`） |
 | `--abnormal-level L` | 異常のデータ | none |
 | `--charset C` | `auto`・`utf8`・`jis`・`jis_kana`（Orthanc 1.13.0 へ送る画像は `utf8` か `jis`。[spec/12](12_modality_emulator.md) の 14.4） | 設定の初期値 |
 | `-o, --output DIR` | 出力フォルダ | 設定の初期値 |

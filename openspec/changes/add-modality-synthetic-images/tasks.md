@@ -59,8 +59,9 @@
 
 ## 4. 焼き込み（PR 4）
 
-- [ ] 4.1 spec 02 の 3 章、06 の 4 章、07 の 3.6、12a の CLI に焼き込み（`burn_in`）を書く
-- [ ] 4.2 帯・ASCII 以外の字・Burned In Annotation `YES`・`phantom` 以外との組み合わせを
+- [x] 4.1 spec 02 の 3 章、06 の 4 章、07 の 3.6、12a の CLI に焼き込み（`burn_in`）を書く
+      （06 は 4.8 の節。04 の quick・12 の設定の例・usage.md にも書いた）
+- [x] 4.2 帯・ASCII 以外の字・Burned In Annotation `YES`・`phantom` 以外との組み合わせを
       断る試験・CLI と設定の優先の順の試験を先に書き、Job の `pixel_spec.burn_in`・
       CLI の `--burn-in`・`--no-burn-in`・設定の `modality.burn_in` を追加する
 

@@ -136,7 +136,7 @@ CT Image（PS3.3 C.8.2.1）の画素として書く（MR は 5.2、PET は 5.4�
 |--------|------|----------------|-------------|----------------------|------|
 | `simple_text` | 簡易確認 | 16 | 12（固定） | 1（符号あり） | SOP Instance UID の文字列 |
 | `ct_realistic` | ビューアでの表示 | 16 | 12〜16（既定 12） | 1（符号あり） | HU 値のパターン |
-| `phantom` | スライスを送る・MPR の試験 | 16 | 12〜16（既定 12） | 1（符号あり） | スライスの位置で断面が変わる図形と位置の目印（4.6） |
+| `phantom` | スライスを送る・MPR の試験 | 16 | 12〜16（既定 12） | 1（符号あり） | スライスの位置で断面が変わる図形と位置の目印（4.6）。選んだときだけ上端に文字の帯（4.8） |
 
 ### 4.2 画素の属性
 
@@ -206,7 +206,7 @@ Pixel Representation 1 の画素は、Bits Stored のビット数の 2 の補数
 
 画素の患者座標で3次元の図形を評価し、スライスの位置で断面の大きさが変わる画像を
 作る（`app/core/phantom.py`。[ADR-0033](../decisions/0033-phantom-pixels.md)）。
-画素に文字は描かない。
+初期値では画素に文字を描かない（選んだときだけ描く焼き込みは 4.8）。
 
 **図形を決める**：図形（回転楕円体1つ）は、1回の撮影（同じ Frame of Reference UID
 の画像の組）で一度だけ患者座標（mm）で決め、その撮影の全シリーズで使う。
@@ -258,7 +258,7 @@ Rescale・Window の値は、CT は 4.2、MR は 5.2 のとおり。MR は Bits 
 | (0008,0070) | Manufacturer | `DTG SYNTHETIC` |
 | (0008,1090) | Manufacturer's Model Name | `DTG SYNTHETIC` |
 | (0020,4000) | Image Comments | `SYNTHETIC TEST DATA` |
-| (0028,0301) | Burned In Annotation | `NO` |
+| (0028,0301) | Burned In Annotation | `NO`（焼き込みを選んだときは `YES`。4.8） |
 | (0028,0302) | Recognizable Visual Features | `NO` |
 
 Burned In Annotation と Recognizable Visual Features は General Image Module の
@@ -344,6 +344,58 @@ z（軸位の範囲の上端）は変えない。
 - 軸位の範囲が視野の高さ（CT は 256 mm）より長い撮影では、冠状断・矢状断・
   位置決めに、軸位の範囲の上端から視野の高さの分しか写らない
 - 幅と高さが違う画像では、矢状断が y の半分しか覆わない
+
+### 4.8 焼き込み
+
+焼き込み（`burn_in`）を選んだときだけ、`phantom` の画素の上端の帯に文字を描く
+（`app/core/burn_in.py`。[ADR-0033](../decisions/0033-phantom-pixels.md) の決定5）。
+匿名化ツールが画素の焼き込みを見つけられるかの試験に使う。初期値は焼き込まない。
+`phantom` のときだけ効く。
+
+**選び方と優先の順**：
+
+| 場所 | 書き方 |
+|------|--------|
+| Job | `pixel_spec.burn_in: true`（`mode: phantom` のときだけ。[07](07_job_schema.md) の 3.6） |
+| CLI | `quick`・`exam` の `--burn-in`（焼き込む）・`--no-burn-in`（焼き込まない） |
+| 設定 | `modality.burn_in: true`（`exam` の初期値。[12](12_modality_emulator.md)） |
+
+- CLI の `--burn-in`・`--no-burn-in` は設定より優先する
+- CLI・Job で `phantom` 以外の方式と一緒に `burn_in`（`false` を含む）・`--burn-in`・
+  `--no-burn-in` を書くと、画像を作らず設定の誤りとして断る
+- 設定の `modality.burn_in: true` は、設定の `default_pixel_mode` が `phantom` の
+  ときだけ書ける。ほかの方式なら設定の読み込みで断る
+- CLI の `--pixel-mode` で `phantom` 以外を選んだ撮影は、設定によらず焼き込まない
+
+**帯**：画像の上端に、画素の値の最小で帯を敷き、最大の値で次の3行を描く。最小と
+最大だけで描くので、Window の幅を変えても読める。帯の外は 4.6・4.7 の画素のまま。
+
+```text
+TEST / SYNTHETIC  ID P000001  20261027
+SE 3  IM 12/60
+Z +55.0 mm
+```
+
+| 行 | 内容 |
+|----|------|
+| 1 | `TEST / SYNTHETIC`・`ID` と患者 ID・検査日（YYYYMMDD） |
+| 2 | `SE` とシリーズ番号・`IM` と何枚目 / 枚数 |
+| 3 | 断層の画像は、軸位が `Z`・冠状断が `Y`・矢状断が `X` と、その軸の位置（Image Position (Patient)。mm）。CT の位置決めは `VIEW FRONTAL`・`VIEW LATERAL`、CR・DX は `VIEW PA` のように画像の方向 |
+
+- 最小の値は 0。最大の値は、CT が Bits Stored の符号ありの上限（12 ビットなら 2047）、
+  MR・CR・DX が符号なしの上限（12 ビットなら 4095）。位置の目印の値より大きい。
+  `MONOCHROME1` の CR・DX は、ほかの値と同じく反転して書く
+- 文字は Pillow の既定のフォントで描き、画像の幅 256 画素ごとに 1 倍ずつ、最近傍で
+  拡大する。外部のフォントを使わない（Docker のイメージでも同じに描ける）
+- 描く字は ASCII の印字できる字だけで、ほかの字は `?` にする。そのときも撮影は止めず、
+  Burned In Annotation は `YES` のまま
+- 1行が帯の幅に収まらないときは、拡大の倍率を下げる。倍率 1 でも収まらない行は、
+  収まる字までを描き、残りを切る。帯の高さが画像の高さを超えるときは、画像の高さまで
+- 帯を描く画像は、`phantom` で画素を作った全画像（位置決めを含む。CR・DX も）。
+  線量の画面・線量の報告の SR・PET/CT の PT のシリーズには描かない（4.6）
+
+**属性**：Burned In Annotation (0028,0301) を `YES` にする。ほかの偽物の印（4.6）は
+そのまま。焼き込みを選ばない画像は、これまでどおり `NO`。
 
 ## 5. CT Image の必須の属性
 
@@ -561,7 +613,7 @@ Frame of Reference と Image Plane のモジュールは持たない。シリー
 | Presentation LUT Shape (2050,0020) | 無い | `MONOCHROME2` は `IDENTITY`、`MONOCHROME1` は `INVERSE` |
 | Window Center / Width | `2048` / `4096` | 同じ（`FOR PRESENTATION` なので必須） |
 | Lossy Image Compression (0028,2110) | 無い | `00` |
-| Burned In Annotation (0028,0301) | `phantom` だけ `NO`（4.6） | どの方式でも `NO`（Type 1） |
+| Burned In Annotation (0028,0301) | `phantom` だけ `NO`（焼き込みを選んだときは `YES`。4.6・4.8） | `phantom` の焼き込みを選んだときは `YES`、ほかは `NO`（Type 1） |
 | Detector Type (0018,7004) | 無い | 空（Type 2） |
 | Acquisition Context Sequence (0040,0555) | 無い | 空（Type 2） |
 

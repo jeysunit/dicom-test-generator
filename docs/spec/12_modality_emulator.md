@@ -835,6 +835,7 @@ modality:
   default_profile: null         # 装置プロファイル（spec/13）。null は重ねない
   default_hospital: null        # 病院テンプレート（null で使わない）
   default_pixel_mode: "ct_realistic"  # simple_text, ct_realistic, phantom
+  burn_in: false                # true：画素の上端に文字を焼き込む。default_pixel_mode が phantom のときだけ（spec/06 の 4.8）
   worklist:
     ae_title: "RIS_TEST"
     host: "127.0.0.1"

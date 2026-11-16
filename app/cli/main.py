@@ -209,6 +209,12 @@ def _create_parser() -> argparse.ArgumentParser:
         help="ピクセルモード（simple_text / ct_realistic / phantom）",
     )
     quick_parser.add_argument(
+        "--burn-in",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="画素の上端に文字を焼き込む（phantom のときだけ。--no-burn-in は焼き込まない）",
+    )
+    quick_parser.add_argument(
         "--abnormal-level",
         choices=ABNORMAL_LEVELS,
         default="none",

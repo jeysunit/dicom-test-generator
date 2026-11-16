@@ -83,3 +83,50 @@ def test_quick_still_rejects_an_unknown_mode(tmp_path) -> None:
 
     with pytest.raises(ConfigurationError):
         quick_command(args)
+
+
+def _quick(tmp_path, *extra: str):
+    return _create_parser().parse_args(
+        [
+            "quick", "-p", "P000001", "-m", "ct_generic", "-s", "1", "-i", "2",
+            "-o", str(tmp_path / "out"), *extra,
+        ]
+    )
+
+
+def test_job_selects_burn_in_only_with_phantom() -> None:
+    config = GenerationConfig.model_validate(_job({"mode": "phantom", "burn_in": True}))
+
+    assert config.pixel_spec.burn_in is True
+    assert GenerationConfig.model_validate(_job({"mode": "phantom"})).pixel_spec.burn_in is False
+
+
+@pytest.mark.parametrize("mode", ["simple_text", "ct_realistic"])
+@pytest.mark.parametrize("value", [True, False])
+def test_job_rejects_burn_in_with_other_modes(mode, value) -> None:
+    with pytest.raises(ValueError, match="burn_in"):
+        GenerationConfig.model_validate(_job({"mode": mode, "burn_in": value}))
+
+
+def test_quick_burn_in_writes_yes(tmp_path) -> None:
+    assert quick_command(_quick(tmp_path, "--pixel-mode", "phantom", "--burn-in")) == 0
+
+    datasets = [pydicom.dcmread(path) for path in sorted((tmp_path / "out").glob("*.dcm"))]
+    assert {ds.BurnedInAnnotation for ds in datasets} == {"YES"}
+
+
+@pytest.mark.parametrize("flags", [("--pixel-mode", "phantom"), ("--pixel-mode", "phantom", "--no-burn-in")])
+def test_quick_without_burn_in_writes_no(tmp_path, flags) -> None:
+    assert quick_command(_quick(tmp_path, *flags)) == 0
+
+    datasets = [pydicom.dcmread(path) for path in sorted((tmp_path / "out").glob("*.dcm"))]
+    assert {ds.BurnedInAnnotation for ds in datasets} == {"NO"}
+
+
+@pytest.mark.parametrize("flag", ["--burn-in", "--no-burn-in"])
+@pytest.mark.parametrize("mode", ["simple_text", "ct_realistic"])
+def test_quick_rejects_burn_in_with_other_modes(tmp_path, mode, flag) -> None:
+    with pytest.raises(ConfigurationError):
+        quick_command(_quick(tmp_path, "--pixel-mode", mode, flag))
+
+    assert not list((tmp_path / "out").glob("*.dcm"))

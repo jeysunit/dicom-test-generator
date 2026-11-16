@@ -128,13 +128,18 @@ def quick_command(args: argparse.Namespace) -> int:
     elif args.pixel_mode == "ct_realistic":
         pixel_spec = PixelSpecCTRealistic()
     elif args.pixel_mode == "phantom":
-        pixel_spec = PixelSpecPhantom()
+        pixel_spec = PixelSpecPhantom(burn_in=bool(args.burn_in))
     else:
         raise ConfigurationError(
             "Unsupported pixel mode",
             {"pixel_mode": args.pixel_mode},
         )
 
+    if getattr(args, "burn_in", None) is not None and args.pixel_mode != "phantom":
+        raise ConfigurationError(
+            "--burn-in and --no-burn-in are only for --pixel-mode phantom",
+            {"pixel_mode": args.pixel_mode},
+        )
     profile_name = getattr(args, "profile", None)
     transfer_syntax = TransferSyntaxConfig()
     if profile_name:

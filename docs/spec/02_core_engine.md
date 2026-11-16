@@ -395,6 +395,7 @@ Pure な処理のモジュール。どれも通信・ファイル・ログを使
 | `routine.py` | 撮影のルーチンのモデル（モダリティごとの形）、予約への割り当て方（`match_routine`）、シリーズ番号の決め方（`assign_series_numbers`） | [ADR-0025](../decisions/0025-exam-routines.md)、[12a](12a_web_screens_and_cli.md) の 10.5 |
 | `series_layout.py` | ルーチンのシリーズの種類ごとの Image Type・画像の位置と向き、線量の画面の文字の行。線量の画面は `DICOMBuilder.build_dose_report` が Secondary Capture にする | [06](06_dicom_rules.md) の 5.1 |
 | `phantom.py` | 図形の画素（`phantom`）：撮影ごとの図形（`phantom_shape`）、画素の患者座標での評価と位置の目印（`render_phantom`）、区分ごとの値 | [06](06_dicom_rules.md) の 4.6 |
+| `burn_in.py` | 選んだときだけの焼き込み：上端の帯の描画（`burn_in_band`）、描く3行（`burn_in_lines`）、断層の画像の位置（`plane_location`） | [06](06_dicom_rules.md) の 4.8 |
 
 ## 9. テスト
 
@@ -403,6 +404,7 @@ Pure な処理のモジュール。どれも通信・ファイル・ログを使
 | `tests/core/test_uid_generator.py`・`test_uid_custom_root.py` | `UIDGenerator` |
 | `tests/core/test_pixel_generator.py`・`test_ct_bits.py` | `PixelGenerator` と Bits Stored |
 | `tests/core/test_phantom.py`・`tests/services/test_study_generator_phantom.py` | 図形の画素（`phantom`）：断面の大きさ・目印・断面の間で同じ図形・偽物の印 |
+| `tests/core/test_burn_in.py`・`tests/services/test_study_generator_burn_in.py`・`tests/cli/test_phantom_selection.py`・`tests/modality/test_burn_in_selection.py` | 焼き込み：帯の値・行の幅・属性・選び方と優先の順 |
 | `tests/services/test_pixel_mode_baseline.py` | 既定の画素の方式（`ct_realistic`・`simple_text`）の画素と属性が変わらないこと |
 | `tests/core/test_dicom_writer.py` | `FileMetaBuilder`・`SpatialCalculator` |
 | `tests/core/test_dicom_builder.py`・`test_ct_image_conformance.py` | `DICOMBuilder` が構築した Dataset のタグ |

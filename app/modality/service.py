@@ -246,6 +246,8 @@ class ExamRequest(BaseModel):
     hospital: str | None = None
     images_per_series: list[int] = Field(default_factory=lambda: [1], min_length=1)
     pixel_mode: str | None = None
+    # None は設定（modality.burn_in）。phantom 以外の方式と一緒に明示すると断る（docs/spec/06 の 4.8）
+    burn_in: bool | None = None
     abnormal_level: str = "none"
     charset: str | None = None
     output_dir: str | None = None
@@ -1340,6 +1342,14 @@ class ModalityService:
                 return output_dir
         raise FileWriteError(str(root / base), "Too many exams in the same second")
 
+    def _burn_in(self, request: ExamRequest) -> bool:
+        """焼き込むか。CLI の指定が設定より優先する（docs/spec/06 の 4.8）."""
+        if request.burn_in is not None:
+            return request.burn_in
+        # 設定の burn_in は、設定の既定の方式が phantom のときだけ書ける。CLI で別の方式を
+        # 選んだ撮影はここへ来ない
+        return self.config.burn_in and (request.pixel_mode or "phantom") == "phantom"
+
     def _generation_config(
         self,
         request: ExamRequest,
@@ -1363,9 +1373,13 @@ class ModalityService:
         elif pixel_mode == "ct_realistic":
             pixel_spec = PixelSpecCTRealistic()
         elif pixel_mode == "phantom":
-            pixel_spec = PixelSpecPhantom()
+            pixel_spec = PixelSpecPhantom(burn_in=self._burn_in(request))
         else:
             raise ConfigurationError("Unsupported pixel mode", {"pixel_mode": pixel_mode})
+        if request.burn_in is not None and pixel_mode != "phantom":
+            raise ConfigurationError(
+                "burn_in is only for the phantom pixel mode", {"pixel_mode": pixel_mode}
+            )
         study_date = (record.study_date if record else "") or now.strftime("%Y%m%d")
         study_time = (record.study_time if record else "") or now.strftime("%H%M%S")
         profile_name = self._profile_name(request, template)
