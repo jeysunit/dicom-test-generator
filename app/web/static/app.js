@@ -933,26 +933,42 @@
       row.click();
     }
   });
-  var connRowSelected = false;
+  // 接続先の表と詳細の要求（行の選択・各接続確認・すべて接続確認）は、同時に 1 つだけにする。
+  // 応答は要求を出したときの選択で表と詳細を組むので、重なると、後から選んだ行が古い選択に戻る
+  var CONN_ROW = "#conn-sec tr[data-row][hx-get]";
+  var CONN_REQUESTS = ["#check-all", "#conn-sec .row-open", "#conn-check button", CONN_ROW];
+  function connRequestInFlight() {
+    return (
+      document.querySelector(
+        CONN_REQUESTS.map(function (selector) {
+          return selector + ".htmx-request";
+        }).join(", ")
+      ) !== null
+    );
+  }
   document.addEventListener("htmx:beforeRequest", function (event) {
     var elt = event.detail.elt;
-    if (!elt || !elt.matches || !elt.matches("#conn-sec tr[data-row][hx-get]")) {
+    if (!elt || !elt.matches || !elt.matches(CONN_REQUESTS.join(", "))) {
       return;
     }
-    var origin = event.detail.requestConfig && event.detail.requestConfig.triggeringEvent;
-    var from = origin && origin.target && origin.target.closest ? origin.target : null;
-    if (from && from.closest("button, a")) {
+    if (elt.matches(CONN_ROW)) {
+      var origin = event.detail.requestConfig && event.detail.requestConfig.triggeringEvent;
+      var from = origin && origin.target && origin.target.closest ? origin.target : null;
+      if (from && from.closest("button, a")) {
+        event.preventDefault();
+        return;
+      }
+    }
+    if (connRequestInFlight()) {
       event.preventDefault();
-      return;
     }
-    connRowSelected = true;
   });
-  // 差し替えで行が新しくなるので、選んだ行にフォーカスを戻す（キーボードで位置を見失わない）
-  document.addEventListener("htmx:afterSwap", function () {
-    if (!connRowSelected) {
+  // 差し替えで行が新しくなるので、行を選んだ要求の後は、選んだ行にフォーカスを戻す（キーボードで位置を見失わない）
+  document.addEventListener("htmx:afterSwap", function (event) {
+    var config = event.detail && event.detail.requestConfig;
+    if (!config || !config.elt || !config.elt.matches || !config.elt.matches("tr[data-row][hx-get]")) {
       return;
     }
-    connRowSelected = false;
     var row = document.querySelector('#conn-sec tr[data-row][aria-selected="true"]');
     if (row) {
       row.focus();

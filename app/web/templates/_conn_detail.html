@@ -62,7 +62,7 @@
       </div>
       {% endif %}
       {% endif %}
-      <a href="/sent?aet={{ chosen.node.ae_title|urlencode }}">送信一覧で全部見る</a>
+      <a href="/sent?aet={{ chosen.node.ae_title|urlencode }}{% if ae_shared %}&amp;destination={{ chosen.name|urlencode }}{% endif %}">送信一覧で全部見る</a>
     </div>
   </section>
   {% endif %}

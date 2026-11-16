@@ -8,6 +8,7 @@ from modality_peers import free_port
 from web_helpers import csrf_token, make_client, post_headers
 
 from app.core.models import ScheduledPatient
+from app.modality.config import DestinationConfig
 from app.modality.service import ExamRequest
 
 
@@ -199,6 +200,23 @@ def test_sent_list_opens_filtered_by_the_partner_ae_title(client) -> None:
     other = client.get("/sent?aet=NOPE").text
     assert "selected>PACS_TEST" not in other
     assert '<option value="">すべて</option>' in other
+
+
+def test_shared_ae_title_adds_the_destination_name_to_the_link(client) -> None:
+    config = client.app.state.service.config
+    config.destinations.append(
+        DestinationConfig(name="PACS_B", ae_title="PACS_TEST", host="127.0.0.1", port=4999)
+    )
+
+    detail = client.get("/connections/region?peer=dest:PACS_B").text
+
+    # AEタイトルだけでは相手を決められないので、名称も添える
+    assert '<a href="/sent?aet=PACS_TEST&amp;destination=PACS_B">送信一覧で全部見る</a>' in detail
+    sent = client.get("/sent?aet=PACS_TEST&destination=PACS_B").text
+    assert '<option value="PACS_B" selected>PACS_B</option>' in sent
+    # 知らない名称は、AEタイトルで絞る
+    other = client.get("/sent?aet=PACS_TEST&destination=NOPE").text
+    assert '<option value="PACS_TEST" selected>PACS_TEST</option>' in other
 
 
 def test_sent_list_title_and_header_actions(client) -> None:

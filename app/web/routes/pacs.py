@@ -135,9 +135,21 @@ def pacs_page() -> RedirectResponse:
 
 
 @router.get("/sent", response_class=HTMLResponse)
-def sent_page(request: Request, aet: Annotated[str, Query()] = "") -> HTMLResponse:
-    """送信一覧。`aet` は接続先の詳細の「送信一覧で全部見る」から来る相手の AEタイトル."""
-    filters = QueueFilter(destination=_destination_of_aet(request, aet))
+def sent_page(
+    request: Request,
+    aet: Annotated[str, Query()] = "",
+    destination: Annotated[str, Query()] = "",
+) -> HTMLResponse:
+    """送信一覧。`aet` は接続先の詳細の「送信一覧で全部見る」から来る相手の AEタイトル.
+
+    AEタイトルが同じ送信先が複数あるときは、リンクが `destination`（送信先の名称）も添える。
+    """
+    names = {item.name for item in service_of(request).config.destinations}
+    filters = QueueFilter(
+        destination=destination.strip()
+        if destination.strip() in names
+        else _destination_of_aet(request, aet)
+    )
     # 状態の要約と再送信の件数は、画面を開くときは画面の側に置く（再読み込みでは同梱して差し替える）
     context = {**_queue_context(request, filters), "first_render": True}
     return render(
@@ -308,7 +320,11 @@ def _conn_context(request: Request, selected: str = "") -> dict[str, Any]:
     )
     chosen = next((peer for peer in peers if peer["key"] == selected), peers[0])
     today = _today_sent(request, chosen["name"]) if chosen["kind"] == "destination" else None
-    return {"peers": peers, "chosen": chosen, "today_sent": today}
+    # 同じ AEタイトルの送信先が複数あるときは、「全部見る」が名称でも絞る（AEタイトルだけでは相手を決められない）
+    ae_shared = (
+        sum(1 for item in config.destinations if item.ae_title == chosen["node"].ae_title) > 1
+    )
+    return {"peers": peers, "chosen": chosen, "today_sent": today, "ae_shared": ae_shared}
 
 
 def _today_sent(request: Request, name: str) -> dict[str, Any]:
