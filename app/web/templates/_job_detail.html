@@ -1,8 +1,10 @@
 {# 選んだ行の詳細（表の下。10.6）。job は選んだ送信ジョブ #}
 {% set alphabetic, ideographic, phonetic = job.patient_name|name_parts %}
 <section id="job-detail" class="job-pane" aria-label="ジョブ {{ job.id }} の詳細">
-  {% if job.status == "sent" %}
-  <div role="status" class="notice" data-k="ok"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-check"/></svg><span>{{ job.destination }} へ {{ job.num_sent }} 枚を送信しました。{% if job.commitment == "confirmed" %}保管の確認も済んでいます。{% endif %}</span></div>
+  {% if job.status == "sent" and job.commitment in ("failed", "timed_out") %}
+  <div role="status" class="notice" data-k="warn"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-info"/></svg><span>{{ job.destination }} へ {{ job.num_sent }} 枚を送信しました。{% if job.commitment == "failed" %}保管の確認が取れませんでした。{% else %}保管の確認が時間内に届きませんでした。{% endif %}{{ job.destination }} に届いているかを確認してください。</span></div>
+  {% elif job.status == "sent" %}
+  <div role="status" class="notice" data-k="ok"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-check"/></svg><span>{{ job.destination }} へ {{ job.num_sent }} 枚を送信しました。{% if job.commitment == "confirmed" %}保管の確認が取れました。{% elif job.commitment == "waiting" %}保管の確認を待っています。{% endif %}</span></div>
   {% elif job.status == "failed" %}
   <div role="alert" class="notice" data-k="err"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-alert"/></svg><span>{{ job.last_error|send_error_label }}</span></div>
   {% else %}
