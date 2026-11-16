@@ -6,6 +6,8 @@
   <meta name="csrf-token" content="{{ csrf_token }}">
   <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false, "selfRequestsOnly": true, "responseHandling": [{"code": "204", "swap": false}, {"code": "[23]..", "swap": true}, {"code": "[45]..", "swap": true, "error": true}]}'>
   <title>{% block title %}{% endblock %} - dicom-test-generator</title>
+  {# ブラウザのタブのアイコン。形と色の値は部品集の「頁の題とアイコン」の案 #}
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
   <script src="/static/theme.js"></script>
   {# ui-kit のコピー（値 → 部品）の後に、DTG だけの差分（app.css）を読む #}
   <link rel="stylesheet" href="/static/ui-kit/tokens.css">
@@ -37,7 +39,7 @@
       </button>
     </header>
     <nav id="sidenav" class="sidenav" aria-label="ページ">
-      {% set nav_icons = {"worklist": "list", "exam": "camera", "pacs": "device", "settings": "sliders", "version": "info"} %}
+      {% set nav_icons = {"worklist": "list", "exam": "camera", "sent": "send", "connections": "device", "settings": "sliders", "version": "info"} %}
       {% for group, items in nav_groups %}
       <p class="nav-g">{{ group }}</p>
       {% for key, href, label in items %}

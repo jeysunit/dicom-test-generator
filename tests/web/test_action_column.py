@@ -57,7 +57,7 @@ def _last_cells(html: str, table_marker: str) -> tuple[str, str]:
 
 
 def test_connection_table_marks_its_action_column(client) -> None:
-    head, cell = _last_cells(client.get("/pacs").text, '<table class="tbl conn">')
+    head, cell = _last_cells(client.get("/connections").text, '<table class="tbl conn">')
 
     assert 'class="act"' in head
     assert 'class="act"' in cell

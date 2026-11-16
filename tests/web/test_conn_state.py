@@ -60,25 +60,25 @@ def test_top_band_follows_the_kit_parts(client) -> None:
 
 
 def test_popover_lists_the_connections(client) -> None:
-    html = client.get("/pacs").text
+    html = client.get("/connections").text
     band = html[html.index('<div id="band"') : html.index("</header>")]
 
     assert "<dt>自分</dt>" in band and "DTG_CT01" in band
     assert "RIS_TEST" in band
     assert "PACS_TEST" in band and '<span class="badge">標準</span>' in band
     assert "文字コード" in band
-    # 中身の下に「接続確認」と、接続先の画面（PACS）への道を置く。説明の文は置かない
+    # 中身の下に「接続確認」と、接続先の画面への道を置く。説明の文は置かない
     footer = band.split('<div class="ft">', 1)[1].split("</div>", 1)[0]
     assert 'hx-post="/link/check"' in footer and "接続確認" in footer
-    assert '<a class="btn btn-sm" href="/pacs">PACS を開く</a>' in footer
-    assert "PACS の画面で行う" not in band
+    assert '<a class="btn btn-sm" href="/connections">接続先を開く</a>' in footer
+    assert "PACS を開く" not in band
     # まだ試していないものは「未確認」
     assert band.count('data-k="plan">未確認</span>') == 2
 
 
 def test_badge_follows_the_last_probe(tmp_path, worklist_scp, storage_scp) -> None:
     client = make_client(tmp_path, worklist_scp.port, storage_scp.port)
-    token = csrf_token(client, "/pacs")
+    token = csrf_token(client, "/connections")
 
     echoed = client.post("/pacs/echo/PACS_TEST", headers=post_headers(token))
     # 接続確認の応答が、上の帯の状態バッジと中身を同じ応答で差し替える
@@ -86,7 +86,7 @@ def test_badge_follows_the_last_probe(tmp_path, worklist_scp, storage_scp) -> No
     assert re.search(
         r'<span id="conn-state" hx-swap-oob="true" class="st" data-k="ok">接続中</span>', echoed.text
     )
-    assert _badge(client.get("/pacs").text) == ("ok", "接続中")
+    assert _badge(client.get("/connections").text) == ("ok", "接続中")
 
     query_worklist(client)
     page = client.get("/worklist").text
@@ -96,7 +96,7 @@ def test_badge_follows_the_last_probe(tmp_path, worklist_scp, storage_scp) -> No
 
 def test_badge_changes_when_a_destination_is_unreachable(tmp_path, worklist_scp) -> None:
     client = make_client(tmp_path, worklist_scp.port, free_port())
-    token = csrf_token(client, "/pacs")
+    token = csrf_token(client, "/connections")
 
     echoed = client.post("/pacs/echo/PACS_TEST", headers=post_headers(token))
 

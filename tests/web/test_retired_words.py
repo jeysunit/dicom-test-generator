@@ -61,13 +61,15 @@ def _exam_form(key: str, action: str) -> dict[str, str]:
 def test_pages_avoid_retired_words(client) -> None:
     results = query_worklist(client)
     key = key_for(results, "A0001")
-    token = csrf_token(client, "/pacs")
+    token = csrf_token(client, "/connections")
     pages = {
         "/worklist": client.get("/worklist").text,
         "worklist results": results,
         "/exam": client.get("/exam").text,
         "/exam?key": client.get(f"/exam?key={key}").text,
-        "/pacs": client.get("/pacs").text,
+        "/sent": client.get("/sent").text,
+        "/connections": client.get("/connections").text,
+        "/connections/region": client.get("/connections/region?peer=worklist").text,
         "/pacs/queue": client.get("/pacs/queue").text,
         "/settings": client.get("/settings").text,
         "echo": client.post("/pacs/echo/PACS_TEST", headers=post_headers(token)).text,
@@ -86,7 +88,7 @@ def test_pacs_queue_with_rows_avoids_retired_words(tmp_path, worklist_scp, stora
     assert "もう一度送る" in queue
 
     reachable = make_client(tmp_path, worklist_scp.port, storage_scp.port)
-    token = csrf_token(reachable, "/pacs")
+    token = csrf_token(reachable, "/sent")
     notice = reachable.post("/pacs/retry-failed", headers=post_headers(token)).text
     sent_queue = reachable.get("/pacs/queue").text
     assert "もう一度送る" in sent_queue

@@ -1,4 +1,4 @@
-"""PACS の画面の形：区画＋下に一覧（画面の型 F。docs/spec/12a の 10.6）."""
+"""送信一覧の形：状態の要約・検索の帯・一覧（docs/spec/12a の 10.6）."""
 
 from __future__ import annotations
 
@@ -32,27 +32,33 @@ def _counts(html: str) -> dict[str, str]:
     return dict(re.findall(r'data-focus-key="sum-(\w+)"[^>]*>\s*<span[^>]*>[^<]*</span><span class="nbr">(\d+)</span>', html))
 
 
-def test_page_puts_the_destination_section_above_the_job_list(client) -> None:
-    html = client.get("/pacs").text
+def test_sent_page_orders_summary_filter_count_and_list(client) -> None:
+    html = client.get("/sent").text
 
-    destinations = html.index('<h2 class="hd">接続先')
-    jobs = html.index('<h2 class="hd">送信ジョブ')
-    assert destinations < jobs
-    # 下部は、状態の要約 → 検索の帯 → 件数の行 → 一覧の順
+    # 見出しの行（題「送信一覧」）の下は、状態の要約 → 検索の帯 → 件数の行 → 一覧の順
     order = [
+        html.index("<h1>送信一覧</h1>"),
         html.index('id="queue-sum"'),
         html.index('id="queue-filter"'),
         html.index('<div class="listhead">'),
         html.index("<table", html.index('<div class="listhead">')),
     ]
     assert order == sorted(order)
+    # 送信一覧に接続先の表は置かない（接続先の画面へ分けた）
+    assert 'class="tbl conn"' not in html
+
+
+def test_connections_table_joins_host_and_port_in_one_column(client) -> None:
+    html = client.get("/connections").text
+
     # 接続先の表は、ホスト名とポート番号を 1 列にまとめる（列の順は test_pacs_last_echo.py）
     head = html.split("</thead>", 1)[0]
     assert ">ホスト名:ポート番号<" in head
+    assert 'id="queue"' not in html
 
 
 def test_search_band_has_the_three_conditions(client) -> None:
-    html = client.get("/pacs").text
+    html = client.get("/sent").text
     band = html.split('id="queue-filter"', 1)[1].split("</form>", 1)[0]
 
     for name in ("period", "destination", "patient_id"):
@@ -100,8 +106,8 @@ def test_destination_and_patient_id_conditions(client) -> None:
     assert '<span class="cnt"><b>2</b>' in client.get("/pacs/queue?destination=PACS_TEST").text
     other = client.get("/pacs/queue?destination=OTHER").text
     assert '<span class="cnt"><b>0</b>' in other
-    assert "条件に合う送信ジョブはありません" in other
-    assert "送信ジョブはまだありません" not in other
+    assert "条件に合う送信の記録はありません" in other
+    assert "送信の記録はまだありません" not in other
 
 
 def _jobs_created(client, days_ago: tuple[int, ...]) -> None:
@@ -119,7 +125,7 @@ def _count(client, query: str) -> str:
 
 
 def test_period_choices_are_the_four_of_the_kit_and_start_at_today(client) -> None:
-    html = client.get("/pacs").text
+    html = client.get("/sent").text
     band = html.split('id="queue-filter"', 1)[1].split("</form>", 1)[0]
     select = band.split('<select name="period"', 1)[1].split("</select>", 1)[0]
 
@@ -166,8 +172,8 @@ def test_empty_today_with_older_jobs_says_no_job_matches(client) -> None:
 
     html = client.get("/pacs/queue").text
 
-    assert "条件に合う送信ジョブはありません" in html
-    assert "送信ジョブはまだありません" not in html
+    assert "条件に合う送信の記録はありません" in html
+    assert "送信の記録はまだありません" not in html
 
 
 def test_unknown_condition_values_fall_back(client) -> None:
@@ -182,14 +188,14 @@ def test_unknown_condition_values_fall_back(client) -> None:
 def test_empty_list_keeps_the_first_run_message(client) -> None:
     html = client.get("/pacs/queue").text
 
-    assert "送信ジョブはまだありません" in html
+    assert "送信の記録はまだありません" in html
     assert "<table" in html
 
 
 def test_retry_all_is_confirmed_by_a_dialog(client) -> None:
     _job(client, "E0001", failed=True)
 
-    page = client.get("/pacs").text
+    page = client.get("/sent").text
 
     assert '<dialog id="dlg-resend"' in page
     assert 'data-dialog-open="dlg-resend"' in page
@@ -204,7 +210,7 @@ def test_retry_all_is_confirmed_by_a_dialog(client) -> None:
 def test_interactions_replace_the_polling_request(client) -> None:
     """条件・状態・行の選択の要求は、先に出ていた再取得を取り消し、古い応答で上書きされない."""
     _job(client, "E0001", failed=True)
-    page = client.get("/pacs").text
+    page = client.get("/sent").text
     queue = client.get("/pacs/queue?selected=1").text
 
     form = re.search(r'<form id="queue-filter"[^>]*>', page).group(0)
@@ -217,7 +223,7 @@ def test_interactions_replace_the_polling_request(client) -> None:
 
 
 def test_retry_button_is_disabled_without_failed_jobs(client) -> None:
-    page = client.get("/pacs").text
+    page = client.get("/sent").text
     slot = page.split('id="retry-slot"', 1)[1].split("</span>\n", 1)[0]
 
     assert "disabled" in slot and "失敗をすべて再送信" in slot
@@ -225,7 +231,7 @@ def test_retry_button_is_disabled_without_failed_jobs(client) -> None:
 
 def test_retry_keeps_the_conditions_and_selected_row(client) -> None:
     job_id = _job(client, "E0001", failed=True)
-    token = csrf_token(client, "/pacs")
+    token = csrf_token(client, "/sent")
 
     response = client.post(
         f"/pacs/retry/{job_id}",

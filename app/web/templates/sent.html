@@ -1,17 +1,13 @@
 {% extends "base.html" %}
-{% block title %}PACS{% endblock %}
+{% block title %}送信一覧{% endblock %}
 {% block content %}
-{# 画面の型 F（区画＋下に一覧）：上に接続先の区画、下に送信ジョブの一覧（12a の 10.6） #}
-<div class="pagehead"><h1>PACS</h1></div>
-{# 接続確認を押した直後の通知（区画の上） #}
-<div id="echo-notice" aria-live="polite"></div>
-{% include "_conn_table.html" %}
-<section class="sec">
-  <h2 class="hd">送信ジョブ
-    {# 失敗の件数は 2 秒ごとの再取得で差し替える（#retry-slot）。押すと確認の窓を出す #}
-    <span class="acts">{% include "_retry_slot.html" %}</span>
-  </h2>
-  <div class="in flex flex-col gap-3">
+{# 送受信の一覧（12a の 10.6）：見出しの行の右に失敗のまとめての再送信、下に状態の要約・検索の帯・一覧。区画の題は置かない #}
+<div class="pagehead">
+  <h1>送信一覧</h1>
+  {# 失敗の件数は 2 秒ごとの再取得で差し替える（#retry-slot）。押すと確認の窓を出す #}
+  <span class="acts">{% include "_retry_slot.html" %}</span>
+</div>
+<div class="flex flex-col gap-3 mt-3">
     <div id="queue-notice" aria-live="polite"></div>
     {% include "_queue_sum.html" %}
     <form id="queue-filter" class="searchband" role="search" aria-label="条件" data-queue-action hx-sync="#queue:replace" hx-get="/pacs/queue" hx-target="#queue" hx-vals='{"page": "1"}'>
@@ -49,15 +45,14 @@
         <button type="submit" class="btn btn-primary">
           <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-search"/></svg>検索
         </button>
-        <a href="/pacs" class="btn">条件をクリア</a>
+        <a href="/sent" class="btn">条件をクリア</a>
       </div>
     </form>
     {# 2 秒ごとに、条件の帯の値を添えて読み直す。状態と選んだ行は #queue の中の隠した欄が持つ #}
     <div id="queue" hx-get="/pacs/queue" hx-trigger="{{ poll_trigger }}" hx-include="#queue-filter">
       {% include "_queue.html" %}
     </div>
-  </div>
-</section>
+</div>
 {# 失敗のまとめての再送信の確認。押すまで何も送らない #}
 <dialog id="dlg-resend" class="dlg" aria-labelledby="dlg-resend-title">
   <h2 id="dlg-resend-title">失敗の件を再送信しますか？</h2>

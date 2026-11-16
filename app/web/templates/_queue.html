@@ -16,7 +16,7 @@
 {% else %}
 {# 条件に合う件が 1,000 件を超えたときの通知（新しい 1,000 件だけを出す） #}
 {% if limited %}
-<div class="notice" data-k="warn" role="status"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-info"/></svg><span>送信ジョブが 1,000 件を超えたため、新しい 1,000 件だけを出しています。期間を狭めてください。</span></div>
+<div class="notice" data-k="warn" role="status"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-info"/></svg><span>送信の記録が 1,000 件を超えたため、新しい 1,000 件だけを出しています。期間を狭めてください。</span></div>
 {% endif %}
 {# 件数の行：件数と、自動更新の補足。空でも位置を変えない #}
 <div class="listhead">
@@ -93,12 +93,12 @@
 {% if not jobs %}
 {% if any_jobs or filters.destination or filters.patient_id or filters.status != "all" %}
 <div class="empty">
-  <b>条件に合う送信ジョブはありません。</b>
+  <b>条件に合う送信の記録はありません。</b>
   <span>条件を変えて、もう一度検索してください。</span>
 </div>
 {% else %}
 <div class="empty">
-  <b>送信ジョブはまだありません。</b>
+  <b>送信の記録はまだありません。</b>
   <span>撮影して送信すると、ここに出ます。</span>
 </div>
 {% endif %}

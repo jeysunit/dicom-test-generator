@@ -9,7 +9,7 @@
 
 - 認証が無い画面（ループバックで待ち受け、パスワードのファイルが無い）なら
   DTG_WEB_PASSWORD_FILE は不要
-- 撮る画面：ワークリスト（取得した後）、撮影、PACS、設定
+- 撮る画面：ワークリスト（取得した後）、撮影、送信一覧、接続先、設定
 - 画面には架空の患者の値だけが写ることを、保存した画像を見て確認する
 終了コード：0=成功、2=引数・環境の誤り。
 """
@@ -59,9 +59,13 @@ def main() -> int:
         page.wait_for_load_state("networkidle")
         page.screenshot(path=OUTPUT_DIR / "exam.png", full_page=True)
 
-        page.goto(f"{base_url}/pacs")
+        page.goto(f"{base_url}/sent")
         page.wait_for_load_state("networkidle")
-        page.screenshot(path=OUTPUT_DIR / "pacs.png", full_page=True)
+        page.screenshot(path=OUTPUT_DIR / "sent.png", full_page=True)
+
+        page.goto(f"{base_url}/connections")
+        page.wait_for_load_state("networkidle")
+        page.screenshot(path=OUTPUT_DIR / "connections.png", full_page=True)
 
         page.goto(f"{base_url}/settings")
         page.wait_for_load_state("networkidle")
@@ -69,7 +73,7 @@ def main() -> int:
 
         browser.close()
 
-    for name in ("worklist", "exam", "pacs", "settings"):
+    for name in ("worklist", "exam", "sent", "connections", "settings"):
         path = OUTPUT_DIR / f"{name}.png"
         print(f"{path} {path.stat().st_size // 1024} KiB")
     return 0

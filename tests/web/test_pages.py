@@ -21,7 +21,8 @@ def test_root_redirects_to_worklist(client) -> None:
     [
         ("/worklist", "条件をクリア"),
         ("/exam", "緊急の患者"),
-        ("/pacs", "接続確認"),
+        ("/sent", "条件をクリア"),
+        ("/connections", "接続確認"),
         ("/settings", OWN_AE),
     ],
 )
@@ -31,7 +32,7 @@ def test_pages_open_with_header_and_band(client, path, text) -> None:
     html = response.text
     assert text in html
     assert "dicom-test-generator" in html
-    for name in ("ワークリスト", "撮影", "PACS", "設定"):
+    for name in ("ワークリスト", "撮影", "送信一覧", "接続先", "設定"):
         assert name in html
     assert f'<dt>自分</dt><dd><b class="font-mono">{OWN_AE}</b></dd>' in html
     assert "接続の状態" in html
@@ -55,7 +56,8 @@ _NAV_ITEM = re.compile(
     [
         ("/worklist", "ワークリスト"),
         ("/exam", "撮影"),
-        ("/pacs", "PACS"),
+        ("/sent", "送信一覧"),
+        ("/connections", "接続先"),
         ("/settings", "設定"),
         ("/version", "バージョン情報"),
     ],
@@ -66,13 +68,14 @@ def test_left_nav_groups_items_and_current_page(client, path, current) -> None:
     assert match, "左のナビがある"
     nav = match.group(1)
 
-    # 群は 業務・接続・管理 の順。項目は各ページの題と同じ名前で、群の中の順に並ぶ
-    assert re.findall(r'<p class="nav-g">([^<]+)</p>', nav) == ["業務", "接続", "管理"]
+    # 群は 業務・送受信・管理 の順（3 製品で同じ）。項目は各ページの題と同じ名前で、群の中の順に並ぶ
+    assert re.findall(r'<p class="nav-g">([^<]+)</p>', nav) == ["業務", "送受信", "管理"]
     items = _NAV_ITEM.findall(nav)
     assert [(href, label) for href, _, label in items] == [
         ("/worklist", "ワークリスト"),
         ("/exam", "撮影"),
-        ("/pacs", "PACS"),
+        ("/sent", "送信一覧"),
+        ("/connections", "接続先"),
         ("/settings", "設定"),
         ("/version", "バージョン情報"),
     ]
@@ -80,10 +83,10 @@ def test_left_nav_groups_items_and_current_page(client, path, current) -> None:
     assert [label for _, flag, label in items if flag] == [current]
 
     # ページへの入り口は左のナビだけ。上の帯（ヘッダー）にタブを置かない
-    # （接続の状態の中身の「PACS を開く」は、帯の上ではなく popover の中の道）
+    # （接続の状態の中身の「接続先を開く」は、帯の上ではなく popover の中の道）
     header = html[html.index("<header") : html.index("</header>")]
     bar = header[: header.index('<div id="band"')]
-    assert 'href="/exam"' not in header and 'href="/pacs"' not in bar
+    assert 'href="/exam"' not in header and 'href="/connections"' not in bar
     assert 'href="/settings"' not in header
     # ナビは、ヘッダー（上の帯）の後、本文の前
     assert html.index("</header>") < html.index('class="sidenav"') < html.index("<main")
@@ -446,7 +449,7 @@ def test_htmx_swaps_error_responses() -> None:
 
 
 def test_pacs_queue_partial_polls(client) -> None:
-    page = client.get("/pacs").text
+    page = client.get("/sent").text
     assert 'hx-get="/pacs/queue"' in page
     assert "every 2s" in page
 
@@ -454,14 +457,14 @@ def test_pacs_queue_partial_polls(client) -> None:
     assert partial.status_code == 200
     assert "<html" not in partial.text
     # 空の状態：1 行目に事実、2 行目に次の手。表の見出しの行は出したままにする
-    assert "<b>送信ジョブはまだありません。</b>" in partial.text
+    assert "<b>送信の記録はまだありません。</b>" in partial.text
     assert "<span>撮影して送信すると、ここに出ます。</span>" in partial.text
     assert "<thead>" in partial.text
     assert '<span class="cnt"><b>0</b>' in partial.text
 
 
 def test_pacs_job_states_are_shown_as_state_marks(client) -> None:
-    """送信ジョブと保管の確認の状態は、枠・印・文字の状態バッジで出す（色だけにしない）."""
+    """送信の記録と保管の確認の状態は、枠・印・文字の状態バッジで出す（色だけにしない）."""
     results = _query(client)
     key = _key_for(results, "A0001")
     token = csrf_token(client)
@@ -477,7 +480,7 @@ def test_pacs_job_states_are_shown_as_state_marks(client) -> None:
 
 
 def test_pacs_echo(client) -> None:
-    token = csrf_token(client, "/pacs")
+    token = csrf_token(client, "/connections")
     ok = client.post("/pacs/echo/PACS_TEST", headers=post_headers(token))
     assert "成功" in ok.text
 
@@ -583,7 +586,7 @@ def test_broken_state_is_reported_without_values(client, tmp_path) -> None:
         '{"items": [{"patient_name": "SECRET^PATIENTNAME", "birth_date": 19800101}]}',
         encoding="utf-8",
     )
-    for path in ("/worklist", "/exam", "/pacs"):
+    for path in ("/worklist", "/exam", "/sent", "/connections"):
         response = client.get(path)
         assert response.status_code == 200, path
         assert "SECRET" not in response.text, path

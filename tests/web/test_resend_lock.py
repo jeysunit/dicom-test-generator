@@ -29,7 +29,7 @@ def _failed_jobs(client, count: int) -> None:
 def test_every_resend_button_locks_all_resend_buttons(client) -> None:
     _failed_jobs(client, 2)
 
-    page = client.get("/pacs").text
+    page = client.get("/sent").text
     queue = client.get("/pacs/queue").text
 
     row_buttons = re.findall(r"<button[^>]*data-resend[^>]*>", queue)
@@ -46,7 +46,7 @@ def test_refused_retry_all_keeps_the_table_and_shows_the_reason_above_it(client,
         raise DICOMGeneratorError("送信中の件があるため、再送信できません")
 
     monkeypatch.setattr(client.app.state.service, "retry", refuse)
-    token = csrf_token(client, "/pacs")
+    token = csrf_token(client, "/sent")
 
     refused = client.post("/pacs/retry-failed", headers=post_headers(token)).text
 

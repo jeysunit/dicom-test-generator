@@ -1,5 +1,7 @@
 {# 接続確認の応答：押した行の「最後の接続確認」を差し替え、区画の上の通知（#echo-notice）と上の帯を同梱して差し替える #}
 {% include "_echo_cell.html" %}
+{# 詳細に出している相手の接続確認なら、詳細の「接続確認」も同じ応答で差し替える（表の同じ行と同じ状態バッジ） #}
+{% if detail_oob %}{% include "_conn_check.html" %}{% endif %}
 <div id="echo-notice" hx-swap-oob="true">
   {% if notice.ok %}
   <div role="status" class="notice" data-k="ok"><svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-check"/></svg><span>{{ notice.text }}</span></div>

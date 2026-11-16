@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16">
+  <!-- ブラウザのタブのアイコン（部品集の「頁の題とアイコン」。形と色の値は案）。
+       16x16 の角丸の四角（角 3px）に、線の幅 1.6px の四隅の枠と中央の点。色はトークンの値：
+       四角は primary（暗い地は link の暗い地の値）、絵の線は白（暗い地は #1b1b1b）。
+       開発・試験の環境の色替えは、環境を知らせる方法が決まるまで入れない -->
+  <style>
+    .box { fill: #4b4fbf; }
+    .mark { fill: none; stroke: #ffffff; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .dot { fill: #ffffff; }
+    @media (prefers-color-scheme: dark) {
+      .box { fill: #a5a8ff; }
+      .mark { stroke: #1b1b1b; }
+      .dot { fill: #1b1b1b; }
+    }
+  </style>
+  <rect class="box" width="16" height="16" rx="3" />
+  <path class="mark" d="M4.5 6.5V4.5h2M9.5 4.5h2v2M11.5 9.5v2h-2M6.5 11.5h-2v-2" />
+  <circle class="dot" cx="8" cy="8" r="1" />
+</svg>

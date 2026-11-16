@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}接続先{% endblock %}
+{% block content %}
+{# 接続先の画面（12a の 10.6）：見出しの行の右に「すべて接続確認」、下に接続先の表と、選んだ相手の詳細。区画の題と説明の文は置かない #}
+<div class="pagehead">
+  <h1>接続先</h1>
+  <span class="acts">
+    <button type="button" id="check-all" class="btn btn-sm" hx-post="/pacs/check-all" hx-target="#conn-sec" hx-swap="outerHTML" hx-include="#conn-selected" hx-disabled-elt="this">
+      <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-refresh"/></svg>すべて接続確認
+    </button>
+  </span>
+</div>
+{# 接続確認を押した直後の通知（表の上） #}
+<div id="echo-notice" aria-live="polite"></div>
+<div class="mt-3">
+{% include "_conn_table.html" %}
+</div>
+{% endblock %}

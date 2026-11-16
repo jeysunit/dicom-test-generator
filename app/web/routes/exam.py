@@ -97,7 +97,7 @@ SERIES_KIND_LABELS = {
 TOKEN_MEMORY = 512
 DUPLICATE_MESSAGE = (
     "この撮影は受け付け済みです（ボタンが続けて押された可能性があります）。"
-    "結果は PACS の画面の送信の履歴で確かめてください"
+    "結果は送信一覧で確かめてください"
 )
 
 

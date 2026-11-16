@@ -1,4 +1,4 @@
-"""PACS の画面（docs/spec/12a_web_screens_and_cli.md 10.6、docs/spec/12_modality_emulator.md 8 章）."""
+"""送信一覧と接続先の画面（docs/spec/12a_web_screens_and_cli.md 10.6、docs/spec/12_modality_emulator.md 8 章）."""
 
 from __future__ import annotations
 
@@ -7,16 +7,17 @@ import threading
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Annotated, Any
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, Query, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app.core.exceptions import DICOMGeneratorError
 from app.modality.queue import QueueJob
 from app.modality.service import SendResult
 
 from ..display import STATUS_LABELS
-from ..link_status import check_summary, echo_reason
+from ..link_status import Probe, check_summary, echo_reason
 from ..rendering import error_text, render, service_of
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,13 @@ router = APIRouter()
 
 QUEUE_POLL_TRIGGER = "every 2s"
 HTTP_NO_CONTENT = 204
+HTTP_PERMANENT_REDIRECT = 308
+# 接続先の表の行を選ぶ値（接続先の詳細。送信先は名称、ワークリストの相手は固定の値）
+DEST_KEY_PREFIX = "dest:"
+WORKLIST_KEY = "worklist"
+# 接続先の詳細の「今日の送信」：新しい 5 件と、状態ごとの件数に並べる状態の順
+TODAY_ROWS = 5
+TODAY_STATUS_ORDER = ("sending", "sent", "failed", "pending")
 # すべての相手への接続確認は、同時に 1 つだけ（重ねて押されても C-ECHO を重ねて送らない）
 CHECK_ALL_LOCK = threading.Lock()
 
@@ -120,19 +128,64 @@ FromQuery = Annotated[QueueFilter, Depends(filter_from_query)]
 FromForm = Annotated[QueueFilter, Depends(filter_from_form)]
 
 
-@router.get("/pacs", response_class=HTMLResponse)
-def pacs_page(request: Request) -> HTMLResponse:
+@router.get("/pacs")
+def pacs_page() -> RedirectResponse:
+    """前の「PACS」の画面の道。接続先と送信一覧に分けたので、接続先へ移す."""
+    return RedirectResponse("/connections", status_code=HTTP_PERMANENT_REDIRECT)
+
+
+@router.get("/sent", response_class=HTMLResponse)
+def sent_page(
+    request: Request,
+    aet: Annotated[str, Query()] = "",
+    destination: Annotated[str, Query()] = "",
+) -> HTMLResponse:
+    """送信一覧。`aet` は接続先の詳細の「送信一覧で全部見る」から来る相手の AEタイトル.
+
+    AEタイトルが同じ送信先が複数あるときは、リンクが `destination`（送信先の名称）も添える。
+    """
+    names = {item.name for item in service_of(request).config.destinations}
+    filters = QueueFilter(
+        destination=destination.strip()
+        if destination.strip() in names
+        else _destination_of_aet(request, aet)
+    )
     # 状態の要約と再送信の件数は、画面を開くときは画面の側に置く（再読み込みでは同梱して差し替える）
-    context = {**_queue_context(request, QueueFilter()), "first_render": True}
+    context = {**_queue_context(request, filters), "first_render": True}
     return render(
         request,
-        "pacs.html",
-        page="pacs",
-        **_conn_context(request),
+        "sent.html",
+        page="sent",
+        destinations=service_of(request).config.destinations,
         period_choices=PERIOD_CHOICES,
         poll_trigger=QUEUE_POLL_TRIGGER,
         **context,
     )
+
+
+def _destination_of_aet(request: Request, aet: str) -> str:
+    """AEタイトルで結んだ送信先の名称。登録に無い値は絞らない（空）."""
+    wanted = aet.strip()
+    for destination in service_of(request).config.destinations:
+        if wanted and destination.ae_title == wanted:
+            return destination.name
+    return ""
+
+
+@router.get("/connections", response_class=HTMLResponse)
+def connections_page(request: Request, peer: Annotated[str, Query()] = "") -> HTMLResponse:
+    return render(
+        request,
+        "connections.html",
+        page="connections",
+        **_conn_context(request, peer),
+    )
+
+
+@router.get("/connections/region", response_class=HTMLResponse)
+def connections_region(request: Request, peer: Annotated[str, Query()] = "") -> HTMLResponse:
+    """接続先の表の行を選んだとき：表と、選んだ相手の詳細を差し替える."""
+    return render(request, "_conn_table.html", **_conn_context(request, peer))
 
 
 @router.get("/pacs/queue", response_class=HTMLResponse)
@@ -176,22 +229,37 @@ def _probe(request: Request, name: str | None) -> EchoNotice:
 
 
 @router.post("/pacs/echo/{name}", response_class=HTMLResponse)
-def pacs_echo(request: Request, name: str) -> HTMLResponse:
+def pacs_echo(
+    request: Request, name: str, selected: Annotated[str, Form()] = ""
+) -> HTMLResponse:
     notice = _probe(request, name)
     probe = request.app.state.link_status.destinations.get(name)
-    # 上の帯の接続の状態も、同じ応答で差し替える（oob_band）
-    return render(request, "_echo_result.html", oob_band=True, probe=probe, notice=notice)
+    return _echo_response(request, notice, probe, selected, _peer_key(name))
 
 
 @router.post("/pacs/echo-worklist", response_class=HTMLResponse)
-def pacs_echo_worklist(request: Request) -> HTMLResponse:
+def pacs_echo_worklist(
+    request: Request, selected: Annotated[str, Form()] = ""
+) -> HTMLResponse:
     notice = _probe(request, None)
     probe = request.app.state.link_status.worklist
-    return render(request, "_echo_result.html", oob_band=True, probe=probe, notice=notice)
+    return _echo_response(request, notice, probe, selected, WORKLIST_KEY)
+
+
+def _echo_response(
+    request: Request, notice: EchoNotice, probe: Probe | None, selected: str, key: str
+) -> HTMLResponse:
+    """押した行の結果の列と、上の帯の接続の状態を差し替える。詳細がその相手なら、詳細の接続確認も同じ応答で替える."""
+    context: dict[str, Any] = {}
+    if selected == key:
+        context = {**_conn_context(request, selected), "detail_oob": True}
+    return render(
+        request, "_echo_result.html", oob_band=True, probe=probe, notice=notice, **context
+    )
 
 
 @router.post("/pacs/check-all", response_class=HTMLResponse)
-def pacs_check_all(request: Request) -> Response:
+def pacs_check_all(request: Request, selected: Annotated[str, Form()] = "") -> Response:
     """接続先の区画の「すべて接続確認」：区画を結果で差し替え、前の通知は消す.
 
     上の帯の「接続確認」（/link/check）と同じ錠を取る。確認している最中にもう一度届いたら、
@@ -203,7 +271,9 @@ def pacs_check_all(request: Request) -> Response:
         _check_all(request)
     finally:
         CHECK_ALL_LOCK.release()
-    return render(request, "_check_all_result.html", oob_band=True, **_conn_context(request))
+    return render(
+        request, "_check_all_result.html", oob_band=True, **_conn_context(request, selected)
+    )
 
 
 def _check_all(request: Request) -> list[EchoNotice]:
@@ -213,12 +283,67 @@ def _check_all(request: Request) -> list[EchoNotice]:
     return notices
 
 
-def _conn_context(request: Request) -> dict[str, Any]:
+def _peer_key(name: str) -> str:
+    """接続先の表の行を選ぶ値。送信先は `dest:` を付けた名称、ワークリストの相手は `worklist`."""
+    return f"{DEST_KEY_PREFIX}{name}"
+
+
+def _conn_context(request: Request, selected: str = "") -> dict[str, Any]:
+    """接続先の表の行（送信先 → ワークリストの相手の順）と、選んだ相手の詳細の値.
+
+    選んだ相手が無い・知らない値のときは、先頭の行を選ぶ。
+    """
     link = request.app.state.link_status
+    config = service_of(request).config
+    peers: list[dict[str, Any]] = [
+        {
+            "key": _peer_key(destination.name),
+            "name": destination.name,
+            "kind": "destination",
+            "node": destination,
+            "probe": link.destinations.get(destination.name),
+            "cell_id": f"echo-{index}",
+            "echo_url": f"/pacs/echo/{quote(destination.name, safe='')}",
+        }
+        for index, destination in enumerate(config.destinations, start=1)
+    ]
+    peers.append(
+        {
+            "key": WORKLIST_KEY,
+            "name": "ワークリスト",
+            "kind": "worklist",
+            "node": config.worklist,
+            "probe": link.worklist,
+            "cell_id": "echo-worklist",
+            "echo_url": "/pacs/echo-worklist",
+        }
+    )
+    chosen = next((peer for peer in peers if peer["key"] == selected), peers[0])
+    today = _today_sent(request, chosen["name"]) if chosen["kind"] == "destination" else None
+    # 同じ AEタイトルの送信先が複数あるときは、「全部見る」が名称でも絞る（AEタイトルだけでは相手を決められない）
+    ae_shared = (
+        sum(1 for item in config.destinations if item.ae_title == chosen["node"].ae_title) > 1
+    )
+    return {"peers": peers, "chosen": chosen, "today_sent": today, "ae_shared": ae_shared}
+
+
+def _today_sent(request: Request, name: str) -> dict[str, Any]:
+    """送信先 1 件の「今日の送信」：今日の件数・状態ごとの件数・新しい 5 件（部品集の接続先の詳細）."""
+    try:
+        jobs = list(reversed(service_of(request).list_queue()))
+    except DICOMGeneratorError as exc:
+        return {"error": str(exc), "total": 0, "counts": [], "jobs": []}
+    today = date.today().isoformat()
+    todays = [job for job in jobs if job.destination == name and job.created_at[:10] == today]
+    counts = [
+        (STATUS_LABELS[status], sum(1 for job in todays if job.status == status))
+        for status in TODAY_STATUS_ORDER
+    ]
     return {
-        "destinations": service_of(request).config.destinations,
-        "link_probes": dict(link.destinations),
-        "worklist_probe": link.worklist,
+        "error": "",
+        "total": len(todays),
+        "counts": [(label, count) for label, count in counts if count],
+        "jobs": todays[:TODAY_ROWS],
     }
 
 

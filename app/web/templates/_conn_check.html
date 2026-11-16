@@ -1,0 +1,17 @@
+{# 接続先の詳細の「接続確認」。最後の結果は、表の同じ行と同じ状態バッジ。押すと、表の同じ行と同じ応答で替わる。
+   接続確認の応答に同梱して差し替えるときは detail_oob #}
+<section class="sec" id="conn-check"{% if detail_oob %} hx-swap-oob="true"{% endif %}>
+  <h2>接続確認</h2>
+  <div class="in">
+    <dl class="kv">
+      <dt>最後の接続確認</dt>
+      {# `.conn` は、部品集が時刻（.when）と理由（.why）の書式を持つ場所。表の結果の列と同じ書式にする #}
+      <dd class="res-d conn">{% with probe = chosen.probe %}{% include "_echo_cell.html" %}{% endwith %}</dd>
+    </dl>
+    <div class="acts mt-3">
+      <button type="button" class="btn" hx-post="{{ chosen.echo_url }}" hx-target="#{{ chosen.cell_id }}" hx-include="#conn-selected" hx-disabled-elt="this">
+        <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-refresh"/></svg>接続確認
+      </button>
+    </div>
+  </div>
+</section>
