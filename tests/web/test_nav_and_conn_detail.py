@@ -99,6 +99,10 @@ def test_destination_detail_has_settings_check_and_todays_sends(client) -> None:
     for label in ("名称", "種類", "AEタイトル", "ホスト名:ポート番号", "保管の確認"):
         assert f"<dt>{label}</dt>" in settings
     assert '<a href="/sent?aet=PACS_TEST">送信一覧で全部見る</a>' in detail
+    # 今日の送信は表の枠をやめて区画の端から端まで（デザインシステム ui-kit 1.2.9。リンクは .sec-foot に入れる）
+    today = detail.split("<h2>今日の送信</h2>", 1)[1]
+    assert '<div class="in flush">' in today
+    assert '<div class="sec-foot"><a href="/sent?aet=PACS_TEST">' in today
     # 件数が 0 でも区画を出す
     assert '今日 <b>0</b> 件' in detail and "今日の送信はありません。" in detail
 
