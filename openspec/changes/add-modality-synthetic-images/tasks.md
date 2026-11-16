@@ -21,7 +21,7 @@
       Name `DTG SYNTHETIC`、Image Comments `SYNTHETIC TEST DATA`、Burned In
       Annotation `NO`、Recognizable Visual Features `NO`）を、装置のプロファイルの
       後に書く
-- [ ] 1.6 ADR-0033 を採用にし、usage.md に選び方を書く
+- [x] 1.6 ADR-0033 を採用にし、usage.md に選び方を書く
 
 ## 2. CR・DX（PR 2）
 

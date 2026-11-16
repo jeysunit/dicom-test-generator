@@ -39,7 +39,7 @@ ADR の一覧と、ADR に固有の書き方です。ドキュメントに共通
 | [0030](0030-mr-images.md) | MR の画像は、シリーズのモダリティで MR Image Storage として作る | 採用 |
 | [0031](0031-dose-report-sr.md) | CT の線量の報告は、線量の画面のほかに X-Ray Radiation Dose SR のシリーズでも作れる | 採用 |
 | [0032](0032-pet-ct-studies.md) | PET/CT の検査は、同じ Study に CT と PT のシリーズを入れて作る | 採用 |
-| [0033](0033-phantom-pixels.md) | 図形の画素は、患者座標で評価した幾何学の図形にし、偽物の印はタグに書く | 提案 |
+| [0033](0033-phantom-pixels.md) | 図形の画素は、患者座標で評価した幾何学の図形にし、偽物の印はタグに書く | 採用 |
 | [0034](0034-cr-dx-images.md) | CR・DX の画像は、CR Image Storage と DX の For Presentation で作る | 提案 |
 | [0035](0035-dicom-communication-first.md) | DTG の主な機能を DICOM 通信にし、ファイルへの出力は単独で使うために残す | 採用 |
 | [0036](0036-patient-sex-four-values.md) | 性別は製品の中で M・F・O・U の 4 値にし、DICOM に書くときは U を空にする | 採用 |
