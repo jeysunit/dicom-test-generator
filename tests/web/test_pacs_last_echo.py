@@ -1,4 +1,4 @@
-"""PACS の接続先の表の「最後の接続確認」の列と、押した直後の通知（docs/spec/12a の 10.6）."""
+"""接続先の表の「最後の接続確認」の列と、押した直後の通知（docs/spec/12a の 10.6）."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def _notice(html: str) -> str:
 
 
 def test_columns_follow_the_connection_table(client) -> None:
-    html = client.get("/pacs").text
+    html = client.get("/connections").text
     head = html.split('<table class="tbl conn">', 1)[1].split("</thead>", 1)[0]
 
     labels = re.findall(r'<th scope="col">([^<]+)</th>', head)
@@ -42,7 +42,7 @@ def test_columns_follow_the_connection_table(client) -> None:
 
 
 def test_column_is_empty_before_any_check(client) -> None:
-    cell = _cell(client.get("/pacs").text)
+    cell = _cell(client.get("/connections").text)
 
     assert '<span class="none">—</span>' in cell
     # 状態バッジ「確認中」は、押している間だけ CSS で出す
@@ -52,11 +52,11 @@ def test_column_is_empty_before_any_check(client) -> None:
 
 def test_column_shows_the_last_result_and_time(tmp_path, worklist_scp, storage_scp) -> None:
     client = make_client(tmp_path, worklist_scp.port, storage_scp.port)
-    token = csrf_token(client, "/pacs")
+    token = csrf_token(client, "/connections")
 
     echoed = client.post("/pacs/echo/PACS_TEST", headers=post_headers(token)).text
 
-    cell = _cell(client.get("/pacs").text)
+    cell = _cell(client.get("/connections").text)
     assert '<span class="st" data-k="ok">成功</span>' in cell
     assert re.search(r'<span class="when">\d{4}/\d{2}/\d{2} \d{2}:\d{2}</span>', cell)
     notice = _notice(echoed)
@@ -66,11 +66,11 @@ def test_column_shows_the_last_result_and_time(tmp_path, worklist_scp, storage_s
 
 def test_failure_shows_a_reason_in_the_cell_and_the_next_step_above(tmp_path, worklist_scp) -> None:
     client = make_client(tmp_path, worklist_scp.port, free_port())
-    token = csrf_token(client, "/pacs")
+    token = csrf_token(client, "/connections")
 
     echoed = client.post("/pacs/echo/PACS_TEST", headers=post_headers(token)).text
 
-    cell = _cell(client.get("/pacs").text)
+    cell = _cell(client.get("/connections").text)
     assert '<span class="st" data-k="ng">失敗</span>' in cell
     assert f'<span class="why">{REASON_NO_ANSWER}</span>' in cell
     notice = _notice(echoed)
@@ -82,15 +82,17 @@ def test_failure_shows_a_reason_in_the_cell_and_the_next_step_above(tmp_path, wo
 
 def test_worklist_row_and_check_all(tmp_path, worklist_scp, storage_scp) -> None:
     client = make_client(tmp_path, worklist_scp.port, storage_scp.port)
-    token = csrf_token(client, "/pacs")
+    token = csrf_token(client, "/connections")
 
     echoed = client.post("/pacs/echo-worklist", headers=post_headers(token)).text
     assert "ワークリストの取得先（127.0.0.1:" in _notice(echoed)
 
     section = client.post("/pacs/check-all", headers=post_headers(token)).text
-    assert '<section id="conn-sec" class="sec">' in section
-    table = section.split('<div id="band"', 1)[0]
+    assert '<div id="conn-sec" class="split-v">' in section
+    table, detail = section.split('<div id="band"', 1)[0].split('<div class="bot"', 1)
     assert table.count('data-k="ok">成功</span>') == 2
+    # 選んでいる相手の詳細も、同じ結果になる
+    assert detail.count('data-k="ok">成功</span>') == 1
     # 上の帯も同じ応答で差し替える
     assert '<div id="band" popover hx-swap-oob="true"' in section
     # 前の接続確認の通知は、同じ応答で消す
@@ -99,7 +101,7 @@ def test_worklist_row_and_check_all(tmp_path, worklist_scp, storage_scp) -> None
 
 def test_check_all_is_skipped_while_another_check_runs(tmp_path, worklist_scp, storage_scp) -> None:
     client = make_client(tmp_path, worklist_scp.port, storage_scp.port)
-    token = csrf_token(client, "/pacs")
+    token = csrf_token(client, "/connections")
 
     assert CHECK_ALL_LOCK.acquire(blocking=False)
     try:

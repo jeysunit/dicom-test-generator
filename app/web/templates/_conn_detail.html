@@ -1,0 +1,69 @@
+{# 接続先の詳細（部品集の conn-detail）。選んだ相手の 設定・接続確認・今日の送信。
+   DTG は画像を受け取らないので「今日の受信」は無く、ワークリストの相手は「今日の送信」も無い。
+   区画が 3 つ（送信先）のときは、最後の区画を 2 列にまたがせる #}
+<div class="grid2" role="region" aria-label="{{ chosen.name }} の詳細">
+  <section class="sec">
+    <h2>設定</h2>
+    <div class="in">
+      <dl class="kv">
+        <dt>名称</dt><dd><b>{{ chosen.name }}</b></dd>
+        <dt>種類</dt><dd>{{ "送信先" if chosen.kind == "destination" else "ワークリスト" }}</dd>
+        <dt>AEタイトル</dt><dd><span class="mono">{{ chosen.node.ae_title }}</span></dd>
+        <dt>ホスト名:ポート番号</dt><dd><span class="mono">{{ chosen.node.host }}:{{ chosen.node.port }}</span></dd>
+        {% if chosen.kind == "destination" %}
+        <dt>保管の確認</dt><dd>{{ "使う" if chosen.node.storage_commitment else "使わない" }}</dd>
+        {% else %}
+        <dt>MPPS</dt><dd>{{ "使う" if chosen.node.use_mpps else "使わない" }}</dd>
+        {% endif %}
+      </dl>
+    </div>
+  </section>
+  {% include "_conn_check.html" %}
+  {% if today_sent is not none %}
+  <section class="sec span">
+    <h2>今日の送信</h2>
+    <div class="in">
+      {% if today_sent.error %}
+      {% with error = today_sent.error %}{% include "_notice.html" %}{% endwith %}
+      {% else %}
+      <div class="listhead">
+        <span class="cnt">今日 <b>{{ today_sent.total }}</b> 件</span>
+        <span class="xs label">{% for label, count in today_sent.counts %}{% if not loop.first %}・{% endif %}{{ label }} {{ count }}{% endfor %}</span>
+      </div>
+      <div class="tbl-wrap" role="region" aria-label="{{ chosen.name }} の今日の送信" tabindex="0">
+        <table class="tbl strong">
+          <thead>
+            <tr>
+              <th scope="col">日時</th>
+              <th scope="col">患者ID</th>
+              <th scope="col">氏名</th>
+              <th scope="col">モダリティ・検査名</th>
+              <th scope="col">状態</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for job in today_sent.jobs %}
+            {% set alphabetic, ideographic, phonetic = job.patient_name|name_parts %}
+            <tr data-row aria-selected="false">
+              <td>{{ (job.created_at|datetime_label).partition(" ")[2] }}</td>
+              <td><span class="mono">{{ job.patient_id or "—" }}</span></td>
+              <td><span class="main-c">{{ ideographic or alphabetic or "—" }}</span></td>
+              <td>{% if job.modality or job.study_description %}{% if job.modality %}<span class="mod" data-m="{{ job.modality|modality_key }}">{{ job.modality }}</span>{% endif %}{% if job.study_description %} {{ job.study_description }}{% endif %}{% else %}—{% endif %}</td>
+              <td><span class="st" data-k="{{ STATUS_KINDS.get(job.status, 'ng') }}">{{ STATUS_LABELS.get(job.status, job.status) }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if not today_sent.jobs %}
+      <div class="empty">
+        <b>今日の送信はありません。</b>
+        <span>撮影して送信すると、ここに出ます。</span>
+      </div>
+      {% endif %}
+      {% endif %}
+      <a href="/sent?aet={{ chosen.node.ae_title|urlencode }}">送信一覧で全部見る</a>
+    </div>
+  </section>
+  {% endif %}
+</div>

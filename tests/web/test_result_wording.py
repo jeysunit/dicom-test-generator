@@ -116,7 +116,7 @@ def test_pacs_job_table_shows_patient_not_folder(client) -> None:
     assert "元のファイル" in detail and "emergency_" in detail
 
 
-@pytest.mark.parametrize("path",["/worklist", "/exam", "/pacs", "/settings"])
+@pytest.mark.parametrize("path",["/worklist", "/exam", "/sent", "/connections", "/settings"])
 def test_pages_do_not_use_avoided_words(client, path) -> None:
     html = client.get(path).text
 

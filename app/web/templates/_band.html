@@ -41,7 +41,7 @@
     <button type="button" class="btn btn-sm" hx-post="/link/check" hx-target="#band" hx-swap="outerHTML" hx-disabled-elt="this">
       <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-refresh"/></svg>接続確認
     </button>
-    <a class="btn btn-sm" href="/pacs">PACS を開く</a>
+    <a class="btn btn-sm" href="/connections">接続先を開く</a>
   </div>
   {% if band.station_notice %}<p role="status" class="text-xs text-danger">{{ band.station_notice }}</p>{% endif %}
   {% if band.error %}<p role="alert" class="text-xs text-danger">{{ band.error }}</p>{% endif %}

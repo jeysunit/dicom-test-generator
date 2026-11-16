@@ -1,4 +1,4 @@
-"""送信ジョブの一覧：モダリティ・検査名の列、Study UID の行、50 件のページ送り、1,000 件の上限（docs/spec/12a の 10.6）."""
+"""送信一覧：モダリティ・検査名の列、Study UID の行、50 件のページ送り、1,000 件の上限（docs/spec/12a の 10.6）."""
 
 from __future__ import annotations
 
@@ -108,7 +108,7 @@ def test_a_list_that_fits_one_page_has_no_pager(client) -> None:
 
 
 def test_the_filter_and_the_summary_buttons_go_back_to_the_first_page(client) -> None:
-    page = client.get("/pacs").text
+    page = client.get("/sent").text
 
     form_tag = page.split('id="queue-filter"', 1)[1].split(">", 1)[0]
     assert 'hx-vals=\'{"page": "1"}\'' in form_tag
@@ -135,7 +135,7 @@ def test_page_and_display_limit_boundaries(client, count, listed, pages, notice)
     assert ("class=\"pager\"" in html) == (pages is not None)
     if pages is not None:
         assert f"1 / {pages}" in html
-    assert ("送信ジョブが 1,000 件を超えたため" in html) == notice
+    assert ("送信の記録が 1,000 件を超えたため" in html) == notice
 
 
 def test_over_a_thousand_jobs_shows_only_the_newest_thousand_with_a_notice(client) -> None:
@@ -143,7 +143,7 @@ def test_over_a_thousand_jobs_shows_only_the_newest_thousand_with_a_notice(clien
 
     html = client.get("/pacs/queue").text
 
-    assert "送信ジョブが 1,000 件を超えたため、新しい 1,000 件だけを出しています。期間を狭めてください。" in html
+    assert "送信の記録が 1,000 件を超えたため、新しい 1,000 件だけを出しています。期間を狭めてください。" in html
     assert "<b>1000</b> 件" in html
     assert "1〜50 件目／全 1000 件" in html
     assert "1 / 20" in html

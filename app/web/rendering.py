@@ -41,7 +41,13 @@ NAV_GROUPS = (
             ("exam", "/exam", "撮影"),
         ),
     ),
-    ("接続", (("pacs", "/pacs", "PACS"),)),
+    (
+        "送受信",
+        (
+            ("sent", "/sent", "送信一覧"),
+            ("connections", "/connections", "接続先"),
+        ),
+    ),
     ("管理", (("settings", "/settings", "設定"), ("version", "/version", "バージョン情報"))),
 )
 
@@ -60,6 +66,7 @@ def render(
         "csrf_token": request.app.state.csrf_token,
         "config": service_of(request).config,
         "oob_band": False,
+        "detail_oob": False,
         **context,
     }
     if page is not None or values["oob_band"]:

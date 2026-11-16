@@ -662,8 +662,12 @@
     var form = source instanceof HTMLFormElement ? source : source.closest("form");
     var target = detail.target;
     if (target && target.id === "queue") {
-      // PACS の画面の再送信：表の上の通知の場所に出す
+      // 送信一覧の再送信：表の上の通知の場所に出す
       return document.getElementById("queue-notice");
+    }
+    if (target && target.id === "conn-sec") {
+      // 接続先の「すべて接続確認」・行の選択が届かないとき：表の上の通知の場所に出す
+      return document.getElementById("echo-notice");
     }
     // 一覧・予約の詳細（行を選んだとき）・接続確認の結果は、差し替える先にそのまま出す
     if (
@@ -916,6 +920,42 @@
     var select = document.querySelector("#queue-filter select[name=period]");
     if (select) {
       showCustomPeriod(select);
+    }
+  });
+
+  // 接続先の表：行の全体を押す・Enter・Space で、その相手の詳細に替える（行の hx-get）。
+  // 行の中のボタン（接続確認）を押したときは、行を選ばない（ボタンの要求だけを出す）
+  document.addEventListener("keydown", function (event) {
+    var target = event.target;
+    var row = target && target.closest ? target.closest("#conn-sec tr[data-row][hx-get]") : null;
+    if (row && row === target && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      row.click();
+    }
+  });
+  var connRowSelected = false;
+  document.addEventListener("htmx:beforeRequest", function (event) {
+    var elt = event.detail.elt;
+    if (!elt || !elt.matches || !elt.matches("#conn-sec tr[data-row][hx-get]")) {
+      return;
+    }
+    var origin = event.detail.requestConfig && event.detail.requestConfig.triggeringEvent;
+    var from = origin && origin.target && origin.target.closest ? origin.target : null;
+    if (from && from.closest("button, a")) {
+      event.preventDefault();
+      return;
+    }
+    connRowSelected = true;
+  });
+  // 差し替えで行が新しくなるので、選んだ行にフォーカスを戻す（キーボードで位置を見失わない）
+  document.addEventListener("htmx:afterSwap", function () {
+    if (!connRowSelected) {
+      return;
+    }
+    connRowSelected = false;
+    var row = document.querySelector('#conn-sec tr[data-row][aria-selected="true"]');
+    if (row) {
+      row.focus();
     }
   });
 

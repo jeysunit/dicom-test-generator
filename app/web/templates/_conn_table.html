@@ -1,55 +1,49 @@
-{# 接続先の区画（10.6）：送信先とワークリストの取得先の表。列は 名称・種類・AEタイトル・ホスト名:ポート番号・最後の接続確認・操作。
-   「すべて接続確認」は、この区画を結果で差し替える（上の帯は同梱して差し替える） #}
-<section id="conn-sec" class="sec">
-  <h2 class="hd">接続先
-    <span class="acts">
-      <button type="button" class="btn btn-sm" hx-post="/pacs/check-all" hx-target="#conn-sec" hx-swap="outerHTML" hx-disabled-elt="#conn-sec button">
-        <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-refresh"/></svg>すべて接続確認
-      </button>
-    </span>
-  </h2>
-  <div class="in flush overflow-x-auto">
-    <table class="tbl conn">
-      <thead>
-        <tr>
-          <th scope="col">名称</th>
-          <th scope="col">種類</th>
-          <th scope="col">AEタイトル</th>
-          <th scope="col">ホスト名:ポート番号</th>
-          <th scope="col">最後の接続確認</th>
-          <th scope="col" class="act"><span class="sr-only">操作</span></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for destination in destinations %}
-        <tr>
-          <td>{{ destination.name }}{% if destination.name == config.default_destination %} <span class="badge">標準</span>{% endif %}</td>
-          <td>送信先<span class="sub">保管の確認 {{ "使う" if destination.storage_commitment else "使わない" }}</span></td>
-          <td class="font-mono">{{ destination.ae_title }}</td>
-          <td class="font-mono">{{ destination.host }}:{{ destination.port }}</td>
-          {# 最後の接続確認：開いたときは、この画面を動かしている間に覚えた最後の結果と時刻。押すと結果で差し替える #}
-          <td id="echo-{{ loop.index }}" class="res">{% with probe = link_probes.get(destination.name) %}{% include "_echo_cell.html" %}{% endwith %}</td>
-          <td class="act">
-            <button type="button" class="btn btn-sm row-open" hx-post="/pacs/echo/{{ destination.name|urlencode }}" hx-target="#echo-{{ loop.index }}" hx-disabled-elt="this" aria-label="{{ destination.name }} の接続確認">
-              <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-refresh"/></svg>接続確認
-            </button>
-          </td>
-        </tr>
-        {% endfor %}
-        <tr>
-          <td>ワークリスト</td>
-          <td>ワークリスト</td>
-          <td class="font-mono">{{ config.worklist.ae_title }}</td>
-          <td class="font-mono">{{ config.worklist.host }}:{{ config.worklist.port }}</td>
-          <td id="echo-worklist" class="res">{% with probe = worklist_probe %}{% include "_echo_cell.html" %}{% endwith %}</td>
-          <td class="act">
-            <button type="button" class="btn btn-sm row-open" hx-post="/pacs/echo-worklist" hx-target="#echo-worklist" hx-disabled-elt="this" aria-label="ワークリストの取得先の接続確認">
-              <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-refresh"/></svg>接続確認
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+{# 接続先の表と、選んだ相手の詳細（10.6。部品集の「接続先の表」「接続先の詳細」）。
+   上に表（名称・種類・AEタイトル・ホスト名:ポート番号・最後の接続確認・操作）、下に詳細。行を選ぶと、この全体を差し替える。
+   選んだ相手は隠した欄 #conn-selected が持ち、接続確認の要求にも添える #}
+<div id="conn-sec" class="split-v">
+  <input type="hidden" id="conn-selected" name="selected" value="{{ chosen.key }}">
+  <div class="top">
+    <div class="overflow-x-auto">
+      <table class="tbl conn">
+        <thead>
+          <tr>
+            <th scope="col">名称</th>
+            <th scope="col">種類</th>
+            <th scope="col">AEタイトル</th>
+            <th scope="col">ホスト名:ポート番号</th>
+            <th scope="col">最後の接続確認</th>
+            <th scope="col" class="act"><span class="sr-only">操作</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for peer in peers %}
+          {# 行の全体を押せる。キーボードは Enter・Space で選ぶ（app.js）。行の中のボタンを押したときは選ばない #}
+          <tr data-row tabindex="0" aria-selected="{{ 'true' if peer.key == chosen.key else 'false' }}" hx-get="/connections/region" hx-vals='{{ {"peer": peer.key}|tojson }}' hx-target="#conn-sec" hx-swap="outerHTML" hx-disinherit="hx-target hx-swap hx-vals">
+            {% if peer.kind == "destination" %}
+            <td>{{ peer.name }}{% if peer.name == config.default_destination %} <span class="badge">標準</span>{% endif %}</td>
+            <td>送信先<span class="sub">保管の確認 {{ "使う" if peer.node.storage_commitment else "使わない" }}</span></td>
+            {% else %}
+            <td>ワークリスト</td>
+            <td>ワークリスト</td>
+            {% endif %}
+            <td class="font-mono">{{ peer.node.ae_title }}</td>
+            <td class="font-mono">{{ peer.node.host }}:{{ peer.node.port }}</td>
+            {# 最後の接続確認：開いたときは、この画面を動かしている間に覚えた最後の結果と時刻。押すと結果で差し替える #}
+            <td id="{{ peer.cell_id }}" class="res">{% with probe = peer.probe %}{% include "_echo_cell.html" %}{% endwith %}</td>
+            <td class="act">
+              <button type="button" class="btn btn-sm row-open" hx-post="{{ peer.echo_url }}" hx-target="#{{ peer.cell_id }}" hx-include="#conn-selected" hx-disabled-elt="this" aria-label="{% if peer.kind == 'destination' %}{{ peer.name }} の接続確認{% else %}ワークリストの取得先の接続確認{% endif %}">
+                <svg class="ic" aria-hidden="true"><use href="/static/ui-kit/icons.svg#i-refresh"/></svg>接続確認
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
-</section>
+  <div class="bot" id="conn-detail">
+    {% include "_conn_detail.html" %}
+  </div>
+</div>
 {% if oob_band %}{% include "_band.html" %}{% endif %}

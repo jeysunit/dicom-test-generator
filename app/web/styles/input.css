@@ -266,24 +266,35 @@
   color: var(--color-label);
 }
 
-/* 接続先の表：確認中は、押した行（「すべて接続確認」なら全部の行）の結果を状態バッジ「確認中」にする */
-.conn td.res .wait-mark {
+/* 接続先の表と詳細：確認中は、押した行（「すべて接続確認」なら全部の行）と、詳細の接続確認の結果を状態バッジ「確認中」にする */
+.conn td.res .wait-mark,
+#conn-detail .res-d .wait-mark {
   display: none;
 }
 .conn tr:has(.htmx-request) td.res > :not(.wait-mark),
-#conn-sec:has(.hd .htmx-request) .conn td.res > :not(.wait-mark) {
+body:has(#check-all.htmx-request) .conn td.res > :not(.wait-mark),
+#conn-detail:has(.htmx-request) .res-d > :not(.wait-mark) {
   display: none;
 }
 .conn tr:has(.htmx-request) td.res .wait-mark,
-#conn-sec:has(.hd .htmx-request) .conn td.res .wait-mark {
+body:has(#check-all.htmx-request) .conn td.res .wait-mark,
+#conn-detail:has(.htmx-request) .res-d .wait-mark {
   display: inline-flex;
 }
-.conn td.res .none {
+.conn td.res .none,
+#conn-detail .res-d .none {
   color: var(--color-label);
+}
+/* 接続先の表は、行の全体を押して詳細を選ぶ */
+.conn tbody tr[data-row] {
+  cursor: pointer;
 }
 /* 中身の無い通知の表示領域は、区画の間をあけない */
 #echo-notice:empty {
   display: none;
+}
+#echo-notice {
+  margin-top: 12px;
 }
 
 /* 撮影・送信の途中の表示。htmx が要求の間、form に htmx-request を付ける。
