@@ -292,6 +292,13 @@ class StudyGeneratorService:
                     "Abnormal data injection is enabled: level=%s", config.abnormal.level
                 )
 
+            # 焼き込む患者 ID は、画像の PatientID（予約の値）と同じにする。仮の患者の値は先頭
+            # 16 文字に切ってあるので使わない
+            burn_in_id = (
+                scheduled.patient.patient_id
+                if scheduled is not None
+                else config.patient.patient_id
+            )
             generated_count = 0
             file_sequence = 1
             # 線量の報告（SR）の撮影ごとの UID は、SR のシリーズが何枚あっても同じにする
@@ -356,7 +363,7 @@ class StudyGeneratorService:
                     elif projection:
                         dataset = self._dicom_builder.build_projection_image(
                             pixel_data=self._generate_projection_pixels(
-                                config, series_config, image_index, sop_uid
+                                config, series_config, image_index, sop_uid, burn_in_id
                             ),
                             photometric_interpretation=photometric,
                             **common,
@@ -380,7 +387,12 @@ class StudyGeneratorService:
                         else:
                             pixel_data, bits_stored = (
                                 self._generate_phantom_pixels(
-                                    config, shape, series_config, spatial, image_index
+                                    config,
+                                    shape,
+                                    series_config,
+                                    spatial,
+                                    image_index,
+                                    burn_in_id,
                                 )
                                 if shape is not None
                                 else self._generate_pixel_data(config, sop_uid)
@@ -726,12 +738,13 @@ class StudyGeneratorService:
         image_index: int,
         pixels: np.ndarray,
         location: str,
+        patient_id: str,
         *,
         high: int,
     ) -> np.ndarray:
         """上端の帯に文字を焼き込む（最小の値は 0、最大の値は `high`。docs/spec/06 の 4.8）."""
         lines = burn_in_lines(
-            config.patient.patient_id,
+            patient_id,
             config.study.study_date,
             series_config.series_number,
             image_index + 1,
@@ -747,6 +760,7 @@ class StudyGeneratorService:
         series_config: SeriesConfig,
         image_index: int,
         sop_uid: str,
+        burn_in_id: str,
     ) -> np.ndarray:
         """CR・DX の画素（MONOCHROME2 の値）。大きさは固定で、Job の幅と高さには従わない.
 
@@ -766,6 +780,7 @@ class StudyGeneratorService:
                     image_index,
                     pixels,
                     f"VIEW {view}",
+                    burn_in_id,
                     high=(1 << PROJECTION_BITS_STORED) - 1,
                 )
             return pixels
@@ -799,6 +814,7 @@ class StudyGeneratorService:
         series_config: SeriesConfig,
         spatial: SpatialCoordinates,
         image_index: int,
+        burn_in_id: str,
     ) -> tuple[np.ndarray, int]:
         bits_stored = config.pixel_spec.bits_stored
         pixels = series_phantom_pixels(
@@ -819,7 +835,7 @@ class StudyGeneratorService:
             # CT は符号ありの Bits Stored（0〜2^(n-1)-1）、MR は符号なし（0〜2^n-1）
             high = (1 << bits_stored) - 1 if mr_series else (1 << (bits_stored - 1)) - 1
             pixels = StudyGeneratorService._burn_in(
-                config, series_config, image_index, pixels, location, high=high
+                config, series_config, image_index, pixels, location, burn_in_id, high=high
             )
         return pixels, bits_stored
 
