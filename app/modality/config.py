@@ -163,6 +163,8 @@ class ModalityConfig(BaseModel):
     default_profile: str | None = None  # 装置のプロファイル（docs/spec/13 の 8）。None は重ねない
     default_hospital: str | None = None
     default_pixel_mode: PixelMode = "ct_realistic"
+    # true：画素の上端に文字を焼き込む。default_pixel_mode が phantom のときだけ書ける（docs/spec/12 の 12）
+    burn_in: bool = False
     # 試験の形：緊急の患者の氏名（かな）を確認せず、直さず、そのまま DICOM に出す（半角カナ・
     # ひらがな・混ざった値の受け側の試験用。docs/spec/12a の 10.5）。false が通常
     patient_input_test_mode: bool = False
@@ -273,6 +275,12 @@ class ModalityConfig(BaseModel):
             f"Station not found: {wanted}",
             {"station": wanted, "known": ", ".join(s.name for s in self.stations)},
         )
+
+    @model_validator(mode="after")
+    def _check_burn_in(self) -> ModalityConfig:
+        if self.burn_in and self.default_pixel_mode != "phantom":
+            raise ValueError("burn_in is only for default_pixel_mode phantom")
+        return self
 
     @model_validator(mode="after")
     def _check_unknown_name_charset(self) -> ModalityConfig:

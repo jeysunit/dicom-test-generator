@@ -236,6 +236,7 @@ PN の形式への変換は spec/06 の 7.2 にある。
 | `width` | int | - | 幅（64〜4096） | 512 |
 | `height` | int | - | 高さ（64〜4096） | 512 |
 | `bits_stored` | int | - | 12〜16（CT・MR）。範囲の外は検証のエラー | 12 |
+| `burn_in` | bool | - | `true` で、画素の上端の帯に文字を焼き込み、Burned In Annotation を `YES` にする（spec/06 の 4.8）。`phantom` 以外の `mode` に書くと（`false` を含む）検証のエラー | false |
 
 ### 3.7 transfer_syntax
 

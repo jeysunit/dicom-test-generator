@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from pydantic_core import PydanticCustomError
 
 
@@ -277,7 +277,20 @@ class SpatialCoordinates(BaseModel):
     )
 
 
-class PixelSpecSimple(BaseModel):
+class _BurnInOnlyForPhantom(BaseModel):
+    """`burn_in` を `phantom` 以外の方式と一緒に書くと断る（docs/spec/07 の 3.6）."""
+
+    burn_in: bool | None = Field(None, description="焼き込みは phantom のときだけ書ける")
+
+    @field_validator("burn_in")
+    @classmethod
+    def _reject_burn_in(cls, value: bool | None) -> bool | None:
+        if value is not None:
+            raise ValueError("burn_in is only for pixel_spec.mode phantom")
+        return value
+
+
+class PixelSpecSimple(_BurnInOnlyForPhantom):
     """Simple Textモードピクセル設定."""
 
     model_config = {"frozen": True}
@@ -290,7 +303,7 @@ class PixelSpecSimple(BaseModel):
     font_size: int = Field(24, ge=8, le=72)
 
 
-class PixelSpecCTRealistic(BaseModel):
+class PixelSpecCTRealistic(_BurnInOnlyForPhantom):
     """CT Realisticモードピクセル設定."""
 
     model_config = {"frozen": True}
@@ -313,6 +326,8 @@ class PixelSpecPhantom(BaseModel):
     height: int = Field(512, ge=64, le=4096)
     # CT Image は 12〜16（PS3.3 C.8.2.1.1.5）。MR も同じ範囲で書く
     bits_stored: int = Field(12, ge=12, le=16)
+    # 選んだときだけ、上端の帯に文字を焼き込む（docs/spec/06 の 4.8）
+    burn_in: bool = False
 
 
 PixelSpec = PixelSpecSimple | PixelSpecCTRealistic | PixelSpecPhantom

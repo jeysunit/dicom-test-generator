@@ -301,3 +301,9 @@ dtg -v "$PWD/job.yaml:/app/job.yaml:ro" "$IMAGE" python -m app.cli generate /app
   `SYNTHETIC TEST DATA` にする（[spec/06](spec/06_dicom_rules.md) の 4.6）。
   ルーチンで撮ると、ルーチンの部位（頭部・胸部・腹部・脊椎・四肢など）の図形になり、
   MR は強調、CT の造影は相で値が変わる（spec/06 の 4.7）
+- 匿名化ツールが画素の焼き込みを見つけられるかを試す：`phantom` に `--burn-in`
+  （`quick`・`exam`）、Job の `pixel_spec.burn_in: true`、設定の `modality.burn_in: true`
+  を足す。画像の上端の帯に `TEST / SYNTHETIC`・患者 ID・検査日・シリーズと何枚目か・
+  位置を描き、Burned In Annotation を `YES` にする。初期値は焼き込まない（`NO`）。
+  `--no-burn-in` で、設定の `burn_in` をこの撮影だけやめられる。`phantom` 以外の方式と
+  一緒に書くと断る（[spec/06](spec/06_dicom_rules.md) の 4.8）

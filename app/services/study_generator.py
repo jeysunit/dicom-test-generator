@@ -43,6 +43,7 @@ from app.core.generator import (
     RETIRED_TRANSFER_SYNTAXES,
     SECONDARY_CAPTURE_IMAGE_STORAGE,
 )
+from app.core.burn_in import burn_in_band, burn_in_lines, plane_location
 from app.core.models import SeriesConfig, SpatialCoordinates
 from app.core.phantom import (
     PHANTOM_MARKS,
@@ -76,6 +77,7 @@ from app.core.series_layout import (
     PET_MATRIX_SIZE,
     dose_events,
     dose_report_lines,
+    localizer_view,
     series_spatial,
 )
 from app.core.path_safety import ensure_within, safe_path_component
@@ -290,6 +292,13 @@ class StudyGeneratorService:
                     "Abnormal data injection is enabled: level=%s", config.abnormal.level
                 )
 
+            # 焼き込む患者 ID は、画像の PatientID（予約の値）と同じにする。仮の患者の値は先頭
+            # 16 文字に切ってあるので使わない
+            burn_in_id = (
+                scheduled.patient.patient_id
+                if scheduled is not None
+                else config.patient.patient_id
+            )
             generated_count = 0
             file_sequence = 1
             # 線量の報告（SR）の撮影ごとの UID は、SR のシリーズが何枚あっても同じにする
@@ -354,7 +363,7 @@ class StudyGeneratorService:
                     elif projection:
                         dataset = self._dicom_builder.build_projection_image(
                             pixel_data=self._generate_projection_pixels(
-                                config, series_config, image_index, sop_uid
+                                config, series_config, image_index, sop_uid, burn_in_id
                             ),
                             photometric_interpretation=photometric,
                             **common,
@@ -378,7 +387,12 @@ class StudyGeneratorService:
                         else:
                             pixel_data, bits_stored = (
                                 self._generate_phantom_pixels(
-                                    config, shape, series_config, spatial, image_index
+                                    config,
+                                    shape,
+                                    series_config,
+                                    spatial,
+                                    image_index,
+                                    burn_in_id,
                                 )
                                 if shape is not None
                                 else self._generate_pixel_data(config, sop_uid)
@@ -414,6 +428,8 @@ class StudyGeneratorService:
                         # 図形で画素を作った画像だけに、偽物の印を書く
                         for keyword, value in PHANTOM_MARKS.items():
                             setattr(dataset, keyword, value)
+                        if config.pixel_spec.burn_in:
+                            dataset.BurnedInAnnotation = "YES"
                     if dose_report:
                         self._keep_secondary_capture_shape(dataset)
                     elif projection:
@@ -690,20 +706,12 @@ class StudyGeneratorService:
             )
         return str(value)
 
-    def _generate_projection_pixels(
-        self,
-        config: GenerationConfig,
-        series_config: SeriesConfig,
-        image_index: int,
-        sop_uid: str,
+    @staticmethod
+    def _projection_phantom_pixels(
+        config: GenerationConfig, series_config: SeriesConfig, image_index: int
     ) -> np.ndarray:
-        """CR・DX の画素（MONOCHROME2 の値）。大きさは固定で、Job の幅と高さには従わない.
-
-        `phantom` は部位の図形（ルーチンの `phantom`）か、無ければ体の楕円と位置の目印、
-        `ct_realistic` は 0〜上限（4095）の模様、`simple_text` は文字（DICOMBuilder が
-        0〜上限に広げる）。
-        """
-        if isinstance(config.pixel_spec, PixelSpecPhantom) and series_config.phantom:
+        """CR・DX の図形の画素。ルーチンの部位の図形か、無ければ体の楕円と位置の目印."""
+        if series_config.phantom:
             views = series_config.view_positions
             return projection_region_pixels(
                 PROJECTION_ROWS,
@@ -715,14 +723,67 @@ class StudyGeneratorService:
                 bits_stored=PROJECTION_BITS_STORED,
                 pixel_spacing_mm=IMAGER_PIXEL_SPACING_MM,
             )
+        return projection_phantom_pixels(
+            PROJECTION_ROWS,
+            PROJECTION_COLUMNS,
+            image_index,
+            series_config.num_images,
+            xray_phantom_values(PROJECTION_BITS_STORED),
+        )
+
+    @staticmethod
+    def _burn_in(
+        config: GenerationConfig,
+        series_config: SeriesConfig,
+        image_index: int,
+        pixels: np.ndarray,
+        location: str,
+        patient_id: str,
+        *,
+        high: int,
+    ) -> np.ndarray:
+        """上端の帯に文字を焼き込む（最小の値は 0、最大の値は `high`。docs/spec/06 の 4.8）."""
+        lines = burn_in_lines(
+            patient_id,
+            config.study.study_date,
+            series_config.series_number,
+            image_index + 1,
+            series_config.num_images,
+            location,
+        )
+        banded, _ = burn_in_band(pixels, lines, low=0, high=high)
+        return banded
+
+    def _generate_projection_pixels(
+        self,
+        config: GenerationConfig,
+        series_config: SeriesConfig,
+        image_index: int,
+        sop_uid: str,
+        burn_in_id: str,
+    ) -> np.ndarray:
+        """CR・DX の画素（MONOCHROME2 の値）。大きさは固定で、Job の幅と高さには従わない.
+
+        `phantom` は部位の図形（ルーチンの `phantom`）か、無ければ体の楕円と位置の目印、
+        `ct_realistic` は 0〜上限（4095）の模様、`simple_text` は文字（DICOMBuilder が
+        0〜上限に広げる）。
+        """
         if isinstance(config.pixel_spec, PixelSpecPhantom):
-            return projection_phantom_pixels(
-                PROJECTION_ROWS,
-                PROJECTION_COLUMNS,
-                image_index,
-                series_config.num_images,
-                xray_phantom_values(PROJECTION_BITS_STORED),
-            )
+            pixels = self._projection_phantom_pixels(config, series_config, image_index)
+            if config.pixel_spec.burn_in:
+                view = series_config.view_positions[
+                    image_index % len(series_config.view_positions)
+                ]
+                pixels = self._burn_in(
+                    config,
+                    series_config,
+                    image_index,
+                    pixels,
+                    f"VIEW {view}",
+                    burn_in_id,
+                    high=(1 << PROJECTION_BITS_STORED) - 1,
+                )
+            return pixels
         if isinstance(config.pixel_spec, PixelSpecCTRealistic):
             # 符号ありの Bits Stored 13 の上限は、符号なしの 12 の上限（4095）と同じ
             return self._pixel_generator.generate_ct_realistic(
@@ -753,6 +814,7 @@ class StudyGeneratorService:
         series_config: SeriesConfig,
         spatial: SpatialCoordinates,
         image_index: int,
+        burn_in_id: str,
     ) -> tuple[np.ndarray, int]:
         bits_stored = config.pixel_spec.bits_stored
         pixels = series_phantom_pixels(
@@ -764,6 +826,17 @@ class StudyGeneratorService:
             cols=config.pixel_spec.width,
             bits_stored=bits_stored,
         )
+        if config.pixel_spec.burn_in:
+            mr_series = series_config.modality == "MR"
+            if series_config.kind == "localizer" and not mr_series:
+                location = f"VIEW {localizer_view(series_config, image_index).upper()}"
+            else:
+                location = plane_location(spatial)
+            # CT は符号ありの Bits Stored（0〜2^(n-1)-1）、MR は符号なし（0〜2^n-1）
+            high = (1 << bits_stored) - 1 if mr_series else (1 << (bits_stored - 1)) - 1
+            pixels = StudyGeneratorService._burn_in(
+                config, series_config, image_index, pixels, location, burn_in_id, high=high
+            )
         return pixels, bits_stored
 
     def _generate_pet_pixels(self, config: GenerationConfig, sop_uid: str) -> np.ndarray:

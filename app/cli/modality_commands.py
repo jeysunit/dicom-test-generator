@@ -143,6 +143,12 @@ def register_modality_commands(
     )
     exam_parser.add_argument("--pixel-mode", choices=PIXEL_MODE_CHOICES, help="ピクセル")
     exam_parser.add_argument(
+        "--burn-in",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="画素の上端に文字を焼き込む（phantom のときだけ。--no-burn-in は焼き込まない）",
+    )
+    exam_parser.add_argument(
         "--abnormal-level", choices=ABNORMAL_LEVEL_CHOICES, default="none", help="異常のデータ"
     )
     exam_parser.add_argument("--charset", choices=CHARSET_CHOICES, help="画像の文字コード")
@@ -314,6 +320,7 @@ def exam_command(args: argparse.Namespace) -> int:
             hospital=args.hospital,
             images_per_series=images,
             pixel_mode=args.pixel_mode,
+            burn_in=args.burn_in,
             abnormal_level=args.abnormal_level,
             charset=args.charset,
             output_dir=args.output,
