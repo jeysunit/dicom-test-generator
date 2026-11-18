@@ -91,9 +91,11 @@ standalone の実行ファイル）にする。** 選んだ理由は ADR-0011 �
   `hidePopover()`・`beforetoggle`・`toggle`・`:popover-open`）は全部 2026-10-16 から
   Widely available で、線の内
   - `scrollbar-gutter: stable`（ui-kit の `components.css`）：Baseline low
-    （2024-12-11）。Widely available になるのは 2027-06-11 の見込み。退避は不要
-    （使えないブラウザーでも、スクロールバーが出入りするときに幅が動くだけで、
-    操作は変わらない）。コピーは DTG の側で直さず、ui-kit で扱う
+    （2024-12-11）。Widely available になるのは 2027-06-11 の見込み。この機能が
+    無いこと自体が退避の形で、別の退避は付けない（使えないブラウザーでも、
+    スクロールバーが出入りするときに幅が動くだけで、操作は変わらない）。幅が
+    動くことが導入先の画面で許せる差かは、導入先の端末では未確認。コピーは
+    DTG の側で直さず、ui-kit で扱う
   - `@property`（Tailwind CSS が `app.css` に作る `--tw-*` の登録）：Baseline low
     （2024-07-09）。Widely available になるのは 2027-01-09 の見込み。Tailwind が
     `@supports` の退避（初期値の指定）を一緒に出すので、DTG の側の対応は不要
